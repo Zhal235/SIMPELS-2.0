@@ -1,0 +1,30 @@
+/*
+ * Production Prep: TailwindCSS Base
+ * ---------------------------------
+ * CHANGE LOG:
+ * - Enable modern, responsive UI via TailwindCSS using Vite plugin.
+ * - Keep font theme consistent and scan sources for blade/js/vue files.
+ * - This file is compiled by Vite; ensure `npm run build` on deploy.
+ */
+@import 'tailwindcss';
+
+@source '../../vendor/laravel/framework/src/Illuminate/Pagination/resources/views/*.blade.php';
+@source '../../storage/framework/views/*.php';
+@source "../**/*.blade.php";
+@source "../**/*.js";
+@source "../**/*.vue";
+
+@theme {
+  --font-sans: 'Instrument Sans', ui-sans-serif, system-ui, sans-serif, 'Apple Color Emoji', 'Segoe UI Emoji',
+    'Segoe UI Symbol', 'Noto Color Emoji';
+}
+
+/* Utility adjustments for consistent layout spacing in app */
+:root {
+  --container-padding: 1rem;
+}
+
+.container-app {
+  padding-left: var(--container-padding);
+  padding-right: var(--container-padding);
+}

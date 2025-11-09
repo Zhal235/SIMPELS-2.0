@@ -1,0 +1,21 @@
+#
+# Production Hardening: Deny executing scripts in storage directory
+# ---------------------------------------------------------------
+# Prevent PHP execution and direct access to storage files on Apache.
+#
+<IfModule mod_php7.c>
+    php_flag engine off
+</IfModule>
+
+<IfModule mod_php8.c>
+    php_flag engine off
+</IfModule>
+
+<IfModule mod_access_compat.c>
+    Order allow,deny
+    Deny from all
+</IfModule>
+
+<IfModule mod_authz_core.c>
+    Require all denied
+</IfModule>
