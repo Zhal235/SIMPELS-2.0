@@ -3,6 +3,7 @@ import Sidebar from './components/Sidebar'
 import Topbar from './components/Topbar'
 import { Suspense, lazy } from 'react'
 import { Toaster } from 'sonner'
+import { Toaster as HotToaster } from 'react-hot-toast'
 
 const Dashboard = lazy(() => import('./pages/Dashboard'))
 const SantriLegacy = lazy(() => import('./pages/Santri'))
@@ -27,6 +28,7 @@ export default function App() {
           <Topbar />
           <main className="flex-1 overflow-y-auto p-4">
             <Toaster position="top-right" richColors expand />
+            <HotToaster position="top-right" />
             <Suspense fallback={<div>Loading...</div>}>
               <Routes>
                 <Route path="/" element={<Dashboard />} />

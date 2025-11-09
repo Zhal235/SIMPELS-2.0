@@ -102,9 +102,11 @@ export default function KesantrianSantri() {
             <button className="btn" onClick={() => { setMode('preview'); setCurrent(row); setModalOpen(true) }} title="Preview">
               <Eye className="w-4 h-4" />
             </button>
-              <button
+            <button
               className="btn"
-              onClick={() => showToast({ title: 'Segera hadir', description: 'Fitur Mutasi akan ditambahkan.', variant: 'info' })}
+              onClick={() => {
+                toast.info('Segera hadir: Fitur Mutasi akan ditambahkan.')
+              }}
               title="Mutasi"
             >
               <Shuffle className="w-4 h-4" />

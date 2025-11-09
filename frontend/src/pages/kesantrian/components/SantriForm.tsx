@@ -2,7 +2,7 @@ import { useEffect, useMemo, useState } from 'react'
 import SantriTabs from './SantriTabs'
 import { AnimatePresence, motion } from 'framer-motion'
 import { toast } from 'sonner'
-import { createSantri, updateSantri } from '@/api/santri'
+import { createSantri, updateSantri } from '../../../api/santri'
 
 export type OrangTua = {
   no_kk?: string
@@ -148,6 +148,11 @@ export default function SantriForm({ mode, initial, onSubmit, onCancel }: Props)
     handleChange('foto', compressed)
   }
 
+  // If preview mode, render a compact profile card instead of readonly form
+  if (mode === 'preview') {
+    return <SantriPreview data={data} onCancel={onCancel} />
+  }
+
   function focusField(fieldName: string) {
     const el = document.querySelector<HTMLInputElement | HTMLTextAreaElement | HTMLSelectElement>(`[name="${fieldName}"]`)
     el?.focus()
@@ -204,8 +209,9 @@ export default function SantriForm({ mode, initial, onSubmit, onCancel }: Props)
                 const blob = dataUrlToBlob(val)
                 formData.append('foto', blob)
               } else {
-                // append as plain string (URL)
-                formData.append('foto', val)
+                // Jika string path/URL (contoh: "/storage/..."), JANGAN kirim saat edit
+                // Backend memvalidasi 'foto' sebagai file image; mengirim string akan memicu 422
+                // Biarkan kosong agar backend mempertahankan foto lama
               }
             }
           } else {
@@ -214,6 +220,8 @@ export default function SantriForm({ mode, initial, onSubmit, onCancel }: Props)
         }
       })
       if (mode === 'preview') return
+      const confirmSave = window.confirm('Apakah data sudah benar dan ingin disimpan?')
+      if (!confirmSave) return
       const promise = mode === 'create'
         ? createSantri(formData)
         : initial?.id
@@ -599,4 +607,87 @@ function getBackendOrigin(): string {
     if (loc.includes(':5173')) return loc.replace(':5173', ':8000')
   } catch {}
   return fallback
+}
+
+// ---------- Preview Component ----------
+type SantriPreviewProps = {
+  data: Santri
+  onCancel: () => void
+}
+
+function Field({ label, value }: { label: string; value?: string | number | null }) {
+  const v = value === undefined || value === null || String(value).trim() === '' ? '–' : String(value)
+  return (
+    <div>
+      <dt className="text-sm text-gray-500 font-medium">{label}</dt>
+      <dd className="text-gray-800 font-semibold">{v}</dd>
+    </div>
+  )
+}
+
+function Section({ title, children }: { title: string; children: React.ReactNode }) {
+  return (
+    <div className="bg-gray-50 rounded-xl p-4">
+      <h3 className="text-base font-semibold mb-3 text-gray-700">{title}</h3>
+      <dl className="grid grid-cols-1 md:grid-cols-2 gap-4">
+        {children}
+      </dl>
+    </div>
+  )
+}
+
+function formatTTL(tempat?: string, tanggal?: string) {
+  const tgl = tanggal && tanggal.trim() ? tanggal : ''
+  const tmp = tempat && tempat.trim() ? tempat : ''
+  if (!tmp && !tgl) return '–'
+  return `${tmp}${tmp && tgl ? ', ' : ''}${tgl}`
+}
+
+function SantriPreview({ data, onCancel }: SantriPreviewProps) {
+  const fotoSrc = getFotoSrc(data.foto ?? '') || (typeof data.foto === 'string' ? data.foto : '/default-photo.png')
+  return (
+    <div>
+      <h2 className="text-xl font-semibold mb-4 text-gray-700">Preview Data Santri</h2>
+      <div className="grid grid-cols-1 md:grid-cols-2 gap-6">
+        {/* Kiri: Biodata */}
+        <div className="space-y-4">
+          <Section title="Data Santri">
+            <Field label="NIS" value={data.nis} />
+            <Field label="Nama" value={data.nama_santri} />
+            <Field label="TTL" value={formatTTL(data.tempat_lahir, data.tanggal_lahir)} />
+            <Field label="Jenis Kelamin" value={data.jenis_kelamin === 'L' ? 'Laki-laki' : 'Perempuan'} />
+            <Field label="Alamat" value={data.alamat} />
+            <Field label="Asal Sekolah" value={data.asal_sekolah} />
+            <Field label="Hobi" value={data.hobi} />
+            <Field label="Cita-cita" value={data.cita_cita} />
+            <Field label="Jumlah Saudara" value={data.jumlah_saudara} />
+            <Field label="Kelas" value={data.kelas} />
+            <Field label="Asrama" value={data.asrama} />
+          </Section>
+
+          <Section title="Data Orang Tua">
+            <Field label="Nama Ayah" value={data.orang_tua?.nama_ayah} />
+            <Field label="Pekerjaan Ayah" value={data.orang_tua?.pekerjaan_ayah} />
+            <Field label="HP Ayah" value={data.orang_tua?.hp_ayah} />
+            <Field label="Nama Ibu" value={data.orang_tua?.nama_ibu} />
+            <Field label="Pekerjaan Ibu" value={data.orang_tua?.pekerjaan_ibu} />
+            <Field label="HP Ibu" value={data.orang_tua?.hp_ibu} />
+          </Section>
+        </div>
+
+        {/* Kanan: Foto */}
+        <div className="flex justify-center items-start">
+          <img
+            src={fotoSrc}
+            alt="Foto Santri"
+            className="w-40 h-48 rounded-lg border object-cover shadow-sm"
+          />
+        </div>
+      </div>
+
+      <div className="mt-6 flex justify-end">
+        <button onClick={onCancel} className="btn">Tutup</button>
+      </div>
+    </div>
+  )
 }

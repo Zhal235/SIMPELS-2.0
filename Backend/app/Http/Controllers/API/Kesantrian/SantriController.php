@@ -6,7 +6,8 @@ use App\Http\Controllers\Controller;
 use App\Models\Kesantrian\Santri;
 use Illuminate\Http\Request;
 use Illuminate\Validation\Rule;
-use Intervention\Image\Facades\Image;
+// Use ImageManagerStatic for better IDE/static analysis compatibility
+use Intervention\Image\ImageManagerStatic as Image;
 use Illuminate\Support\Facades\Storage;
 use App\Http\Resources\SantriResource;
 
