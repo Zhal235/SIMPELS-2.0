@@ -4,9 +4,8 @@ import { fileURLToPath, URL } from 'node:url'
 
 export default defineConfig({
   plugins: [react()],
-  server: { port: 5173, strictPort: true, open: true },
+  server: { port: Number(process.env.VITE_PORT) || 5173, strictPort: true, open: true },
   preview: { port: 4173 },
-  define: { 'process.env': {} },
   resolve: {
     alias: {
       '@': fileURLToPath(new URL('./src', import.meta.url)),

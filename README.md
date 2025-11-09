@@ -15,7 +15,7 @@ Frontend:
 Backend (Laravel):
 - cd Backend
 - php artisan serve
-- Buka http://127.0.0.1:8000/
+- Buka http://127.0.0.1:8001/
 
 ## Build produksi
 

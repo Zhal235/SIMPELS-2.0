@@ -19,10 +19,22 @@ class SantriController extends Controller
         try {
             $page = max((int) $request->query('page', 1), 1);
             $perPage = max((int) $request->query('perPage', 10), 1);
-            $paginator = Santri::query()->orderBy('nama_santri')->paginate($perPage, ['*'], 'page', $page);
+            $paginator = Santri::query()
+                ->with(['kelas'])
+                ->orderBy('nama_santri')
+                ->paginate($perPage, ['*'], 'page', $page);
+
+            // Map agar field "kelas" berupa nama_kelas (string), bukan object relasi
+            $items = collect($paginator->items())->map(function (Santri $s) {
+                $arr = $s->toArray();
+                // Overwrite field 'kelas' menjadi string nama kelas
+                $arr['kelas'] = optional($s->kelas)->nama_kelas ?? ($arr['kelas_nama'] ?? null);
+                return $arr;
+            })->all();
+
             return response()->json([
                 'status' => 'success',
-                'data' => $paginator->items(),
+                'data' => $items,
                 'total' => $paginator->total(),
                 'page' => $paginator->currentPage(),
                 'perPage' => $paginator->perPage(),
@@ -108,16 +120,18 @@ class SantriController extends Controller
      */
     public function show(string $id)
     {
-        $santri = Santri::find($id);
+        $santri = Santri::query()->with(['kelas'])->find($id);
         if (!$santri) {
             return response()->json([
                 'status' => 'error',
                 'message' => 'Santri tidak ditemukan',
             ], 404);
         }
+        $arr = $santri->toArray();
+        $arr['kelas'] = optional($santri->kelas)->nama_kelas ?? ($arr['kelas_nama'] ?? null);
         return response()->json([
             'status' => 'success',
-            'data' => $santri,
+            'data' => $arr,
         ]);
     }
 

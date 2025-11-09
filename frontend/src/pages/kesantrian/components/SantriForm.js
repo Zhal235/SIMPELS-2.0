@@ -122,7 +122,7 @@ export default function SantriForm({ mode, initial, onSubmit, onCancel }) {
             setActiveTab(isOrtu ? 'Data Orang Tua' : 'Data Santri');
             scrollToTop();
             focusField(firstKey);
-            toast.warning('⚠️ Harap lengkapi semua kolom wajib sebelum menyimpan.');
+            toast.error('Beberapa data wajib belum diisi');
             return;
         }
         try {
@@ -176,7 +176,7 @@ export default function SantriForm({ mode, initial, onSubmit, onCancel }) {
             });
             if (mode === 'preview')
                 return;
-            const confirmSave = window.confirm('Apakah data sudah benar dan ingin disimpan?');
+            const confirmSave = window.confirm('Apakah Anda yakin ingin menyimpan data ini?');
             if (!confirmSave)
                 return;
             const promise = mode === 'create'
@@ -232,7 +232,8 @@ export default function SantriForm({ mode, initial, onSubmit, onCancel }) {
                 toast.error('🌐 Tidak dapat terhubung ke server backend.');
             }
             else {
-                toast.error('⚠️ Terjadi kesalahan tak terduga.');
+                const serverMsg = String(err?.response?.data?.message || err?.message || 'Terjadi kesalahan tak terduga.');
+                toast.error(`Gagal menyimpan data: ${serverMsg}`);
             }
         }
         finally {
@@ -324,9 +325,23 @@ function getFotoSrc(foto) {
             return null;
         if (/^data:/i.test(s))
             return s;
-        if (/^https?:\/\//i.test(s))
-            return s;
         const origin = getBackendOrigin();
+        if (/^https?:\/\//i.test(s)) {
+            // Jika URL absolut mengarah ke localhost:8000, ubah ke origin backend saat ini (mis. 8001)
+            try {
+                const u = new URL(s);
+                const o = new URL(origin);
+                const isLocalHost = ['localhost', '127.0.0.1'].includes(u.hostname);
+                if (isLocalHost && u.port && o.port && u.port !== o.port) {
+                    u.protocol = o.protocol;
+                    u.hostname = o.hostname;
+                    u.port = o.port;
+                    return u.toString();
+                }
+            }
+            catch { }
+            return s;
+        }
         if (s.startsWith('/'))
             return origin + s;
         if (s.startsWith('storage') || s.startsWith('uploads'))
@@ -338,7 +353,7 @@ function getFotoSrc(foto) {
     }
 }
 function getBackendOrigin() {
-    const fallback = 'http://127.0.0.1:8000';
+    const fallback = 'http://127.0.0.1:8001';
     try {
         const base = import.meta?.env?.VITE_API_BASE || '';
         if (base) {
@@ -351,7 +366,7 @@ function getBackendOrigin() {
     try {
         const loc = window.location.origin;
         if (loc.includes(':5173'))
-            return loc.replace(':5173', ':8000');
+            return loc.replace(':5173', ':8001');
     }
     catch { }
     return fallback;

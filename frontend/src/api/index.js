@@ -1,7 +1,8 @@
 import axios from 'axios';
 import { useAuthStore } from '../stores/useAuthStore';
 const api = axios.create({
-    baseURL: import.meta.env.VITE_API_BASE,
+    // Default fallback ke http://localhost:8001/api jika VITE_API_BASE tidak diset
+    baseURL: import.meta?.env?.VITE_API_BASE || 'http://localhost:8001/api',
     withCredentials: false,
 });
 // Attach token if available

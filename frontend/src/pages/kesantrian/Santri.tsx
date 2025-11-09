@@ -159,8 +159,10 @@ export default function KesantrianSantri() {
       <Card>
         {loading && items.length === 0 ? (
           <div className="p-4 text-sm text-gray-500">Memuat data…</div>
+        ) : items.length === 0 ? (
+          <div className="p-4 text-sm text-gray-500">Belum ada data santri.</div>
         ) : (
-          <Table columns={columns as any} data={items} />
+          <Table columns={columns as any} data={items} getRowKey={(row: Row, idx: number) => String(row?.id ?? idx)} />
         )}
       </Card>
 
@@ -189,8 +191,22 @@ function getFotoSrc(foto: string | Blob | undefined): string | null {
     const s = String(foto || '')
     if (!s) return null
     if (/^data:/i.test(s)) return s
-    if (/^https?:\/\//i.test(s)) return s
     const origin = getBackendOrigin()
+    if (/^https?:\/\//i.test(s)) {
+      // Jika URL absolut mengarah ke localhost:8000, ubah ke origin backend saat ini (mis. 8001)
+      try {
+        const u = new URL(s)
+        const o = new URL(origin)
+        const isLocalHost = ['localhost', '127.0.0.1'].includes(u.hostname)
+        if (isLocalHost && u.port && o.port && u.port !== o.port) {
+          u.protocol = o.protocol
+          u.hostname = o.hostname
+          u.port = o.port
+          return u.toString()
+        }
+      } catch {}
+      return s
+    }
     if (s.startsWith('/')) return origin + s
     if (s.startsWith('storage') || s.startsWith('uploads')) return `${origin}/${s}`
     return s
@@ -200,7 +216,7 @@ function getFotoSrc(foto: string | Blob | undefined): string | null {
 }
 
 function getBackendOrigin(): string {
-  const fallback = 'http://127.0.0.1:8000'
+  const fallback = 'http://127.0.0.1:8001'
   try {
     const base = (import.meta as any)?.env?.VITE_API_BASE || ''
     if (base) {
@@ -210,10 +226,10 @@ function getBackendOrigin(): string {
   } catch {}
   try {
     const loc = window.location.origin
-    if (loc.includes(':5173')) return loc.replace(':5173', ':8000')
-    if (loc.includes(':5174')) return loc.replace(':5174', ':8000')
-    if (loc.includes(':5175')) return loc.replace(':5175', ':8000')
-    if (loc.includes(':5176')) return loc.replace(':5176', ':8000')
+    if (loc.includes(':5173')) return loc.replace(':5173', ':8001')
+    if (loc.includes(':5174')) return loc.replace(':5174', ':8001')
+    if (loc.includes(':5175')) return loc.replace(':5175', ':8001')
+    if (loc.includes(':5176')) return loc.replace(':5176', ':8001')
   } catch {}
   return fallback
 }

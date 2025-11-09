@@ -4,6 +4,7 @@ namespace App\Models\Kesantrian;
 
 use Illuminate\Database\Eloquent\Factories\HasFactory;
 use Illuminate\Database\Eloquent\Model;
+use App\Models\Kelas;
 
 class Santri extends Model
 {
@@ -49,4 +50,12 @@ class Santri extends Model
         'tanggal_lahir' => 'date',
         'jumlah_saudara' => 'integer',
     ];
+
+    /**
+     * Relasi ke Kelas (untuk model kesantrian legacy)
+     */
+    public function kelas()
+    {
+        return $this->belongsTo(Kelas::class, 'kelas_id');
+    }
 }

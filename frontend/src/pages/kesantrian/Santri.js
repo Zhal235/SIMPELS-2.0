@@ -108,7 +108,7 @@ export default function KesantrianSantri() {
                         }, title: "Hapus", children: _jsx(Trash, { className: "w-4 h-4" }) })] })),
         },
     ]), [currentPage, pageSize]);
-    return (_jsxs("div", { className: "space-y-4", children: [_jsxs("div", { className: "flex justify-between", children: [_jsx("h1", { className: "text-2xl font-semibold text-gray-900", children: "Data Santri" }), _jsx("button", { className: "btn btn-primary", onClick: () => { setMode('create'); setCurrent(null); setModalOpen(true); }, children: "Tambah Santri" })] }), _jsx(Card, { children: loading && items.length === 0 ? (_jsx("div", { className: "p-4 text-sm text-gray-500", children: "Memuat data\u2026" })) : (_jsx(Table, { columns: columns, data: items })) }), _jsx(Modal, { open: modalOpen, title: mode === 'create' ? 'Tambah Santri' : mode === 'edit' ? 'Edit Santri' : 'Preview Santri', onClose: () => setModalOpen(false), footer: null, children: _jsx(SantriForm, { mode: mode, initial: current ?? undefined, onCancel: () => setModalOpen(false), onSubmit: () => { fetchData(); } }) })] }));
+    return (_jsxs("div", { className: "space-y-4", children: [_jsxs("div", { className: "flex justify-between", children: [_jsx("h1", { className: "text-2xl font-semibold text-gray-900", children: "Data Santri" }), _jsx("button", { className: "btn btn-primary", onClick: () => { setMode('create'); setCurrent(null); setModalOpen(true); }, children: "Tambah Santri" })] }), _jsx(Card, { children: loading && items.length === 0 ? (_jsx("div", { className: "p-4 text-sm text-gray-500", children: "Memuat data\u2026" })) : items.length === 0 ? (_jsx("div", { className: "p-4 text-sm text-gray-500", children: "Belum ada data santri." })) : (_jsx(Table, { columns: columns, data: items, getRowKey: (row, idx) => String(row?.id ?? idx) })) }), _jsx(Modal, { open: modalOpen, title: mode === 'create' ? 'Tambah Santri' : mode === 'edit' ? 'Edit Santri' : 'Preview Santri', onClose: () => setModalOpen(false), footer: null, children: _jsx(SantriForm, { mode: mode, initial: current ?? undefined, onCancel: () => setModalOpen(false), onSubmit: () => { fetchData(); } }) })] }));
 }
 // Helpers to resolve foto URL to backend origin
 function getFotoSrc(foto) {
@@ -122,9 +122,23 @@ function getFotoSrc(foto) {
             return null;
         if (/^data:/i.test(s))
             return s;
-        if (/^https?:\/\//i.test(s))
-            return s;
         const origin = getBackendOrigin();
+        if (/^https?:\/\//i.test(s)) {
+            // Jika URL absolut mengarah ke localhost:8000, ubah ke origin backend saat ini (mis. 8001)
+            try {
+                const u = new URL(s);
+                const o = new URL(origin);
+                const isLocalHost = ['localhost', '127.0.0.1'].includes(u.hostname);
+                if (isLocalHost && u.port && o.port && u.port !== o.port) {
+                    u.protocol = o.protocol;
+                    u.hostname = o.hostname;
+                    u.port = o.port;
+                    return u.toString();
+                }
+            }
+            catch { }
+            return s;
+        }
         if (s.startsWith('/'))
             return origin + s;
         if (s.startsWith('storage') || s.startsWith('uploads'))
@@ -136,7 +150,7 @@ function getFotoSrc(foto) {
     }
 }
 function getBackendOrigin() {
-    const fallback = 'http://127.0.0.1:8000';
+const fallback = 'http://127.0.0.1:8001';
     try {
         const base = import.meta?.env?.VITE_API_BASE || '';
         if (base) {
@@ -148,13 +162,13 @@ function getBackendOrigin() {
     try {
         const loc = window.location.origin;
         if (loc.includes(':5173'))
-            return loc.replace(':5173', ':8000');
+            return loc.replace(':5173', ':8001');
         if (loc.includes(':5174'))
-            return loc.replace(':5174', ':8000');
+            return loc.replace(':5174', ':8001');
         if (loc.includes(':5175'))
-            return loc.replace(':5175', ':8000');
+            return loc.replace(':5175', ':8001');
         if (loc.includes(':5176'))
-            return loc.replace(':5176', ':8000');
+            return loc.replace(':5176', ':8001');
     }
     catch { }
     return fallback;

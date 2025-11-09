@@ -1,10 +1,11 @@
 import { PropsWithChildren } from 'react'
 
-type Column<T> = { key: keyof T; header: string; render?: (value: any, row: T, idx: number) => React.ReactNode }
+// Allow custom, synthetic columns (e.g., 'no', 'actions') in addition to real keys of T
+type Column<T> = { key: keyof T | string; header: string; render?: (value: any, row: T, idx: number) => React.ReactNode }
 
-type TableProps<T> = PropsWithChildren<{ columns: Column<T>[]; data: T[] }>
+type TableProps<T> = PropsWithChildren<{ columns: Column<T>[]; data: T[]; getRowKey?: (row: T, idx: number) => React.Key }>
 
-export default function Table<T extends Record<string, any>>({ columns, data }: TableProps<T>) {
+export default function Table<T extends Record<string, any>>({ columns, data, getRowKey }: TableProps<T>) {
   return (
     <div className="overflow-x-auto">
       <table className="min-w-full divide-y divide-gray-200">
@@ -18,15 +19,23 @@ export default function Table<T extends Record<string, any>>({ columns, data }: 
           </tr>
         </thead>
         <tbody className="divide-y divide-gray-100 bg-white">
-          {data.map((row, idx) => (
-            <tr key={idx} className="hover:bg-gray-50">
-              {columns.map((col) => (
-                <td key={String(col.key)} className="px-4 py-2 text-sm text-gray-700">
-                  {col.render ? col.render(row[col.key], row, idx) : String(row[col.key] ?? '')}
-                </td>
-              ))}
-            </tr>
-          ))}
+          {Array.isArray(data) && data.map((row, idx) => {
+            const rowKey = getRowKey ? getRowKey(row, idx) : idx
+            return (
+              <tr key={String(rowKey)} className="hover:bg-gray-50">
+                {columns.map((col) => {
+                  // Safely read value when key may be synthetic (not present on row)
+                  const key = col.key as keyof T
+                  const value = (row as any)[key]
+                  return (
+                    <td key={String(col.key)} className="px-4 py-2 text-sm text-gray-700">
+                      {col.render ? col.render(value, row, idx) : String(value ?? '')}
+                    </td>
+                  )
+                })}
+              </tr>
+            )
+          })}
         </tbody>
       </table>
     </div>

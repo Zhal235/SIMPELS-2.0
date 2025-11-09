@@ -2,6 +2,7 @@ import { BrowserRouter, Routes, Route, Navigate } from 'react-router-dom'
 import Sidebar from './components/Sidebar'
 import Topbar from './components/Topbar'
 import { Suspense, lazy } from 'react'
+import ErrorBoundary from './components/ErrorBoundary'
 import { Toaster } from 'sonner'
 import { Toaster as HotToaster } from 'react-hot-toast'
 
@@ -18,6 +19,7 @@ const KesantrianAsrama = lazy(() => import('./pages/kesantrian/Asrama'))
 const MutasiMasuk = lazy(() => import('./pages/kesantrian/MutasiMasuk'))
 const MutasiKeluar = lazy(() => import('./pages/kesantrian/MutasiKeluar'))
 const Alumni = lazy(() => import('./pages/kesantrian/Alumni'))
+// Akademik subpages (dipindah: Kelas berada di menu Kesantrian)
 
 export default function App() {
   return (
@@ -29,9 +31,10 @@ export default function App() {
           <main className="flex-1 overflow-y-auto p-4">
             <Toaster position="top-right" richColors expand />
             <HotToaster position="top-right" />
-            <Suspense fallback={<div>Loading...</div>}>
-              <Routes>
-                <Route path="/" element={<Dashboard />} />
+            <ErrorBoundary>
+              <Suspense fallback={<div>Loading...</div>}>
+                <Routes>
+                  <Route path="/" element={<Dashboard />} />
                 {/* legacy route redirect to kesantrian/santri */}
                 <Route path="/santri" element={<Navigate to="/kesantrian/santri" replace />} />
                 {/* intermediate breadcrumb routes */}
@@ -49,8 +52,11 @@ export default function App() {
                 <Route path="/kesantrian/mutasi/masuk" element={<MutasiMasuk />} />
                 <Route path="/kesantrian/mutasi/keluar" element={<MutasiKeluar />} />
                 <Route path="/kesantrian/alumni" element={<Alumni />} />
-              </Routes>
-            </Suspense>
+                {/* akademik submenus */}
+                {/* Kelas dipindahkan ke /kesantrian/kelas */}
+                </Routes>
+              </Suspense>
+            </ErrorBoundary>
           </main>
         </div>
       </div>
