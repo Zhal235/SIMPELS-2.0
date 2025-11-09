@@ -1,12 +1,25 @@
-import { BrowserRouter, Routes, Route } from 'react-router-dom'
+import { BrowserRouter, Routes, Route, Navigate } from 'react-router-dom'
 import Sidebar from './components/Sidebar'
 import Topbar from './components/Topbar'
-import Dashboard from './pages/Dashboard'
-import Santri from './pages/Santri'
-import Keuangan from './pages/Keuangan'
-import Absensi from './pages/Absensi'
-import Pengguna from './pages/Pengguna'
-import Pengaturan from './pages/Pengaturan'
+import { Suspense, lazy } from 'react'
+import ErrorBoundary from './components/ErrorBoundary'
+import { Toaster } from 'sonner'
+import { Toaster as HotToaster } from 'react-hot-toast'
+
+const Dashboard = lazy(() => import('./pages/Dashboard'))
+const SantriLegacy = lazy(() => import('./pages/Santri'))
+const Keuangan = lazy(() => import('./pages/Keuangan'))
+const Absensi = lazy(() => import('./pages/Absensi'))
+const Pengguna = lazy(() => import('./pages/Pengguna'))
+const Pengaturan = lazy(() => import('./pages/Pengaturan'))
+// Kesantrian subpages
+const KesantrianSantri = lazy(() => import('./pages/kesantrian/Santri'))
+const KesantrianKelas = lazy(() => import('./pages/kesantrian/Kelas'))
+const KesantrianAsrama = lazy(() => import('./pages/kesantrian/Asrama'))
+const MutasiMasuk = lazy(() => import('./pages/kesantrian/MutasiMasuk'))
+const MutasiKeluar = lazy(() => import('./pages/kesantrian/MutasiKeluar'))
+const Alumni = lazy(() => import('./pages/kesantrian/Alumni'))
+// Akademik subpages (dipindah: Kelas berada di menu Kesantrian)
 
 export default function App() {
   return (
@@ -16,14 +29,34 @@ export default function App() {
         <div className="flex w-full flex-col">
           <Topbar />
           <main className="flex-1 overflow-y-auto p-4">
-            <Routes>
-              <Route path="/" element={<Dashboard />} />
-              <Route path="/santri" element={<Santri />} />
-              <Route path="/keuangan" element={<Keuangan />} />
-              <Route path="/absensi" element={<Absensi />} />
-              <Route path="/pengguna" element={<Pengguna />} />
-              <Route path="/pengaturan" element={<Pengaturan />} />
-            </Routes>
+            <Toaster position="top-right" richColors expand />
+            <HotToaster position="top-right" />
+            <ErrorBoundary>
+              <Suspense fallback={<div className="p-6 text-center text-gray-500">Memuat halaman...</div>}>
+                <Routes>
+                  <Route path="/" element={<Dashboard />} />
+                {/* legacy route redirect to kesantrian/santri */}
+                <Route path="/santri" element={<Navigate to="/kesantrian/santri" replace />} />
+                {/* intermediate breadcrumb routes */}
+                <Route path="/kesantrian" element={<Navigate to="/kesantrian/santri" replace />} />
+                <Route path="/kesantrian/mutasi" element={<Navigate to="/kesantrian/mutasi/masuk" replace />} />
+                {/* main menus */}
+                <Route path="/keuangan" element={<Keuangan />} />
+                <Route path="/absensi" element={<Absensi />} />
+                <Route path="/pengguna" element={<Pengguna />} />
+                <Route path="/pengaturan" element={<Pengaturan />} />
+                {/* kesantrian submenus */}
+                <Route path="/kesantrian/santri" element={<KesantrianSantri />} />
+                <Route path="/kesantrian/kelas" element={<KesantrianKelas />} />
+                <Route path="/kesantrian/asrama" element={<KesantrianAsrama />} />
+                <Route path="/kesantrian/mutasi/masuk" element={<MutasiMasuk />} />
+                <Route path="/kesantrian/mutasi/keluar" element={<MutasiKeluar />} />
+                <Route path="/kesantrian/alumni" element={<Alumni />} />
+                {/* akademik submenus */}
+                {/* Kelas dipindahkan ke /kesantrian/kelas */}
+                </Routes>
+              </Suspense>
+            </ErrorBoundary>
           </main>
         </div>
       </div>

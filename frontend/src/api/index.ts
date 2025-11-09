@@ -3,15 +3,24 @@ import type { AxiosRequestConfig, Method } from 'axios'
 import { useAuthStore } from '../stores/useAuthStore'
 
 const api = axios.create({
-  baseURL: import.meta.env.VITE_API_BASE,
-  withCredentials: true,
+  // Default fallback ke http://127.0.0.1:8001/api jika VITE_API_BASE tidak diset
+  // Menggunakan 127.0.0.1 untuk menghindari potensi masalah resolusi "localhost" pada beberapa environment
+  baseURL: (import.meta as any)?.env?.VITE_API_BASE || 'http://127.0.0.1:8001/api',
+  withCredentials: false,
 })
 
 // Attach token if available
 api.interceptors.request.use((config) => {
   const token = useAuthStore.getState().token
   if (token) {
-    config.headers = { ...(config.headers || {}), Authorization: `Bearer ${token}` }
+    // Axios v1 may use AxiosHeaders instance or a plain object for headers
+    const h = config.headers as any
+    if (h && typeof h.set === 'function') {
+      // If AxiosHeaders, prefer using .set for type safety
+      h.set('Authorization', `Bearer ${token}`)
+    } else {
+      config.headers = { ...(h || {}), Authorization: `Bearer ${token}` } as any
+    }
   }
   return config
 })
