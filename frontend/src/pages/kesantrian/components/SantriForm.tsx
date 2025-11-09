@@ -681,12 +681,22 @@ function SantriPreview({ data, onCancel }: SantriPreviewProps) {
           </Section>
 
           <Section title="Data Orang Tua">
-            <Field label="Nama Ayah" value={data.orang_tua?.nama_ayah} />
-            <Field label="Pekerjaan Ayah" value={data.orang_tua?.pekerjaan_ayah} />
-            <Field label="HP Ayah" value={data.orang_tua?.hp_ayah} />
-            <Field label="Nama Ibu" value={data.orang_tua?.nama_ibu} />
-            <Field label="Pekerjaan Ibu" value={data.orang_tua?.pekerjaan_ibu} />
-            <Field label="HP Ibu" value={data.orang_tua?.hp_ibu} />
+            <div>
+              <h4 className="text-sm font-semibold text-gray-600">Data Ayah</h4>
+              <div className="mt-2 space-y-2">
+                <Field label="Nama Ayah" value={data.orang_tua?.nama_ayah} />
+                <Field label="Pekerjaan Ayah" value={data.orang_tua?.pekerjaan_ayah} />
+                <Field label="HP Ayah" value={data.orang_tua?.hp_ayah} />
+              </div>
+            </div>
+            <div>
+              <h4 className="text-sm font-semibold text-gray-600">Data Ibu</h4>
+              <div className="mt-2 space-y-2">
+                <Field label="Nama Ibu" value={data.orang_tua?.nama_ibu} />
+                <Field label="Pekerjaan Ibu" value={data.orang_tua?.pekerjaan_ibu} />
+                <Field label="HP Ibu" value={data.orang_tua?.hp_ibu} />
+              </div>
+            </div>
           </Section>
         </div>
 

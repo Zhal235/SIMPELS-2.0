@@ -3,8 +3,9 @@ import type { AxiosRequestConfig, Method } from 'axios'
 import { useAuthStore } from '../stores/useAuthStore'
 
 const api = axios.create({
-  // Default fallback ke http://localhost:8001/api jika VITE_API_BASE tidak diset
-  baseURL: (import.meta as any)?.env?.VITE_API_BASE || 'http://localhost:8001/api',
+  // Default fallback ke http://127.0.0.1:8001/api jika VITE_API_BASE tidak diset
+  // Menggunakan 127.0.0.1 untuk menghindari potensi masalah resolusi "localhost" pada beberapa environment
+  baseURL: (import.meta as any)?.env?.VITE_API_BASE || 'http://127.0.0.1:8001/api',
   withCredentials: false,
 })
 

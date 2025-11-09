@@ -2,7 +2,7 @@ import { useEffect, useMemo, useState } from 'react'
 import Card from '../../components/Card'
 import Table from '../../components/Table'
 import Modal from '../../components/Modal'
-import { Edit2, Trash2, UserRoundPlus } from 'lucide-react'
+import { Edit2, Trash2, UserRoundPlus, X } from 'lucide-react'
 import { Button } from '@/components/ui/button'
 import { toast } from 'sonner'
 import api from '@/api'
@@ -213,33 +213,33 @@ export default function KesantrianAsrama() {
       </Modal>
 
       {/* Modal Anggota Asrama */}
-      <Modal open={membersOpen} title={`Anggota Asrama${memberAsrama ? `: ${memberAsrama.nama_asrama}` : ''}`} onClose={() => setMembersOpen(false)} footer={null}>
-        <div className="space-y-3">
-          <div className="grid grid-cols-1 gap-3 md:grid-cols-3">
-            <div className="md:col-span-2">
-              <label className="block text-sm font-medium text-gray-700">Pilih Santri (tanpa asrama)</label>
-              <select className="mt-1 w-full rounded-md border px-3 py-2" value={selectedSantriId} onChange={(e) => setSelectedSantriId(e.target.value)}>
-                <option value="">— pilih santri —</option>
+      <Modal
+        open={membersOpen}
+        title={`Anggota Asrama${memberAsrama ? `: ${memberAsrama.nama_asrama}` : ''}`}
+        onClose={() => setMembersOpen(false)}
+        footer={<button className="btn" onClick={() => setMembersOpen(false)}>Tutup</button>}
+      >
+        <div className="space-y-4">
+          <div className="flex items-end gap-2">
+            <div className="flex-1">
+              <label className="block text-sm font-medium text-gray-700">Tambah Anggota</label>
+              <select
+                className="mt-1 w-full rounded-md border px-3 py-2"
+                value={selectedSantriId}
+                onChange={(e) => setSelectedSantriId(e.target.value)}
+              >
+                <option value="">Pilih santri tanpa asrama</option>
                 {availableSantri.map((s) => (
                   <option key={s.id} value={s.id}>{s.nama_santri}</option>
                 ))}
               </select>
             </div>
-            <div className="flex items-end">
-              <button className="btn btn-primary w-full" onClick={addMember}>Tambah Anggota</button>
-            </div>
+            <button className="btn btn-primary" onClick={addMember} disabled={!selectedSantriId}>Tambah Anggota</button>
           </div>
 
-          <div className="mt-3">
-            <h3 className="text-sm font-medium text-gray-700">Daftar Anggota Saat Ini</h3>
-            <div className="mt-2 space-y-2">
-              {(memberAsrama?.santri_count ?? 0) === 0 ? (
-                <div className="text-sm text-gray-500">Belum ada anggota.</div>
-              ) : (
-                <MembersTable asrama={memberAsrama!} onRemove={removeMember} />
-              )}
-            </div>
-          </div>
+          <Card title="Daftar Anggota">
+            <MembersTable asrama={memberAsrama!} onRemove={removeMember} />
+          </Card>
         </div>
       </Modal>
     </div>
@@ -262,28 +262,20 @@ function MembersTable({ asrama, onRemove }: { asrama: Asrama; onRemove: (s: Sant
     }
     fetchMembers()
   }, [asrama?.id])
+
+  // Tiru UI anggota kelas: gunakan Table dengan tombol "Keluarkan"
   return (
-    <div className="border rounded-md">
-      <div className="grid grid-cols-12 gap-2 p-2 bg-gray-50 text-xs font-medium text-gray-600">
-        <div className="col-span-1">No</div>
-        <div className="col-span-7">Nama Santri</div>
-        <div className="col-span-3">Asrama</div>
-        <div className="col-span-1">Aksi</div>
-      </div>
-      {members.length === 0 ? (
-        <div className="p-2 text-sm text-gray-500">Belum ada anggota.</div>
-      ) : members.map((m, idx) => (
-        <div key={m.id} className="grid grid-cols-12 gap-2 p-2 border-t text-sm">
-          <div className="col-span-1">{idx + 1}</div>
-          <div className="col-span-7">{m.nama_santri}</div>
-          <div className="col-span-3">{m.asrama || '—'}</div>
-          <div className="col-span-1">
-            <button className="btn" title="Keluarkan" onClick={() => onRemove(m)}>
-              <X className="w-4 h-4" />
-            </button>
-          </div>
-        </div>
-      ))}
-    </div>
+    <Table<Santri>
+      columns={[
+        { key: 'no' as any, header: 'No', render: (_v, _row, idx) => idx + 1 },
+        { key: 'nama_santri', header: 'Nama Santri' },
+        { key: 'asrama', header: 'Asrama', render: () => asrama?.nama_asrama ?? '—' },
+        { key: 'aksi' as any, header: 'Aksi', render: (_v, row) => (
+          <button className="btn btn-danger" onClick={() => onRemove(row)}>Keluarkan</button>
+        ) },
+      ]}
+      data={Array.isArray(members) ? members : []}
+      getRowKey={(row, idx) => (row as any)?.id ?? idx}
+    />
   )
 }
