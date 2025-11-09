@@ -4,7 +4,7 @@ import { useAuthStore } from '../stores/useAuthStore'
 
 const api = axios.create({
   baseURL: import.meta.env.VITE_API_BASE,
-  withCredentials: true,
+  withCredentials: false,
 })
 
 // Attach token if available
