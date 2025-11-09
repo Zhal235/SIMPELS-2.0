@@ -2,7 +2,8 @@ import { useEffect, useMemo, useState } from 'react'
 import Card from '../../components/Card'
 import Table from '../../components/Table'
 import Modal from '../../components/Modal'
-import { Pencil, Eye, Shuffle, Trash } from 'lucide-react'
+import { Edit2, Eye, Shuffle, Trash2 } from 'lucide-react'
+import { Button } from '@/components/ui/button'
 import SantriForm from './components/SantriForm'
 import type { Santri } from './components/SantriForm'
 import { listSantri, deleteSantri } from '@/api/santri'
@@ -96,23 +97,40 @@ export default function KesantrianSantri() {
         header: 'Aksi',
         render: (_: any, row: Row) => (
           <div className="flex gap-2">
-            <button className="btn" onClick={() => { setMode('edit'); setCurrent(row); setModalOpen(true) }} title="Edit">
-              <Pencil className="w-4 h-4" />
-            </button>
-            <button className="btn" onClick={() => { setMode('preview'); setCurrent(row); setModalOpen(true) }} title="Preview">
-              <Eye className="w-4 h-4" />
-            </button>
-            <button
-              className="btn"
+            <Button
+              variant="outline"
+              size="icon"
+              title="Edit"
+              className="border-gray-200 text-gray-700 hover:text-brand hover:border-brand transition-all duration-150 rounded-lg shadow-sm bg-white"
+              onClick={() => { setMode('edit'); setCurrent(row); setModalOpen(true) }}
+            >
+              <Edit2 size={16} />
+            </Button>
+            <Button
+              variant="outline"
+              size="icon"
+              title="Lihat Detail"
+              className="border-gray-200 text-gray-700 hover:text-brand hover:border-brand transition-all duration-150 rounded-lg shadow-sm bg-white"
+              onClick={() => { setMode('preview'); setCurrent(row); setModalOpen(true) }}
+            >
+              <Eye size={16} />
+            </Button>
+            <Button
+              variant="outline"
+              size="icon"
+              title="Mutasi"
+              className="border-gray-200 text-gray-700 hover:text-brand hover:border-brand transition-all duration-150 rounded-lg shadow-sm bg-white"
               onClick={() => {
                 toast.info('Segera hadir: Fitur Mutasi akan ditambahkan.')
               }}
-              title="Mutasi"
             >
-              <Shuffle className="w-4 h-4" />
-            </button>
-            <button
-              className="btn"
+              <Shuffle size={16} />
+            </Button>
+            <Button
+              variant="outline"
+              size="icon"
+              title="Hapus"
+              className="border-gray-200 text-gray-700 hover:text-red-500 hover:border-red-300 transition-all duration-150 rounded-lg shadow-sm bg-white"
               onClick={async () => {
                 const ok = confirm('Yakin ingin hapus data santri ini?')
                 if (!ok) return
@@ -135,10 +153,9 @@ export default function KesantrianSantri() {
                   }
                 }
               }}
-              title="Hapus"
             >
-              <Trash className="w-4 h-4" />
-            </button>
+              <Trash2 size={16} />
+            </Button>
           </div>
         ),
       },

@@ -19,8 +19,13 @@ class SantriController extends Controller
         try {
             $page = max((int) $request->query('page', 1), 1);
             $perPage = max((int) $request->query('perPage', 10), 1);
-            $paginator = Santri::query()
-                ->with(['kelas'])
+            $query = Santri::query();
+            // Optional filter: santri tanpa asrama
+            if ($request->boolean('withoutAsrama')) {
+                $query->whereNull('asrama_id');
+            }
+            $paginator = $query
+                ->with(['kelas', 'asrama'])
                 ->orderBy('nama_santri')
                 ->paginate($perPage, ['*'], 'page', $page);
 
@@ -29,6 +34,8 @@ class SantriController extends Controller
                 $arr = $s->toArray();
                 // Overwrite field 'kelas' menjadi string nama kelas
                 $arr['kelas'] = optional($s->kelas)->nama_kelas ?? ($arr['kelas_nama'] ?? null);
+                // Tambahkan field 'asrama' sebagai string nama asrama
+                $arr['asrama'] = optional($s->asrama)->nama_asrama ?? ($arr['asrama_nama'] ?? null);
                 return $arr;
             })->all();
 
@@ -120,7 +127,7 @@ class SantriController extends Controller
      */
     public function show(string $id)
     {
-        $santri = Santri::query()->with(['kelas'])->find($id);
+        $santri = Santri::query()->with(['kelas', 'asrama'])->find($id);
         if (!$santri) {
             return response()->json([
                 'status' => 'error',
@@ -129,6 +136,7 @@ class SantriController extends Controller
         }
         $arr = $santri->toArray();
         $arr['kelas'] = optional($santri->kelas)->nama_kelas ?? ($arr['kelas_nama'] ?? null);
+        $arr['asrama'] = optional($santri->asrama)->nama_asrama ?? ($arr['asrama_nama'] ?? null);
         return response()->json([
             'status' => 'success',
             'data' => $arr,

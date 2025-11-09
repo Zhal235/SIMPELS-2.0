@@ -5,6 +5,8 @@ import Modal from '../../components/Modal'
 import api from '../../api'
 import { handleError } from '../../utils/handleError'
 import { toast } from 'react-hot-toast'
+import { Button } from '@/components/ui/button'
+import { Edit2, Trash2, UserRoundPlus } from 'lucide-react'
 
 type KelasItem = {
   id: number
@@ -196,9 +198,33 @@ export default function KesantrianKelas() {
                 header: 'Aksi',
                 render: (_v, row) => (
                   <div className="flex gap-2">
-                    <button className="btn" onClick={() => openEdit(row)}>✏️ Edit</button>
-                    <button className="btn" onClick={() => openMembers(row)}>👥 Anggota</button>
-                    <button className="btn btn-danger" onClick={() => deleteKelas(row)}>🗑️ Hapus</button>
+                    <Button
+                      variant="outline"
+                      size="icon"
+                      title="Edit"
+                      className="border-gray-200 text-gray-700 hover:text-brand hover:border-brand transition-all duration-150 rounded-lg shadow-sm bg-white"
+                      onClick={() => openEdit(row)}
+                    >
+                      <Edit2 size={16} />
+                    </Button>
+                    <Button
+                      variant="outline"
+                      size="icon"
+                      title="Tambah Anggota"
+                      className="border-gray-200 text-gray-700 hover:text-brand hover:border-brand transition-all duration-150 rounded-lg shadow-sm bg-white"
+                      onClick={() => openMembers(row)}
+                    >
+                      <UserRoundPlus size={16} />
+                    </Button>
+                    <Button
+                      variant="outline"
+                      size="icon"
+                      title="Hapus"
+                      className="border-gray-200 text-gray-700 hover:text-red-500 hover:border-red-300 transition-all duration-150 rounded-lg shadow-sm bg-white"
+                      onClick={() => deleteKelas(row)}
+                    >
+                      <Trash2 size={16} />
+                    </Button>
                   </div>
                 ),
               },

@@ -32,7 +32,7 @@ export default function App() {
             <Toaster position="top-right" richColors expand />
             <HotToaster position="top-right" />
             <ErrorBoundary>
-              <Suspense fallback={<div>Loading...</div>}>
+              <Suspense fallback={<div className="p-6 text-center text-gray-500">Memuat halaman...</div>}>
                 <Routes>
                   <Route path="/" element={<Dashboard />} />
                 {/* legacy route redirect to kesantrian/santri */}

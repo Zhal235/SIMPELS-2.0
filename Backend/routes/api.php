@@ -2,6 +2,7 @@
 
 use Illuminate\Support\Facades\Route;
 use App\Http\Controllers\Kesantrian\SantriController;
+use App\Http\Controllers\Kesantrian\AsramaController;
 use App\Http\Controllers\KelasController;
 
 // API v1 endpoints untuk modul Kesantrian (Santri)
@@ -37,4 +38,8 @@ Route::prefix('v1/kesantrian')->group(function () {
         Route::delete('/{kelas}/anggota/{santri}', [KelasController::class, 'keluarkanAnggota']);
         Route::post('/promote', [KelasController::class, 'promote']);
     });
+    // Modul Asrama
+    Route::apiResource('asrama', AsramaController::class);
+    Route::post('asrama/{id}/anggota', [AsramaController::class, 'tambahAnggota']);
+    Route::delete('asrama/{id}/anggota/{santri_id}', [AsramaController::class, 'keluarkanAnggota']);
 });

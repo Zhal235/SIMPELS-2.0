@@ -15,7 +15,8 @@ const Pengaturan = lazy(() => import('./pages/Pengaturan'));
 // Kesantrian subpages
 const KesantrianSantri = lazy(() => import('./pages/kesantrian/Santri'));
 const KesantrianKelas = lazy(() => import('./pages/kesantrian/Kelas'));
-const KesantrianAsrama = lazy(() => import('./pages/kesantrian/Asrama'));
+  // Gunakan path tanpa ekstensi agar Vite resolve otomatis ke .tsx
+  const KesantrianAsrama = lazy(() => import('./pages/kesantrian/Asrama'));
 const MutasiMasuk = lazy(() => import('./pages/kesantrian/MutasiMasuk'));
 const MutasiKeluar = lazy(() => import('./pages/kesantrian/MutasiKeluar'));
 const Alumni = lazy(() => import('./pages/kesantrian/Alumni'));
