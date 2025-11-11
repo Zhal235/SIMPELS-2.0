@@ -5,13 +5,13 @@ export async function listBukuKas() {
   return res.data
 }
 
-export async function createBukuKas(data: Record<string, any>) {
-  const res = await api.post('/v1/keuangan/buku-kas', data)
+export async function getBukuKas(id: string | number) {
+  const res = await api.get(`/v1/keuangan/buku-kas/${id}`)
   return res.data
 }
 
-export async function getBukuKas(id: string | number) {
-  const res = await api.get(`/v1/keuangan/buku-kas/${id}`)
+export async function createBukuKas(data: Record<string, any>) {
+  const res = await api.post('/v1/keuangan/buku-kas', data)
   return res.data
 }
 
@@ -24,3 +24,15 @@ export async function deleteBukuKas(id: string | number) {
   const res = await api.delete(`/v1/keuangan/buku-kas/${id}`)
   return res.data
 }
+
+// Transaksi Kas
+export async function listTransaksiKas(filters?: Record<string, any>) {
+  const res = await api.get('/v1/keuangan/transaksi-kas', { params: filters })
+  return res.data
+}
+
+export async function getTransaksiKasByBukuKas(bukuKasId: string | number) {
+  const res = await api.get(`/v1/keuangan/transaksi-kas?buku_kas_id=${bukuKasId}`)
+  return res.data
+}
+

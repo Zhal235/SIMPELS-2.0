@@ -5,6 +5,17 @@ import { getTagihanBySantri, prosesPembayaran, listPembayaran } from '../../api/
 import { useAuthStore } from '../../stores/useAuthStore'
 import toast from 'react-hot-toast'
 
+// Helper function untuk format nominal sesuai standar Indonesia
+const formatRupiah = (nominal: number | undefined | null): string => {
+  const value = Number(nominal) || 0
+  return new Intl.NumberFormat('id-ID', {
+    style: 'currency',
+    currency: 'IDR',
+    minimumFractionDigits: 0,
+    maximumFractionDigits: 0,
+  }).format(value)
+}
+
 // Types
 type OrangTua = {
   nama_ayah?: string
@@ -144,26 +155,55 @@ export default function PembayaranSantri() {
     setShowSearchResults(false)
     setSelectedTagihan([])
     
-    // Fetch tagihan dari backend
+    // Fetch tagihan dari backend (semua tagihan termasuk lunas)
     try {
-      const resTagihan = await getTagihanBySantri(santri.id)
-      const tagihanData = resTagihan.data || []
+      // Fetch tagihan belum lunas
+      const resTagihanBelum = await getTagihanBySantri(santri.id)
+      const tagihanBelumLunas = resTagihanBelum.data || []
       
-      // Transform data untuk match dengan UI format lama
-      const transformedTagihan = tagihanData.map((t: any) => ({
+      // Fetch riwayat pembayaran untuk tagihan yang sudah lunas
+      const resPembayaran = await listPembayaran({ santri_id: santri.id })
+      const pembayaranData = resPembayaran.data || []
+      
+      // Transform tagihan belum lunas
+      const transformedBelumLunas = tagihanBelumLunas.map((t: any) => ({
         id: t.id,
         bulan: t.bulan,
         tahun: String(t.tahun),
         jenisTagihan: t.jenis_tagihan.nama_tagihan,
-        nominal: t.nominal,
+        nominal: Number(t.sisa) || 0,
         jumlahBayar: t.dibayar,
         tipe: t.jenis_tagihan.kategori.toLowerCase().replace(' ', '-'),
         status: t.status === 'belum_bayar' ? 'belum' : t.status,
-        sisaBayar: t.sisa,
-        tglJatuhTempo: t.jatuh_tempo
+        sisaBayar: Number(t.sisa) || 0,
+        tglJatuhTempo: t.jatuh_tempo,
+        buku_kas_id: t.jenis_tagihan.buku_kas_id
       }))
       
-      setTagihan(transformedTagihan)
+      // Transform tagihan yang sudah lunas dari pembayaran
+      const transformedLunas = pembayaranData
+        .filter((p: any) => p.tagihan_santri.status === 'lunas')
+        .map((p: any) => ({
+          id: p.tagihan_santri.id,
+          bulan: p.tagihan_santri.bulan,
+          tahun: String(p.tagihan_santri.tahun),
+          jenisTagihan: p.tagihan_santri.jenis_tagihan.nama_tagihan,
+          nominal: Number(p.tagihan_santri.nominal) || 0,
+          jumlahBayar: p.tagihan_santri.dibayar,
+          tipe: p.tagihan_santri.jenis_tagihan.kategori.toLowerCase().replace(' ', '-'),
+          status: 'lunas',
+          sisaBayar: 0,
+          tglJatuhTempo: p.tagihan_santri.jatuh_tempo,
+          tglBayar: p.tanggal_bayar,
+          adminPenerima: 'Admin',
+          buku_kas_id: p.tagihan_santri.jenis_tagihan.buku_kas_id
+        }))
+      
+      // Gabungkan dan hilangkan duplikat
+      const allTagihan = [...transformedBelumLunas, ...transformedLunas]
+      const uniqueTagihan = Array.from(new Map(allTagihan.map(t => [t.id, t])).values())
+      
+      setTagihan(uniqueTagihan)
     } catch (error) {
       console.error('Error fetching tagihan:', error)
       toast.error('Gagal memuat data tagihan')
@@ -186,13 +226,45 @@ export default function PembayaranSantri() {
   }
 
   // Helper untuk deteksi apakah tagihan sudah lewat jatuh tempo
-  const isOverdue = (tglJatuhTempo?: string): boolean => {
-    if (!tglJatuhTempo) return false
-    const today = new Date()
-    today.setHours(0, 0, 0, 0) // Set ke midnight untuk membandingkan tanggal saja
-    const dueDate = new Date(tglJatuhTempo)
-    dueDate.setHours(0, 0, 0, 0)
-    return today > dueDate
+  const isOverdue = (tglJatuhTempo?: string, bulan?: string, tahun?: string | number): boolean => {
+    if (!tglJatuhTempo || !bulan || !tahun) return false
+    
+    try {
+      // Parse hari dari jatuh tempo
+      // Format: "Tanggal 10 setiap bulan" -> extract 10
+      const dayMatch = tglJatuhTempo.match(/\d+/)
+      if (!dayMatch) return false
+      
+      const day = parseInt(dayMatch[0])
+      
+      // Convert bulan dari nama ke angka (1-12)
+      const bulanMap: { [key: string]: number } = {
+        'Januari': 1, 'Februari': 2, 'Maret': 3, 'April': 4,
+        'Mei': 5, 'Juni': 6, 'Juli': 7, 'Agustus': 8,
+        'September': 9, 'Oktober': 10, 'November': 11, 'Desember': 12
+      }
+      
+      let bulanAngka = parseInt(bulan)
+      if (isNaN(bulanAngka)) {
+        // Jika bulan adalah string nama bulan, convert ke angka
+        bulanAngka = bulanMap[bulan] || 1
+      }
+      
+      const year = parseInt(String(tahun))
+      
+      // Buat tanggal jatuh tempo: Tanggal X Bulan Y Tahun Z
+      const dueDate = new Date(year, bulanAngka - 1, day) // month adalah 0-indexed
+      dueDate.setHours(0, 0, 0, 0)
+      
+      // Bandingkan dengan hari ini
+      const today = new Date()
+      today.setHours(0, 0, 0, 0)
+      
+      return today > dueDate
+    } catch (error) {
+      console.error('Error parsing jatuh tempo:', { tglJatuhTempo, bulan, tahun }, error)
+      return false
+    }
   }
 
   const getTotalSelected = () => {
@@ -202,7 +274,10 @@ export default function PembayaranSantri() {
         // Exact match only - no partial matching
         return selectedTagihan.includes(tIdStr)
       })
-      .reduce((sum, t) => sum + t.nominal, 0)
+      .reduce((sum, t) => {
+        const nominal = Number(t.nominal) || 0
+        return sum + nominal
+      }, 0)
   }
 
   const getFilteredTagihan = () => {
@@ -211,7 +286,7 @@ export default function PembayaranSantri() {
       return tagihan.filter(t => 
         t.tipe === 'rutin' && 
         (t.status === 'belum' || t.status === 'sebagian') && 
-        !isOverdue(t.tglJatuhTempo)
+        !isOverdue(t.tglJatuhTempo, t.bulan, t.tahun)
       )
     }
     if (activeTab === 'non-rutin') {
@@ -219,18 +294,18 @@ export default function PembayaranSantri() {
       return tagihan.filter(t => 
         t.tipe === 'non-rutin' && 
         (t.status === 'belum' || t.status === 'sebagian') && 
-        !isOverdue(t.tglJatuhTempo)
+        !isOverdue(t.tglJatuhTempo, t.bulan, t.tahun)
       )
     }
     if (activeTab === 'tunggakan') {
       // Tunggakan: tagihan yang SUDAH lewat jatuh tempo (baik belum bayar maupun sebagian)
       return tagihan.filter(t => 
-        t.status !== 'lunas' && isOverdue(t.tglJatuhTempo)
+        t.status !== 'lunas' && isOverdue(t.tglJatuhTempo, t.bulan, t.tahun)
       )
     }
     if (activeTab === 'lunas') {
-      // Tagihan yang sudah lunas
-      return tagihan.filter(t => t.status === 'lunas')
+      // Tagihan yang sudah lunas atau sudah ada pembayaran (sebagian/lunas)
+      return tagihan.filter(t => t.status === 'lunas' || t.status === 'sebagian')
     }
     return []
   }
@@ -456,9 +531,9 @@ export default function PembayaranSantri() {
             <div className="bg-gradient-to-r from-blue-50 to-blue-100 rounded-lg shadow p-4 mb-6 border border-blue-200">
               <div className="flex items-center justify-between">
                 <div>
-                  <p className="text-sm text-gray-600 mb-1">Total yang dipilih ({selectedTagihan.length} tagihan)</p>
-                  <p className="text-2xl font-bold text-blue-600">
-                    Rp {getTotalSelected().toLocaleString('id-ID')}
+                  <p className="text-sm text-gray-600 mb-1">Total yang Dipilih ({selectedTagihan.length} tagihan)</p>
+                  <p className="text-3xl font-bold text-blue-600">
+                    {formatRupiah(getTotalSelected())}
                   </p>
                 </div>
                 <div className="flex gap-3">
@@ -517,13 +592,13 @@ export default function PembayaranSantri() {
                 <div className="grid grid-cols-1 md:grid-cols-2 lg:grid-cols-4 gap-4">
                   {getGroupedTagihan().map((group) => (
                     <div key={`${group.bulan}-${group.tahun}`} className={`border rounded-lg overflow-hidden flex flex-col ${
-                      group.items.some(item => isOverdue(item.tglJatuhTempo) && item.status !== 'lunas') 
+                      group.items.some(item => isOverdue(item.tglJatuhTempo, item.bulan, item.tahun) && item.status !== 'lunas') 
                         ? 'border-red-300 bg-red-50' 
                         : 'border-gray-200'
                     }`}>
                       {/* Card Header - Bulan & Tahun */}
                       <div className={`px-4 py-3 border-b ${
-                        group.items.some(item => isOverdue(item.tglJatuhTempo) && item.status !== 'lunas')
+                        group.items.some(item => isOverdue(item.tglJatuhTempo, item.bulan, item.tahun) && item.status !== 'lunas')
                           ? 'bg-gradient-to-r from-red-100 to-red-50 border-red-200'
                           : 'bg-gradient-to-r from-blue-50 to-blue-100 border-gray-200'
                       }`}>
@@ -531,7 +606,7 @@ export default function PembayaranSantri() {
                           <h3 className="text-base font-bold text-gray-900">
                             {group.bulan} {group.tahun}
                           </h3>
-                          {group.items.some(item => isOverdue(item.tglJatuhTempo) && item.status !== 'lunas') && (
+                          {group.items.some(item => isOverdue(item.tglJatuhTempo, item.bulan, item.tahun) && item.status !== 'lunas') && (
                             <span className="text-xs font-semibold px-2 py-1 bg-red-600 text-white rounded">⚠ Overdue</span>
                           )}
                         </div>
@@ -555,13 +630,13 @@ export default function PembayaranSantri() {
                                 <div className="flex-1 min-w-0">
                                   <div className="flex items-center gap-1">
                                     <p className="font-semibold text-gray-900 text-sm truncate">{tagihanItem.jenisTagihan}</p>
-                                    {isOverdue(tagihanItem.tglJatuhTempo) && tagihanItem.status !== 'lunas' && (
+                                    {isOverdue(tagihanItem.tglJatuhTempo, tagihanItem.bulan, tagihanItem.tahun) && tagihanItem.status !== 'lunas' && (
                                       <span className="text-xs bg-red-100 text-red-700 px-1.5 py-0.5 rounded whitespace-nowrap">Overdue</span>
                                     )}
                                   </div>
                                   {tagihanItem.tglJatuhTempo && (
                                     <p className="text-xs text-gray-500 mt-0.5">
-                                      Jatuh Tempo: {new Date(tagihanItem.tglJatuhTempo).toLocaleDateString('id-ID')}
+                                      Jatuh Tempo: {tagihanItem.tglJatuhTempo}
                                     </p>
                                   )}
                                   {tagihanItem.tglBayar && (
@@ -576,11 +651,16 @@ export default function PembayaranSantri() {
                               {/* Nominal & Actions */}
                               <div className="text-right flex-shrink-0">
                                 <p className="font-bold text-gray-900 text-sm">
-                                  Rp {(tagihanItem.nominal / 1000).toFixed(0)}K
+                                  {activeTab === 'lunas' ? formatRupiah(tagihanItem.jumlahBayar) : formatRupiah(tagihanItem.nominal)}
                                 </p>
-                                {tagihanItem.status === 'sebagian' && tagihanItem.sisaBayar && tagihanItem.sisaBayar > 0 && (
+                                {tagihanItem.status === 'sebagian' && tagihanItem.sisaBayar && tagihanItem.sisaBayar > 0 && activeTab !== 'lunas' && (
                                   <p className="text-xs text-yellow-600 mt-1">
-                                    Sisa: Rp {(tagihanItem.sisaBayar / 1000).toFixed(0)}K
+                                    Sisa: {formatRupiah(tagihanItem.sisaBayar)}
+                                  </p>
+                                )}
+                                {tagihanItem.status === 'sebagian' && tagihanItem.sisaBayar && tagihanItem.sisaBayar > 0 && activeTab === 'lunas' && (
+                                  <p className="text-xs text-orange-600 mt-1">
+                                    Sisa: {formatRupiah(tagihanItem.sisaBayar)}
                                   </p>
                                 )}
                                 {activeTab === 'lunas' && tagihanItem.tglBayar && (
@@ -650,40 +730,56 @@ export default function PembayaranSantri() {
   // Modal Bayar Lunas Component
   function ModalBayarLunas() {
     const [nominalBayar, setNominalBayar] = useState('')
+    const [metodeBayar, setMetodeBayar] = useState<'cash' | 'transfer'>('cash')
     const [opsiKembalian, setOpsiKembalian] = useState<'tunai' | 'dompet'>('tunai')
     
     const totalTagihan = getTotalSelected()
     const kembalian = Math.max(0, Number(nominalBayar) - totalTagihan)
     const tagihanTerpilih = tagihan.filter(t => {
       const tIdStr = String(t.id)
-      // Exact match only
       return selectedTagihan.includes(tIdStr)
     })
 
-    const handleKonfirmasi = () => {
-      // Update tagihan status to lunas
-      updateTagihanStatus(selectedTagihan, 'lunas')
-      
-      // Generate kwitansi data
-      const kwitansiInfo = {
-        type: 'lunas',
-        santri: selectedSantri,
-        tagihan: tagihanTerpilih,
-        totalBayar: totalTagihan,
-        nominalBayar: Number(nominalBayar),
-        kembalian: kembalian,
-        opsiKembalian: opsiKembalian,
-        admin: user?.name,
-        tanggal: new Date().toLocaleDateString('id-ID'),
-        jam: new Date().toLocaleTimeString('id-ID')
+    const handleKonfirmasi = async () => {
+      try {
+        // Proses pembayaran untuk setiap tagihan terpilih
+        for (const t of tagihanTerpilih) {
+          await prosesPembayaran({
+            tagihan_santri_id: t.id,
+            nominal_bayar: t.nominal,
+            metode_pembayaran: metodeBayar,
+            tanggal_bayar: new Date().toISOString().split('T')[0],
+            keterangan: `Pembayaran ${t.jenisTagihan} - ${t.bulan} ${t.tahun} (${selectedSantri?.nama_santri})`
+          })
+        }
+        
+        toast.success('Pembayaran berhasil!')
+        
+        // Set data kwitansi dan tampilkan
+        setKwitansiData({
+          type: 'lunas',
+          santri: selectedSantri,
+          tagihan: tagihanTerpilih,
+          totalTagihan: totalTagihan,
+          totalBayar: totalTagihan,
+          nominalBayar: Number(nominalBayar),
+          kembalian: kembalian,
+          metodeBayar: metodeBayar
+        })
+        
+        setShowKwitansi(true)
+        setShowModalLunas(false)
+        setSelectedTagihan([])
+        setNominalBayar('')
+        
+        // Reload tagihan
+        if (selectedSantri) {
+          handleSelectSantri(selectedSantri)
+        }
+      } catch (error: any) {
+        console.error('Error:', error)
+        toast.error(error.response?.data?.message || 'Gagal memproses pembayaran')
       }
-      setKwitansiData(kwitansiInfo)
-      setShowKwitansi(true)
-      
-      toast.success('Pembayaran berhasil! Tagihan sudah dicatat ke sistem.')
-      setShowModalLunas(false)
-      setSelectedTagihan([])
-      setNominalBayar('')
     }
 
     return (
@@ -706,7 +802,7 @@ export default function PembayaranSantri() {
                       <p className="text-xs text-gray-500">{t.bulan} {t.tahun}</p>
                     </div>
                     <p className="font-semibold text-gray-900">
-                      Rp {t.nominal.toLocaleString('id-ID')}
+                      {formatRupiah(t.nominal)}
                     </p>
                   </div>
                 ))}
@@ -718,8 +814,39 @@ export default function PembayaranSantri() {
               <div className="flex justify-between items-center">
                 <p className="font-medium text-gray-700">Total Tagihan:</p>
                 <p className="text-2xl font-bold text-blue-600">
-                  Rp {totalTagihan.toLocaleString('id-ID')}
+                  {formatRupiah(totalTagihan)}
                 </p>
+              </div>
+            </div>
+
+            {/* Metode Pembayaran */}
+            <div className="mb-6">
+              <label className="block text-sm font-medium text-gray-700 mb-2">
+                Metode Pembayaran
+              </label>
+              <div className="grid grid-cols-2 gap-3">
+                <button
+                  type="button"
+                  onClick={() => setMetodeBayar('cash')}
+                  className={`px-4 py-3 border-2 rounded-lg font-medium transition-colors ${
+                    metodeBayar === 'cash'
+                      ? 'border-blue-600 bg-blue-50 text-blue-700'
+                      : 'border-gray-300 hover:border-gray-400'
+                  }`}
+                >
+                  💵 Cash
+                </button>
+                <button
+                  type="button"
+                  onClick={() => setMetodeBayar('transfer')}
+                  className={`px-4 py-3 border-2 rounded-lg font-medium transition-colors ${
+                    metodeBayar === 'transfer'
+                      ? 'border-blue-600 bg-blue-50 text-blue-700'
+                      : 'border-gray-300 hover:border-gray-400'
+                  }`}
+                >
+                  💳 Transfer
+                </button>
               </div>
             </div>
 
@@ -737,7 +864,7 @@ export default function PembayaranSantri() {
               />
               {nominalBayar && (
                 <p className="text-sm text-gray-600 mt-1">
-                  Rp {Number(nominalBayar).toLocaleString('id-ID')}
+                  {formatRupiah(Number(nominalBayar))}
                 </p>
               )}
             </div>
@@ -748,7 +875,7 @@ export default function PembayaranSantri() {
                 <div className="p-4 bg-green-50 rounded-lg mb-3">
                   <p className="text-sm text-gray-700 mb-1">Kembalian:</p>
                   <p className="text-xl font-bold text-green-600">
-                    Rp {kembalian.toLocaleString('id-ID')}
+                    {formatRupiah(kembalian)}
                   </p>
                 </div>
                 
@@ -802,12 +929,12 @@ export default function PembayaranSantri() {
   // Modal Bayar Sebagian Component
   function ModalBayarSebagian() {
     const [nominalBayar, setNominalBayar] = useState('')
+    const [metodeBayar, setMetodeBayar] = useState<'cash' | 'transfer'>('cash')
     const [distribusiOtomatis, setDistribusiOtomatis] = useState(true)
     
     const totalTagihan = getTotalSelected()
     const tagihanTerpilih = tagihan.filter(t => {
       const tIdStr = String(t.id)
-      // Exact match only
       return selectedTagihan.includes(tIdStr)
     })
 
@@ -824,43 +951,73 @@ export default function PembayaranSantri() {
       })
     }
 
-    const handleKonfirmasi = () => {
-      // Create payment details object mapping ID to amount paid
-      const paymentDetails: { [key: string]: number } = {}
-      const nominal = Number(nominalBayar)
-      let sisa = nominal
-      
-      tagihanTerpilih.forEach(t => {
-        const bayar = Math.min(sisa, t.nominal)
-        if (bayar > 0) {
-          paymentDetails[String(t.id)] = bayar
-          sisa -= bayar
+    const handleKonfirmasi = async () => {
+      try {
+        const nominal = Number(nominalBayar)
+        const rekomendasi = getRekomendasi()
+        let totalBayar = 0
+        
+        // Jika hanya 1 tagihan, langsung bayar
+        if (tagihanTerpilih.length === 1) {
+          await prosesPembayaran({
+            tagihan_santri_id: tagihanTerpilih[0].id,
+            nominal_bayar: nominal,
+            metode_pembayaran: metodeBayar,
+            tanggal_bayar: new Date().toISOString().split('T')[0],
+            keterangan: `Pembayaran sebagian ${tagihanTerpilih[0].jenisTagihan} - ${tagihanTerpilih[0].bulan} ${tagihanTerpilih[0].tahun}`
+          })
+          totalBayar = nominal
+        } else {
+          // Multiple tagihan: distribusi otomatis
+          let sisa = nominal
+          for (const t of tagihanTerpilih) {
+            const bayar = Math.min(sisa, t.nominal)
+            if (bayar > 0) {
+              await prosesPembayaran({
+                tagihan_santri_id: t.id,
+                nominal_bayar: bayar,
+                metode_pembayaran: metodeBayar,
+                tanggal_bayar: new Date().toISOString().split('T')[0],
+                keterangan: `Pembayaran sebagian ${t.jenisTagihan} - ${t.bulan} ${t.tahun} (${selectedSantri?.nama_santri})`
+              })
+              sisa -= bayar
+              totalBayar += bayar
+            }
+          }
         }
-      })
-      
-      // Update tagihan status to sebagian dengan payment details
-      updateTagihanStatus(selectedTagihan, 'sebagian', undefined, paymentDetails)
-      
-      // Generate kwitansi data
-      const kwitansiInfo = {
-        type: 'sebagian',
-        santri: selectedSantri,
-        tagihan: tagihanTerpilih,
-        paymentDetails: paymentDetails,
-        totalTagihan: totalTagihan,
-        nominalBayar: nominal,
-        opsiKembalian: opsiKembalian,
-        admin: user?.name,
-        tanggal: new Date().toLocaleDateString('id-ID'),
-        jam: new Date().toLocaleTimeString('id-ID')
+        
+        toast.success('Pembayaran sebagian berhasil!')
+        
+        // Set data kwitansi dan tampilkan
+        const paymentDetails: { [key: string]: number } = {}
+        rekomendasi.forEach((item: any) => {
+          paymentDetails[String(item.id)] = item.bayar
+        })
+        
+        setKwitansiData({
+          type: 'sebagian',
+          santri: selectedSantri,
+          tagihan: rekomendasi,
+          totalTagihan: totalTagihan,
+          totalBayar: totalBayar,
+          nominalBayar: nominal,
+          paymentDetails: paymentDetails,
+          metodeBayar: metodeBayar
+        })
+        
+        setShowKwitansi(true)
+        setShowModalSebagian(false)
+        setSelectedTagihan([])
+        setNominalBayar('')
+        
+        // Reload tagihan
+        if (selectedSantri) {
+          handleSelectSantri(selectedSantri)
+        }
+      } catch (error: any) {
+        console.error('Error:', error)
+        toast.error(error.response?.data?.message || 'Gagal memproses pembayaran')
       }
-      setKwitansiData(kwitansiInfo)
-      setShowKwitansi(true)
-      
-      toast.success('Pembayaran sebagian berhasil! Tagihan telah diperbarui.')
-      setShowModalSebagian(false)
-      setSelectedTagihan([])
-      setNominalBayar('')
     }
 
     return (
@@ -877,8 +1034,39 @@ export default function PembayaranSantri() {
               <div className="flex justify-between items-center">
                 <p className="font-medium text-gray-700">Total Tagihan Dipilih:</p>
                 <p className="text-2xl font-bold text-gray-900">
-                  Rp {totalTagihan.toLocaleString('id-ID')}
+                  {formatRupiah(totalTagihan)}
                 </p>
+              </div>
+            </div>
+
+            {/* Metode Pembayaran */}
+            <div className="mb-6">
+              <label className="block text-sm font-medium text-gray-700 mb-2">
+                Metode Pembayaran
+              </label>
+              <div className="grid grid-cols-2 gap-3">
+                <button
+                  type="button"
+                  onClick={() => setMetodeBayar('cash')}
+                  className={`px-4 py-3 border-2 rounded-lg font-medium transition-colors ${
+                    metodeBayar === 'cash'
+                      ? 'border-blue-600 bg-blue-50 text-blue-700'
+                      : 'border-gray-300 hover:border-gray-400'
+                  }`}
+                >
+                  💵 Cash
+                </button>
+                <button
+                  type="button"
+                  onClick={() => setMetodeBayar('transfer')}
+                  className={`px-4 py-3 border-2 rounded-lg font-medium transition-colors ${
+                    metodeBayar === 'transfer'
+                      ? 'border-blue-600 bg-blue-50 text-blue-700'
+                      : 'border-gray-300 hover:border-gray-400'
+                  }`}
+                >
+                  💳 Transfer
+                </button>
               </div>
             </div>
 
@@ -896,7 +1084,7 @@ export default function PembayaranSantri() {
               />
               {nominalBayar && (
                 <p className="text-sm text-gray-600 mt-1">
-                  Rp {Number(nominalBayar).toLocaleString('id-ID')}
+                  {formatRupiah(Number(nominalBayar))}
                 </p>
               )}
             </div>
@@ -927,17 +1115,17 @@ export default function PembayaranSantri() {
                         </div>
                         <div className="text-right">
                           <p className="text-sm text-gray-600">
-                            Total: Rp {item.nominal.toLocaleString('id-ID')}
+                            Total: {formatRupiah(item.nominal)}
                           </p>
                         </div>
                       </div>
                       <div className="flex justify-between items-center pt-2 border-t border-blue-200">
                         <p className="text-sm font-medium text-green-600">
-                          Dibayar: Rp {item.bayar.toLocaleString('id-ID')}
+                          Dibayar: {formatRupiah(item.bayar)}
                         </p>
                         {item.sisaTagihan > 0 && (
                           <p className="text-sm font-medium text-orange-600">
-                            Sisa: Rp {item.sisaTagihan.toLocaleString('id-ID')}
+                            Sisa: {formatRupiah(item.sisaTagihan)}
                           </p>
                         )}
                         {item.sisaTagihan === 0 && (
@@ -1042,11 +1230,11 @@ export default function PembayaranSantri() {
                       <tr key={idx}>
                         <td className="border border-gray-800 px-6 py-3">{t.jenisTagihan}</td>
                         <td className="border border-gray-800 px-6 py-3">{t.bulan} {t.tahun}</td>
-                        <td className="border border-gray-800 px-6 py-3 text-right">Rp {t.nominal.toLocaleString('id-ID')}</td>
+                        <td className="border border-gray-800 px-6 py-3 text-right">{formatRupiah(t.nominal)}</td>
                         {kwitansiData.type === 'sebagian' && (
                           <>
-                            <td className="border border-gray-800 px-6 py-3 text-right">Rp {dibayar.toLocaleString('id-ID')}</td>
-                            <td className="border border-gray-800 px-6 py-3 text-right font-semibold">Rp {sisa.toLocaleString('id-ID')}</td>
+                            <td className="border border-gray-800 px-6 py-3 text-right">{formatRupiah(dibayar)}</td>
+                            <td className="border border-gray-800 px-6 py-3 text-right font-semibold">{formatRupiah(sisa)}</td>
                           </>
                         )}
                       </tr>
@@ -1060,17 +1248,17 @@ export default function PembayaranSantri() {
             <div className="mb-1 bg-gray-100 p-3 border border-gray-800 text-xs">
               <div className="flex justify-between mb-0.5 px-2">
                 <span className="font-semibold">Total Tagihan:</span>
-                <span>Rp {(kwitansiData.totalTagihan || kwitansiData.totalBayar)?.toLocaleString('id-ID')}</span>
+                <span>{formatRupiah(kwitansiData.totalTagihan || kwitansiData.totalBayar)}</span>
               </div>
               <div className="flex justify-between px-2">
                 <span className="font-semibold">Nominal Bayar:</span>
-                <span>Rp {kwitansiData.nominalBayar?.toLocaleString('id-ID')}</span>
+                <span>{formatRupiah(kwitansiData.nominalBayar)}</span>
               </div>
               {kwitansiData.kembalian && kwitansiData.kembalian > 0 && (
                 <>
                   <div className="flex justify-between border-t pt-0.5 mt-0.5 px-2">
                     <span className="font-semibold">Kembalian:</span>
-                    <span>Rp {kwitansiData.kembalian?.toLocaleString('id-ID')}</span>
+                    <span>{formatRupiah(kwitansiData.kembalian)}</span>
                   </div>
                   <div className="flex justify-between pt-0.5 px-2">
                     <span className="font-semibold">Opsi:</span>
@@ -1085,7 +1273,7 @@ export default function PembayaranSantri() {
               {kwitansiData.type === 'sebagian' && totalSisa > 0 && (
                 <div className="flex justify-between border-t pt-0.5 mt-0.5 px-2">
                   <span className="font-semibold">Sisa Tagihan:</span>
-                  <span className="font-bold text-blue-600">Rp {totalSisa.toLocaleString('id-ID')}</span>
+                  <span className="font-bold text-blue-600">{formatRupiah(totalSisa)}</span>
                 </div>
               )}
             </div>

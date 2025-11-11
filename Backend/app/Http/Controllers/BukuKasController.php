@@ -3,6 +3,7 @@
 namespace App\Http\Controllers;
 
 use App\Models\BukuKas;
+use App\Models\TransaksiKas;
 use Illuminate\Http\Request;
 use Illuminate\Support\Facades\DB;
 use Illuminate\Support\Facades\Validator;
@@ -17,26 +18,33 @@ class BukuKasController extends Controller
         $bukuKasList = BukuKas::all();
 
         $result = $bukuKasList->map(function ($bukuKas) {
-            // Hitung saldo dari transaksi (nanti akan dikembangkan)
-            // Sementara hanya pakai saldo awal
-            $saldoCash = $bukuKas->saldo_cash_awal;
-            $saldoBank = $bukuKas->saldo_bank_awal;
-            $totalPemasukan = 0;
-            $totalPengeluaran = 0;
+            // Hitung total pemasukan dan pengeluaran dari transaksi
+            $totalPemasukanCash = TransaksiKas::where('buku_kas_id', $bukuKas->id)
+                ->where('jenis', 'pemasukan')
+                ->where('metode', 'cash')
+                ->sum('nominal');
+            
+            $totalPemasukanBank = TransaksiKas::where('buku_kas_id', $bukuKas->id)
+                ->where('jenis', 'pemasukan')
+                ->where('metode', 'transfer')
+                ->sum('nominal');
+            
+            $totalPengeluaranCash = TransaksiKas::where('buku_kas_id', $bukuKas->id)
+                ->where('jenis', 'pengeluaran')
+                ->where('metode', 'cash')
+                ->sum('nominal');
+            
+            $totalPengeluaranBank = TransaksiKas::where('buku_kas_id', $bukuKas->id)
+                ->where('jenis', 'pengeluaran')
+                ->where('metode', 'transfer')
+                ->sum('nominal');
 
-            // TODO: Nanti tambahkan perhitungan dari tabel transaksi_kas
-            // $transaksi = $bukuKas->transaksi;
-            // foreach ($transaksi as $trx) {
-            //     if ($trx->jenis === 'pemasukan') {
-            //         $totalPemasukan += $trx->nominal;
-            //         if ($trx->metode === 'cash') $saldoCash += $trx->nominal;
-            //         else $saldoBank += $trx->nominal;
-            //     } else {
-            //         $totalPengeluaran += $trx->nominal;
-            //         if ($trx->metode === 'cash') $saldoCash -= $trx->nominal;
-            //         else $saldoBank -= $trx->nominal;
-            //     }
-            // }
+            // Saldo = saldo awal + pemasukan - pengeluaran
+            $saldoCash = $bukuKas->saldo_cash_awal + $totalPemasukanCash - $totalPengeluaranCash;
+            $saldoBank = $bukuKas->saldo_bank_awal + $totalPemasukanBank - $totalPengeluaranBank;
+            
+            $totalPemasukan = $totalPemasukanCash + $totalPemasukanBank;
+            $totalPengeluaran = $totalPengeluaranCash + $totalPengeluaranBank;
 
             return [
                 'id' => $bukuKas->id,
@@ -46,7 +54,6 @@ class BukuKasController extends Controller
                 'total_saldo' => (float) ($saldoCash + $saldoBank),
                 'total_pemasukan' => (float) $totalPemasukan,
                 'total_pengeluaran' => (float) $totalPengeluaran,
-                'transaksi' => [] // Nanti diisi dari tabel transaksi_kas
             ];
         });
 

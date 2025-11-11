@@ -310,6 +310,7 @@ export default function JenisTagihan() {
           santriList={santriList}
           bukuKasList={bukuKasList}
           bulanAvailable={bulanList}
+          tahunAjaranAktif={tahunAjaranAktif}
         />
       )}
 
@@ -348,7 +349,8 @@ function ModalFormTagihan({
   kelasList, 
   santriList,
   bukuKasList,
-  bulanAvailable 
+  bulanAvailable,
+  tahunAjaranAktif
 }: { 
   onClose: () => void
   onSave: (data: JenisTagihan) => void
@@ -357,6 +359,7 @@ function ModalFormTagihan({
   santriList: any[]
   bukuKasList: any[]
   bulanAvailable: string[]
+  tahunAjaranAktif: any
 }) {
   const [namaTagihan, setNamaTagihan] = useState(tagihan?.namaTagihan || '')
   const [kategori, setKategori] = useState<'Rutin' | 'Non Rutin'>(tagihan?.kategori || 'Rutin')
@@ -376,6 +379,24 @@ function ModalFormTagihan({
     'Januari', 'Februari', 'Maret', 'April', 'Mei', 'Juni', 
     'Juli', 'Agustus', 'September', 'Oktober', 'November', 'Desember'
   ]
+  
+  // Helper untuk mendapatkan tahun dari bulan
+  const getBulanWithYear = (bulan: string) => {
+    if (!tahunAjaranAktif) return bulan
+    
+    const bulanMap: { [key: string]: number } = {
+      'Januari': 1, 'Februari': 2, 'Maret': 3, 'April': 4,
+      'Mei': 5, 'Juni': 6, 'Juli': 7, 'Agustus': 8,
+      'September': 9, 'Oktober': 10, 'November': 11, 'Desember': 12
+    }
+    
+    const bulanAngka = bulanMap[bulan]
+    const tahun = bulanAngka >= tahunAjaranAktif.bulan_mulai 
+      ? tahunAjaranAktif.tahun_mulai 
+      : tahunAjaranAktif.tahun_akhir
+    
+    return `${bulan} ${tahun}`
+  }
   
   // Filter santri based on search
   const filteredSantri = santriList.filter(s => 
@@ -556,19 +577,51 @@ function ModalFormTagihan({
             <label className="block text-sm font-medium text-gray-700 mb-2">
               Bulan Tagihan * 
               <span className="text-xs text-gray-500 ml-2">
-                {bulanAvailable.length > 0 
-                  ? '(Pilih bulan dari tahun ajaran aktif)' 
-                  : '(Tidak ada tahun ajaran aktif, menampilkan semua bulan)'}
+                {tahunAjaranAktif 
+                  ? `(Tahun Ajaran ${tahunAjaranAktif.tahun_mulai}/${tahunAjaranAktif.tahun_akhir})` 
+                  : '(Tidak ada tahun ajaran aktif)'}
               </span>
             </label>
-            {bulanAvailable.length === 0 && (
-              <div className="mb-2 p-2 bg-yellow-50 border border-yellow-200 rounded text-xs text-yellow-800">
+            {!tahunAjaranAktif && (
+              <div className="mb-2 p-3 bg-yellow-50 border border-yellow-200 rounded text-sm text-yellow-800">
                 ⚠️ Belum ada tahun ajaran aktif. Silakan aktifkan tahun ajaran terlebih dahulu.
               </div>
             )}
-            <div className="grid grid-cols-4 gap-2 max-h-40 overflow-y-auto border border-gray-300 rounded-lg p-3">
+            {tahunAjaranAktif && (
+              <div className="mb-2 p-3 bg-blue-50 border border-blue-200 rounded text-sm text-blue-800">
+                ℹ️ Tagihan akan digenerate sesuai periode tahun ajaran aktif:
+                <div className="mt-1 font-semibold">
+                  {getBulanWithYear(bulanList[0])} s/d {getBulanWithYear(bulanList[bulanList.length - 1])}
+                </div>
+              </div>
+            )}
+            
+            {/* Select All / Deselect All */}
+            <div className="mb-3 flex gap-2">
+              <button
+                type="button"
+                onClick={() => setBulanTerpilih([...bulanList])}
+                className="px-3 py-1.5 text-xs font-medium bg-blue-100 text-blue-700 rounded hover:bg-blue-200"
+              >
+                ✓ Pilih Semua
+              </button>
+              <button
+                type="button"
+                onClick={() => setBulanTerpilih([])}
+                className="px-3 py-1.5 text-xs font-medium bg-red-100 text-red-700 rounded hover:bg-red-200"
+              >
+                ✗ Batal Semua
+              </button>
+              {bulanTerpilih.length > 0 && (
+                <span className="px-3 py-1.5 text-xs font-medium bg-gray-100 text-gray-700 rounded">
+                  {bulanTerpilih.length}/{bulanList.length} terpilih
+                </span>
+              )}
+            </div>
+            
+            <div className="grid grid-cols-3 gap-2 max-h-64 overflow-y-auto border border-gray-300 rounded-lg p-3">
               {bulanList.map((bulan) => (
-                <label key={bulan} className="flex items-center">
+                <label key={bulan} className="flex items-center p-2 hover:bg-gray-50 rounded">
                   <input
                     type="checkbox"
                     checked={bulanTerpilih.includes(bulan)}
@@ -581,7 +634,9 @@ function ModalFormTagihan({
                     }}
                     className="mr-2"
                   />
-                  <span className="text-sm">{bulan}</span>
+                  <span className="text-sm">
+                    {tahunAjaranAktif ? getBulanWithYear(bulan) : bulan}
+                  </span>
                 </label>
               ))}
             </div>

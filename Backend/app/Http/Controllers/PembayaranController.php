@@ -5,6 +5,7 @@ namespace App\Http\Controllers;
 use App\Models\Pembayaran;
 use App\Models\TagihanSantri;
 use App\Models\BukuKas;
+use App\Models\TransaksiKas;
 use Illuminate\Http\Request;
 use Illuminate\Support\Facades\DB;
 use Illuminate\Support\Facades\Validator;
@@ -116,6 +117,20 @@ class PembayaranController extends Controller
                 $bukuKas->increment('saldo_bank_awal', $request->nominal_bayar);
             }
 
+            // Catat sebagai transaksi pemasukan di buku kas
+            $noTransaksiKas = TransaksiKas::generateNoTransaksi('pemasukan');
+            TransaksiKas::create([
+                'buku_kas_id' => $tagihan->jenisTagihan->buku_kas_id,
+                'no_transaksi' => $noTransaksiKas,
+                'tanggal' => $request->tanggal_bayar,
+                'jenis' => 'pemasukan',
+                'metode' => $request->metode_pembayaran,
+                'kategori' => 'Pembayaran Tagihan',
+                'nominal' => $request->nominal_bayar,
+                'keterangan' => $request->keterangan ?? "Pembayaran {$tagihan->jenisTagihan->nama_tagihan} - {$tagihan->bulan} {$tagihan->tahun}",
+                'pembayaran_id' => $pembayaran->id,
+            ]);
+
             DB::commit();
 
             return response()->json([
@@ -223,6 +238,9 @@ class PembayaranController extends Controller
             } else {
                 $pembayaran->bukuKas->decrement('saldo_bank_awal', $pembayaran->nominal_bayar);
             }
+
+            // Hapus transaksi kas terkait
+            TransaksiKas::where('pembayaran_id', $pembayaran->id)->delete();
 
             $pembayaran->delete();
 

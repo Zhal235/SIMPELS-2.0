@@ -1,6 +1,17 @@
 import { useState, useEffect } from 'react'
 import toast from 'react-hot-toast'
-import { listBukuKas, createBukuKas, updateBukuKas, deleteBukuKas } from '../../api/bukuKas'
+import { listBukuKas, createBukuKas, updateBukuKas, deleteBukuKas, listTransaksiKas } from '../../api/bukuKas'
+
+// Helper function untuk format nominal sesuai standar Indonesia
+const formatRupiah = (nominal: number | undefined | null): string => {
+  const value = Number(nominal) || 0
+  return new Intl.NumberFormat('id-ID', {
+    style: 'currency',
+    currency: 'IDR',
+    minimumFractionDigits: 0,
+    maximumFractionDigits: 0,
+  }).format(value)
+}
 
 interface TransaksiKas {
   id: number
@@ -40,7 +51,20 @@ export default function BukuKas() {
     try {
       setLoading(true)
       const res = await listBukuKas()
-      setDataBukuKas(res.data || res || [])
+      let kasData = res.data || res || []
+      
+      // Fetch transaksi kas untuk setiap buku kas
+      for (let kas of kasData) {
+        try {
+          const transaksiRes = await listTransaksiKas({ buku_kas_id: kas.id })
+          kas.transaksi = transaksiRes.data || []
+        } catch (error) {
+          console.error(`Error fetching transaksi for kas ${kas.id}:`, error)
+          kas.transaksi = []
+        }
+      }
+      
+      setDataBukuKas(kasData)
     } catch (error) {
       console.error('Error fetching data:', error)
       toast.error('Gagal memuat data buku kas')
@@ -382,30 +406,30 @@ function ModalLaporan({
           <div className="grid grid-cols-5 gap-4">
             <div className="bg-white rounded-lg p-4 border">
               <p className="text-sm text-gray-600 mb-1">Total Pemasukan</p>
-              <p className="text-lg font-bold text-green-600">Rp {kas.total_pemasukan.toLocaleString('id-ID')}</p>
+              <p className="text-lg font-bold text-green-600">{formatRupiah(kas.total_pemasukan)}</p>
             </div>
             <div className="bg-white rounded-lg p-4 border">
               <p className="text-sm text-gray-600 mb-1">Total Pengeluaran</p>
-              <p className="text-lg font-bold text-red-600">Rp {kas.total_pengeluaran.toLocaleString('id-ID')}</p>
+              <p className="text-lg font-bold text-red-600">{formatRupiah(kas.total_pengeluaran)}</p>
             </div>
             <div className="bg-white rounded-lg p-4 border">
               <p className="text-sm text-gray-600 mb-1">Saldo Cash</p>
-              <p className="text-lg font-bold text-gray-900">Rp {kas.saldo_cash.toLocaleString('id-ID')}</p>
+              <p className="text-lg font-bold text-gray-900">{formatRupiah(kas.saldo_cash)}</p>
             </div>
             <div className="bg-white rounded-lg p-4 border">
               <p className="text-sm text-gray-600 mb-1">Saldo Bank</p>
-              <p className="text-lg font-bold text-gray-900">Rp {kas.saldo_bank.toLocaleString('id-ID')}</p>
+              <p className="text-lg font-bold text-gray-900">{formatRupiah(kas.saldo_bank)}</p>
             </div>
             <div className="bg-white rounded-lg p-4 border border-blue-200">
               <p className="text-sm text-gray-600 mb-1">Total Saldo</p>
-              <p className="text-lg font-bold text-blue-600">Rp {kas.total_saldo.toLocaleString('id-ID')}</p>
+              <p className="text-lg font-bold text-blue-600">{formatRupiah(kas.total_saldo)}</p>
             </div>
           </div>
         </div>
 
         {/* Table Transaksi */}
         <div className="flex-1 overflow-y-auto p-6">
-          {kas.transaksi.length === 0 ? (
+          {!kas.transaksi || kas.transaksi.length === 0 ? (
             <div className="text-center py-12 text-gray-500">
               <svg className="w-16 h-16 mx-auto mb-4 text-gray-300" fill="none" stroke="currentColor" viewBox="0 0 24 24">
                 <path strokeLinecap="round" strokeLinejoin="round" strokeWidth={1.5} d="M9 12h6m-6 4h6m2 5H7a2 2 0 01-2-2V5a2 2 0 012-2h5.586a1 1 0 01.707.293l5.414 5.414a1 1 0 01.293.707V19a2 2 0 01-2 2z" />
@@ -426,7 +450,7 @@ function ModalLaporan({
                 </tr>
               </thead>
               <tbody className="divide-y">
-                {kas.transaksi.map((trx, idx) => (
+                {(kas.transaksi || []).map((trx, idx) => (
                   <tr key={trx.id} className="hover:bg-gray-50">
                     <td className="px-4 py-3 text-gray-900">{idx + 1}</td>
                     <td className="px-4 py-3 text-gray-600">
@@ -442,7 +466,7 @@ function ModalLaporan({
                     <td className="px-4 py-3 text-center">{getMetodeBadge(trx.metode)}</td>
                     <td className="px-4 py-3 text-right">
                       <span className={`font-bold ${trx.jenis === 'pemasukan' ? 'text-green-600' : 'text-red-600'}`}>
-                        {trx.jenis === 'pemasukan' ? '+' : '-'} Rp {trx.nominal.toLocaleString('id-ID')}
+                        {trx.jenis === 'pemasukan' ? '+' : '-'} {formatRupiah(trx.nominal)}
                       </span>
                     </td>
                   </tr>

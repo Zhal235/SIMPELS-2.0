@@ -3,6 +3,17 @@ import { Search, Filter, Eye, DollarSign, Calendar, User, CheckCircle, XCircle, 
 import { listTagihanSantri } from '../../api/tagihanSantri'
 import toast from 'react-hot-toast'
 
+// Helper function untuk format nominal sesuai standar Indonesia
+const formatRupiah = (nominal: number | undefined | null): string => {
+  const value = Number(nominal) || 0
+  return new Intl.NumberFormat('id-ID', {
+    style: 'currency',
+    currency: 'IDR',
+    minimumFractionDigits: 0,
+    maximumFractionDigits: 0,
+  }).format(value)
+}
+
 interface DetailTagihan {
   id: number
   jenis_tagihan: string
@@ -34,21 +45,22 @@ export default function TagihanSantri() {
 
   // Fetch data dari API
   useEffect(() => {
+    const fetchData = async () => {
+      try {
+        setLoading(true)
+        const response = await listTagihanSantri()
+        const result = Array.isArray(response) ? response : (response?.data || [])
+        setDataTagihan(result)
+      } catch (error) {
+        console.error('Error fetching tagihan:', error)
+        toast.error('Gagal memuat data tagihan')
+        setDataTagihan([])
+      } finally {
+        setLoading(false)
+      }
+    }
     fetchData()
   }, [])
-
-  const fetchData = async () => {
-    try {
-      setLoading(true)
-      const res = await listTagihanSantri()
-      setDataTagihan(res.data || res || [])
-    } catch (error) {
-      console.error('Error fetching data:', error)
-      toast.error('Gagal memuat data tagihan')
-    } finally {
-      setLoading(false)
-    }
-  }
 
   const filteredData = dataTagihan.filter(item => 
     item.santri_nama.toLowerCase().includes(searchTerm.toLowerCase()) ||
@@ -79,7 +91,7 @@ export default function TagihanSantri() {
           <div className="flex items-center justify-between">
             <div>
               <p className="text-sm text-gray-600">Total Tagihan</p>
-              <p className="text-2xl font-bold text-gray-900">Rp {totalTagihan.toLocaleString('id-ID')}</p>
+              <p className="text-2xl font-bold text-gray-900">{formatRupiah(totalTagihan)}</p>
             </div>
             <div className="w-12 h-12 bg-blue-100 rounded-full flex items-center justify-center">
               <DollarSign className="w-6 h-6 text-blue-600" />
@@ -91,7 +103,7 @@ export default function TagihanSantri() {
           <div className="flex items-center justify-between">
             <div>
               <p className="text-sm text-gray-600">Sudah Dibayar</p>
-              <p className="text-2xl font-bold text-gray-900">Rp {totalDibayar.toLocaleString('id-ID')}</p>
+              <p className="text-2xl font-bold text-gray-900">{formatRupiah(totalDibayar)}</p>
             </div>
             <div className="w-12 h-12 bg-green-100 rounded-full flex items-center justify-center">
               <CheckCircle className="w-6 h-6 text-green-600" />
@@ -103,7 +115,7 @@ export default function TagihanSantri() {
           <div className="flex items-center justify-between">
             <div>
               <p className="text-sm text-gray-600">Sisa Tagihan</p>
-              <p className="text-2xl font-bold text-gray-900">Rp {totalSisa.toLocaleString('id-ID')}</p>
+              <p className="text-2xl font-bold text-gray-900">{formatRupiah(totalSisa)}</p>
             </div>
             <div className="w-12 h-12 bg-red-100 rounded-full flex items-center justify-center">
               <XCircle className="w-6 h-6 text-red-600" />
@@ -166,13 +178,13 @@ export default function TagihanSantri() {
                     </td>
                     <td className="px-6 py-4 text-gray-600">{item.kelas}</td>
                     <td className="px-6 py-4 text-right font-medium text-gray-900">
-                      Rp {item.total_tagihan.toLocaleString('id-ID')}
+                      {formatRupiah(item.total_tagihan)}
                     </td>
                     <td className="px-6 py-4 text-right text-green-600 font-medium">
-                      Rp {item.total_dibayar.toLocaleString('id-ID')}
+                      {formatRupiah(item.total_dibayar)}
                     </td>
                     <td className="px-6 py-4 text-right text-red-600 font-medium">
-                      Rp {item.sisa_tagihan.toLocaleString('id-ID')}
+                      {formatRupiah(item.sisa_tagihan)}
                     </td>
                     <td className="px-6 py-4 text-center">
                       <button
@@ -257,15 +269,15 @@ function ModalDetailTagihan({
           <div className="grid grid-cols-3 gap-4">
             <div className="bg-white rounded-lg p-4 border">
               <p className="text-sm text-gray-600 mb-1">Total Tagihan</p>
-              <p className="text-xl font-bold text-gray-900">Rp {santri.total_tagihan.toLocaleString('id-ID')}</p>
+              <p className="text-xl font-bold text-gray-900">{formatRupiah(santri.total_tagihan)}</p>
             </div>
             <div className="bg-white rounded-lg p-4 border border-green-200">
               <p className="text-sm text-gray-600 mb-1">Total Dibayar</p>
-              <p className="text-xl font-bold text-green-600">Rp {santri.total_dibayar.toLocaleString('id-ID')}</p>
+              <p className="text-xl font-bold text-green-600">{formatRupiah(santri.total_dibayar)}</p>
             </div>
             <div className="bg-white rounded-lg p-4 border border-red-200">
               <p className="text-sm text-gray-600 mb-1">Sisa Tagihan</p>
-              <p className="text-xl font-bold text-red-600">Rp {santri.sisa_tagihan.toLocaleString('id-ID')}</p>
+              <p className="text-xl font-bold text-red-600">{formatRupiah(santri.sisa_tagihan)}</p>
             </div>
           </div>
         </div>
@@ -297,13 +309,13 @@ function ModalDetailTagihan({
                     </div>
                   </td>
                   <td className="px-4 py-3 text-right font-medium text-gray-900">
-                    Rp {detail.nominal.toLocaleString('id-ID')}
+                    {formatRupiah(detail.nominal)}
                   </td>
                   <td className="px-4 py-3 text-right text-green-600 font-medium">
-                    Rp {detail.dibayar.toLocaleString('id-ID')}
+                    {formatRupiah(detail.dibayar)}
                   </td>
                   <td className="px-4 py-3 text-right text-red-600 font-medium">
-                    Rp {detail.sisa.toLocaleString('id-ID')}
+                    {formatRupiah(detail.sisa)}
                   </td>
                   <td className="px-4 py-3 text-center">
                     {getStatusBadge(detail.status)}

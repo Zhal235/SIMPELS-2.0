@@ -89,17 +89,36 @@ class TagihanSantriController extends Controller
             $jenisTagihan = JenisTagihan::findOrFail($request->jenis_tagihan_id);
             $bulanList = $jenisTagihan->bulan; // Array bulan
             $totalGenerated = 0;
+            
+            // Ambil tahun ajaran aktif
+            $tahunAjaranAktif = \App\Models\TahunAjaran::where('status', 'aktif')->first();
+            if (!$tahunAjaranAktif) {
+                throw new \Exception('Tidak ada tahun ajaran aktif');
+            }
+            
+            // Mapping bulan ke angka
+            $bulanMap = [
+                'Januari' => 1, 'Februari' => 2, 'Maret' => 3, 'April' => 4,
+                'Mei' => 5, 'Juni' => 6, 'Juli' => 7, 'Agustus' => 8,
+                'September' => 9, 'Oktober' => 10, 'November' => 11, 'Desember' => 12
+            ];
 
             // Ambil santri berdasarkan tipe nominal
             $santriList = $this->getSantriByTipeNominal($jenisTagihan);
 
             foreach ($santriList as $santriData) {
                 foreach ($bulanList as $bulan) {
+                    // Tentukan tahun berdasarkan bulan dalam tahun ajaran
+                    $bulanAngka = $bulanMap[$bulan];
+                    $tahun = ($bulanAngka >= $tahunAjaranAktif->bulan_mulai) 
+                        ? $tahunAjaranAktif->tahun_mulai 
+                        : $tahunAjaranAktif->tahun_akhir;
+                    
                     // Cek apakah tagihan sudah ada
                     $existing = TagihanSantri::where('santri_id', $santriData['santri_id'])
                         ->where('jenis_tagihan_id', $jenisTagihan->id)
                         ->where('bulan', $bulan)
-                        ->where('tahun', date('Y'))
+                        ->where('tahun', $tahun)
                         ->first();
 
                     if ($existing) {
@@ -112,7 +131,7 @@ class TagihanSantriController extends Controller
                         'santri_id' => $santriData['santri_id'],
                         'jenis_tagihan_id' => $jenisTagihan->id,
                         'bulan' => $bulan,
-                        'tahun' => date('Y'),
+                        'tahun' => $tahun,
                         'nominal' => $nominal,
                         'status' => 'belum_bayar',
                         'dibayar' => 0,
