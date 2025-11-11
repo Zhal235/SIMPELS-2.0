@@ -18,18 +18,18 @@ class TagihanSantriController extends Controller
     {
         // Groupby per santri dengan total tagihan, dibayar, dan sisa
         $tagihan = DB::table('tagihan_santri')
-            ->join('santris', 'tagihan_santri.santri_id', '=', 'santris.id')
-            ->join('kelas', 'santris.kelas_id', '=', 'kelas.id')
+            ->join('santri', 'tagihan_santri.santri_id', '=', 'santri.id')
+            ->join('kelas', 'santri.kelas_id', '=', 'kelas.id')
             ->select(
-                'santris.id as santri_id',
-                'santris.nama_santri as santri_nama',
+                'santri.id as santri_id',
+                'santri.nama_santri as santri_nama',
                 'kelas.nama_kelas as kelas',
                 DB::raw('SUM(tagihan_santri.nominal) as total_tagihan'),
                 DB::raw('SUM(tagihan_santri.dibayar) as total_dibayar'),
                 DB::raw('SUM(tagihan_santri.sisa) as sisa_tagihan')
             )
             ->whereNull('tagihan_santri.deleted_at')
-            ->groupBy('santris.id', 'santris.nama_santri', 'kelas.nama_kelas')
+            ->groupBy('santri.id', 'santri.nama_santri', 'kelas.nama_kelas')
             ->get();
 
         // Ambil detail tagihan untuk setiap santri
