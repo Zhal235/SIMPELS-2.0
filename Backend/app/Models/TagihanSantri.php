@@ -22,7 +22,6 @@ class TagihanSantri extends Model
         'dibayar',
         'sisa',
         'jatuh_tempo',
-        'buku_kas',
     ];
 
     protected $casts = [

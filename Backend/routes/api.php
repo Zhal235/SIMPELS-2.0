@@ -8,6 +8,7 @@ use App\Http\Controllers\Api\AuthController;
 use App\Http\Controllers\JenisTagihanController;
 use App\Http\Controllers\TahunAjaranController;
 use App\Http\Controllers\TagihanSantriController;
+use App\Http\Controllers\BukuKasController;
 
 // Authentication routes (public)
 Route::post('/login', [AuthController::class, 'login']);
@@ -26,6 +27,7 @@ Route::prefix('v1/kesantrian')->group(function () {
 // API v1 endpoints untuk modul Keuangan
 Route::prefix('v1/keuangan')->group(function () {
     Route::apiResource('jenis-tagihan', JenisTagihanController::class);
+    Route::apiResource('buku-kas', BukuKasController::class);
     
     // Tagihan Santri
     Route::post('tagihan-santri/generate', [TagihanSantriController::class, 'generate']);

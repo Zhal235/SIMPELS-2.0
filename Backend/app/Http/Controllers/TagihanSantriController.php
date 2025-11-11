@@ -118,7 +118,6 @@ class TagihanSantriController extends Controller
                         'dibayar' => 0,
                         'sisa' => $nominal,
                         'jatuh_tempo' => $jenisTagihan->jatuh_tempo,
-                        'buku_kas' => $jenisTagihan->buku_kas,
                     ]);
 
                     $totalGenerated++;

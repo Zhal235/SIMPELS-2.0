@@ -21,7 +21,7 @@ class JenisTagihan extends Model
         'nominal_per_kelas',
         'nominal_per_individu',
         'jatuh_tempo',
-        'buku_kas',
+        'buku_kas_id',
     ];
 
     protected $casts = [
@@ -43,7 +43,7 @@ class JenisTagihan extends Model
             'bulan' => $this->bulan,
             'tipeNominal' => $this->tipe_nominal,
             'jatuhTempo' => $this->jatuh_tempo,
-            'bukuKas' => $this->buku_kas,
+            'bukuKasId' => $this->buku_kas_id,
         ];
 
         if ($this->tipe_nominal === 'sama') {
@@ -55,5 +55,13 @@ class JenisTagihan extends Model
         }
 
         return $data;
+    }
+
+    /**
+     * Relasi ke buku kas
+     */
+    public function bukuKas()
+    {
+        return $this->belongsTo(BukuKas::class);
     }
 }

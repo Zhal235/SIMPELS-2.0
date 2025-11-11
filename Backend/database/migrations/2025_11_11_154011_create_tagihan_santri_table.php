@@ -22,7 +22,6 @@ return new class extends Migration
             $table->decimal('dibayar', 15, 2)->default(0);
             $table->decimal('sisa', 15, 2);
             $table->string('jatuh_tempo');
-            $table->string('buku_kas');
             $table->timestamps();
             $table->softDeletes();
 
