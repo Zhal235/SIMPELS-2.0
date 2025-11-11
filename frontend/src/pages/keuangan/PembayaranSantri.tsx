@@ -1,5 +1,5 @@
 import { useState, useEffect } from 'react'
-import { Search, User, Home, Building2, Phone, Users, CheckCircle, XCircle, X } from 'lucide-react'
+import { Search, User, Home, Building2, Phone, Users, CheckCircle, XCircle, X, Printer } from 'lucide-react'
 import { listSantri } from '@/api/santri'
 import { useAuthStore } from '@/stores/useAuthStore'
 import { toast } from 'sonner'
@@ -56,6 +56,8 @@ export default function PembayaranSantri() {
   const [showModalLunas, setShowModalLunas] = useState(false)
   const [showModalSebagian, setShowModalSebagian] = useState(false)
   const [tagihan, setTagihan] = useState<Tagihan[]>([])
+  const [kwitansiData, setKwitansiData] = useState<any>(null)
+  const [showKwitansi, setShowKwitansi] = useState(false)
   
   // Get current user from auth store
   const user = useAuthStore((state) => state.user)
@@ -750,7 +752,7 @@ export default function PembayaranSantri() {
                                 </div>
                               </div>
                               
-                              {/* Nominal */}
+                              {/* Nominal & Actions */}
                               <div className="text-right flex-shrink-0">
                                 <p className="font-bold text-gray-900 text-sm">
                                   Rp {(tagihanItem.nominal / 1000).toFixed(0)}K
@@ -759,6 +761,27 @@ export default function PembayaranSantri() {
                                   <p className="text-xs text-yellow-600 mt-1">
                                     Sisa: Rp {(tagihanItem.sisaBayar / 1000).toFixed(0)}K
                                   </p>
+                                )}
+                                {activeTab === 'lunas' && tagihanItem.tglBayar && (
+                                  <button
+                                    onClick={() => {
+                                      setKwitansiData({
+                                        type: 'lunas',
+                                        santri: selectedSantri,
+                                        tagihan: [tagihanItem],
+                                        totalBayar: tagihanItem.jumlahBayar || tagihanItem.nominal,
+                                        nominalBayar: tagihanItem.jumlahBayar || tagihanItem.nominal,
+                                        admin: tagihanItem.adminPenerima,
+                                        tanggal: tagihanItem.tglBayar,
+                                        jam: '-'
+                                      })
+                                      setShowKwitansi(true)
+                                    }}
+                                    className="mt-2 text-xs bg-blue-100 text-blue-600 px-2 py-1 rounded hover:bg-blue-200 flex items-center gap-1 justify-end"
+                                  >
+                                    <Printer className="w-3 h-3" />
+                                    Print
+                                  </button>
                                 )}
                               </div>
                             </div>
@@ -787,6 +810,9 @@ export default function PembayaranSantri() {
           
           {/* Modal Bayar Sebagian */}
           {showModalSebagian && <ModalBayarSebagian />}
+
+          {/* Modal Kwitansi */}
+          {showKwitansi && kwitansiData && <ModalKwitansi />}
         </>
       ) : (
         <div className="bg-white rounded-lg shadow p-12 text-center">
@@ -816,6 +842,21 @@ export default function PembayaranSantri() {
     const handleKonfirmasi = () => {
       // Update tagihan status to lunas
       updateTagihanStatus(selectedTagihan, 'lunas')
+      
+      // Generate kwitansi data
+      const kwitansiInfo = {
+        type: 'lunas',
+        santri: selectedSantri,
+        tagihan: tagihanTerpilih,
+        totalBayar: totalTagihan,
+        nominalBayar: Number(nominalBayar),
+        kembalian: kembalian,
+        admin: user?.name,
+        tanggal: new Date().toLocaleDateString('id-ID'),
+        jam: new Date().toLocaleTimeString('id-ID')
+      }
+      setKwitansiData(kwitansiInfo)
+      setShowKwitansi(true)
       
       toast.success('Pembayaran berhasil! Tagihan sudah dicatat ke sistem.')
       setShowModalLunas(false)
@@ -978,6 +1019,21 @@ export default function PembayaranSantri() {
       // Update tagihan status to sebagian dengan payment details
       updateTagihanStatus(selectedTagihan, 'sebagian', undefined, paymentDetails)
       
+      // Generate kwitansi data
+      const kwitansiInfo = {
+        type: 'sebagian',
+        santri: selectedSantri,
+        tagihan: tagihanTerpilih,
+        paymentDetails: paymentDetails,
+        totalTagihan: totalTagihan,
+        nominalBayar: nominal,
+        admin: user?.name,
+        tanggal: new Date().toLocaleDateString('id-ID'),
+        jam: new Date().toLocaleTimeString('id-ID')
+      }
+      setKwitansiData(kwitansiInfo)
+      setShowKwitansi(true)
+      
       toast.success('Pembayaran sebagian berhasil! Tagihan telah diperbarui.')
       setShowModalSebagian(false)
       setSelectedTagihan([])
@@ -1094,4 +1150,199 @@ export default function PembayaranSantri() {
       </div>
     )
   }
+
+  // Modal Kwitansi Component
+  function ModalKwitansi() {
+    const kwitansiNumber = Math.random().toString(36).substr(2, 9).toUpperCase()
+    const statusLabel = kwitansiData.type === 'lunas' ? 'LUNAS' : 'BAYAR SEBAGIAN'
+    const totalSisa = kwitansiData.type === 'sebagian' 
+      ? kwitansiData.tagihan.reduce((sum: number, t: any) => {
+          const dibayar = kwitansiData.paymentDetails[String(t.id)] || 0
+          return sum + (t.nominal - dibayar)
+        }, 0)
+      : 0
+
+    return (
+      <div className="fixed inset-0 z-50 flex items-center justify-center p-4">
+        <div className="absolute inset-0 bg-black/30" onClick={() => setShowKwitansi(false)} />
+        <div className="relative z-10 bg-white rounded-lg shadow-lg" style={{ width: '210mm', maxHeight: '90vh', overflow: 'auto' }}>
+          {/* Kwitansi Content - A4/3 Portrait */}
+          <div id="kwitansi" className="p-12 relative" style={{ width: '210mm', minHeight: '297mm' }}>
+            {/* Ribbon Status - Pojok Kanan Atas */}
+            <div className="absolute top-4 right-4">
+              <div className={`px-6 py-3 font-bold text-white text-sm transform rotate-45 ${
+                statusLabel === 'LUNAS' ? 'bg-green-600' : 'bg-blue-600'
+              }`} style={{ transformOrigin: 'center', marginRight: '30px' }}>
+                {statusLabel}
+              </div>
+            </div>
+
+            {/* Header */}
+            <div className="text-center mb-8 pb-4 border-b-2 border-gray-800">
+              <h1 className="text-3xl font-bold tracking-wider">KWITANSI PEMBAYARAN</h1>
+              <p className="text-gray-700 text-sm mt-2 font-medium">Bukti Pembayaran Tagihan</p>
+            </div>
+
+            {/* Nomor Kwitansi & Tanggal */}
+            <div className="mb-6 text-sm grid grid-cols-2 gap-8">
+              <div>
+                <p className="mb-2"><span className="font-bold w-24 inline-block">Nomor Kwitansi</span>: {kwitansiNumber}</p>
+                <p className="mb-2"><span className="font-bold w-24 inline-block">Tanggal</span>: {kwitansiData.tanggal}</p>
+                <p><span className="font-bold w-24 inline-block">Jam</span>: {kwitansiData.jam}</p>
+              </div>
+              <div className="text-right">
+                {/* Kosong untuk design */}
+              </div>
+            </div>
+
+            {/* Data Santri */}
+            <div className="mb-6 pb-4 border-b border-gray-400">
+              <h3 className="font-bold mb-3 text-sm">DATA SANTRI</h3>
+              <div className="text-sm">
+                <p className="mb-2"><span className="font-semibold w-20 inline-block">Nama</span>: {kwitansiData.santri?.nama_santri}</p>
+                <p className="mb-2"><span className="font-semibold w-20 inline-block">NIS</span>: {kwitansiData.santri?.nis}</p>
+                <p><span className="font-semibold w-20 inline-block">Kelas</span>: {kwitansiData.santri?.kelas}</p>
+              </div>
+            </div>
+
+            {/* Detail Tagihan */}
+            <div className="mb-6">
+              <h3 className="font-bold mb-3 text-sm">DETAIL PEMBAYARAN</h3>
+              <table className="w-full text-sm border-collapse border border-gray-400">
+                <thead>
+                  <tr className="bg-gray-200">
+                    <th className="border border-gray-400 px-3 py-2 text-left font-bold">Jenis Tagihan</th>
+                    <th className="border border-gray-400 px-3 py-2 text-left font-bold">Bulan</th>
+                    <th className="border border-gray-400 px-3 py-2 text-right font-bold">Nominal</th>
+                    {kwitansiData.type === 'sebagian' && (
+                      <>
+                        <th className="border border-gray-400 px-3 py-2 text-right font-bold">Dibayar</th>
+                        <th className="border border-gray-400 px-3 py-2 text-right font-bold">Sisa</th>
+                      </>
+                    )}
+                  </tr>
+                </thead>
+                <tbody>
+                  {kwitansiData.tagihan.map((t: any, idx: number) => {
+                    const dibayar = kwitansiData.type === 'sebagian' ? (kwitansiData.paymentDetails[String(t.id)] || 0) : t.nominal
+                    const sisa = t.nominal - dibayar
+                    return (
+                      <tr key={idx}>
+                        <td className="border border-gray-400 px-3 py-2">{t.jenisTagihan}</td>
+                        <td className="border border-gray-400 px-3 py-2">{t.bulan} {t.tahun}</td>
+                        <td className="border border-gray-400 px-3 py-2 text-right">Rp {t.nominal.toLocaleString('id-ID')}</td>
+                        {kwitansiData.type === 'sebagian' && (
+                          <>
+                            <td className="border border-gray-400 px-3 py-2 text-right">Rp {dibayar.toLocaleString('id-ID')}</td>
+                            <td className="border border-gray-400 px-3 py-2 text-right font-semibold">Rp {sisa.toLocaleString('id-ID')}</td>
+                          </>
+                        )}
+                      </tr>
+                    )
+                  })}
+                </tbody>
+              </table>
+            </div>
+
+            {/* Ringkasan Pembayaran */}
+            <div className="mb-8 bg-gray-100 p-4 rounded border border-gray-400">
+              <div className="text-sm grid grid-cols-2 gap-8">
+                <div>
+                  <p className="mb-2 flex justify-between"><span>Total Tagihan:</span><span className="font-bold">Rp {(kwitansiData.totalTagihan || kwitansiData.totalBayar)?.toLocaleString('id-ID')}</span></p>
+                  <p className="mb-2 flex justify-between"><span>Nominal Bayar:</span><span className="font-bold">Rp {kwitansiData.nominalBayar?.toLocaleString('id-ID')}</span></p>
+                  {kwitansiData.kembalian && kwitansiData.kembalian > 0 && (
+                    <p className="flex justify-between border-t pt-2"><span>Kembalian:</span><span className="font-bold">Rp {kwitansiData.kembalian?.toLocaleString('id-ID')}</span></p>
+                  )}
+                </div>
+                <div>
+                  {kwitansiData.type === 'sebagian' && totalSisa > 0 && (
+                    <p className="flex justify-between border-t-2 pt-2"><span className="font-bold">Total Sisa Tagihan:</span><span className="font-bold text-blue-600">Rp {totalSisa.toLocaleString('id-ID')}</span></p>
+                  )}
+                </div>
+              </div>
+            </div>
+
+            {/* Admin Info */}
+            <div className="mb-8 text-sm">
+              <p><span className="font-bold">Admin Penerima:</span> {kwitansiData.admin}</p>
+            </div>
+
+            {/* Signature Section */}
+            <div className="grid grid-cols-3 gap-8 mt-16 pt-8 border-t-2 border-gray-400">
+              <div className="text-center">
+                <div style={{ minHeight: '60px' }} className="border-b border-gray-400 mb-2"></div>
+                <p className="text-xs font-semibold">Penerima Pembayaran</p>
+              </div>
+              <div className="text-center">
+                <div style={{ minHeight: '60px' }} className="border-b border-gray-400 mb-2"></div>
+                <p className="text-xs font-semibold">Stemple</p>
+              </div>
+              <div className="text-center">
+                <div style={{ minHeight: '60px' }} className="border-b border-gray-400 mb-2"></div>
+                <p className="text-xs font-semibold">Kepala Sekolah</p>
+              </div>
+            </div>
+
+            {/* Footer */}
+            <div className="text-center text-xs text-gray-600 mt-8">
+              <p>Terima kasih telah melakukan pembayaran</p>
+              <p>Harap simpan kwitansi ini sebagai bukti pembayaran</p>
+            </div>
+
+            {/* Print Styles */}
+            <style>{`
+              @media print {
+                * {
+                  margin: 0;
+                  padding: 0;
+                }
+                body {
+                  margin: 0;
+                  padding: 0;
+                }
+                #kwitansi {
+                  width: 210mm !important;
+                  height: 297mm !important;
+                  margin: 0 !important;
+                  padding: 0.5cm !important;
+                  page-break-after: always;
+                }
+                .no-print {
+                  display: none !important;
+                }
+              }
+            `}</style>
+          </div>
+
+          {/* Action Buttons - Hidden on Print */}
+          <div className="no-print p-6 border-t flex gap-3 justify-end bg-gray-50">
+            <button
+              onClick={() => setShowKwitansi(false)}
+              className="px-6 py-2 border border-gray-300 rounded-lg hover:bg-gray-50 font-medium"
+            >
+              Tutup
+            </button>
+            <button
+              onClick={() => {
+                // Hide buttons before print
+                document.querySelectorAll('.no-print').forEach(el => el.style.display = 'none')
+                setTimeout(() => {
+                  window.print()
+                  // Show buttons after print dialog closes
+                  setTimeout(() => {
+                    document.querySelectorAll('.no-print').forEach(el => el.style.display = '')
+                  }, 500)
+                }, 100)
+              }}
+              className="px-6 py-2 bg-blue-600 text-white rounded-lg hover:bg-blue-700 flex items-center gap-2 font-medium"
+            >
+              <Printer className="w-4 h-4" />
+              Print Kwitansi
+            </button>
+          </div>
+        </div>
+      </div>
+    )
+  }
 }
+
