@@ -851,6 +851,7 @@ export default function PembayaranSantri() {
         totalBayar: totalTagihan,
         nominalBayar: Number(nominalBayar),
         kembalian: kembalian,
+        opsiKembalian: opsiKembalian,
         admin: user?.name,
         tanggal: new Date().toLocaleDateString('id-ID'),
         jam: new Date().toLocaleTimeString('id-ID')
@@ -1027,6 +1028,7 @@ export default function PembayaranSantri() {
         paymentDetails: paymentDetails,
         totalTagihan: totalTagihan,
         nominalBayar: nominal,
+        opsiKembalian: opsiKembalian,
         admin: user?.name,
         tanggal: new Date().toLocaleDateString('id-ID'),
         jam: new Date().toLocaleTimeString('id-ID')
@@ -1200,13 +1202,13 @@ export default function PembayaranSantri() {
               <table className="w-full text-xs border-collapse border border-gray-800">
                 <thead>
                   <tr className="bg-gray-200">
-                    <th className="border border-gray-800 px-4 py-2 text-left font-bold">Jenis Tagihan</th>
-                    <th className="border border-gray-800 px-4 py-2 text-left font-bold">Bulan</th>
-                    <th className="border border-gray-800 px-4 py-2 text-right font-bold">Nominal</th>
+                    <th className="border border-gray-800 px-6 py-3 text-left font-bold">Jenis Tagihan</th>
+                    <th className="border border-gray-800 px-6 py-3 text-left font-bold">Bulan</th>
+                    <th className="border border-gray-800 px-6 py-3 text-right font-bold">Nominal</th>
                     {kwitansiData.type === 'sebagian' && (
                       <>
-                        <th className="border border-gray-800 px-4 py-2 text-right font-bold">Dibayar</th>
-                        <th className="border border-gray-800 px-4 py-2 text-right font-bold">Sisa</th>
+                        <th className="border border-gray-800 px-6 py-3 text-right font-bold">Dibayar</th>
+                        <th className="border border-gray-800 px-6 py-3 text-right font-bold">Sisa</th>
                       </>
                     )}
                   </tr>
@@ -1217,13 +1219,13 @@ export default function PembayaranSantri() {
                     const sisa = t.nominal - dibayar
                     return (
                       <tr key={idx}>
-                        <td className="border border-gray-800 px-4 py-2">{t.jenisTagihan}</td>
-                        <td className="border border-gray-800 px-4 py-2">{t.bulan} {t.tahun}</td>
-                        <td className="border border-gray-800 px-4 py-2 text-right">Rp {t.nominal.toLocaleString('id-ID')}</td>
+                        <td className="border border-gray-800 px-6 py-3">{t.jenisTagihan}</td>
+                        <td className="border border-gray-800 px-6 py-3">{t.bulan} {t.tahun}</td>
+                        <td className="border border-gray-800 px-6 py-3 text-right">Rp {t.nominal.toLocaleString('id-ID')}</td>
                         {kwitansiData.type === 'sebagian' && (
                           <>
-                            <td className="border border-gray-800 px-4 py-2 text-right">Rp {dibayar.toLocaleString('id-ID')}</td>
-                            <td className="border border-gray-800 px-4 py-2 text-right font-semibold">Rp {sisa.toLocaleString('id-ID')}</td>
+                            <td className="border border-gray-800 px-6 py-3 text-right">Rp {dibayar.toLocaleString('id-ID')}</td>
+                            <td className="border border-gray-800 px-6 py-3 text-right font-semibold">Rp {sisa.toLocaleString('id-ID')}</td>
                           </>
                         )}
                       </tr>
@@ -1234,23 +1236,33 @@ export default function PembayaranSantri() {
             </div>
 
             {/* Ringkasan Pembayaran */}
-            <div className="mb-1 bg-gray-100 p-1.5 border border-gray-800 text-xs">
-              <div className="flex justify-between mb-0.5">
+            <div className="mb-1 bg-gray-100 p-3 border border-gray-800 text-xs">
+              <div className="flex justify-between mb-0.5 px-2">
                 <span className="font-semibold">Total Tagihan:</span>
                 <span>Rp {(kwitansiData.totalTagihan || kwitansiData.totalBayar)?.toLocaleString('id-ID')}</span>
               </div>
-              <div className="flex justify-between">
+              <div className="flex justify-between px-2">
                 <span className="font-semibold">Nominal Bayar:</span>
                 <span>Rp {kwitansiData.nominalBayar?.toLocaleString('id-ID')}</span>
               </div>
               {kwitansiData.kembalian && kwitansiData.kembalian > 0 && (
-                <div className="flex justify-between border-t pt-0.5 mt-0.5">
-                  <span className="font-semibold">Kembalian:</span>
-                  <span>Rp {kwitansiData.kembalian?.toLocaleString('id-ID')}</span>
-                </div>
+                <>
+                  <div className="flex justify-between border-t pt-0.5 mt-0.5 px-2">
+                    <span className="font-semibold">Kembalian:</span>
+                    <span>Rp {kwitansiData.kembalian?.toLocaleString('id-ID')}</span>
+                  </div>
+                  <div className="flex justify-between pt-0.5 px-2">
+                    <span className="font-semibold">Opsi:</span>
+                    <span className="text-xs">
+                      {kwitansiData.opsiKembalian === 'dompet' 
+                        ? '✓ Masukkan ke Dompet Santri' 
+                        : '✓ Kembalian Tunai'}
+                    </span>
+                  </div>
+                </>
               )}
               {kwitansiData.type === 'sebagian' && totalSisa > 0 && (
-                <div className="flex justify-between border-t pt-0.5 mt-0.5">
+                <div className="flex justify-between border-t pt-0.5 mt-0.5 px-2">
                   <span className="font-semibold">Sisa Tagihan:</span>
                   <span className="font-bold text-blue-600">Rp {totalSisa.toLocaleString('id-ID')}</span>
                 </div>
@@ -1371,6 +1383,19 @@ export default function PembayaranSantri() {
                           margin: 0; 
                           padding: 0;
                           box-sizing: border-box;
+                        }
+                        /* Force table cell padding */
+                        table th,
+                        table td {
+                          padding: 8px 16px !important;
+                        }
+                        /* Force summary section padding */
+                        .bg-gray-100 {
+                          padding: 12px !important;
+                        }
+                        .bg-gray-100 > div {
+                          padding-left: 8px !important;
+                          padding-right: 8px !important;
                         }
                         /* Tailwind Core Styles */
                         ${styles}
