@@ -2,6 +2,7 @@ import { useState, useEffect } from 'react'
 import { Plus, Edit2, Trash2, Play, X, Search, Filter } from 'lucide-react'
 import { listSantri } from '../../api/santri'
 import { listKelas } from '../../api/kelas'
+import { listJenisTagihan, createJenisTagihan, updateJenisTagihan, deleteJenisTagihan } from '../../api/jenisTagihan'
 import toast from 'react-hot-toast'
 
 interface JenisTagihan {
@@ -24,109 +25,74 @@ export default function JenisTagihan() {
   const [searchTerm, setSearchTerm] = useState('')
   const [kelasList, setKelasList] = useState<any[]>([])
   const [santriList, setSantriList] = useState<any[]>([])
+  const [dataTagihan, setDataTagihan] = useState<JenisTagihan[]>([])
   const [loading, setLoading] = useState(false)
 
-  // Fetch data kelas dan santri dari API
+  // Fetch data kelas, santri, dan jenis tagihan dari API
   useEffect(() => {
-    fetchKelasAndSantri()
+    fetchAllData()
   }, [])
 
-  const fetchKelasAndSantri = async () => {
+  const fetchAllData = async () => {
     try {
       setLoading(true)
-      const [kelasRes, santriRes] = await Promise.all([
+      const [kelasRes, santriRes, tagihanRes] = await Promise.all([
         listKelas(),
-        listSantri(1, 1000) // Ambil banyak santri
+        listSantri(1, 1000),
+        listJenisTagihan()
       ])
       
       setKelasList(kelasRes.data || kelasRes || [])
       setSantriList(santriRes.data || santriRes || [])
+      setDataTagihan(tagihanRes.data || tagihanRes || [])
     } catch (error) {
       console.error('Error fetching data:', error)
+      toast.error('Gagal memuat data')
     } finally {
       setLoading(false)
     }
   }
-
-  // Data dummy
-  const [dataTagihan, setDataTagihan] = useState<JenisTagihan[]>([
-    {
-      id: 1,
-      namaTagihan: 'SPP',
-      kategori: 'Rutin',
-      bulan: ['Juli', 'Agustus', 'September', 'Oktober', 'November', 'Desember', 'Januari', 'Februari', 'Maret', 'April', 'Mei', 'Juni'],
-      tipeNominal: 'sama',
-      nominalSama: 500000,
-      jatuhTempo: 'Tanggal 10 setiap bulan',
-      bukuKas: 'Kas SPP'
-    },
-    {
-      id: 2,
-      namaTagihan: 'Makan',
-      kategori: 'Rutin',
-      bulan: ['Juli', 'Agustus', 'September', 'Oktober', 'November', 'Desember', 'Januari', 'Februari', 'Maret', 'April', 'Mei', 'Juni'],
-      tipeNominal: 'per_kelas',
-      nominalPerKelas: [
-        { kelas: 'VII A', nominal: 300000 },
-        { kelas: 'VII B', nominal: 300000 },
-        { kelas: 'VIII A', nominal: 350000 },
-        { kelas: 'VIII B', nominal: 350000 }
-      ],
-      jatuhTempo: 'Tanggal 15 setiap bulan',
-      bukuKas: 'Kas Makan'
-    },
-    {
-      id: 3,
-      namaTagihan: 'Ujian Akhir Semester',
-      kategori: 'Non Rutin',
-      bulan: ['November'],
-      tipeNominal: 'sama',
-      nominalSama: 200000,
-      jatuhTempo: '20 November 2025',
-      bukuKas: 'Kas Ujian'
-    },
-    {
-      id: 4,
-      namaTagihan: 'Perlengkapan Lab',
-      kategori: 'Non Rutin',
-      bulan: ['Agustus'],
-      tipeNominal: 'per_individu',
-      nominalPerIndividu: [
-        { santriId: '1', santriNama: 'Ahmad Putra', nominal: 150000 },
-        { santriId: '2', santriNama: 'Budi Santoso', nominal: 200000 }
-      ],
-      jatuhTempo: '25 Agustus 2025',
-      bukuKas: 'Kas Perlengkapan'
-    }
-  ])
 
   const filteredData = dataTagihan.filter(item =>
     item.namaTagihan.toLowerCase().includes(searchTerm.toLowerCase()) ||
     item.kategori.toLowerCase().includes(searchTerm.toLowerCase())
   )
 
-  const handleDelete = (id: number) => {
+  const handleDelete = async (id: number) => {
     if (confirm('Apakah Anda yakin ingin menghapus tagihan ini?')) {
-      setDataTagihan(dataTagihan.filter(item => item.id !== id))
-      toast.success('Tagihan berhasil dihapus!')
+      try {
+        await deleteJenisTagihan(id)
+        setDataTagihan(dataTagihan.filter(item => item.id !== id))
+        toast.success('Tagihan berhasil dihapus!')
+      } catch (error) {
+        console.error('Error deleting:', error)
+        toast.error('Gagal menghapus tagihan')
+      }
     }
   }
 
-  const handleSave = (data: JenisTagihan) => {
-    if (selectedTagihan) {
-      // Edit existing
-      setDataTagihan(dataTagihan.map(item => 
-        item.id === selectedTagihan.id ? { ...data, id: selectedTagihan.id } : item
-      ))
-      toast.success('Tagihan berhasil diperbarui!')
-    } else {
-      // Add new
-      const newId = Math.max(...dataTagihan.map(t => t.id), 0) + 1
-      setDataTagihan([...dataTagihan, { ...data, id: newId }])
-      toast.success('Tagihan berhasil ditambahkan!')
+  const handleSave = async (data: JenisTagihan) => {
+    try {
+      if (selectedTagihan) {
+        // Edit existing
+        const response = await updateJenisTagihan(selectedTagihan.id, data)
+        setDataTagihan(dataTagihan.map(item => 
+          item.id === selectedTagihan.id ? response.data : item
+        ))
+        toast.success('Tagihan berhasil diperbarui!')
+      } else {
+        // Add new
+        const response = await createJenisTagihan(data)
+        setDataTagihan([...dataTagihan, response.data])
+        toast.success('Tagihan berhasil ditambahkan!')
+      }
+      setShowModal(false)
+      setSelectedTagihan(null)
+    } catch (error: any) {
+      console.error('Error saving:', error)
+      const errorMessage = error.response?.data?.message || 'Gagal menyimpan tagihan'
+      toast.error(errorMessage)
     }
-    setShowModal(false)
-    setSelectedTagihan(null)
   }
 
   const handleGenerate = (tagihan: JenisTagihan) => {

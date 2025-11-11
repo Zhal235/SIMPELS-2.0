@@ -5,6 +5,7 @@ use App\Http\Controllers\Kesantrian\SantriController;
 use App\Http\Controllers\Kesantrian\AsramaController;
 use App\Http\Controllers\KelasController;
 use App\Http\Controllers\Api\AuthController;
+use App\Http\Controllers\JenisTagihanController;
 
 // Authentication routes (public)
 Route::post('/login', [AuthController::class, 'login']);
@@ -18,6 +19,11 @@ Route::middleware('auth:sanctum')->group(function () {
 // API v1 endpoints untuk modul Kesantrian (Santri)
 Route::prefix('v1/kesantrian')->group(function () {
     Route::apiResource('santri', SantriController::class);
+});
+
+// API v1 endpoints untuk modul Keuangan
+Route::prefix('v1/keuangan')->group(function () {
+    Route::apiResource('jenis-tagihan', JenisTagihanController::class);
 });
 
 // Modul Kelas
