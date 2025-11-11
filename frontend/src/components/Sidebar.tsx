@@ -3,7 +3,7 @@ import { useUIStore } from '../stores/useUIStore'
 import { 
   LayoutDashboard, Users, Wallet, UserCog, Settings, Building2, Home, 
   ArrowDownUp, LogIn, LogOut, GraduationCap, CreditCard, Receipt, 
-  BookOpen, FileText, AlertCircle, ListChecks, DollarSign 
+  BookOpen, FileText, AlertCircle, ListChecks, DollarSign, Calendar
 } from 'lucide-react'
 import { motion, AnimatePresence } from 'framer-motion'
 import { useState } from 'react'
@@ -20,9 +20,11 @@ export default function Sidebar() {
   const [keuanganOpen, setKeuanganOpen] = useState(true)
   const [keuanganTunggakanOpen, setKeuanganTunggakanOpen] = useState(false)
   const [keuanganPengaturanOpen, setKeuanganPengaturanOpen] = useState(false)
+  const [akademikOpen, setAkademikOpen] = useState(true)
   const location = useLocation()
   const kesantrianActive = location.pathname.startsWith('/kesantrian')
   const keuanganActive = location.pathname.startsWith('/keuangan')
+  const akademikActive = location.pathname.startsWith('/akademik')
   
   // Handler untuk menampilkan sidebar saat ada sentuhan di area sidebar saat collapsed
   const handleSidebarHover = () => {
@@ -353,7 +355,42 @@ export default function Sidebar() {
           </AnimatePresence>
         </div>
 
-        {/* Bottom menu - Pengguna & Pengaturan */}
+        {/* Akademik parent */}
+        <div className="space-y-1">
+          <button
+            type="button"
+            onClick={() => setAkademikOpen((v) => !v)}
+            className={`w-full flex items-center gap-3 rounded-md px-3 py-2 text-sm ${akademikActive ? 'bg-white text-brand shadow-sm' : 'text-gray-700 hover:bg-white'}`}
+          >
+            <Calendar className="w-5 h-5" />
+            {sidebarOpen && <span>Akademik</span>}
+          </button>
+          <AnimatePresence initial={false}>
+            {akademikOpen && sidebarOpen && (
+              <motion.div
+                initial={{ height: 0, opacity: 0 }}
+                animate={{ height: 'auto', opacity: 1 }}
+                exit={{ height: 0, opacity: 0 }}
+                transition={{ type: 'tween', duration: 0.2 }}
+                className="overflow-hidden"
+              >
+                <ul className="ml-5 space-y-1 border-l border-gray-300 pl-3">
+                  <li>
+                    <NavLink
+                      to="/akademik/tahun-ajaran"
+                      className={({ isActive }) =>
+                        `flex items-center gap-3 rounded-md px-3 py-2 text-sm ${isActive ? 'bg-white text-brand shadow-sm' : 'text-gray-700 hover:bg-white'}`
+                      }
+                    >
+                      <Calendar className="w-5 h-5" />
+                      {sidebarOpen && <span>Tahun Ajaran</span>}
+                    </NavLink>
+                  </li>
+                </ul>
+              </motion.div>
+            )}
+          </AnimatePresence>
+        </div>
         <div className="border-t border-gray-200 pt-2 space-y-1">
           {bottomMenu.map((m) => {
             const Icon = m.icon

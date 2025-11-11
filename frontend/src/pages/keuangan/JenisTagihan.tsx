@@ -3,6 +3,8 @@ import { Plus, Edit2, Trash2, Play, X, Search, Filter } from 'lucide-react'
 import { listSantri } from '../../api/santri'
 import { listKelas } from '../../api/kelas'
 import { listJenisTagihan, createJenisTagihan, updateJenisTagihan, deleteJenisTagihan } from '../../api/jenisTagihan'
+import { listTahunAjaran } from '../../api/tahunAjaran'
+import { generateTagihanSantri } from '../../api/tagihanSantri'
 import toast from 'react-hot-toast'
 
 interface JenisTagihan {
@@ -28,6 +30,8 @@ export default function JenisTagihan() {
   const [santriList, setSantriList] = useState<any[]>([])
   const [dataTagihan, setDataTagihan] = useState<JenisTagihan[]>([])
   const [loading, setLoading] = useState(false)
+  const [tahunAjaranAktif, setTahunAjaranAktif] = useState<any>(null)
+  const [bulanList, setBulanList] = useState<string[]>([])
 
   // Fetch data kelas, santri, dan jenis tagihan dari API
   useEffect(() => {
@@ -37,15 +41,56 @@ export default function JenisTagihan() {
   const fetchAllData = async () => {
     try {
       setLoading(true)
-      const [kelasRes, santriRes, tagihanRes] = await Promise.all([
+      const [kelasRes, santriRes, tagihanRes, tahunAjaranRes] = await Promise.all([
         listKelas(),
         listSantri(1, 1000),
-        listJenisTagihan()
+        listJenisTagihan(),
+        listTahunAjaran()
       ])
       
       setKelasList(kelasRes.data || kelasRes || [])
       setSantriList(santriRes.data || santriRes || [])
       setDataTagihan(tagihanRes.data || tagihanRes || [])
+      
+      // Cari tahun ajaran aktif
+      const tahunsAjaran = tahunAjaranRes.data || tahunAjaranRes || []
+      const aktif = tahunsAjaran.find((t: any) => t.status === 'aktif')
+      
+      if (aktif) {
+        setTahunAjaranAktif(aktif)
+        // Generate bulan dari bulan_mulai hingga bulan_akhir
+        const bulanNama = [
+          'Januari', 'Februari', 'Maret', 'April', 'Mei', 'Juni',
+          'Juli', 'Agustus', 'September', 'Oktober', 'November', 'Desember'
+        ]
+        
+        let bulan = []
+        const mulai = aktif.bulan_mulai
+        const akhir = aktif.bulan_akhir
+        
+        if (mulai <= akhir) {
+          // Bulan dalam tahun yang sama (contoh: Juli-Desember)
+          for (let i = mulai; i <= akhir; i++) {
+            bulan.push(bulanNama[i - 1])
+          }
+        } else {
+          // Bulan melewati tahun baru (contoh: November 2024 - Juni 2025)
+          for (let i = mulai; i <= 12; i++) {
+            bulan.push(bulanNama[i - 1])
+          }
+          for (let i = 1; i <= akhir; i++) {
+            bulan.push(bulanNama[i - 1])
+          }
+        }
+        
+        setBulanList(bulan)
+      } else {
+        // Jika tidak ada tahun ajaran aktif, tampilkan semua bulan
+        setBulanList([
+          'Januari', 'Februari', 'Maret', 'April', 'Mei', 'Juni',
+          'Juli', 'Agustus', 'September', 'Oktober', 'November', 'Desember'
+        ])
+      }
     } catch (error) {
       console.error('Error fetching data:', error)
       toast.error('Gagal memuat data')
@@ -258,6 +303,7 @@ export default function JenisTagihan() {
           tagihan={selectedTagihan}
           kelasList={kelasList}
           santriList={santriList}
+          bulanAvailable={bulanList}
         />
       )}
 
@@ -294,13 +340,15 @@ function ModalFormTagihan({
   onSave,
   tagihan, 
   kelasList, 
-  santriList 
+  santriList,
+  bulanAvailable 
 }: { 
   onClose: () => void
   onSave: (data: JenisTagihan) => void
   tagihan: JenisTagihan | null
   kelasList: any[]
   santriList: any[]
+  bulanAvailable: string[]
 }) {
   const [namaTagihan, setNamaTagihan] = useState(tagihan?.namaTagihan || '')
   const [kategori, setKategori] = useState<'Rutin' | 'Non Rutin'>(tagihan?.kategori || 'Rutin')
@@ -315,7 +363,11 @@ function ModalFormTagihan({
   const [searchSantri, setSearchSantri] = useState('')
   const [showAddSantriModal, setShowAddSantriModal] = useState(false)
 
-  const bulanList = ['Januari', 'Februari', 'Maret', 'April', 'Mei', 'Juni', 'Juli', 'Agustus', 'September', 'Oktober', 'November', 'Desember']
+  // Gunakan bulan dari tahun ajaran aktif, atau semua bulan jika tidak ada
+  const bulanList = bulanAvailable.length > 0 ? bulanAvailable : [
+    'Januari', 'Februari', 'Maret', 'April', 'Mei', 'Juni', 
+    'Juli', 'Agustus', 'September', 'Oktober', 'November', 'Desember'
+  ]
   
   // Filter santri based on search
   const filteredSantri = santriList.filter(s => 
@@ -496,9 +548,16 @@ function ModalFormTagihan({
             <label className="block text-sm font-medium text-gray-700 mb-2">
               Bulan Tagihan * 
               <span className="text-xs text-gray-500 ml-2">
-                ({kategori === 'Rutin' ? 'Pilih bulan dari tahun ajaran aktif' : 'Pilih bulan penagihan'})
+                {bulanAvailable.length > 0 
+                  ? '(Pilih bulan dari tahun ajaran aktif)' 
+                  : '(Tidak ada tahun ajaran aktif, menampilkan semua bulan)'}
               </span>
             </label>
+            {bulanAvailable.length === 0 && (
+              <div className="mb-2 p-2 bg-yellow-50 border border-yellow-200 rounded text-xs text-yellow-800">
+                ⚠️ Belum ada tahun ajaran aktif. Silakan aktifkan tahun ajaran terlebih dahulu.
+              </div>
+            )}
             <div className="grid grid-cols-4 gap-2 max-h-40 overflow-y-auto border border-gray-300 rounded-lg p-3">
               {bulanList.map((bulan) => (
                 <label key={bulan} className="flex items-center">
@@ -976,16 +1035,66 @@ function ModalConfirmDelete({
     </div>
   )
 }
+
+// Modal Success Generate
+function ModalSuccessGenerate({
+  totalTagihan,
+  totalSantri,
+  onClose
+}: {
+  totalTagihan: number
+  totalSantri: number
+  onClose: () => void
+}) {
+  return (
+    <div className="fixed inset-0 z-[80] flex items-center justify-center p-4 bg-black/50">
+      <div className="bg-white rounded-lg shadow-xl max-w-md w-full">
+        <div className="p-6 text-center">
+          {/* Icon Success */}
+          <div className="mx-auto w-16 h-16 bg-green-100 rounded-full flex items-center justify-center mb-4">
+            <svg className="w-8 h-8 text-green-600" fill="none" stroke="currentColor" viewBox="0 0 24 24">
+              <path strokeLinecap="round" strokeLinejoin="round" strokeWidth={2} d="M5 13l4 4L19 7" />
+            </svg>
+          </div>
+
+          {/* Title */}
+          <h3 className="font-bold text-xl text-gray-900 mb-2">
+            Generate Tagihan Berhasil!
+          </h3>
+
+          {/* Message */}
+          <div className="text-gray-600 space-y-1 mb-6">
+            <p>Berhasil men-generate <strong className="text-green-600">{totalTagihan} tagihan</strong></p>
+            <p>untuk <strong className="text-green-600">{totalSantri} santri</strong></p>
+          </div>
+
+          {/* Button */}
+          <button
+            onClick={onClose}
+            className="w-full px-6 py-2.5 bg-green-600 text-white rounded-lg hover:bg-green-700 font-medium"
+          >
+            OK
+          </button>
+        </div>
+      </div>
+    </div>
+  )
+}
 // Modal Preview Generate
-function ModalPreviewGenerate({ 
-  tagihan, 
+function ModalPreviewGenerate({
+  tagihan,
   santriList,
-  onClose 
-}: { 
+  onClose
+}: {
   tagihan: JenisTagihan
   santriList: any[]
-  onClose: () => void 
+  onClose: () => void
 }) {
+  const [showSuccessModal, setShowSuccessModal] = useState(false)
+  const [generatedCount, setGeneratedCount] = useState(0)
+  const [generatedSantri, setGeneratedSantri] = useState(0)
+  const [isGenerating, setIsGenerating] = useState(false)
+
   // Data santri berdasarkan tipe nominal
   const getDaftarSantri = () => {
     if (tagihan.tipeNominal === 'sama') {
@@ -1263,17 +1372,41 @@ function ModalPreviewGenerate({
             Batal
           </button>
           <button
-            onClick={() => {
-              alert(`Berhasil generate ${totalTagihan} tagihan untuk ${daftarSantri.length} santri!`)
-              onClose()
+            onClick={async () => {
+              setIsGenerating(true)
+              try {
+                const response = await generateTagihanSantri(tagihan.id)
+                setGeneratedCount(response.data.total_tagihan)
+                setGeneratedSantri(response.data.total_santri)
+                setShowSuccessModal(true)
+              } catch (error: any) {
+                console.error('Error generating:', error)
+                const errorMessage = error.response?.data?.message || 'Gagal generate tagihan'
+                toast.error(errorMessage)
+              } finally {
+                setIsGenerating(false)
+              }
             }}
-            className="px-6 py-2 bg-green-600 text-white rounded-lg hover:bg-green-700 flex items-center gap-2"
+            disabled={isGenerating}
+            className={`px-6 py-2 bg-green-600 text-white rounded-lg hover:bg-green-700 flex items-center gap-2 ${isGenerating ? 'opacity-50 cursor-not-allowed' : ''}`}
           >
             <Play className="w-4 h-4" />
-            Generate Tagihan Sekarang
+            {isGenerating ? 'Generating...' : 'Generate Tagihan Sekarang'}
           </button>
         </div>
       </div>
+
+      {/* Modal Success */}
+      {showSuccessModal && (
+        <ModalSuccessGenerate
+          totalTagihan={generatedCount}
+          totalSantri={generatedSantri}
+          onClose={() => {
+            setShowSuccessModal(false)
+            onClose()
+          }}
+        />
+      )}
     </div>
   )
 }

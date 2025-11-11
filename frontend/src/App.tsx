@@ -29,6 +29,8 @@ const TunggakanMutasi = lazy(() => import('./pages/keuangan/TunggakanMutasi'))
 const TunggakanAlumni = lazy(() => import('./pages/keuangan/TunggakanAlumni'))
 const JenisTagihan = lazy(() => import('./pages/keuangan/JenisTagihan'))
 const KeringananTagihan = lazy(() => import('./pages/keuangan/KeringananTagihan'))
+// Akademik subpages
+const AkademikTahunAjaran = lazy(() => import('./pages/akademik/TahunAjaran'))
 
 // Protected Route Component
 function ProtectedRoute({ children }: { children: React.ReactNode }) {
@@ -85,6 +87,7 @@ export default function App() {
             <Route path="/keuangan" element={<Navigate to="/keuangan/pembayaran" replace />} />
             <Route path="/keuangan/tunggakan" element={<Navigate to="/keuangan/tunggakan/aktif" replace />} />
             <Route path="/keuangan/pengaturan" element={<Navigate to="/keuangan/pengaturan/jenis-tagihan" replace />} />
+            <Route path="/akademik" element={<Navigate to="/akademik/tahun-ajaran" replace />} />
             
             {/* kesantrian submenus */}
             <Route path="/kesantrian/santri" element={
@@ -212,7 +215,13 @@ export default function App() {
             } />
             
             {/* akademik submenus */}
-            {/* Kelas dipindahkan ke /kesantrian/kelas */}
+            <Route path="/akademik/tahun-ajaran" element={
+              <ProtectedRoute>
+                <AppLayout>
+                  <AkademikTahunAjaran />
+                </AppLayout>
+              </ProtectedRoute>
+            } />
           </Routes>
         </Suspense>
       </ErrorBoundary>
