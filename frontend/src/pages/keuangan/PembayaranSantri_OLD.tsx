@@ -1,9 +1,8 @@
 import { useState, useEffect } from 'react'
 import { Search, User, Home, Building2, Phone, Users, CheckCircle, XCircle, X, Printer } from 'lucide-react'
-import { listSantri } from '../../api/santri'
-import { getTagihanBySantri, prosesPembayaran, listPembayaran } from '../../api/pembayaran'
-import { useAuthStore } from '../../stores/useAuthStore'
-import toast from 'react-hot-toast'
+import { listSantri } from '@/api/santri'
+import { useAuthStore } from '@/stores/useAuthStore'
+import { toast } from 'sonner'
 
 // Types
 type OrangTua = {
@@ -33,26 +32,17 @@ type Santri = {
 type Tagihan = {
   id: number
   bulan: string
-  tahun: number
+  tahun: string
+  jenisTagihan: string
   nominal: number
-  dibayar: number
-  sisa: number
-  status: 'belum_bayar' | 'sebagian' | 'lunas'
-  jatuh_tempo: string
-  jenis_tagihan: {
-    id: number
-    nama_tagihan: string
-    kategori: 'Rutin' | 'Non Rutin'
-    buku_kas_id: number
-  }
-  // UI helper fields
-  jumlahBayar?: number
-  tipe?: 'rutin' | 'non-rutin'
-  jenisTagihan?: string
+  jumlahBayar?: number // Jumlah yang sudah dibayar (untuk sebagian)
+  tipe: 'rutin' | 'non-rutin'
+  status: 'belum' | 'sebagian' | 'lunas'
   sisaBayar?: number
   tglBayar?: string
   adminPenerima?: string
-  tglJatuhTempo?: string
+  originalId?: number // Track original tagihan jika di-split
+  tglJatuhTempo?: string // Tanggal jatuh tempo pembayaran
 }
 
 export default function PembayaranSantri() {
@@ -73,6 +63,221 @@ export default function PembayaranSantri() {
   const user = useAuthStore((state) => state.user)
 
   // Initialize tagihan
+  useEffect(() => {
+    // Set jatuh tempo untuk tagihan
+    // Rutin: Jatuh tempo setiap bulan tanggal 10
+    // Non-Rutin: Jatuh tempo berbeda-beda
+    // Mix: Belum bayar, sudah bayar, sebagian bayar
+    
+    const today = new Date()
+    const year = today.getFullYear()
+    const month = today.getMonth()
+    
+    setTagihan([
+      // ===== TAGIHAN RUTIN - BELUM JATUH TEMPO - BELUM BAYAR =====
+      { 
+        id: 1, 
+        bulan: 'November', 
+        tahun: '2025', 
+        jenisTagihan: 'SPP', 
+        nominal: 500000, 
+        tipe: 'rutin', 
+        status: 'belum', 
+        tglJatuhTempo: `${year}-${String(month + 1).padStart(2, '0')}-15` // Besok
+      },
+      { 
+        id: 2, 
+        bulan: 'November', 
+        tahun: '2025', 
+        jenisTagihan: 'Makan', 
+        nominal: 300000, 
+        tipe: 'rutin', 
+        status: 'belum',
+        tglJatuhTempo: `${year}-${String(month + 1).padStart(2, '0')}-15` // Besok
+      },
+      
+      // ===== TAGIHAN RUTIN - BELUM JATUH TEMPO - SUDAH BAYAR =====
+      { 
+        id: 3, 
+        bulan: 'Oktober', 
+        tahun: '2025', 
+        jenisTagihan: 'SPP', 
+        nominal: 500000, 
+        tipe: 'rutin', 
+        status: 'lunas',
+        tglJatuhTempo: '2025-10-15',
+        tglBayar: '2025-10-12',
+        adminPenerima: 'Rhezal Maulana'
+      },
+      { 
+        id: 4, 
+        bulan: 'Oktober', 
+        tahun: '2025', 
+        jenisTagihan: 'Makan', 
+        nominal: 300000, 
+        tipe: 'rutin', 
+        status: 'lunas',
+        tglJatuhTempo: '2025-10-15',
+        tglBayar: '2025-10-12',
+        adminPenerima: 'Rhezal Maulana'
+      },
+      
+      // ===== TAGIHAN RUTIN - BELUM JATUH TEMPO - SEBAGIAN BAYAR =====
+      { 
+        id: 5, 
+        bulan: 'September', 
+        tahun: '2025', 
+        jenisTagihan: 'SPP', 
+        nominal: 300000, 
+        jumlahBayar: 300000,
+        tipe: 'rutin', 
+        status: 'lunas',
+        sisaBayar: 0,
+        tglJatuhTempo: '2025-09-15',
+        tglBayar: '2025-09-10',
+        adminPenerima: 'Rhezal Maulana'
+      },
+      { 
+        id: '5-remaining-spp-sep',
+        bulan: 'September', 
+        tahun: '2025', 
+        jenisTagihan: 'SPP', 
+        nominal: 200000, 
+        jumlahBayar: 0,
+        tipe: 'rutin', 
+        status: 'sebagian',
+        sisaBayar: 200000,
+        tglJatuhTempo: '2025-09-15'
+      },
+      { 
+        id: 6, 
+        bulan: 'September', 
+        tahun: '2025', 
+        jenisTagihan: 'Makan', 
+        nominal: 300000, 
+        tipe: 'rutin', 
+        status: 'lunas',
+        tglJatuhTempo: '2025-09-15',
+        tglBayar: '2025-09-11',
+        adminPenerima: 'Rhezal Maulana'
+      },
+      
+      // ===== TAGIHAN NON-RUTIN - BELUM JATUH TEMPO - BELUM BAYAR =====
+      { 
+        id: 7, 
+        bulan: 'November', 
+        tahun: '2025', 
+        jenisTagihan: 'Seragam', 
+        nominal: 750000, 
+        tipe: 'non-rutin', 
+        status: 'belum',
+        tglJatuhTempo: `${year}-${String(month + 1).padStart(2, '0')}-20`
+      },
+      { 
+        id: 8, 
+        bulan: 'November', 
+        tahun: '2025', 
+        jenisTagihan: 'Buku Paket', 
+        nominal: 450000, 
+        tipe: 'non-rutin', 
+        status: 'belum',
+        tglJatuhTempo: `${year}-${String(month + 1).padStart(2, '0')}-20`
+      },
+      
+      // ===== TAGIHAN NON-RUTIN - BELUM JATUH TEMPO - SUDAH BAYAR =====
+      { 
+        id: 9, 
+        bulan: 'Oktober', 
+        tahun: '2025', 
+        jenisTagihan: 'Perlengkapan Lab', 
+        nominal: 600000, 
+        tipe: 'non-rutin', 
+        status: 'lunas',
+        tglJatuhTempo: '2025-10-20',
+        tglBayar: '2025-10-15',
+        adminPenerima: 'Rhezal Maulana'
+      },
+      
+      // ===== TAGIHAN NON-RUTIN - BELUM JATUH TEMPO - SEBAGIAN BAYAR =====
+      { 
+        id: 10, 
+        bulan: 'Oktober', 
+        tahun: '2025', 
+        jenisTagihan: 'Wisata Edukatif', 
+        nominal: 500000, 
+        jumlahBayar: 500000,
+        tipe: 'non-rutin', 
+        status: 'lunas',
+        sisaBayar: 0,
+        tglJatuhTempo: '2025-10-25',
+        tglBayar: '2025-10-22',
+        adminPenerima: 'Rhezal Maulana'
+      },
+      { 
+        id: '10-remaining-wisata',
+        bulan: 'Oktober', 
+        tahun: '2025', 
+        jenisTagihan: 'Wisata Edukatif', 
+        nominal: 300000, 
+        jumlahBayar: 0,
+        tipe: 'non-rutin', 
+        status: 'sebagian',
+        sisaBayar: 300000,
+        tglJatuhTempo: '2025-10-25'
+      },
+      
+      // ===== TAGIHAN RUTIN YANG SUDAH JATUH TEMPO - BELUM BAYAR =====
+      { 
+        id: 11, 
+        bulan: 'Agustus', 
+        tahun: '2025', 
+        jenisTagihan: 'SPP', 
+        nominal: 500000, 
+        tipe: 'rutin', 
+        status: 'belum',
+        tglJatuhTempo: '2025-08-15'
+      },
+      { 
+        id: 12, 
+        bulan: 'Agustus', 
+        tahun: '2025', 
+        jenisTagihan: 'Makan', 
+        nominal: 300000, 
+        tipe: 'rutin', 
+        status: 'belum',
+        tglJatuhTempo: '2025-08-15'
+      },
+      
+      // ===== TAGIHAN NON-RUTIN YANG SUDAH JATUH TEMPO - SEBAGIAN BAYAR =====
+      { 
+        id: 13, 
+        bulan: 'Juli', 
+        tahun: '2025', 
+        jenisTagihan: 'Asuransi', 
+        nominal: 800000, 
+        jumlahBayar: 400000,
+        tipe: 'non-rutin', 
+        status: 'lunas',
+        sisaBayar: 0,
+        tglJatuhTempo: '2025-07-15',
+        tglBayar: '2025-07-10',
+        adminPenerima: 'Rhezal Maulana'
+      },
+      { 
+        id: '13-remaining-asuransi',
+        bulan: 'Juli', 
+        tahun: '2025', 
+        jenisTagihan: 'Asuransi', 
+        nominal: 400000, 
+        jumlahBayar: 0,
+        tipe: 'non-rutin', 
+        status: 'sebagian',
+        sisaBayar: 400000,
+        tglJatuhTempo: '2025-07-15'
+      },
+    ])
+  }, [])
+
   // Fetch santri from API
   useEffect(() => {
     const fetchSantri = async () => {
@@ -138,37 +343,11 @@ export default function PembayaranSantri() {
     return 'N/A'
   }
 
-  const handleSelectSantri = async (santri: Santri) => {
+  const handleSelectSantri = (santri: Santri) => {
     setSelectedSantri(santri)
     setSearchQuery(santri.nama_santri)
     setShowSearchResults(false)
     setSelectedTagihan([])
-    
-    // Fetch tagihan dari backend
-    try {
-      const resTagihan = await getTagihanBySantri(santri.id)
-      const tagihanData = resTagihan.data || []
-      
-      // Transform data untuk match dengan UI format lama
-      const transformedTagihan = tagihanData.map((t: any) => ({
-        id: t.id,
-        bulan: t.bulan,
-        tahun: String(t.tahun),
-        jenisTagihan: t.jenis_tagihan.nama_tagihan,
-        nominal: t.nominal,
-        jumlahBayar: t.dibayar,
-        tipe: t.jenis_tagihan.kategori.toLowerCase().replace(' ', '-'),
-        status: t.status === 'belum_bayar' ? 'belum' : t.status,
-        sisaBayar: t.sisa,
-        tglJatuhTempo: t.jatuh_tempo
-      }))
-      
-      setTagihan(transformedTagihan)
-    } catch (error) {
-      console.error('Error fetching tagihan:', error)
-      toast.error('Gagal memuat data tagihan')
-      setTagihan([])
-    }
   }
 
   const handleClearSearch = () => {

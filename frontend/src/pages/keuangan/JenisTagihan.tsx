@@ -5,6 +5,7 @@ import { listKelas } from '../../api/kelas'
 import { listJenisTagihan, createJenisTagihan, updateJenisTagihan, deleteJenisTagihan } from '../../api/jenisTagihan'
 import { listTahunAjaran } from '../../api/tahunAjaran'
 import { generateTagihanSantri } from '../../api/tagihanSantri'
+import { listBukuKas } from '../../api/bukuKas'
 import toast from 'react-hot-toast'
 
 interface JenisTagihan {
@@ -17,7 +18,8 @@ interface JenisTagihan {
   nominalPerKelas?: { kelas: string; nominal: number }[]
   nominalPerIndividu?: { santriId: string; santriNama: string; nominal: number }[]
   jatuhTempo: string
-  bukuKas: string
+  bukuKasId: number
+  bukuKas?: string
 }
 
 export default function JenisTagihan() {
@@ -28,6 +30,7 @@ export default function JenisTagihan() {
   const [searchTerm, setSearchTerm] = useState('')
   const [kelasList, setKelasList] = useState<any[]>([])
   const [santriList, setSantriList] = useState<any[]>([])
+  const [bukuKasList, setBukuKasList] = useState<any[]>([])
   const [dataTagihan, setDataTagihan] = useState<JenisTagihan[]>([])
   const [loading, setLoading] = useState(false)
   const [tahunAjaranAktif, setTahunAjaranAktif] = useState<any>(null)
@@ -41,16 +44,18 @@ export default function JenisTagihan() {
   const fetchAllData = async () => {
     try {
       setLoading(true)
-      const [kelasRes, santriRes, tagihanRes, tahunAjaranRes] = await Promise.all([
+      const [kelasRes, santriRes, tagihanRes, tahunAjaranRes, bukuKasRes] = await Promise.all([
         listKelas(),
         listSantri(1, 1000),
         listJenisTagihan(),
-        listTahunAjaran()
+        listTahunAjaran(),
+        listBukuKas()
       ])
       
       setKelasList(kelasRes.data || kelasRes || [])
       setSantriList(santriRes.data || santriRes || [])
       setDataTagihan(tagihanRes.data || tagihanRes || [])
+      setBukuKasList(bukuKasRes.data || bukuKasRes || [])
       
       // Cari tahun ajaran aktif
       const tahunsAjaran = tahunAjaranRes.data || tahunAjaranRes || []
@@ -303,6 +308,7 @@ export default function JenisTagihan() {
           tagihan={selectedTagihan}
           kelasList={kelasList}
           santriList={santriList}
+          bukuKasList={bukuKasList}
           bulanAvailable={bulanList}
         />
       )}
@@ -341,6 +347,7 @@ function ModalFormTagihan({
   tagihan, 
   kelasList, 
   santriList,
+  bukuKasList,
   bulanAvailable 
 }: { 
   onClose: () => void
@@ -348,6 +355,7 @@ function ModalFormTagihan({
   tagihan: JenisTagihan | null
   kelasList: any[]
   santriList: any[]
+  bukuKasList: any[]
   bulanAvailable: string[]
 }) {
   const [namaTagihan, setNamaTagihan] = useState(tagihan?.namaTagihan || '')
@@ -359,7 +367,7 @@ function ModalFormTagihan({
   const [nominalPerIndividu, setNominalPerIndividu] = useState<{ santriId: string; santriNama: string; nominal: number }[]>(tagihan?.nominalPerIndividu || [])
   const [jatuhTempo, setJatuhTempo] = useState(tagihan?.jatuhTempo || '')
   const [tanggalJatuhTempo, setTanggalJatuhTempo] = useState('')
-  const [bukuKas, setBukuKas] = useState(tagihan?.bukuKas || '')
+  const [bukuKasId, setBukuKasId] = useState(tagihan?.bukuKasId || '')
   const [searchSantri, setSearchSantri] = useState('')
   const [showAddSantriModal, setShowAddSantriModal] = useState(false)
 
@@ -446,7 +454,7 @@ function ModalFormTagihan({
       alert('Jatuh tempo harus diisi')
       return
     }
-    if (!bukuKas) {
+    if (!bukuKasId) {
       alert('Buku kas harus dipilih')
       return
     }
@@ -473,7 +481,7 @@ function ModalFormTagihan({
       bulan: bulanTerpilih,
       tipeNominal,
       jatuhTempo: kategori === 'Rutin' ? jatuhTempo : tanggalJatuhTempo,
-      bukuKas
+      bukuKasId: Number(bukuKasId)
     }
 
     if (tipeNominal === 'sama') {
@@ -754,15 +762,16 @@ function ModalFormTagihan({
           <div>
             <label className="block text-sm font-medium text-gray-700 mb-1">Buku Kas *</label>
             <select
-              value={bukuKas}
-              onChange={(e) => setBukuKas(e.target.value)}
+              value={bukuKasId}
+              onChange={(e) => setBukuKasId(e.target.value)}
               className="w-full px-4 py-2 border border-gray-300 rounded-lg focus:ring-2 focus:ring-blue-500 focus:border-transparent"
             >
               <option value="">Pilih Buku Kas</option>
-              <option value="Kas SPP">Kas SPP</option>
-              <option value="Kas Makan">Kas Makan</option>
-              <option value="Kas Ujian">Kas Ujian</option>
-              <option value="Kas Perlengkapan">Kas Perlengkapan</option>
+              {bukuKasList.map((kas: any) => (
+                <option key={kas.id} value={kas.id}>
+                  {kas.nama_kas}
+                </option>
+              ))}
             </select>
           </div>
 

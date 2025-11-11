@@ -9,6 +9,7 @@ use App\Http\Controllers\JenisTagihanController;
 use App\Http\Controllers\TahunAjaranController;
 use App\Http\Controllers\TagihanSantriController;
 use App\Http\Controllers\BukuKasController;
+use App\Http\Controllers\PembayaranController;
 
 // Authentication routes (public)
 Route::post('/login', [AuthController::class, 'login']);
@@ -32,6 +33,10 @@ Route::prefix('v1/keuangan')->group(function () {
     // Tagihan Santri
     Route::post('tagihan-santri/generate', [TagihanSantriController::class, 'generate']);
     Route::apiResource('tagihan-santri', TagihanSantriController::class);
+    
+    // Pembayaran
+    Route::get('pembayaran/santri/{santriId}/tagihan', [PembayaranController::class, 'getTagihanBySantri']);
+    Route::apiResource('pembayaran', PembayaranController::class);
 });
 
 // API v1 endpoints untuk modul Akademik

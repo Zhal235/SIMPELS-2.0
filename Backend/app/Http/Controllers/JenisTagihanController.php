@@ -13,12 +13,14 @@ class JenisTagihanController extends Controller
      */
     public function index()
     {
-        $jenisTagihan = JenisTagihan::latest()->get();
+        $jenisTagihan = JenisTagihan::with('bukuKas')->latest()->get();
         
         return response()->json([
             'success' => true,
             'data' => $jenisTagihan->map(function($item) {
-                return $item->formatted_data;
+                $data = $item->formatted_data;
+                $data['bukuKas'] = $item->bukuKas ? $item->bukuKas->nama_kas : null;
+                return $data;
             })
         ]);
     }
@@ -35,7 +37,7 @@ class JenisTagihanController extends Controller
             'bulan.*' => 'string',
             'tipeNominal' => 'required|in:sama,per_kelas,per_individu',
             'jatuhTempo' => 'required|string',
-            'bukuKas' => 'required|string',
+            'bukuKasId' => 'required|exists:buku_kas,id',
             
             // Conditional validation based on tipe_nominal
             'nominalSama' => 'required_if:tipeNominal,sama|nullable|numeric|min:0',
@@ -62,7 +64,7 @@ class JenisTagihanController extends Controller
             'bulan' => $request->bulan,
             'tipe_nominal' => $request->tipeNominal,
             'jatuh_tempo' => $request->jatuhTempo,
-            'buku_kas' => $request->bukuKas,
+            'buku_kas_id' => $request->bukuKasId,
         ];
 
         if ($request->tipeNominal === 'sama') {
@@ -87,7 +89,7 @@ class JenisTagihanController extends Controller
      */
     public function show(string $id)
     {
-        $jenisTagihan = JenisTagihan::find($id);
+        $jenisTagihan = JenisTagihan::with('bukuKas')->find($id);
 
         if (!$jenisTagihan) {
             return response()->json([
@@ -96,9 +98,12 @@ class JenisTagihanController extends Controller
             ], 404);
         }
 
+        $data = $jenisTagihan->formatted_data;
+        $data['bukuKas'] = $jenisTagihan->bukuKas ? $jenisTagihan->bukuKas->nama_kas : null;
+
         return response()->json([
             'success' => true,
-            'data' => $jenisTagihan->formatted_data
+            'data' => $data
         ]);
     }
 
@@ -123,7 +128,7 @@ class JenisTagihanController extends Controller
             'bulan.*' => 'string',
             'tipeNominal' => 'required|in:sama,per_kelas,per_individu',
             'jatuhTempo' => 'required|string',
-            'bukuKas' => 'required|string',
+            'bukuKasId' => 'required|exists:buku_kas,id',
             
             'nominalSama' => 'required_if:tipeNominal,sama|nullable|numeric|min:0',
             'nominalPerKelas' => 'required_if:tipeNominal,per_kelas|nullable|array',
@@ -149,7 +154,7 @@ class JenisTagihanController extends Controller
             'bulan' => $request->bulan,
             'tipe_nominal' => $request->tipeNominal,
             'jatuh_tempo' => $request->jatuhTempo,
-            'buku_kas' => $request->bukuKas,
+            'buku_kas_id' => $request->bukuKasId,
             // Reset all nominal fields
             'nominal_sama' => null,
             'nominal_per_kelas' => null,
