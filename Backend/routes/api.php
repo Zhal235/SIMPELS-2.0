@@ -4,6 +4,16 @@ use Illuminate\Support\Facades\Route;
 use App\Http\Controllers\Kesantrian\SantriController;
 use App\Http\Controllers\Kesantrian\AsramaController;
 use App\Http\Controllers\KelasController;
+use App\Http\Controllers\Api\AuthController;
+
+// Authentication routes (public)
+Route::post('/login', [AuthController::class, 'login']);
+
+// Protected routes
+Route::middleware('auth:sanctum')->group(function () {
+    Route::post('/logout', [AuthController::class, 'logout']);
+    Route::get('/user', [AuthController::class, 'user']);
+});
 
 // API v1 endpoints untuk modul Kesantrian (Santri)
 Route::prefix('v1/kesantrian')->group(function () {
