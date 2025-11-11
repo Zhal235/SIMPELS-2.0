@@ -249,8 +249,8 @@ function ModalFormTahunAjaran({
   }
 
   // Convert dari format YYYY-MM-DD ke tanggal/bulan/tahun
-  const parseDateInput = (dateString: string) => {
-    if (!dateString) return { tanggal: '', bulan: '', tahun: '' }
+  const parseDateInput = (dateString: string): { tanggal: string; bulan: string; tahun: number } => {
+    if (!dateString) return { tanggal: '', bulan: '', tahun: 0 }
     const [tahun, bulan, tanggal] = dateString.split('-')
     return {
       tanggal: String(Number(tanggal)),

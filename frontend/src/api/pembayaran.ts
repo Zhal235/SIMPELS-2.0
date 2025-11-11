@@ -5,7 +5,7 @@ export async function listPembayaran(params?: Record<string, any>) {
   return res.data
 }
 
-export async function getTagihanBySantri(santriId: string) {
+export async function getTagihanBySantri(santriId: string | number) {
   const res = await api.get(`/v1/keuangan/pembayaran/santri/${santriId}/tagihan`)
   return res.data
 }

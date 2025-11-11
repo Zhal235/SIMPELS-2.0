@@ -42,9 +42,9 @@ type Santri = {
 }
 
 type Tagihan = {
-  id: number
+  id: number | string
   bulan: string
-  tahun: number
+  tahun: string | number
   nominal: number
   dibayar: number
   sisa: number
@@ -64,6 +64,7 @@ type Tagihan = {
   tglBayar?: string
   adminPenerima?: string
   tglJatuhTempo?: string
+  originalId?: number
 }
 
 export default function PembayaranSantri() {
@@ -73,7 +74,7 @@ export default function PembayaranSantri() {
   const [santriList, setSantriList] = useState<Santri[]>([])
   const [loadingSantri, setLoadingSantri] = useState(false)
   const [activeTab, setActiveTab] = useState<'rutin' | 'non-rutin' | 'tunggakan' | 'lunas'>('rutin')
-  const [selectedTagihan, setSelectedTagihan] = useState<number[]>([])
+  const [selectedTagihan, setSelectedTagihan] = useState<string[]>([])
   const [showModalLunas, setShowModalLunas] = useState(false)
   const [showModalSebagian, setShowModalSebagian] = useState(false)
   const [tagihan, setTagihan] = useState<Tagihan[]>([])
@@ -174,7 +175,7 @@ export default function PembayaranSantri() {
         nominal: Number(t.sisa) || 0,
         jumlahBayar: t.dibayar,
         tipe: t.jenis_tagihan.kategori.toLowerCase().replace(' ', '-'),
-        status: t.status === 'belum_bayar' ? 'belum' : t.status,
+        status: t.status,
         sisaBayar: Number(t.sisa) || 0,
         tglJatuhTempo: t.jatuh_tempo,
         buku_kas_id: t.jenis_tagihan.buku_kas_id
@@ -221,7 +222,7 @@ export default function PembayaranSantri() {
   const toggleTagihan = (id: number | string) => {
     const idStr = String(id)
     setSelectedTagihan(prev =>
-      prev.includes(idStr as any) ? prev.filter(t => String(t) !== idStr) : [...prev, idStr as any]
+      prev.includes(idStr) ? prev.filter(t => t !== idStr) : [...prev, idStr]
     )
   }
 
@@ -285,7 +286,7 @@ export default function PembayaranSantri() {
       // Tagihan rutin yang belum bayar/sebagian dan belum lewat jatuh tempo
       return tagihan.filter(t => 
         t.tipe === 'rutin' && 
-        (t.status === 'belum' || t.status === 'sebagian') && 
+        (t.status === 'belum_bayar' || t.status === 'sebagian') && 
         !isOverdue(t.tglJatuhTempo, t.bulan, t.tahun)
       )
     }
@@ -293,7 +294,7 @@ export default function PembayaranSantri() {
       // Tagihan non-rutin yang belum bayar/sebagian dan belum lewat jatuh tempo
       return tagihan.filter(t => 
         t.tipe === 'non-rutin' && 
-        (t.status === 'belum' || t.status === 'sebagian') && 
+        (t.status === 'belum_bayar' || t.status === 'sebagian') && 
         !isOverdue(t.tglJatuhTempo, t.bulan, t.tahun)
       )
     }
@@ -348,30 +349,30 @@ export default function PembayaranSantri() {
             const sisaBayar = tagihan.nominal - jumlahBayar
             
             // Tagihan yang dibayar (status: lunas)
-            const paidTagihan: Tagihan = {
-              ...tagihan,
-              nominal: jumlahBayar,
-              jumlahBayar: jumlahBayar,
-              status: 'lunas',
-              sisaBayar: undefined,
-              tglBayar: tglBayar || today,
-              adminPenerima: adminName,
-              originalId: tagihan.id as any,
-              id: `${tagihan.id}-paid-${Date.now()}` as any, // Unique ID untuk tagihan yang dibayar
-            }
+          const paidTagihan: Tagihan = {
+            ...tagihan,
+            nominal: jumlahBayar,
+            jumlahBayar: jumlahBayar,
+            status: 'lunas',
+            sisaBayar: undefined,
+            tglBayar: tglBayar || today,
+            adminPenerima: adminName,
+            originalId: typeof tagihan.id === 'string' ? Number(tagihan.id) : tagihan.id,
+            id: `${tagihan.id}-paid-${Date.now()}`, // Unique ID untuk tagihan yang dibayar
+          }
             
             // Tagihan sisa (status: sebagian)
-            const remainingTagihan: Tagihan = {
-              ...tagihan,
-              nominal: sisaBayar,
-              jumlahBayar: 0,
-              status: 'sebagian',
-              sisaBayar: sisaBayar,
-              tglBayar: undefined,
-              adminPenerima: undefined,
-              originalId: tagihan.id as any,
-              id: `${tagihan.id}-remaining-${Date.now()}` as any, // Unique ID untuk sisa tagihan
-            }
+          const remainingTagihan: Tagihan = {
+            ...tagihan,
+            nominal: sisaBayar,
+            jumlahBayar: 0,
+            status: 'sebagian',
+            sisaBayar: sisaBayar,
+            tglBayar: undefined,
+            adminPenerima: undefined,
+            originalId: typeof tagihan.id === 'string' ? Number(tagihan.id) : tagihan.id,
+            id: `${tagihan.id}-remaining-${Date.now()}`, // Unique ID untuk sisa tagihan
+          }
             
             // Remove original, add paid dan remaining
             updated.splice(index, 1, remainingTagihan, paidTagihan)
