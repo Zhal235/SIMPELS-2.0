@@ -318,4 +318,113 @@ class TagihanSantriController extends Controller
             'message' => 'Tagihan berhasil dihapus'
         ]);
     }
+
+    /**
+     * Bulk create tunggakan manual
+     */
+    public function createTunggakan(Request $request)
+    {
+        $validator = Validator::make($request->all(), [
+            'tunggakan' => 'required|array|min:1',
+            'tunggakan.*.santri_id' => 'required|exists:santri,id',
+            'tunggakan.*.jenis_tagihan_id' => 'required|exists:jenis_tagihan,id',
+            'tunggakan.*.bulan' => 'required|string',
+            'tunggakan.*.nominal' => 'required|numeric|min:1',
+        ]);
+
+        if ($validator->fails()) {
+            return response()->json([
+                'success' => false,
+                'message' => 'Validation error',
+                'errors' => $validator->errors()
+            ], 422);
+        }
+
+        try {
+            DB::beginTransaction();
+
+            $created = 0;
+            $duplicates = 0;
+
+            foreach ($request->tunggakan as $item) {
+                // Cek duplikat
+                $exists = TagihanSantri::where('santri_id', $item['santri_id'])
+                    ->where('jenis_tagihan_id', $item['jenis_tagihan_id'])
+                    ->where('bulan', $item['bulan'])
+                    ->first();
+
+                if ($exists) {
+                    $duplicates++;
+                    continue;
+                }
+
+                // Tentukan tahun berdasarkan bulan
+                $tahun = 2025; // Default tahun
+                $bulanNum = $this->getBulanNumber($item['bulan']);
+                
+                // Jika bulan >= 7 (Juli), tahun = 2025, else 2026
+                if ($bulanNum < 7) {
+                    $tahun = 2026;
+                }
+
+                // Get jenis tagihan untuk jatuh tempo
+                $jenisTagihan = JenisTagihan::find($item['jenis_tagihan_id']);
+
+                TagihanSantri::create([
+                    'santri_id' => $item['santri_id'],
+                    'jenis_tagihan_id' => $item['jenis_tagihan_id'],
+                    'bulan' => $item['bulan'],
+                    'tahun' => $tahun,
+                    'nominal' => $item['nominal'],
+                    'dibayar' => 0,
+                    'sisa' => $item['nominal'],
+                    'status' => 'belum_bayar',
+                    'jatuh_tempo' => $jenisTagihan?->jatuh_tempo ?? 'Tanggal 10 setiap bulan'
+                ]);
+
+                $created++;
+            }
+
+            DB::commit();
+
+            return response()->json([
+                'success' => true,
+                'message' => "Berhasil membuat {$created} tunggakan" . ($duplicates > 0 ? ", {$duplicates} duplikat diabaikan" : ''),
+                'created' => $created,
+                'duplicates' => $duplicates
+            ], 201);
+
+        } catch (\Exception $e) {
+            DB::rollBack();
+            \Log::error('Create tunggakan error: ' . $e->getMessage());
+
+            return response()->json([
+                'success' => false,
+                'message' => 'Gagal membuat tunggakan: ' . $e->getMessage()
+            ], 500);
+        }
+    }
+
+    /**
+     * Helper function: convert bulan name to number
+     */
+    private function getBulanNumber($bulan)
+    {
+        $bulanMap = [
+            'Januari' => 1,
+            'Februari' => 2,
+            'Maret' => 3,
+            'April' => 4,
+            'Mei' => 5,
+            'Juni' => 6,
+            'Juli' => 7,
+            'Agustus' => 8,
+            'September' => 9,
+            'Oktober' => 10,
+            'November' => 11,
+            'Desember' => 12
+        ];
+
+        return $bulanMap[$bulan] ?? 1;
+    }
 }

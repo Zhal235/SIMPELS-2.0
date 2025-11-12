@@ -33,6 +33,7 @@ Route::prefix('v1/keuangan')->group(function () {
     
     // Tagihan Santri
     Route::post('tagihan-santri/generate', [TagihanSantriController::class, 'generate']);
+    Route::post('tagihan-santri/tunggakan', [TagihanSantriController::class, 'createTunggakan']);
     Route::apiResource('tagihan-santri', TagihanSantriController::class);
     
     // Pembayaran
