@@ -109,15 +109,8 @@ class PembayaranController extends Controller
                 'status' => $statusTagihan
             ]);
 
-            // Update saldo buku kas
-            $bukuKas = $tagihan->jenisTagihan->bukuKas;
-            if ($request->metode_pembayaran === 'cash') {
-                $bukuKas->increment('saldo_cash_awal', $request->nominal_bayar);
-            } else {
-                $bukuKas->increment('saldo_bank_awal', $request->nominal_bayar);
-            }
-
             // Catat sebagai transaksi pemasukan di buku kas
+            // JANGAN increment saldo_awal, biarkan dihitung dari transaksi
             $noTransaksiKas = TransaksiKas::generateNoTransaksi('pemasukan');
             TransaksiKas::create([
                 'buku_kas_id' => $tagihan->jenisTagihan->buku_kas_id,
@@ -232,14 +225,8 @@ class PembayaranController extends Controller
             }
             $tagihan->update(['status' => $statusTagihan]);
 
-            // Kembalikan saldo buku kas
-            if ($pembayaran->metode_pembayaran === 'cash') {
-                $pembayaran->bukuKas->decrement('saldo_cash_awal', $pembayaran->nominal_bayar);
-            } else {
-                $pembayaran->bukuKas->decrement('saldo_bank_awal', $pembayaran->nominal_bayar);
-            }
-
             // Hapus transaksi kas terkait
+            // JANGAN decrement saldo_awal, transaksi akan otomatis hilang dari perhitungan
             TransaksiKas::where('pembayaran_id', $pembayaran->id)->delete();
 
             $pembayaran->delete();
