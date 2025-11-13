@@ -1,0 +1,4 @@
+import { jsx as _jsx, jsxs as _jsxs } from "react/jsx-runtime";
+export default function SantriPreview({ santri }) {
+    return (_jsxs("div", { className: "bg-white shadow-md rounded-2xl p-6 grid grid-cols-2 gap-4", children: [_jsxs("div", { className: "space-y-2", children: [_jsxs("p", { children: [_jsx("b", { children: "Nama:" }), " ", santri.nama] }), _jsxs("p", { children: [_jsx("b", { children: "NIS:" }), " ", santri.nis] }), _jsxs("p", { children: [_jsx("b", { children: "NISN:" }), " ", santri.nisn] }), _jsxs("p", { children: [_jsx("b", { children: "Jenis Kelamin:" }), " ", santri.jenis_kelamin] }), _jsxs("p", { children: [_jsx("b", { children: "Alamat:" }), " ", santri.alamat] })] }), _jsx("div", { className: "flex justify-end items-start", children: _jsx("img", { src: santri.foto_url || '/placeholder.png', alt: "Foto Santri", className: "w-40 h-40 object-cover rounded-xl border shadow" }) })] }));
+}

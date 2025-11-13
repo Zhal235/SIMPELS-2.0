@@ -4,7 +4,7 @@ import { createSantri, listSantri, deleteSantri } from '../../api/santri'
 import { listKelas } from '../../api/kelas'
 import { listAsrama } from '../../api/asrama'
 import { listJenisTagihan } from '../../api/jenisTagihan'
-import { createTagihanSantri } from '../../api/tagihanSantri'
+import { createTunggakan } from '../../api/tagihanSantri'
 import toast from 'react-hot-toast'
 
 // Types
@@ -302,24 +302,26 @@ export default function MutasiMasuk() {
       
       console.log('Menyimpan data santri...')
       const santriResponse = await createSantri(formData)
-      
-      if (!santriResponse.success) {
+      const newSantriId = (
+        (santriResponse && (santriResponse as any).data && (santriResponse as any).data.id) ||
+        (santriResponse && (santriResponse as any).id) ||
+        (santriResponse && (santriResponse as any).santri && (santriResponse as any).santri.id)
+      )
+      if (!newSantriId) {
         throw new Error('Gagal menyimpan data santri')
       }
-      
-      const newSantriId = santriResponse.data.id
       console.log('Santri berhasil disimpan dengan ID:', newSantriId)
       
-      // 2. Generate tagihan untuk santri
-      console.log('Membuat tagihan...')
-      for (const tagihan of selectedTagihan) {
-        await createTagihanSantri({
-          santri_id: newSantriId,
-          jenis_tagihan_id: tagihan.jenis_tagihan_id,
-          nominal: tagihan.nominal,
-          jatuh_tempo: tagihan.jatuh_tempo,
-          status: 'belum_bayar'
-        })
+      // 2. Buat tagihan sebagai tunggakan (endpoint tersedia di backend)
+      console.log('Membuat tagihan (tunggakan)...')
+      const tunggakan = selectedTagihan.map((tagihan: any) => ({
+        santri_id: newSantriId,
+        jenis_tagihan_id: tagihan.jenis_tagihan_id,
+        bulan: getBulanNamaFromDate(tagihan.jatuh_tempo),
+        nominal: Number(tagihan.nominal) || 0,
+      }))
+      if (tunggakan.length > 0) {
+        await createTunggakan(tunggakan)
       }
       
       toast.success('Mutasi masuk berhasil! Santri telah terdaftar dengan tagihan lengkap.')
@@ -337,7 +339,7 @@ export default function MutasiMasuk() {
       console.error('Error response:', error.response?.data)
       
       const errorData = error.response?.data
-      const errorMessage = errorData?.message || 'Gagal menyimpan data'
+      const errorMessage = errorData?.message || error?.message || 'Gagal menyimpan data'
       const errors = errorData?.errors
       
       if (errors) {
@@ -420,7 +422,12 @@ export default function MutasiMasuk() {
     if (jenisTagihan.tipeNominal === 'sama' || jenisTagihan.tipe_nominal === 'sama') {
       // Ambil dari nominal_sama
       nominal = jenisTagihan.nominalSama || jenisTagihan.nominal_sama || 0
-    } else if (jenisTagihan.tipeNominal === 'beda_perkelas' || jenisTagihan.tipe_nominal === 'beda_perkelas') {
+    } else if (
+      jenisTagihan.tipeNominal === 'beda_perkelas' ||
+      jenisTagihan.tipe_nominal === 'beda_perkelas' ||
+      jenisTagihan.tipeNominal === 'per_kelas' ||
+      jenisTagihan.tipe_nominal === 'per_kelas'
+    ) {
       // Akan dipilih oleh user di modal
       needsKelasSelection = true
       nominal = 0 // Will be set after kelas selection
@@ -430,50 +437,99 @@ export default function MutasiMasuk() {
     }
 
     // Hitung jatuh tempo berdasarkan tipe
-    let jatuhTempo = new Date().toISOString().split('T')[0]
+    let jatuhTempo = toLocalDateStr(new Date())
     
-    if (jenisTagihan.kategori === 'Rutin' && jenisTagihan.bulan && Array.isArray(jenisTagihan.bulan)) {
-      // Untuk tagihan rutin, cek tanggal masuk
-      const today = new Date()
-      const dayOfMonth = today.getDate()
-      const daysInMonth = new Date(today.getFullYear(), today.getMonth() + 1, 0).getDate()
-      const daysBeforeEndOfMonth = daysInMonth - dayOfMonth
-      
-      // Jika masuk 7 hari sebelum akhir bulan atau lebih, tagihan di bulan ini
-      // Jika tidak, tagihan mulai bulan depan
-      let startMonth = today.getMonth()
-      let startYear = today.getFullYear()
-      
-      if (daysBeforeEndOfMonth < 7) {
-        // Tagihan mulai bulan depan
-        startMonth += 1
-        if (startMonth > 11) {
-          startMonth = 0
-          startYear += 1
+    if (jenisTagihan.kategori === 'Rutin' && jenisTagihan.bulan) {
+      const bulanRaw = jenisTagihan.bulan
+      let bulanList: string[] = []
+      if (Array.isArray(bulanRaw)) {
+        bulanList = bulanRaw as string[]
+      } else if (typeof bulanRaw === 'string') {
+        try {
+          const parsed = JSON.parse(bulanRaw)
+          bulanList = Array.isArray(parsed) ? parsed : bulanRaw.split(',').map((b: string) => b.trim())
+        } catch {
+          bulanList = bulanRaw.split(',').map((b: string) => b.trim())
         }
       }
-      
-      // Set jatuh tempo ke tanggal 10 bulan yang ditentukan
-      jatuhTempo = new Date(startYear, startMonth, 10).toISOString().split('T')[0]
-      
-      console.log('Tagihan Rutin:', {
-        today: today.toISOString().split('T')[0],
-        dayOfMonth,
-        daysInMonth,
-        daysBeforeEndOfMonth,
-        willCharge: daysBeforeEndOfMonth >= 7 ? 'Bulan ini' : 'Bulan depan',
-        jatuhTempo
-      })
+
+      const monthMap: Record<string, number> = {
+        'Januari': 0,
+        'Februari': 1,
+        'Maret': 2,
+        'April': 3,
+        'Mei': 4,
+        'Juni': 5,
+        'Juli': 6,
+        'Agustus': 7,
+        'September': 8,
+        'Oktober': 9,
+        'November': 10,
+        'Desember': 11
+      }
+
+      const today = new Date()
+      const defaultDay = (() => {
+        const namaUpper = (jenisTagihan.namaTagihan || jenisTagihan.nama_tagihan || '').toString().toUpperCase()
+        if (namaUpper === 'BERAS' || namaUpper === 'BMP') return 10
+        const jt = jenisTagihan.jatuhTempo || jenisTagihan.jatuh_tempo || ''
+        const match = String(jt).match(/(\d{1,2})/)
+        const d = match ? Number(match[1]) : 10
+        return Math.min(Math.max(d, 1), 28)
+      })()
+
+      let foundDate: Date | null = null
+      for (let i = 0; i < 24; i++) {
+        const checkDate = new Date(today.getFullYear(), today.getMonth() + i, 1)
+        const monthIndex = checkDate.getMonth()
+        const monthName = Object.keys(monthMap).find(k => monthMap[k] === monthIndex)
+        if (!monthName) continue
+        if (bulanList.includes(monthName)) {
+          const candidate = new Date(checkDate.getFullYear(), monthIndex, defaultDay)
+          if (candidate >= new Date(today.getFullYear(), today.getMonth(), today.getDate())) {
+            foundDate = candidate
+            break
+          }
+        }
+      }
+
+      if (foundDate) {
+        jatuhTempo = toLocalDateStr(foundDate)
+      }
     }
 
-    // Jika perlu pilih kelas, simpan dulu pending
+    // Non Rutin: gunakan jatuhTempo yang ditetapkan saat pembuatan jenis tagihan jika ada
+    if (jenisTagihan.kategori === 'Non Rutin') {
+      const jt = jenisTagihan.jatuhTempo || jenisTagihan.jatuh_tempo
+      if (jt) {
+        jatuhTempo = jt
+      }
+    }
+
+    // Jika perlu pilih kelas, khusus BERAS jangan tampilkan modal
     if (needsKelasSelection) {
-      // Set state untuk show modal pilih kelas
-      setPendingTagihan({
-        jenis_tagihan: jenisTagihan,
-        jatuh_tempo: jatuhTempo
-      })
-      setShowKelasModal(true)
+      const namaUpper = (jenisTagihan.namaTagihan || jenisTagihan.nama_tagihan || '').toString().toUpperCase()
+      const isBeras = namaUpper === 'BERAS'
+      if (!isBeras) {
+        // Tampilkan modal untuk pilih nominal per kelas
+        setPendingTagihan({
+          jenis_tagihan: jenisTagihan,
+          jatuh_tempo: jatuhTempo
+        })
+        setShowKelasModal(true)
+        return
+      }
+      // BERAS: langsung tambahkan dengan nominal 0, bisa diedit di Tagihan Terpilih
+      const newTagihanBeras: SelectedTagihan = {
+        jenis_tagihan_id: jenisTagihan.id,
+        nama_tagihan: jenisTagihan.namaTagihan || jenisTagihan.nama_tagihan || 'Tagihan',
+        nominal: 0,
+        jatuh_tempo: jatuhTempo,
+        is_custom_nominal: false,
+        tipe_nominal: jenisTagihan.tipeNominal || jenisTagihan.tipe_nominal
+      }
+      setSelectedTagihan([...selectedTagihan, newTagihanBeras])
+      toast.success('Tagihan BERAS ditambahkan')
       return
     }
 
@@ -1281,9 +1337,6 @@ function Step3Tagihan({ jenisTagihanList, kelasList, selectedTagihan, addTagihan
                   <Plus className="w-5 h-5" />
                 </button>
               </div>
-              <p className="text-sm font-semibold text-blue-600 mt-3">
-                {formatRupiah(Number(jenis.nominal) || 0)}
-              </p>
             </div>
           ))}
         </div>
@@ -1315,7 +1368,7 @@ function Step3Tagihan({ jenisTagihanList, kelasList, selectedTagihan, addTagihan
                     <label className="block text-xs text-gray-600 mb-1">
                       Nominal {tagihan.is_custom_nominal && <span className="text-blue-600">(Custom)</span>}
                     </label>
-                    {tagihan.tipe_nominal === 'per_individu' ? (
+                    {tagihan.tipe_nominal === 'per_individu' || tagihan.tipe_nominal === 'per_kelas' || tagihan.tipe_nominal === 'beda_perkelas' ? (
                       <>
                         <input
                           type="number"
@@ -1326,6 +1379,11 @@ function Step3Tagihan({ jenisTagihanList, kelasList, selectedTagihan, addTagihan
                           min="0"
                         />
                         <p className="text-xs text-gray-500 mt-1">{formatRupiah(Number(tagihan.nominal) || 0)}</p>
+                        {tagihan.kelas_id && (
+                          <p className="text-xs text-blue-600 mt-1">
+                            Tingkat {kelasList.find((k: any) => k.id === tagihan.kelas_id)?.tingkat || tagihan.kelas_id}
+                          </p>
+                        )}
                       </>
                     ) : (
                       <>
@@ -1333,11 +1391,6 @@ function Step3Tagihan({ jenisTagihanList, kelasList, selectedTagihan, addTagihan
                           {tagihan.nominal || 0}
                         </div>
                         <p className="text-xs text-gray-500 mt-1">{formatRupiah(Number(tagihan.nominal) || 0)}</p>
-                        {tagihan.kelas_id && (
-                          <p className="text-xs text-blue-600 mt-1">
-                            Tingkat {kelasList.find(k => k.id === tagihan.kelas_id)?.tingkat || tagihan.kelas_id}
-                          </p>
-                        )}
                       </>
                     )}
                   </div>
@@ -1345,12 +1398,18 @@ function Step3Tagihan({ jenisTagihanList, kelasList, selectedTagihan, addTagihan
                   {/* Input Jatuh Tempo */}
                   <div>
                     <label className="block text-xs text-gray-600 mb-1">Jatuh Tempo</label>
-                    <input
-                      type="date"
-                      value={tagihan.jatuh_tempo || ''}
-                      onChange={(e) => updateTagihanJatuhTempo(tagihan.jenis_tagihan_id, e.target.value)}
-                      className="w-full px-3 py-1.5 text-sm border border-gray-300 rounded focus:ring-2 focus:ring-blue-500"
-                    />
+                    {tagihan.tipe_nominal === 'per_individu' ? (
+                      <input
+                        type="date"
+                        value={tagihan.jatuh_tempo || ''}
+                        onChange={(e) => updateTagihanJatuhTempo(tagihan.jenis_tagihan_id, e.target.value)}
+                        className="w-full px-3 py-1.5 text-sm border border-gray-300 rounded focus:ring-2 focus:ring-blue-500"
+                      />
+                    ) : (
+                      <div className="w-full px-3 py-1.5 text-sm border border-gray-200 rounded bg-gray-50 text-gray-700">
+                        {tagihan.jatuh_tempo || '-'}
+                      </div>
+                    )}
                   </div>
                 </div>
               </div>
@@ -1458,3 +1517,16 @@ function Step4Review({ formStep1, formStep2, selectedTagihan, kelasList, asramaL
     </div>
   )
 }
+  const toLocalDateStr = (date: Date) => {
+    const y = date.getFullYear()
+    const m = String(date.getMonth() + 1).padStart(2, '0')
+    const d = String(date.getDate()).padStart(2, '0')
+    return `${y}-${m}-${d}`
+  }
+  const bulanNamaID = ['Januari','Februari','Maret','April','Mei','Juni','Juli','Agustus','September','Oktober','November','Desember']
+  const getBulanNamaFromDate = (dateStr: string) => {
+    if (!dateStr) return ''
+    const d = new Date(dateStr)
+    const idx = d.getMonth()
+    return bulanNamaID[idx] || ''
+  }
