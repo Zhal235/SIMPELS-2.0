@@ -36,3 +36,17 @@ export async function getTransaksiKasByBukuKas(bukuKasId: string | number) {
   return res.data
 }
 
+export async function getTransaksiKas(id: string | number) {
+  const res = await api.get(`/v1/keuangan/transaksi-kas/${id}`)
+  return res.data
+}
+
+export async function createTransaksiKas(data: Record<string, any>) {
+  const res = await api.post('/v1/keuangan/transaksi-kas', data)
+  return res.data
+}
+
+export async function deleteTransaksiKas(id: string | number) {
+  const res = await api.delete(`/v1/keuangan/transaksi-kas/${id}`)
+  return res.data
+}
