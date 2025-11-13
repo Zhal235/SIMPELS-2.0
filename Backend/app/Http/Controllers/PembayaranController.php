@@ -57,12 +57,13 @@ class PembayaranController extends Controller
                     'metode_pembayaran' => $p->metode_pembayaran,
                     'status_pembayaran' => $p->status_pembayaran,
                     'keterangan' => $p->keterangan,
+                    'kwitansi_snapshot' => $p->kwitansi_snapshot, // Include snapshot untuk reprint
                     // Info tagihan
                     'jenis_tagihan' => $p->tagihanSantri->jenisTagihan->nama_tagihan,
                     'bulan' => $p->tagihanSantri->bulan,
                     'tahun' => $p->tagihanSantri->tahun,
                     'nominal_tagihan' => $p->tagihanSantri->nominal,
-                    'admin_penerima' => 'Admin', // TODO: add created_by
+                    'admin_penerima' => $p->kwitansi_snapshot['admin'] ?? 'Admin', // Ambil dari snapshot jika ada
                 ];
             })
             ->groupBy(function($item) {
@@ -86,6 +87,7 @@ class PembayaranController extends Controller
             'metode_pembayaran' => 'required|in:cash,transfer',
             'tanggal_bayar' => 'required|date',
             'keterangan' => 'nullable|string',
+            'kwitansi_data' => 'nullable|array', // Data kwitansi dari frontend
         ]);
 
         if ($validator->fails()) {
@@ -100,7 +102,7 @@ class PembayaranController extends Controller
             DB::beginTransaction();
 
             // Ambil data tagihan
-            $tagihan = TagihanSantri::with('jenisTagihan.bukuKas')->findOrFail($request->tagihan_santri_id);
+            $tagihan = TagihanSantri::with('jenisTagihan.bukuKas', 'santri')->findOrFail($request->tagihan_santri_id);
             
             // Validasi nominal tidak melebihi sisa tagihan
             if ($request->nominal_bayar > $tagihan->sisa) {
@@ -118,6 +120,33 @@ class PembayaranController extends Controller
             $sisaSetelahBayar = $tagihan->sisa - $request->nominal_bayar;
             $statusPembayaran = $sisaSetelahBayar == 0 ? 'lunas' : 'sebagian';
 
+            // Generate kwitansi snapshot - data yang akan disimpan persis seperti saat pembayaran
+            $kwitansiSnapshot = $request->kwitansi_data ?? [
+                'no_kwitansi' => strtoupper(substr(md5($noTransaksi . time()), 0, 9)),
+                'type' => $statusPembayaran,
+                'santri' => [
+                    'nis' => $tagihan->santri->nis,
+                    'nama_santri' => $tagihan->santri->nama_santri,
+                    'kelas' => $tagihan->santri->kelas?->nama_kelas,
+                ],
+                'tagihan' => [
+                    'jenis_tagihan' => $tagihan->jenisTagihan->nama_tagihan,
+                    'bulan' => $tagihan->bulan,
+                    'tahun' => $tagihan->tahun,
+                    'nominal' => (float) $tagihan->nominal,
+                ],
+                'pembayaran' => [
+                    'nominal_bayar' => (float) $request->nominal_bayar,
+                    'sisa_sebelum' => (float) $sisaSebelumBayar,
+                    'sisa_sesudah' => (float) $sisaSetelahBayar,
+                    'metode_pembayaran' => $request->metode_pembayaran,
+                    'tanggal_bayar' => $request->tanggal_bayar,
+                ],
+                'admin' => $request->user()?->name ?? 'Admin',
+                'tanggal_cetak' => now()->setTimezone('Asia/Jakarta')->format('d F Y'),
+                'jam_cetak' => now()->setTimezone('Asia/Jakarta')->format('H:i:s') . ' WIB',
+            ];
+
             // Buat record pembayaran
             $pembayaran = Pembayaran::create([
                 'santri_id' => $tagihan->santri_id,
@@ -131,6 +160,7 @@ class PembayaranController extends Controller
                 'metode_pembayaran' => $request->metode_pembayaran,
                 'status_pembayaran' => $statusPembayaran,
                 'keterangan' => $request->keterangan,
+                'kwitansi_snapshot' => $kwitansiSnapshot, // Simpan snapshot kwitansi
             ]);
 
             // Update tagihan santri

@@ -25,6 +25,7 @@ class Pembayaran extends Model
         'status_pembayaran',
         'keterangan',
         'bukti_pembayaran',
+        'kwitansi_snapshot',
     ];
 
     protected $casts = [
@@ -32,6 +33,7 @@ class Pembayaran extends Model
         'sisa_sebelum' => 'decimal:2',
         'sisa_sesudah' => 'decimal:2',
         'tanggal_bayar' => 'datetime',
+        'kwitansi_snapshot' => 'array',
     ];
 
     /**

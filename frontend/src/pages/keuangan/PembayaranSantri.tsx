@@ -655,43 +655,82 @@ export default function PembayaranSantri() {
                                 {/* Tombol Print Kwitansi */}
                                 <button
                                   onClick={() => {
-                                    const bayarDate = new Date(pembayaran.tanggal_bayar)
-                                    const tanggalWIB = bayarDate.toLocaleDateString('id-ID', { 
-                                      timeZone: 'Asia/Jakarta',
-                                      day: '2-digit',
-                                      month: 'long',
-                                      year: 'numeric'
-                                    })
-                                    const jamWIB = bayarDate.toLocaleTimeString('id-ID', { 
-                                      timeZone: 'Asia/Jakarta',
-                                      hour: '2-digit',
-                                      minute: '2-digit',
-                                      second: '2-digit',
-                                      hour12: false
-                                    }) + ' WIB'
-                                    
-                                    setKwitansiData({
-                                      type: pembayaran.status_pembayaran === 'lunas' ? 'lunas' : 'sebagian',
-                                      santri: selectedSantri,
-                                      tagihan: [{
-                                        id: pembayaran.id,
-                                        jenisTagihan: pembayaran.jenis_tagihan,
-                                        bulan: pembayaran.bulan,
-                                        tahun: pembayaran.tahun,
-                                        nominal: pembayaran.nominal_tagihan
-                                      }],
-                                      totalTagihan: pembayaran.nominal_tagihan,
-                                      totalBayar: pembayaran.nominal_bayar,
-                                      nominalBayar: pembayaran.nominal_bayar,
-                                      sisaSebelum: pembayaran.sisa_sebelum,
-                                      sisaSesudah: pembayaran.sisa_sesudah,
-                                      admin: pembayaran.admin_penerima,
-                                      tanggal: tanggalWIB,
-                                      jam: jamWIB,
-                                      paymentDetails: pembayaran.status_pembayaran === 'sebagian' ? {
-                                        [pembayaran.id]: pembayaran.nominal_bayar
-                                      } : undefined
-                                    })
+                                    // Jika ada snapshot kwitansi, gunakan data tersebut (data saat pembayaran dilakukan)
+                                    if (pembayaran.kwitansi_snapshot) {
+                                      setKwitansiData({
+                                        type: pembayaran.kwitansi_snapshot.type || (pembayaran.status_pembayaran === 'lunas' ? 'lunas' : 'sebagian'),
+                                        santri: pembayaran.kwitansi_snapshot.santri || selectedSantri,
+                                        tagihan: pembayaran.kwitansi_snapshot.tagihan ? [pembayaran.kwitansi_snapshot.tagihan] : [{
+                                          id: pembayaran.id,
+                                          jenisTagihan: pembayaran.jenis_tagihan,
+                                          bulan: pembayaran.bulan,
+                                          tahun: pembayaran.tahun,
+                                          nominal: pembayaran.nominal_tagihan
+                                        }],
+                                        totalTagihan: pembayaran.kwitansi_snapshot.tagihan?.nominal || pembayaran.nominal_tagihan,
+                                        totalBayar: pembayaran.kwitansi_snapshot.pembayaran?.nominal_bayar || pembayaran.nominal_bayar,
+                                        nominalBayar: pembayaran.kwitansi_snapshot.pembayaran?.nominal_bayar || pembayaran.nominal_bayar,
+                                        sisaSebelum: pembayaran.kwitansi_snapshot.pembayaran?.sisa_sebelum || pembayaran.sisa_sebelum,
+                                        sisaSesudah: pembayaran.kwitansi_snapshot.pembayaran?.sisa_sesudah || pembayaran.sisa_sesudah,
+                                        admin: pembayaran.kwitansi_snapshot.admin || pembayaran.admin_penerima,
+                                        tanggal: pembayaran.kwitansi_snapshot.tanggal_cetak || new Date(pembayaran.tanggal_bayar).toLocaleDateString('id-ID', { 
+                                          timeZone: 'Asia/Jakarta',
+                                          day: '2-digit',
+                                          month: 'long',
+                                          year: 'numeric'
+                                        }),
+                                        jam: pembayaran.kwitansi_snapshot.jam_cetak || (new Date(pembayaran.tanggal_bayar).toLocaleTimeString('id-ID', { 
+                                          timeZone: 'Asia/Jakarta',
+                                          hour: '2-digit',
+                                          minute: '2-digit',
+                                          second: '2-digit',
+                                          hour12: false
+                                        }) + ' WIB'),
+                                        noKwitansi: pembayaran.kwitansi_snapshot.no_kwitansi,
+                                        paymentDetails: pembayaran.status_pembayaran === 'sebagian' ? {
+                                          [pembayaran.id]: pembayaran.nominal_bayar
+                                        } : undefined
+                                      })
+                                    } else {
+                                      // Fallback: generate dari data saat ini (untuk data lama yang belum punya snapshot)
+                                      const bayarDate = new Date(pembayaran.tanggal_bayar)
+                                      const tanggalWIB = bayarDate.toLocaleDateString('id-ID', { 
+                                        timeZone: 'Asia/Jakarta',
+                                        day: '2-digit',
+                                        month: 'long',
+                                        year: 'numeric'
+                                      })
+                                      const jamWIB = bayarDate.toLocaleTimeString('id-ID', { 
+                                        timeZone: 'Asia/Jakarta',
+                                        hour: '2-digit',
+                                        minute: '2-digit',
+                                        second: '2-digit',
+                                        hour12: false
+                                      }) + ' WIB'
+                                      
+                                      setKwitansiData({
+                                        type: pembayaran.status_pembayaran === 'lunas' ? 'lunas' : 'sebagian',
+                                        santri: selectedSantri,
+                                        tagihan: [{
+                                          id: pembayaran.id,
+                                          jenisTagihan: pembayaran.jenis_tagihan,
+                                          bulan: pembayaran.bulan,
+                                          tahun: pembayaran.tahun,
+                                          nominal: pembayaran.nominal_tagihan
+                                        }],
+                                        totalTagihan: pembayaran.nominal_tagihan,
+                                        totalBayar: pembayaran.nominal_bayar,
+                                        nominalBayar: pembayaran.nominal_bayar,
+                                        sisaSebelum: pembayaran.sisa_sebelum,
+                                        sisaSesudah: pembayaran.sisa_sesudah,
+                                        admin: pembayaran.admin_penerima,
+                                        tanggal: tanggalWIB,
+                                        jam: jamWIB,
+                                        paymentDetails: pembayaran.status_pembayaran === 'sebagian' ? {
+                                          [pembayaran.id]: pembayaran.nominal_bayar
+                                        } : undefined
+                                      })
+                                    }
                                     setShowKwitansi(true)
                                   }}
                                   className="mt-2 text-xs bg-blue-100 text-blue-600 px-2 py-1 rounded hover:bg-blue-200 flex items-center gap-1 justify-center w-full"
@@ -908,20 +947,6 @@ export default function PembayaranSantri() {
 
     const handleKonfirmasi = async () => {
       try {
-        // Proses pembayaran untuk setiap tagihan terpilih
-        const currentDateTime = getCurrentWIBForBackend() // WIB timestamp
-        for (const t of tagihanTerpilih) {
-          await prosesPembayaran({
-            tagihan_santri_id: t.id,
-            nominal_bayar: t.nominal,
-            metode_pembayaran: metodeBayar,
-            tanggal_bayar: currentDateTime,
-            keterangan: `Pembayaran ${t.jenisTagihan} - ${t.bulan} ${t.tahun} (${selectedSantri?.nama_santri})`
-          })
-        }
-        
-        toast.success('Pembayaran berhasil!')
-        
         // Get current date time in WIB
         const now = new Date()
         const tanggalWIB = now.toLocaleDateString('id-ID', { 
@@ -938,6 +963,48 @@ export default function PembayaranSantri() {
           hour12: false
         }) + ' WIB'
         
+        // Proses pembayaran untuk setiap tagihan terpilih
+        const currentDateTime = getCurrentWIBForBackend() // WIB timestamp
+        for (const t of tagihanTerpilih) {
+          // Prepare kwitansi snapshot untuk disimpan
+          const kwitansiSnapshot = {
+            no_kwitansi: Math.random().toString(36).substr(2, 9).toUpperCase(),
+            type: 'lunas',
+            santri: {
+              nis: selectedSantri?.nis,
+              nama_santri: selectedSantri?.nama_santri,
+              kelas: selectedSantri?.kelas,
+            },
+            tagihan: {
+              jenis_tagihan: t.jenisTagihan,
+              bulan: t.bulan,
+              tahun: t.tahun,
+              nominal: t.nominal,
+            },
+            pembayaran: {
+              nominal_bayar: t.nominal,
+              sisa_sebelum: t.sisa || t.nominal,
+              sisa_sesudah: 0,
+              metode_pembayaran: metodeBayar,
+              tanggal_bayar: currentDateTime,
+            },
+            admin: user?.name || 'Admin',
+            tanggal_cetak: tanggalWIB,
+            jam_cetak: jamWIB,
+          }
+          
+          await prosesPembayaran({
+            tagihan_santri_id: t.id,
+            nominal_bayar: t.nominal,
+            metode_pembayaran: metodeBayar,
+            tanggal_bayar: currentDateTime,
+            keterangan: `Pembayaran ${t.jenisTagihan} - ${t.bulan} ${t.tahun} (${selectedSantri?.nama_santri})`,
+            kwitansi_data: kwitansiSnapshot
+          })
+        }
+        
+        toast.success('Pembayaran berhasil!')
+        
         // Set data kwitansi dan tampilkan
         setKwitansiData({
           type: 'lunas',
@@ -950,7 +1017,7 @@ export default function PembayaranSantri() {
           metodeBayar: metodeBayar,
           tanggal: tanggalWIB,
           jam: jamWIB,
-          admin: 'Admin' // TODO: get from auth
+          admin: user?.name || 'Admin'
         })
         
         setShowKwitansi(true)
@@ -1144,37 +1211,6 @@ export default function PembayaranSantri() {
         let totalBayar = 0
         const currentDateTime = getCurrentWIBForBackend() // WIB timestamp
         
-        // Jika hanya 1 tagihan, langsung bayar
-        if (tagihanTerpilih.length === 1) {
-          await prosesPembayaran({
-            tagihan_santri_id: tagihanTerpilih[0].id,
-            nominal_bayar: nominal,
-            metode_pembayaran: metodeBayar,
-            tanggal_bayar: currentDateTime,
-            keterangan: `Pembayaran sebagian ${tagihanTerpilih[0].jenisTagihan} - ${tagihanTerpilih[0].bulan} ${tagihanTerpilih[0].tahun}`
-          })
-          totalBayar = nominal
-        } else {
-          // Multiple tagihan: distribusi otomatis
-          let sisa = nominal
-          for (const t of tagihanTerpilih) {
-            const bayar = Math.min(sisa, t.nominal)
-            if (bayar > 0) {
-              await prosesPembayaran({
-                tagihan_santri_id: t.id,
-                nominal_bayar: bayar,
-                metode_pembayaran: metodeBayar,
-                tanggal_bayar: currentDateTime,
-                keterangan: `Pembayaran sebagian ${t.jenisTagihan} - ${t.bulan} ${t.tahun} (${selectedSantri?.nama_santri})`
-              })
-              sisa -= bayar
-              totalBayar += bayar
-            }
-          }
-        }
-        
-        toast.success('Pembayaran sebagian berhasil!')
-        
         // Get current date time in WIB
         const now = new Date()
         const tanggalWIB = now.toLocaleDateString('id-ID', { 
@@ -1190,6 +1226,100 @@ export default function PembayaranSantri() {
           second: '2-digit',
           hour12: false
         }) + ' WIB'
+        
+        // Jika hanya 1 tagihan, langsung bayar
+        if (tagihanTerpilih.length === 1) {
+          const t = tagihanTerpilih[0]
+          const sisaSebelum = t.sisa || t.nominal
+          const sisaSesudah = sisaSebelum - nominal
+          
+          // Prepare kwitansi snapshot
+          const kwitansiSnapshot = {
+            no_kwitansi: Math.random().toString(36).substr(2, 9).toUpperCase(),
+            type: 'sebagian',
+            santri: {
+              nis: selectedSantri?.nis,
+              nama_santri: selectedSantri?.nama_santri,
+              kelas: selectedSantri?.kelas,
+            },
+            tagihan: {
+              jenis_tagihan: t.jenisTagihan,
+              bulan: t.bulan,
+              tahun: t.tahun,
+              nominal: t.nominal,
+            },
+            pembayaran: {
+              nominal_bayar: nominal,
+              sisa_sebelum: sisaSebelum,
+              sisa_sesudah: sisaSesudah,
+              metode_pembayaran: metodeBayar,
+              tanggal_bayar: currentDateTime,
+            },
+            admin: user?.name || 'Admin',
+            tanggal_cetak: tanggalWIB,
+            jam_cetak: jamWIB,
+          }
+          
+          await prosesPembayaran({
+            tagihan_santri_id: t.id,
+            nominal_bayar: nominal,
+            metode_pembayaran: metodeBayar,
+            tanggal_bayar: currentDateTime,
+            keterangan: `Pembayaran sebagian ${t.jenisTagihan} - ${t.bulan} ${t.tahun}`,
+            kwitansi_data: kwitansiSnapshot
+          })
+          totalBayar = nominal
+        } else {
+          // Multiple tagihan: distribusi otomatis
+          let sisa = nominal
+          for (const t of tagihanTerpilih) {
+            const bayar = Math.min(sisa, t.nominal)
+            if (bayar > 0) {
+              const sisaSebelum = t.sisa || t.nominal
+              const sisaSesudah = sisaSebelum - bayar
+              
+              // Prepare kwitansi snapshot
+              const kwitansiSnapshot = {
+                no_kwitansi: Math.random().toString(36).substr(2, 9).toUpperCase(),
+                type: sisaSesudah === 0 ? 'lunas' : 'sebagian',
+                santri: {
+                  nis: selectedSantri?.nis,
+                  nama_santri: selectedSantri?.nama_santri,
+                  kelas: selectedSantri?.kelas,
+                },
+                tagihan: {
+                  jenis_tagihan: t.jenisTagihan,
+                  bulan: t.bulan,
+                  tahun: t.tahun,
+                  nominal: t.nominal,
+                },
+                pembayaran: {
+                  nominal_bayar: bayar,
+                  sisa_sebelum: sisaSebelum,
+                  sisa_sesudah: sisaSesudah,
+                  metode_pembayaran: metodeBayar,
+                  tanggal_bayar: currentDateTime,
+                },
+                admin: user?.name || 'Admin',
+                tanggal_cetak: tanggalWIB,
+                jam_cetak: jamWIB,
+              }
+              
+              await prosesPembayaran({
+                tagihan_santri_id: t.id,
+                nominal_bayar: bayar,
+                metode_pembayaran: metodeBayar,
+                tanggal_bayar: currentDateTime,
+                keterangan: `Pembayaran sebagian ${t.jenisTagihan} - ${t.bulan} ${t.tahun} (${selectedSantri?.nama_santri})`,
+                kwitansi_data: kwitansiSnapshot
+              })
+              sisa -= bayar
+              totalBayar += bayar
+            }
+          }
+        }
+        
+        toast.success('Pembayaran sebagian berhasil!')
         
         // Set data kwitansi dan tampilkan
         const paymentDetails: { [key: string]: number } = {}
@@ -1208,7 +1338,7 @@ export default function PembayaranSantri() {
           metodeBayar: metodeBayar,
           tanggal: tanggalWIB,
           jam: jamWIB,
-          admin: 'Admin' // TODO: get from auth
+          admin: user?.name || 'Admin'
         })
         
         setShowKwitansi(true)
@@ -1370,14 +1500,19 @@ export default function PembayaranSantri() {
 
   // Modal Kwitansi Component
   function ModalKwitansi() {
-    const kwitansiNumber = Math.random().toString(36).substr(2, 9).toUpperCase()
+    // Gunakan nomor kwitansi dari snapshot jika ada, jika tidak generate baru
+    const kwitansiNumber = kwitansiData.noKwitansi || Math.random().toString(36).substr(2, 9).toUpperCase()
     const statusLabel = kwitansiData.type === 'lunas' ? 'LUNAS' : 'BAYAR SEBAGIAN'
-    const totalSisa = kwitansiData.type === 'sebagian' 
-      ? kwitansiData.tagihan.reduce((sum: number, t: any) => {
-          const dibayar = kwitansiData.paymentDetails[String(t.id)] || 0
-          return sum + (t.nominal - dibayar)
-        }, 0)
-      : 0
+    
+    // Untuk total sisa, prioritaskan sisaSesudah dari snapshot (data saat pembayaran)
+    const totalSisa = kwitansiData.sisaSesudah !== undefined 
+      ? kwitansiData.sisaSesudah 
+      : (kwitansiData.type === 'sebagian' 
+          ? kwitansiData.tagihan.reduce((sum: number, t: any) => {
+              const dibayar = kwitansiData.paymentDetails?.[String(t.id)] || 0
+              return sum + (t.nominal - dibayar)
+            }, 0)
+          : 0)
 
     return (
       <div className="fixed inset-0 z-50 flex items-center justify-center p-4">
@@ -1430,14 +1565,27 @@ export default function PembayaranSantri() {
                 </thead>
                 <tbody>
                   {kwitansiData.tagihan.map((t: any, idx: number) => {
-                    const dibayar = kwitansiData.type === 'sebagian' ? (kwitansiData.paymentDetails[String(t.id)] || 0) : t.nominal
-                    // Gunakan sisaSesudah dari snapshot jika ada, kalau tidak hitung manual
-                    const sisa = kwitansiData.sisaSesudah !== undefined ? kwitansiData.sisaSesudah : (t.nominal - dibayar)
+                    // Gunakan nominal bayar dari snapshot atau paymentDetails
+                    const dibayar = kwitansiData.type === 'sebagian' 
+                      ? (kwitansiData.nominalBayar || kwitansiData.paymentDetails?.[String(t.id)] || 0) 
+                      : (kwitansiData.nominalBayar || t.nominal)
+                    
+                    // Untuk kolom "Nominal", tampilkan SISA SEBELUM BAYAR (total yang harus dibayar saat itu)
+                    // Bukan nominal asli tagihan, tapi sisa tagihan yang belum dibayar saat pembayaran dilakukan
+                    const nominalTagihan = kwitansiData.sisaSebelum !== undefined 
+                      ? kwitansiData.sisaSebelum 
+                      : t.nominal
+                    
+                    // Untuk kolom "Sisa", HARUS gunakan sisaSesudah dari snapshot (sisa setelah bayar)
+                    const sisa = kwitansiData.sisaSesudah !== undefined 
+                      ? kwitansiData.sisaSesudah 
+                      : (nominalTagihan - dibayar)
+                    
                     return (
                       <tr key={idx}>
-                        <td className="border border-gray-800 px-6 py-3">{t.jenisTagihan}</td>
+                        <td className="border border-gray-800 px-6 py-3">{t.jenisTagihan || t.jenis_tagihan}</td>
                         <td className="border border-gray-800 px-6 py-3">{t.bulan} {t.tahun}</td>
-                        <td className="border border-gray-800 px-6 py-3 text-right">{formatRupiah(kwitansiData.sisaSebelum || t.nominal)}</td>
+                        <td className="border border-gray-800 px-6 py-3 text-right">{formatRupiah(nominalTagihan)}</td>
                         {kwitansiData.type === 'sebagian' && (
                           <>
                             <td className="border border-gray-800 px-6 py-3 text-right">{formatRupiah(dibayar)}</td>
@@ -1455,7 +1603,7 @@ export default function PembayaranSantri() {
             <div className="mb-1 bg-gray-100 p-3 border border-gray-800 text-xs">
               <div className="flex justify-between mb-0.5 px-2">
                 <span className="font-semibold">Total Tagihan:</span>
-                <span>{formatRupiah(kwitansiData.totalTagihan || kwitansiData.totalBayar)}</span>
+                <span>{formatRupiah(kwitansiData.sisaSebelum || kwitansiData.totalTagihan || kwitansiData.totalBayar)}</span>
               </div>
               <div className="flex justify-between px-2">
                 <span className="font-semibold">Nominal Bayar:</span>
