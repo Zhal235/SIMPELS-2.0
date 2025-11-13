@@ -19,14 +19,37 @@ export default function KesantrianSantri() {
   const [modalOpen, setModalOpen] = useState(false)
   const [mode, setMode] = useState<'create' | 'edit' | 'preview'>('create')
   const [current, setCurrent] = useState<Row | null>(null)
+  
+  const [currentPage, setCurrentPage] = useState(1)
+  const [pageSize, setPageSize] = useState(10)
+  const [totalItems, setTotalItems] = useState(0)
 
   async function fetchData() {
     try {
       setLoading(true)
       const res = await listSantri(currentPage, pageSize)
       const raw: any = res
-      const list: Row[] = Array.isArray(raw) ? raw : (Array.isArray(raw?.data) ? raw.data : (Array.isArray(raw?.data?.data) ? raw.data.data : []))
-      setItems(list)
+      
+      console.log('API Response:', raw)
+      
+      // Handle different response structures
+      if (raw?.data?.data) {
+        // Laravel pagination format
+        setItems(raw.data.data)
+        setTotalItems(raw.data.total || raw.data.data.length)
+        console.log('Items:', raw.data.data.length, 'Total:', raw.data.total)
+      } else if (raw?.data) {
+        const dataArray = Array.isArray(raw.data) ? raw.data : []
+        setItems(dataArray)
+        // Jika tidak ada total, asumsikan ada lebih banyak data jika hasil = pageSize
+        setTotalItems(raw.total || (dataArray.length === pageSize ? pageSize * 10 : dataArray.length))
+        console.log('Items:', dataArray.length, 'Total estimate:', totalItems)
+      } else {
+        const dataArray = Array.isArray(raw) ? raw : []
+        setItems(dataArray)
+        setTotalItems(dataArray.length === pageSize ? pageSize * 10 : dataArray.length)
+        console.log('Items:', dataArray.length)
+      }
     } catch (e: any) {
       console.error('Failed to fetch santri list', e)
       if (String(e?.message || '').includes('CORS')) {
@@ -45,7 +68,7 @@ export default function KesantrianSantri() {
 
   useEffect(() => {
     fetchData()
-  }, [])
+  }, [currentPage, pageSize])
 
   useEffect(() => {
     // when modal closes after create/edit, refresh table
@@ -53,9 +76,6 @@ export default function KesantrianSantri() {
       fetchData()
     }
   }, [modalOpen])
-
-  const [currentPage, setCurrentPage] = useState(1)
-  const [pageSize, setPageSize] = useState(10)
 
   const columns = useMemo(() => (
     [
@@ -176,10 +196,80 @@ export default function KesantrianSantri() {
       <Card>
         {loading && items.length === 0 ? (
           <div className="p-4 text-sm text-gray-500">Memuat data…</div>
-        ) : items.length === 0 ? (
+        ) : !items || items.length === 0 ? (
           <div className="p-4 text-sm text-gray-500">Belum ada data santri.</div>
         ) : (
-          <Table columns={columns as any} data={items} getRowKey={(row: Row, idx: number) => String(row?.id ?? idx)} />
+          <>
+            <Table columns={columns as any} data={items} getRowKey={(row: Row, idx: number) => String(row?.id ?? idx)} />
+            
+            {/* Pagination */}
+            <div className="px-6 py-4 border-t flex items-center justify-between">
+              <div className="flex items-center gap-4">
+                <div className="text-sm text-gray-700">
+                  Menampilkan {((currentPage - 1) * pageSize) + 1} - {Math.min(currentPage * pageSize, totalItems)} dari {totalItems} data
+                </div>
+                <div className="flex items-center gap-2">
+                  <label className="text-sm text-gray-600">Per halaman:</label>
+                  <select
+                    value={pageSize}
+                    onChange={(e) => {
+                      setPageSize(Number(e.target.value))
+                      setCurrentPage(1) // Reset ke halaman 1 saat ganti page size
+                    }}
+                    className="px-2 py-1 border border-gray-300 rounded text-sm focus:ring-2 focus:ring-blue-500"
+                  >
+                    <option value={10}>10</option>
+                    <option value={25}>25</option>
+                    <option value={50}>50</option>
+                    <option value={100}>100</option>
+                  </select>
+                </div>
+              </div>
+              <div className="flex items-center gap-2">
+                <button
+                  onClick={() => setCurrentPage(Math.max(1, currentPage - 1))}
+                  disabled={currentPage === 1}
+                  className="px-3 py-1 border border-gray-300 rounded hover:bg-gray-50 disabled:opacity-50 disabled:cursor-not-allowed"
+                >
+                  ← Prev
+                </button>
+                
+                <div className="flex items-center gap-1">
+                  {Array.from({ length: Math.ceil(totalItems / pageSize) }, (_, i) => i + 1)
+                    .filter(page => {
+                      // Show first, last, current, and adjacent pages
+                      const totalPages = Math.ceil(totalItems / pageSize)
+                      return page === 1 || page === totalPages || Math.abs(page - currentPage) <= 1
+                    })
+                    .map((page, idx, arr) => (
+                      <div key={page}>
+                        {idx > 0 && arr[idx - 1] !== page - 1 && (
+                          <span className="px-2 text-gray-400">...</span>
+                        )}
+                        <button
+                          onClick={() => setCurrentPage(page)}
+                          className={`px-3 py-1 border rounded ${
+                            currentPage === page
+                              ? 'bg-blue-600 text-white border-blue-600'
+                              : 'border-gray-300 hover:bg-gray-50'
+                          }`}
+                        >
+                          {page}
+                        </button>
+                      </div>
+                    ))}
+                </div>
+                
+                <button
+                  onClick={() => setCurrentPage(Math.min(Math.ceil(totalItems / pageSize), currentPage + 1))}
+                  disabled={currentPage >= Math.ceil(totalItems / pageSize)}
+                  className="px-3 py-1 border border-gray-300 rounded hover:bg-gray-50 disabled:opacity-50 disabled:cursor-not-allowed"
+                >
+                  Next →
+                </button>
+              </div>
+            </div>
+          </>
         )}
       </Card>
 
