@@ -45,6 +45,17 @@ class TahunAjaranController extends Controller
             ], 422);
         }
 
+        // Validasi: hanya bisa ada 1 tahun ajaran aktif
+        if ($request->status === 'aktif') {
+            $existingActive = TahunAjaran::where('status', 'aktif')->first();
+            if ($existingActive) {
+                return response()->json([
+                    'success' => false,
+                    'message' => 'Sudah ada tahun ajaran aktif. Silakan nonaktifkan tahun ajaran "' . $existingActive->nama_tahun_ajaran . '" terlebih dahulu.'
+                ], 400);
+            }
+        }
+
         $tahunAjaran = TahunAjaran::create($request->all());
 
         return response()->json([
@@ -105,6 +116,17 @@ class TahunAjaranController extends Controller
                 'message' => 'Validation error',
                 'errors' => $validator->errors()
             ], 422);
+        }
+
+        // Validasi: hanya bisa ada 1 tahun ajaran aktif
+        if ($request->status === 'aktif') {
+            $existingActive = TahunAjaran::where('status', 'aktif')
+                ->where('id', '!=', $id)
+                ->first();
+            if ($existingActive) {
+                // Otomatis nonaktifkan tahun ajaran yang lama
+                $existingActive->update(['status' => 'tidak_aktif']);
+            }
         }
 
         $tahunAjaran->update($request->all());

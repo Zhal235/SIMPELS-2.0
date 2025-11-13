@@ -1,5 +1,5 @@
 import { useState, useEffect } from 'react'
-import { Plus, Edit2, Trash2, X } from 'lucide-react'
+import { Plus, Edit2, Trash2, X, CheckCircle } from 'lucide-react'
 import { listTahunAjaran, createTahunAjaran, updateTahunAjaran, deleteTahunAjaran } from '../../api/tahunAjaran'
 import toast from 'react-hot-toast'
 
@@ -62,6 +62,29 @@ export default function TahunAjaran() {
   const handleEdit = (tahunAjaran: TahunAjaran) => {
     setSelectedTahunAjaran(tahunAjaran)
     setShowModal(true)
+  }
+
+  const handleAktifkan = async (tahunAjaran: TahunAjaran) => {
+    try {
+      // Update tahun ajaran menjadi aktif
+      const updatedData = { ...tahunAjaran, status: 'aktif' as 'aktif' | 'tidak_aktif' }
+      const response = await updateTahunAjaran(tahunAjaran.id, updatedData)
+      
+      // Update state: set semua jadi tidak aktif, kecuali yang baru diaktifkan
+      setDataTahunAjaran(dataTahunAjaran.map(item => ({
+        ...item,
+        status: item.id === tahunAjaran.id ? 'aktif' as 'aktif' | 'tidak_aktif' : 'tidak_aktif' as 'aktif' | 'tidak_aktif'
+      })))
+      
+      toast.success(`Tahun ajaran "${tahunAjaran.nama_tahun_ajaran}" berhasil diaktifkan!`)
+      
+      // Refresh data untuk memastikan sinkron dengan backend
+      fetchData()
+    } catch (error: any) {
+      console.error('Error mengaktifkan:', error)
+      const errorMessage = error.response?.data?.message || 'Gagal mengaktifkan tahun ajaran'
+      toast.error(errorMessage)
+    }
   }
 
   const handleAdd = () => {
@@ -170,6 +193,16 @@ export default function TahunAjaran() {
                     </td>
                     <td className="px-6 py-4">
                       <div className="flex items-center gap-2">
+                        {item.status === 'tidak_aktif' && (
+                          <button
+                            onClick={() => handleAktifkan(item)}
+                            className="px-3 py-1.5 bg-green-600 hover:bg-green-700 text-white rounded-lg text-xs font-medium flex items-center gap-1"
+                            title="Aktifkan tahun ajaran ini"
+                          >
+                            <CheckCircle className="w-3.5 h-3.5" />
+                            Aktifkan
+                          </button>
+                        )}
                         <button
                           onClick={() => handleEdit(item)}
                           className="p-2 hover:bg-blue-100 text-blue-600 rounded-lg"
