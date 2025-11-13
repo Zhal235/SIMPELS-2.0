@@ -21,6 +21,7 @@ interface TransaksiKas {
   keterangan: string
   metode: 'cash' | 'transfer'
   nominal: number
+  created_at?: string
 }
 
 interface BukuKas {
@@ -452,8 +453,8 @@ function ModalLaporan({
               <tbody className="divide-y">
                 {[...(kas.transaksi || [])].sort((a, b) => {
                   // Sort by created_at descending (terbaru di atas)
-                  const dateA = new Date(a.created_at).getTime()
-                  const dateB = new Date(b.created_at).getTime()
+                  const dateA = new Date(a.created_at || a.tanggal).getTime()
+                  const dateB = new Date(b.created_at || b.tanggal).getTime()
                   if (dateB !== dateA) {
                     return dateB - dateA
                   }

@@ -88,7 +88,8 @@ export default function PembayaranSantri() {
   const [selectedSantri, setSelectedSantri] = useState<Santri | null>(null)
   const [santriList, setSantriList] = useState<Santri[]>([])
   const [loadingSantri, setLoadingSantri] = useState(false)
-  const [activeTab, setActiveTab] = useState<'rutin' | 'non-rutin' | 'tunggakan' | 'lunas'>('rutin')
+const [activeTab, setActiveTab] = useState<'rutin' | 'non-rutin' | 'tunggakan' | 'lunas'>('rutin')
+const isLunasTab = activeTab === 'lunas'
   const [selectedTagihan, setSelectedTagihan] = useState<string[]>([])
   const [showModalLunas, setShowModalLunas] = useState(false)
   const [showModalSebagian, setShowModalSebagian] = useState(false)
@@ -794,7 +795,7 @@ export default function PembayaranSantri() {
                             <div className="flex items-start justify-between gap-2">
                               {/* Checkbox & Info */}
                               <div className="flex items-start gap-2 flex-1 min-w-0">
-                                {activeTab !== 'lunas' && (
+                                {!isLunasTab && (
                                   <input
                                     type="checkbox"
                                     checked={selectedTagihan.includes(String(tagihanItem.id))}
@@ -806,12 +807,12 @@ export default function PembayaranSantri() {
                                   <div className="flex items-center gap-1">
                                     <p className="font-semibold text-gray-900 text-sm truncate">{tagihanItem.jenisTagihan}</p>
                                     {/* Hanya tampilkan overdue jika belum lunas DAN bukan di tab "Sudah Dibayar" */}
-                                    {activeTab !== 'lunas' && isOverdue(tagihanItem.tglJatuhTempo, tagihanItem.bulan, tagihanItem.tahun) && tagihanItem.status !== 'lunas' && (
+                                    {!isLunasTab && isOverdue(tagihanItem.tglJatuhTempo, tagihanItem.bulan, tagihanItem.tahun) && tagihanItem.status !== 'lunas' && (
                                       <span className="text-xs bg-red-100 text-red-700 px-1.5 py-0.5 rounded whitespace-nowrap">Overdue</span>
                                     )}
                                   </div>
                                   {/* Tampilkan jatuh tempo hanya jika bukan di tab "Sudah Dibayar" */}
-                                  {activeTab !== 'lunas' && tagihanItem.tglJatuhTempo && (
+                                  {!isLunasTab && tagihanItem.tglJatuhTempo && (
                                     <p className="text-xs text-gray-500 mt-0.5">
                                       Jatuh Tempo: {tagihanItem.tglJatuhTempo}
                                     </p>
@@ -819,7 +820,7 @@ export default function PembayaranSantri() {
                                   {/* Tampilkan tanggal pembayaran jika sudah ada */}
                                   {tagihanItem.tglBayar && (
                                     <div className="text-xs text-green-600 mt-1">
-                                      <p className="font-medium">✓ Dibayar: {new Date(tagihanItem.tglBayar).toLocaleString('id-ID', { 
+                                      <p className="font-medium">✓ Dibayar: {new Date(tagihanItem.tglBayar!).toLocaleString('id-ID', { 
                                         timeZone: 'Asia/Jakarta',
                                         day: '2-digit',
                                         month: 'short',
@@ -839,23 +840,23 @@ export default function PembayaranSantri() {
                               {/* Nominal & Actions */}
                               <div className="text-right flex-shrink-0">
                                 <p className="font-bold text-gray-900 text-sm">
-                                  {activeTab === 'lunas' ? formatRupiah(tagihanItem.jumlahBayar) : formatRupiah(tagihanItem.nominal)}
+                                  {isLunasTab ? formatRupiah(tagihanItem.jumlahBayar) : formatRupiah(tagihanItem.nominal)}
                                 </p>
-                                {tagihanItem.status === 'sebagian' && tagihanItem.sisaBayar && tagihanItem.sisaBayar > 0 && activeTab !== 'lunas' && (
+                                {tagihanItem.status === 'sebagian' && tagihanItem.sisaBayar && tagihanItem.sisaBayar > 0 && !isLunasTab && (
                                   <p className="text-xs text-yellow-600 mt-1">
                                     Sisa: {formatRupiah(tagihanItem.sisaBayar)}
                                   </p>
                                 )}
-                                {tagihanItem.status === 'sebagian' && tagihanItem.sisaBayar && tagihanItem.sisaBayar > 0 && activeTab === 'lunas' && (
+                                {tagihanItem.status === 'sebagian' && tagihanItem.sisaBayar && tagihanItem.sisaBayar > 0 && isLunasTab && (
                                   <p className="text-xs text-orange-600 mt-1">
                                     Sisa: {formatRupiah(tagihanItem.sisaBayar)}
                                   </p>
                                 )}
-                                {activeTab === 'lunas' && tagihanItem.tglBayar && (
+                                {isLunasTab && tagihanItem.tglBayar && (
                                   <button
                                     onClick={() => {
                                       // Parse timestamp dan convert ke WIB
-                                      const bayarDate = new Date(tagihanItem.tglBayar)
+                                      const bayarDate = new Date(tagihanItem.tglBayar!)
                                       const tanggalWIB = bayarDate.toLocaleDateString('id-ID', { 
                                         timeZone: 'Asia/Jakarta',
                                         day: '2-digit',
