@@ -460,65 +460,76 @@ function ModalTambahTunggakan({
     fetchData()
   }, [])
 
-  // Helper: get available bulan untuk santri + jenis tagihan tertentu
+  // Helper: bulan yang tersedia = bulan di jenis tagihan MINUS bulan yang sudah dimiliki santri untuk jenis tersebut
   const getAvailableBulan = (santri_id: string, jenistagihanId: number) => {
     if (!santri_id || !jenistagihanId || !tahunAjaranAktif) {
       console.log('Missing data:', { santri_id, jenistagihanId, tahunAjaranAktif })
       return []
     }
 
-    // Cari jenis tagihan yang dipilih
+    // Jenis tagihan terpilih
     const jenisTerpilih = jenisTagihan.find(j => {
       const jId = j?.id || j?.ID || j?.jenis_tagihan_id
       return jId === jenistagihanId
     })
-    
-    if (!jenisTerpilih) {
-      console.log('Jenis tagihan tidak ditemukan')
-      return []
-    }
-    
-    // Ambil bulan yang di-ceklist saat membuat jenis tagihan
-    let bulanDiCeklist = jenisTerpilih?.bulan || []
-    
-    // Jika bulan adalah string, parse menjadi array
-    if (typeof bulanDiCeklist === 'string') {
+    if (!jenisTerpilih) return []
+
+    // Nama jenis untuk membandingkan dengan detail_tagihan (detail menyimpan nama, bukan ID)
+    const jenisNama = jenisTerpilih?.nama_tagihan || jenisTerpilih?.namaTagihan || ''
+
+    // Bulan yang dicentang saat membuat jenis tagihan
+    const bulanRaw: any = jenisTerpilih?.bulan
+    let bulanDiCeklist: string[] = []
+    if (Array.isArray(bulanRaw)) {
+      bulanDiCeklist = bulanRaw as string[]
+    } else if (typeof bulanRaw === 'string') {
       try {
-        bulanDiCeklist = JSON.parse(bulanDiCeklist)
+        const parsed = JSON.parse(bulanRaw)
+        bulanDiCeklist = Array.isArray(parsed) ? parsed : bulanRaw.split(',').map((b: string) => b.trim())
       } catch {
-        bulanDiCeklist = bulanDiCeklist.split(',').map((b: string) => b.trim())
+        bulanDiCeklist = bulanRaw.split(',').map((b: string) => b.trim())
       }
     }
-    
-    console.log('Bulan Di Ceklist (sudah ada tagihan):', bulanDiCeklist)
-    
-    // Parse tahun ajaran aktif - gunakan field yang benar
-    let tahunMulai = tahunAjaranAktif.tahun_mulai || 2025
-    let tahunSelesai = tahunAjaranAktif.tahun_akhir || 2026
-    
-    console.log('Tahun Mulai:', tahunMulai, 'Tahun Selesai:', tahunSelesai)
-    
-    // Bulan tahun ajaran dengan tahun dari database
-    const bulanTahunAjaranFull = [
-      { bulan: 'Juli', tahun: tahunMulai },
-      { bulan: 'Agustus', tahun: tahunMulai },
-      { bulan: 'September', tahun: tahunMulai },
-      { bulan: 'Oktober', tahun: tahunMulai },
-      { bulan: 'November', tahun: tahunMulai },
-      { bulan: 'Desember', tahun: tahunMulai },
-      { bulan: 'Januari', tahun: tahunSelesai },
-      { bulan: 'Februari', tahun: tahunSelesai },
-      { bulan: 'Maret', tahun: tahunSelesai },
-      { bulan: 'April', tahun: tahunSelesai },
-      { bulan: 'Mei', tahun: tahunSelesai },
-      { bulan: 'Juni', tahun: tahunSelesai }
-    ]
-    
-    // Return hanya bulan yang TIDAK di-ceklist (belum ada tagihan)
-    const available = bulanTahunAjaranFull.filter(b => !bulanDiCeklist.includes(b.bulan))
-    
-    console.log('Available Bulan:', available)
-    
+
+    // Tahun ajaran aktif
+    const tahunMulai = tahunAjaranAktif.tahun_mulai || 2025
+    const tahunSelesai = tahunAjaranAktif.tahun_akhir || 2026
+
+    // Peta bulan -> tahun sesuai tahun ajaran
+    const bulanToYear = (bulan: string) => {
+      const p = {
+        'Juli': tahunMulai,
+        'Agustus': tahunMulai,
+        'September': tahunMulai,
+        'Oktober': tahunMulai,
+        'November': tahunMulai,
+        'Desember': tahunMulai,
+        'Januari': tahunSelesai,
+        'Februari': tahunSelesai,
+        'Maret': tahunSelesai,
+        'April': tahunSelesai,
+        'Mei': tahunSelesai,
+        'Juni': tahunSelesai,
+      } as Record<string, number>
+      return p[bulan] ?? tahunMulai
+    }
+
+    // Ambil detail tagihan santri untuk mengetahui bulan yang sudah ada bagi jenis tersebut
+    const santriData = dataTagihan.find(d => String(d.santri_id) === String(santri_id))
+    const existingPairs = new Set<string>()
+    if (santriData && Array.isArray(santriData.detail_tagihan)) {
+      santriData.detail_tagihan
+        .filter(dt => dt.jenis_tagihan === jenisNama)
+        .forEach(dt => {
+          existingPairs.add(`${dt.bulan}-${dt.tahun}`)
+        })
+    }
+
+    // Bulan yang tersedia = semua bulan yang di-ceklist, dikonversi ke pasangan bulan-tahun, lalu eksklusi yang sudah ada
+    const available = bulanDiCeklist
+      .map(b => ({ bulan: b, tahun: bulanToYear(b) }))
+      .filter(pair => !existingPairs.has(`${pair.bulan}-${pair.tahun}`))
+
     return available
   }
 
@@ -591,7 +602,7 @@ function ModalTambahTunggakan({
             const updated = { 
               ...row, 
               santri_index: index,
-              santri_id: santri.santri_id,
+              santri_id: String(santri.santri_id),
               santri_nama: santri.santri_nama,
               kelas: santri.kelas,
               bulan: [],
@@ -618,7 +629,7 @@ function ModalTambahTunggakan({
             
             return { 
               ...row, 
-              jenis_tagihan_id: parseInt(value),
+              jenis_tagihan_id: Number(value),
               jenis_tagihan_nama: jenis?.nama_tagihan || jenis?.namaTagihan || '',
               // Reset bulan ketika jenis tagihan berubah
               bulan: [],
@@ -690,10 +701,10 @@ function ModalTambahTunggakan({
       rows.forEach(row => {
         row.bulan.forEach(bulan => {
           payload.push({
-            santri_id: row.santri_id, // UUID string
-            jenis_tagihan_id: parseInt(row.jenis_tagihan_id),
+            santri_id: Number(row.santri_id),
+            jenis_tagihan_id: Number(row.jenis_tagihan_id),
             bulan: bulan,
-            nominal: parseFloat(row.nominal)
+            nominal: Number(row.nominal)
           })
         })
       })
