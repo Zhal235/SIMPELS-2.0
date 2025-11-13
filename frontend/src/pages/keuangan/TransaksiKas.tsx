@@ -1,5 +1,5 @@
 import { useState, useEffect } from 'react'
-import { Plus, Search, Trash2, X, ArrowDownCircle, ArrowUpCircle, Filter, Calendar, Eye } from 'lucide-react'
+import { Plus, Search, Trash2, X, ArrowDownCircle, ArrowUpCircle, Filter, Calendar, Eye, ArrowRightLeft } from 'lucide-react'
 import { listBukuKas, listTransaksiKas, createTransaksiKas, deleteTransaksiKas } from '../../api/bukuKas'
 import toast from 'react-hot-toast'
 
@@ -53,6 +53,7 @@ export default function TransaksiKas() {
   const [loading, setLoading] = useState(true)
   const [showModal, setShowModal] = useState(false)
   const [showPreview, setShowPreview] = useState(false)
+  const [showModalTransfer, setShowModalTransfer] = useState(false)
   const [selectedTransaksi, setSelectedTransaksi] = useState<TransaksiKas | null>(null)
   const [searchQuery, setSearchQuery] = useState('')
   const [filterJenis, setFilterJenis] = useState<'all' | 'pemasukan' | 'pengeluaran'>('all')
@@ -69,6 +70,17 @@ export default function TransaksiKas() {
     keterangan: '',
     nama_pemohon: '',
     metode: 'cash' as 'cash' | 'transfer'
+  })
+
+  // Form state untuk transfer
+  const [transferData, setTransferData] = useState({
+    dari_buku_kas_id: '',
+    ke_buku_kas_id: '',
+    dari_metode: 'cash' as 'cash' | 'transfer',
+    ke_metode: 'cash' as 'cash' | 'transfer',
+    tanggal: new Date().toISOString().split('T')[0],
+    nominal: '',
+    keterangan: ''
   })
 
   useEffect(() => {
@@ -155,6 +167,71 @@ export default function TransaksiKas() {
     })
   }
 
+  const resetTransferForm = () => {
+    setTransferData({
+      dari_buku_kas_id: '',
+      ke_buku_kas_id: '',
+      dari_metode: 'cash',
+      ke_metode: 'cash',
+      tanggal: new Date().toISOString().split('T')[0],
+      nominal: '',
+      keterangan: ''
+    })
+  }
+
+  const handleTransfer = async (e: React.FormEvent) => {
+    e.preventDefault()
+    
+    try {
+      // Validasi: tidak boleh transfer ke buku kas yang sama dengan metode yang sama
+      if (transferData.dari_buku_kas_id === transferData.ke_buku_kas_id && 
+          transferData.dari_metode === transferData.ke_metode) {
+        toast.error('Tidak bisa transfer ke akun yang sama')
+        return
+      }
+
+      const nominal = Number(transferData.nominal)
+      const tanggal = transferData.tanggal
+
+      // Tentukan label metode
+      const dariLabel = transferData.dari_metode === 'cash' ? 'Cash' : 'Bank'
+      const keLabel = transferData.ke_metode === 'cash' ? 'Cash' : 'Bank'
+      
+      const dariBukuKas = bukuKasList.find(bk => bk.id === Number(transferData.dari_buku_kas_id))
+      const keBukuKas = bukuKasList.find(bk => bk.id === Number(transferData.ke_buku_kas_id))
+
+      // Buat transaksi pengeluaran dari sumber
+      await createTransaksiKas({
+        buku_kas_id: Number(transferData.dari_buku_kas_id),
+        tanggal: tanggal,
+        jenis: 'pengeluaran',
+        metode: transferData.dari_metode,
+        kategori: 'Transfer Keluar',
+        nominal: nominal,
+        keterangan: `Transfer ke ${keBukuKas?.nama_kas} (${keLabel}) - ${transferData.keterangan}`
+      })
+
+      // Buat transaksi pemasukan ke tujuan
+      await createTransaksiKas({
+        buku_kas_id: Number(transferData.ke_buku_kas_id),
+        tanggal: tanggal,
+        jenis: 'pemasukan',
+        metode: transferData.ke_metode,
+        kategori: 'Transfer Masuk',
+        nominal: nominal,
+        keterangan: `Transfer dari ${dariBukuKas?.nama_kas} (${dariLabel}) - ${transferData.keterangan}`
+      })
+
+      toast.success('Transfer saldo berhasil!')
+      setShowModalTransfer(false)
+      resetTransferForm()
+      loadData()
+    } catch (error: any) {
+      console.error('Error:', error)
+      toast.error(error.response?.data?.message || 'Gagal melakukan transfer')
+    }
+  }
+
   // Filter transaksi
   const filteredTransaksi = transaksiList.filter(t => {
     const matchSearch = searchQuery === '' || 
@@ -218,13 +295,22 @@ export default function TransaksiKas() {
           <h1 className="text-2xl font-bold text-gray-900">Transaksi Kas</h1>
           <p className="text-gray-600 mt-1">Kelola transaksi kas masuk dan keluar</p>
         </div>
-        <button
-          onClick={() => setShowModal(true)}
-          className="flex items-center gap-2 px-4 py-2 bg-red-600 text-white rounded-lg hover:bg-red-700 transition-colors"
-        >
-          <ArrowDownCircle className="w-5 h-5" />
-          Tambah Pengeluaran
-        </button>
+        <div className="flex gap-3">
+          <button
+            onClick={() => setShowModalTransfer(true)}
+            className="flex items-center gap-2 px-4 py-2 bg-purple-600 text-white rounded-lg hover:bg-purple-700 transition-colors"
+          >
+            <ArrowRightLeft className="w-5 h-5" />
+            Transfer Saldo
+          </button>
+          <button
+            onClick={() => setShowModal(true)}
+            className="flex items-center gap-2 px-4 py-2 bg-red-600 text-white rounded-lg hover:bg-red-700 transition-colors"
+          >
+            <ArrowDownCircle className="w-5 h-5" />
+            Tambah Pengeluaran
+          </button>
+        </div>
       </div>
 
       {/* Summary Cards */}
@@ -773,6 +859,279 @@ export default function TransaksiKas() {
                 </button>
               )}
             </div>
+          </div>
+        </div>
+      )}
+
+      {/* Modal Transfer Saldo */}
+      {showModalTransfer && (
+        <div className="fixed inset-0 z-50 flex items-center justify-center p-4 bg-black/50">
+          <div className="bg-white rounded-lg max-w-3xl w-full max-h-[90vh] overflow-y-auto">
+            {/* Modal Header */}
+            <div className="flex items-center justify-between p-6 border-b sticky top-0 bg-white z-10">
+              <div>
+                <h2 className="text-xl font-bold text-gray-900">Transfer Saldo</h2>
+                <p className="text-sm text-gray-500 mt-1">Transfer saldo antar kas atau antar metode pembayaran</p>
+              </div>
+              <button
+                onClick={() => {
+                  setShowModalTransfer(false)
+                  resetTransferForm()
+                }}
+                className="text-gray-400 hover:text-gray-600"
+              >
+                <X className="w-6 h-6" />
+              </button>
+            </div>
+
+            {/* Modal Body */}
+            <form onSubmit={handleTransfer} className="p-6">
+              <div className="space-y-6">
+                {/* Grid 2 Kolom: Dari dan Ke */}
+                <div className="grid grid-cols-1 md:grid-cols-2 gap-6">
+                  {/* Dari Section - Kiri */}
+                  <div className="bg-red-50 border border-red-200 rounded-lg p-4">
+                    <h3 className="text-sm font-semibold text-red-900 mb-4 flex items-center gap-2">
+                      <ArrowUpCircle className="w-4 h-4" />
+                      Dari (Sumber)
+                    </h3>
+                    
+                    {/* Buku Kas Sumber */}
+                    <div className="mb-4">
+                      <label className="block text-sm font-medium text-gray-700 mb-2">
+                        Buku Kas <span className="text-red-500">*</span>
+                      </label>
+                      <select
+                        value={transferData.dari_buku_kas_id}
+                        onChange={(e) => setTransferData({ ...transferData, dari_buku_kas_id: e.target.value })}
+                        required
+                        className="w-full px-4 py-2 border border-gray-300 rounded-lg focus:ring-2 focus:ring-purple-500 focus:border-transparent"
+                      >
+                        <option value="">Pilih Buku Kas</option>
+                        {bukuKasList.map(bk => (
+                          <option key={bk.id} value={bk.id}>{bk.nama_kas}</option>
+                        ))}
+                      </select>
+                    </div>
+
+                    {/* Metode Sumber */}
+                    <div className="mb-4">
+                      <label className="block text-sm font-medium text-gray-700 mb-2">
+                        Dari Akun <span className="text-red-500">*</span>
+                      </label>
+                      <div className="grid grid-cols-2 gap-2">
+                        <button
+                          type="button"
+                          onClick={() => setTransferData({ ...transferData, dari_metode: 'cash' })}
+                          className={`px-4 py-2 border-2 rounded-lg font-medium transition-colors ${
+                            transferData.dari_metode === 'cash'
+                              ? 'border-purple-600 bg-purple-50 text-purple-700'
+                              : 'border-gray-300 hover:border-gray-400'
+                          }`}
+                        >
+                          💵 Cash
+                        </button>
+                        <button
+                          type="button"
+                          onClick={() => setTransferData({ ...transferData, dari_metode: 'transfer' })}
+                          className={`px-4 py-2 border-2 rounded-lg font-medium transition-colors ${
+                            transferData.dari_metode === 'transfer'
+                              ? 'border-purple-600 bg-purple-50 text-purple-700'
+                              : 'border-gray-300 hover:border-gray-400'
+                          }`}
+                        >
+                          🏦 Bank
+                        </button>
+                      </div>
+                    </div>
+
+                    {/* Saldo Sumber */}
+                    {transferData.dari_buku_kas_id && (
+                      <div className="p-3 bg-white border border-red-300 rounded-lg">
+                        <p className="text-xs text-gray-600 mb-1">Saldo Tersedia:</p>
+                        <p className="text-lg font-bold text-red-700">
+                          {formatRupiah(
+                            transferData.dari_metode === 'cash'
+                              ? bukuKasList.find(bk => bk.id === Number(transferData.dari_buku_kas_id))?.saldo_cash || 0
+                              : bukuKasList.find(bk => bk.id === Number(transferData.dari_buku_kas_id))?.saldo_bank || 0
+                          )}
+                        </p>
+                        <p className="text-xs text-gray-500 mt-1">
+                          {transferData.dari_metode === 'cash' ? 'Saldo Cash' : 'Saldo Bank'}
+                        </p>
+                      </div>
+                    )}
+                  </div>
+
+                  {/* Ke Section - Kanan */}
+                  <div className="bg-green-50 border border-green-200 rounded-lg p-4">
+                    <h3 className="text-sm font-semibold text-green-900 mb-4 flex items-center gap-2">
+                      <ArrowDownCircle className="w-4 h-4" />
+                      Ke (Tujuan)
+                    </h3>
+                    
+                    {/* Buku Kas Tujuan */}
+                    <div className="mb-4">
+                      <label className="block text-sm font-medium text-gray-700 mb-2">
+                        Buku Kas <span className="text-red-500">*</span>
+                      </label>
+                      <select
+                        value={transferData.ke_buku_kas_id}
+                        onChange={(e) => setTransferData({ ...transferData, ke_buku_kas_id: e.target.value })}
+                        required
+                        className="w-full px-4 py-2 border border-gray-300 rounded-lg focus:ring-2 focus:ring-purple-500 focus:border-transparent"
+                      >
+                        <option value="">Pilih Buku Kas</option>
+                        {bukuKasList.map(bk => (
+                          <option key={bk.id} value={bk.id}>{bk.nama_kas}</option>
+                        ))}
+                      </select>
+                    </div>
+
+                    {/* Metode Tujuan */}
+                    <div className="mb-4">
+                      <label className="block text-sm font-medium text-gray-700 mb-2">
+                        Ke Akun <span className="text-red-500">*</span>
+                      </label>
+                      <div className="grid grid-cols-2 gap-2">
+                        <button
+                          type="button"
+                          onClick={() => setTransferData({ ...transferData, ke_metode: 'cash' })}
+                          className={`px-4 py-2 border-2 rounded-lg font-medium transition-colors ${
+                            transferData.ke_metode === 'cash'
+                              ? 'border-purple-600 bg-purple-50 text-purple-700'
+                              : 'border-gray-300 hover:border-gray-400'
+                          }`}
+                        >
+                          💵 Cash
+                        </button>
+                        <button
+                          type="button"
+                          onClick={() => setTransferData({ ...transferData, ke_metode: 'transfer' })}
+                          className={`px-4 py-2 border-2 rounded-lg font-medium transition-colors ${
+                            transferData.ke_metode === 'transfer'
+                              ? 'border-purple-600 bg-purple-50 text-purple-700'
+                              : 'border-gray-300 hover:border-gray-400'
+                          }`}
+                        >
+                          🏦 Bank
+                        </button>
+                      </div>
+                    </div>
+
+                    {/* Saldo Tujuan */}
+                    {transferData.ke_buku_kas_id && (
+                      <div className="p-3 bg-white border border-green-300 rounded-lg">
+                        <p className="text-xs text-gray-600 mb-1">Saldo Saat Ini:</p>
+                        <p className="text-lg font-bold text-green-700">
+                          {formatRupiah(
+                            transferData.ke_metode === 'cash'
+                              ? bukuKasList.find(bk => bk.id === Number(transferData.ke_buku_kas_id))?.saldo_cash || 0
+                              : bukuKasList.find(bk => bk.id === Number(transferData.ke_buku_kas_id))?.saldo_bank || 0
+                          )}
+                        </p>
+                        <p className="text-xs text-gray-500 mt-1">
+                          {transferData.ke_metode === 'cash' ? 'Saldo Cash' : 'Saldo Bank'}
+                        </p>
+                        {transferData.nominal && Number(transferData.nominal) > 0 && (
+                          <div className="mt-2 pt-2 border-t border-green-200">
+                            <p className="text-xs text-gray-600">Saldo Setelah Transfer:</p>
+                            <p className="text-sm font-semibold text-green-800">
+                              {formatRupiah(
+                                (transferData.ke_metode === 'cash'
+                                  ? bukuKasList.find(bk => bk.id === Number(transferData.ke_buku_kas_id))?.saldo_cash || 0
+                                  : bukuKasList.find(bk => bk.id === Number(transferData.ke_buku_kas_id))?.saldo_bank || 0
+                                ) + Number(transferData.nominal)
+                              )}
+                            </p>
+                          </div>
+                        )}
+                      </div>
+                    )}
+                  </div>
+                </div>
+
+                {/* Icon Transfer di tengah atas grid */}
+                <div className="flex justify-center -mt-3 -mb-3">
+                  <div className="bg-purple-100 p-3 rounded-full border-4 border-white shadow-lg">
+                    <ArrowRightLeft className="w-6 h-6 text-purple-600" />
+                  </div>
+                </div>
+
+                {/* Detail Transfer */}
+                <div className="border-t pt-6">
+                  <h3 className="text-sm font-semibold text-gray-900 mb-4">Detail Transfer</h3>
+                  <div className="grid grid-cols-1 md:grid-cols-2 gap-4">
+                    <div>
+                      <label className="block text-sm font-medium text-gray-700 mb-2">
+                        Tanggal <span className="text-red-500">*</span>
+                      </label>
+                      <input
+                        type="date"
+                        value={transferData.tanggal}
+                        onChange={(e) => setTransferData({ ...transferData, tanggal: e.target.value })}
+                        required
+                        className="w-full px-4 py-2 border border-gray-300 rounded-lg focus:ring-2 focus:ring-purple-500 focus:border-transparent"
+                      />
+                    </div>
+                    <div>
+                      <label className="block text-sm font-medium text-gray-700 mb-2">
+                        Nominal <span className="text-red-500">*</span>
+                      </label>
+                      <input
+                        type="number"
+                        value={transferData.nominal}
+                        onChange={(e) => setTransferData({ ...transferData, nominal: e.target.value })}
+                        placeholder="0"
+                        min="0"
+                        required
+                        className="w-full px-4 py-2 border border-gray-300 rounded-lg focus:ring-2 focus:ring-purple-500 focus:border-transparent"
+                      />
+                      {transferData.nominal && (
+                        <p className="mt-1 text-sm text-gray-600">
+                          {formatRupiah(Number(transferData.nominal))}
+                        </p>
+                      )}
+                    </div>
+                  </div>
+
+                  <div className="mt-4">
+                    <label className="block text-sm font-medium text-gray-700 mb-2">
+                      Keterangan <span className="text-red-500">*</span>
+                    </label>
+                    <textarea
+                      value={transferData.keterangan}
+                      onChange={(e) => setTransferData({ ...transferData, keterangan: e.target.value })}
+                      placeholder="Keterangan transfer..."
+                      rows={3}
+                      required
+                      className="w-full px-4 py-2 border border-gray-300 rounded-lg focus:ring-2 focus:ring-purple-500 focus:border-transparent"
+                    />
+                  </div>
+                </div>
+              </div>
+
+              {/* Modal Footer */}
+              <div className="flex gap-3 justify-end mt-6 pt-6 border-t">
+                <button
+                  type="button"
+                  onClick={() => {
+                    setShowModalTransfer(false)
+                    resetTransferForm()
+                  }}
+                  className="px-6 py-2 border border-gray-300 rounded-lg hover:bg-gray-50 font-medium"
+                >
+                  Batal
+                </button>
+                <button
+                  type="submit"
+                  className="px-6 py-2 bg-purple-600 text-white rounded-lg hover:bg-purple-700 font-medium flex items-center gap-2"
+                >
+                  <ArrowRightLeft className="w-4 h-4" />
+                  Proses Transfer
+                </button>
+              </div>
+            </form>
           </div>
         </div>
       )}

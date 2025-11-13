@@ -450,7 +450,16 @@ function ModalLaporan({
                 </tr>
               </thead>
               <tbody className="divide-y">
-                {(kas.transaksi || []).map((trx, idx) => (
+                {[...(kas.transaksi || [])].sort((a, b) => {
+                  // Sort by created_at descending (terbaru di atas)
+                  const dateA = new Date(a.created_at).getTime()
+                  const dateB = new Date(b.created_at).getTime()
+                  if (dateB !== dateA) {
+                    return dateB - dateA
+                  }
+                  // Jika created_at sama, sort by id descending
+                  return b.id - a.id
+                }).map((trx, idx) => (
                   <tr key={trx.id} className="hover:bg-gray-50">
                     <td className="px-4 py-3 text-gray-900">{idx + 1}</td>
                     <td className="px-4 py-3 text-gray-600">
