@@ -46,4 +46,12 @@ class TagihanSantri extends Model
     {
         return $this->belongsTo(JenisTagihan::class);
     }
+
+    /**
+     * Relasi ke pembayaran (1 tagihan bisa punya banyak pembayaran untuk cicilan)
+     */
+    public function pembayaran()
+    {
+        return $this->hasMany(Pembayaran::class, 'tagihan_santri_id');
+    }
 }

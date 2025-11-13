@@ -19,6 +19,8 @@ class Pembayaran extends Model
         'no_transaksi',
         'tanggal_bayar',
         'nominal_bayar',
+        'sisa_sebelum',
+        'sisa_sesudah',
         'metode_pembayaran',
         'status_pembayaran',
         'keterangan',
@@ -27,7 +29,9 @@ class Pembayaran extends Model
 
     protected $casts = [
         'nominal_bayar' => 'decimal:2',
-        'tanggal_bayar' => 'date',
+        'sisa_sebelum' => 'decimal:2',
+        'sisa_sesudah' => 'decimal:2',
+        'tanggal_bayar' => 'datetime',
     ];
 
     /**

@@ -17,7 +17,7 @@ return new class extends Migration
             $table->unsignedBigInteger('tagihan_santri_id');
             $table->unsignedBigInteger('buku_kas_id');
             $table->string('no_transaksi')->unique(); // Format: PAY-YYYYMMDD-XXXXX
-            $table->date('tanggal_bayar');
+            $table->dateTime('tanggal_bayar'); // Changed from date to dateTime
             $table->decimal('nominal_bayar', 15, 2);
             $table->enum('metode_pembayaran', ['cash', 'transfer']);
             $table->enum('status_pembayaran', ['lunas', 'sebagian']);

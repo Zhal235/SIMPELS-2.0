@@ -10,6 +10,11 @@ export async function getTagihanBySantri(santriId: string | number) {
   return res.data
 }
 
+export async function getHistoryPembayaran(santriId: string | number) {
+  const res = await api.get(`/v1/keuangan/pembayaran/santri/${santriId}/history`)
+  return res.data
+}
+
 export async function prosesPembayaran(data: Record<string, any>) {
   const res = await api.post('/v1/keuangan/pembayaran', data)
   return res.data

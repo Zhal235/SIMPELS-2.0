@@ -35,19 +35,29 @@ class TagihanSantriController extends Controller
         // Ambil detail tagihan untuk setiap santri
         $result = $tagihan->map(function ($item) {
             $detailTagihan = TagihanSantri::where('santri_id', $item->santri_id)
-                ->join('jenis_tagihan', 'tagihan_santri.jenis_tagihan_id', '=', 'jenis_tagihan.id')
-                ->select(
-                    'tagihan_santri.id',
-                    'jenis_tagihan.nama_tagihan as jenis_tagihan',
-                    'tagihan_santri.bulan',
-                    'tagihan_santri.tahun',
-                    'tagihan_santri.nominal',
-                    'tagihan_santri.status',
-                    'tagihan_santri.dibayar',
-                    'tagihan_santri.sisa',
-                    'tagihan_santri.jatuh_tempo'
-                )
-                ->get();
+                ->with(['jenisTagihan', 'pembayaran' => function($query) {
+                    $query->whereNull('deleted_at')
+                          ->orderBy('tanggal_bayar', 'desc')
+                          ->limit(1);
+                }])
+                ->get()
+                ->map(function($tagihan) {
+                    $latestPembayaran = $tagihan->pembayaran->first();
+                    
+                    return [
+                        'id' => $tagihan->id,
+                        'jenis_tagihan' => $tagihan->jenisTagihan->nama_tagihan,
+                        'bulan' => $tagihan->bulan,
+                        'tahun' => $tagihan->tahun,
+                        'nominal' => $tagihan->nominal,
+                        'status' => $tagihan->status,
+                        'dibayar' => $tagihan->dibayar,
+                        'sisa' => $tagihan->sisa,
+                        'jatuh_tempo' => $tagihan->jatuh_tempo,
+                        'tgl_bayar' => $latestPembayaran ? $latestPembayaran->tanggal_bayar : null,
+                        'admin_penerima' => $latestPembayaran ? 'Admin' : null, // TODO: Add created_by field
+                    ];
+                });
 
             return [
                 'santri_id' => $item->santri_id,

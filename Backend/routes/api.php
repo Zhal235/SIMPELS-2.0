@@ -37,6 +37,7 @@ Route::prefix('v1/keuangan')->group(function () {
     Route::apiResource('tagihan-santri', TagihanSantriController::class);
     
     // Pembayaran
+    Route::get('pembayaran/santri/{santriId}/history', [PembayaranController::class, 'history']);
     Route::get('pembayaran/santri/{santriId}/tagihan', [PembayaranController::class, 'getTagihanBySantri']);
     Route::apiResource('pembayaran', PembayaranController::class);
     

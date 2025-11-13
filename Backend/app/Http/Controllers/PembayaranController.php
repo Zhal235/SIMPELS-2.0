@@ -38,6 +38,44 @@ class PembayaranController extends Controller
     }
 
     /**
+     * Get history pembayaran per santri (grouped by bulan-tahun tagihan)
+     */
+    public function history($santriId)
+    {
+        $pembayaran = Pembayaran::with(['tagihanSantri.jenisTagihan'])
+            ->where('santri_id', $santriId)
+            ->orderBy('tanggal_bayar', 'desc')
+            ->get()
+            ->map(function($p) {
+                return [
+                    'id' => $p->id,
+                    'no_transaksi' => $p->no_transaksi,
+                    'tanggal_bayar' => $p->tanggal_bayar,
+                    'nominal_bayar' => $p->nominal_bayar,
+                    'sisa_sebelum' => $p->sisa_sebelum,
+                    'sisa_sesudah' => $p->sisa_sesudah,
+                    'metode_pembayaran' => $p->metode_pembayaran,
+                    'status_pembayaran' => $p->status_pembayaran,
+                    'keterangan' => $p->keterangan,
+                    // Info tagihan
+                    'jenis_tagihan' => $p->tagihanSantri->jenisTagihan->nama_tagihan,
+                    'bulan' => $p->tagihanSantri->bulan,
+                    'tahun' => $p->tagihanSantri->tahun,
+                    'nominal_tagihan' => $p->tagihanSantri->nominal,
+                    'admin_penerima' => 'Admin', // TODO: add created_by
+                ];
+            })
+            ->groupBy(function($item) {
+                return $item['bulan'] . ' ' . $item['tahun'];
+            });
+
+        return response()->json([
+            'success' => true,
+            'data' => $pembayaran
+        ]);
+    }
+
+    /**
      * Store a newly created resource (Proses Pembayaran).
      */
     public function store(Request $request)
@@ -75,7 +113,8 @@ class PembayaranController extends Controller
             // Generate nomor transaksi
             $noTransaksi = Pembayaran::generateNoTransaksi();
 
-            // Tentukan status pembayaran
+            // Simpan sisa sebelum dan sesudah bayar untuk snapshot kwitansi
+            $sisaSebelumBayar = $tagihan->sisa;
             $sisaSetelahBayar = $tagihan->sisa - $request->nominal_bayar;
             $statusPembayaran = $sisaSetelahBayar == 0 ? 'lunas' : 'sebagian';
 
@@ -87,6 +126,8 @@ class PembayaranController extends Controller
                 'no_transaksi' => $noTransaksi,
                 'tanggal_bayar' => $request->tanggal_bayar,
                 'nominal_bayar' => $request->nominal_bayar,
+                'sisa_sebelum' => $sisaSebelumBayar,  // Snapshot sisa sebelum bayar
+                'sisa_sesudah' => $sisaSetelahBayar,   // Snapshot sisa sesudah bayar
                 'metode_pembayaran' => $request->metode_pembayaran,
                 'status_pembayaran' => $statusPembayaran,
                 'keterangan' => $request->keterangan,
