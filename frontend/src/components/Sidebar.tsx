@@ -6,10 +6,11 @@ import {
   BookOpen, FileText, AlertCircle, ListChecks, DollarSign, Calendar
 } from 'lucide-react'
 import { motion, AnimatePresence } from 'framer-motion'
+import { useAuthStore } from '../stores/useAuthStore'
 import { useState } from 'react'
 
-const bottomMenu = [
-  { to: '/pengguna', label: 'Pengguna', icon: UserCog },
+  const bottomMenu = [
+  // Pengguna is admin-only; we'll conditionally render it below
   { to: '/pengaturan', label: 'Pengaturan', icon: Settings },
 ]
 
@@ -21,7 +22,10 @@ export default function Sidebar() {
   const [keuanganTunggakanOpen, setKeuanganTunggakanOpen] = useState(false)
   const [keuanganPengaturanOpen, setKeuanganPengaturanOpen] = useState(false)
   const [akademikOpen, setAkademikOpen] = useState(true)
+  const [dompetOpen, setDompetOpen] = useState(false)
   const location = useLocation()
+  const currentUser = useAuthStore((s) => s.user)
+  const dompetActive = location.pathname.startsWith('/dompet')
   const kesantrianActive = location.pathname.startsWith('/kesantrian')
   const keuanganActive = location.pathname.startsWith('/keuangan')
   const akademikActive = location.pathname.startsWith('/akademik')
@@ -355,6 +359,87 @@ export default function Sidebar() {
           </AnimatePresence>
         </div>
 
+        {/* Dompet Digital (top-level) */}
+        <div className="space-y-1">
+          <button
+            type="button"
+            onClick={() => setDompetOpen((v) => !v)}
+            className={`w-full flex items-center gap-3 rounded-md px-3 py-2 text-sm ${dompetActive ? 'bg-white text-brand shadow-sm' : 'text-gray-700 hover:bg-white'}`}
+          >
+            <DollarSign className="w-5 h-5" />
+            {sidebarOpen && <span>Dompet Digital</span>}
+          </button>
+          <AnimatePresence initial={false}>
+            {dompetOpen && sidebarOpen && (
+              <motion.div
+                initial={{ height: 0, opacity: 0 }}
+                animate={{ height: 'auto', opacity: 1 }}
+                exit={{ height: 0, opacity: 0 }}
+                transition={{ type: 'tween', duration: 0.2 }}
+                className="overflow-hidden"
+              >
+                <ul className="ml-5 space-y-1 border-l border-gray-300 pl-3">
+                  <li>
+                    <NavLink
+                      to="/dompet/dompet-santri"
+                      className={({ isActive }) =>
+                        `flex items-center gap-3 rounded-md px-3 py-2 text-sm ${isActive ? 'bg-white text-brand shadow-sm' : 'text-gray-700 hover:bg-white'}`
+                      }
+                    >
+                      <CreditCard className="w-5 h-5" />
+                      {sidebarOpen && <span>Dompet Santri</span>}
+                    </NavLink>
+                  </li>
+                  <li>
+                    <NavLink
+                      to="/dompet/rfid"
+                      className={({ isActive }) =>
+                        `flex items-center gap-3 rounded-md px-3 py-2 text-sm ${isActive ? 'bg-white text-brand shadow-sm' : 'text-gray-700 hover:bg-white'}`
+                      }
+                    >
+                      <Users className="w-5 h-5" />
+                      {sidebarOpen && <span>RFID</span>}
+                    </NavLink>
+                  </li>
+                  <li>
+                    <NavLink
+                      to="/dompet/history"
+                      className={({ isActive }) =>
+                        `flex items-center gap-3 rounded-md px-3 py-2 text-sm ${isActive ? 'bg-white text-brand shadow-sm' : 'text-gray-700 hover:bg-white'}`
+                      }
+                    >
+                      <FileText className="w-5 h-5" />
+                      {sidebarOpen && <span>History & Laporan</span>}
+                    </NavLink>
+                  </li>
+                  <li>
+                    <NavLink
+                      to="/dompet/settings"
+                      className={({ isActive }) =>
+                        `flex items-center gap-3 rounded-md px-3 py-2 text-sm ${isActive ? 'bg-white text-brand shadow-sm' : 'text-gray-700 hover:bg-white'}`
+                      }
+                    >
+                      <Settings className="w-5 h-5" />
+                      {sidebarOpen && <span>Setting</span>}
+                    </NavLink>
+                  </li>
+                  <li>
+                    <NavLink
+                      to="/dompet/withdrawals"
+                      className={({ isActive }) =>
+                        `flex items-center gap-3 rounded-md px-3 py-2 text-sm ${isActive ? 'bg-white text-brand shadow-sm' : 'text-gray-700 hover:bg-white'}`
+                      }
+                    >
+                      <Receipt className="w-5 h-5" />
+                      {sidebarOpen && <span>Penarikan (ePOS)</span>}
+                    </NavLink>
+                  </li>
+                </ul>
+              </motion.div>
+            )}
+          </AnimatePresence>
+        </div>
+
         {/* Akademik parent */}
         <div className="space-y-1">
           <button
@@ -392,6 +477,13 @@ export default function Sidebar() {
           </AnimatePresence>
         </div>
         <div className="border-t border-gray-200 pt-2 space-y-1">
+          {sidebarOpen && currentUser?.role === 'admin' && (
+            <NavLink to="/pengguna" className={({ isActive }) => `flex items-center gap-3 rounded-md px-3 py-2 text-sm ${isActive ? 'bg-white text-brand shadow-sm' : 'text-gray-700 hover:bg-white'}`}>
+              <UserCog className="w-5 h-5" />
+              {sidebarOpen && <span>Pengguna</span>}
+            </NavLink>
+          )}
+
           {bottomMenu.map((m) => {
             const Icon = m.icon
             return (

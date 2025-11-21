@@ -1,0 +1,76 @@
+import api from './index'
+
+export async function listWallets() {
+  const res = await api.get('/v1/wallets')
+  return res.data
+}
+
+export async function getWallet(santriId: string | number) {
+  const res = await api.get(`/v1/wallets/${santriId}`)
+  return res.data
+}
+
+export async function topupWallet(santriId: string | number, amount: number, description?: string, method: 'cash' | 'transfer' = 'cash') {
+  const res = await api.post(`/v1/wallets/${santriId}/topup`, { amount, description, method })
+  return res.data
+}
+
+export async function debitWallet(santriId: string | number, amount: number, description?: string, method: 'cash' | 'transfer' = 'cash') {
+  const res = await api.post(`/v1/wallets/${santriId}/debit`, { amount, description, method })
+  return res.data
+}
+
+export async function listWalletTransactions(params?: any) {
+  const res = await api.get('/v1/wallets/transactions', { params })
+  return res.data
+}
+
+export async function getWalletTransactions(santriId: string | number) {
+  const res = await api.get(`/v1/wallets/${santriId}/transactions`)
+  return res.data
+}
+
+export async function updateTransaction(txnId: string | number, payload: { amount: number, description?: string, method?: string, type?: string }) {
+  const res = await api.put(`/v1/wallets/transactions/${txnId}`, payload)
+  return res.data
+}
+
+export async function voidTransaction(txnId: string | number) {
+  const res = await api.delete(`/v1/wallets/transactions/${txnId}`)
+  return res.data
+}
+
+export async function eposTransaction(payload: { uid?: string, santri_id?: number | string, amount: number, epos_txn_id?: string, meta?: any }) {
+  const res = await api.post('/v1/wallets/epos/transaction', payload)
+  return res.data
+}
+
+export async function bindRFID(uid: string, santriId: number | string) {
+  const res = await api.post('/v1/wallets/rfid', { uid, santri_id: santriId })
+  return res.data
+}
+
+export async function listRFID() {
+  const res = await api.get('/v1/wallets/rfid')
+  return res.data
+}
+
+export async function unbindRFID(id: string | number) {
+  const res = await api.delete(`/v1/wallets/rfid/${id}`)
+  return res.data
+}
+
+export async function getEposPool() {
+  const res = await api.get('/v1/wallets/epos/pool')
+  return res.data
+}
+
+export async function createWithdrawal(amount: number, note?: string) {
+  const res = await api.post('/v1/wallets/withdrawals', { amount, note })
+  return res.data
+}
+
+export async function listWithdrawals(params?: any) {
+  const res = await api.get('/v1/wallets/withdrawals', { params })
+  return res.data
+}

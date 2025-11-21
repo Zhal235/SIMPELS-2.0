@@ -1,11 +1,12 @@
 import { BrowserRouter, Routes, Route, Navigate } from 'react-router-dom'
 import Sidebar from './components/Sidebar'
 import Topbar from './components/Topbar'
-import { Suspense, lazy } from 'react'
+import { Suspense, lazy, useEffect } from 'react'
 import ErrorBoundary from './components/ErrorBoundary'
 import { Toaster } from 'sonner'
 import { Toaster as HotToaster } from 'react-hot-toast'
 import { useAuthStore } from './stores/useAuthStore'
+import { getCurrentUser } from './api/auth'
 
 const Dashboard = lazy(() => import('./pages/Dashboard'))
 const SantriLegacy = lazy(() => import('./pages/Santri'))
@@ -29,6 +30,12 @@ const TunggakanMutasi = lazy(() => import('./pages/keuangan/TunggakanMutasi'))
 const TunggakanAlumni = lazy(() => import('./pages/keuangan/TunggakanAlumni'))
 const JenisTagihan = lazy(() => import('./pages/keuangan/JenisTagihan'))
 const KeringananTagihan = lazy(() => import('./pages/keuangan/KeringananTagihan'))
+// Dompet Digital subpages
+const DompetSantri = lazy(() => import('./pages/dompet/DompetSantri'))
+const DompetRFID = lazy(() => import('./pages/dompet/RFID'))
+const DompetHistory = lazy(() => import('./pages/dompet/History'))
+const DompetSettings = lazy(() => import('./pages/dompet/Settings'))
+const DompetWithdrawals = lazy(() => import('./pages/dompet/Withdrawals'))
 // Akademik subpages
 const AkademikTahunAjaran = lazy(() => import('./pages/akademik/TahunAjaran'))
 
@@ -59,6 +66,21 @@ function AppLayout({ children }: { children: React.ReactNode }) {
 }
 
 export default function App() {
+  const token = useAuthStore((state) => state.token)
+  const setUser = useAuthStore((state) => state.setUser)
+
+  // When the app mounts (or when token changes), fetch the current user if we have a token
+  useEffect(() => {
+    if (!token) return
+    (async () => {
+      try {
+        const res: any = await getCurrentUser()
+        if (res?.user) setUser(res.user)
+      } catch (e) {
+        // ignore - interceptor in api will logout on 401
+      }
+    })()
+  }, [token])
   return (
     <BrowserRouter>
       <Toaster position="top-right" richColors expand />
@@ -87,6 +109,7 @@ export default function App() {
             <Route path="/keuangan" element={<Navigate to="/keuangan/pembayaran" replace />} />
             <Route path="/keuangan/tunggakan" element={<Navigate to="/keuangan/tunggakan/aktif" replace />} />
             <Route path="/keuangan/pengaturan" element={<Navigate to="/keuangan/pengaturan/jenis-tagihan" replace />} />
+            <Route path="/dompet" element={<Navigate to="/dompet/dompet-santri" replace />} />
             <Route path="/akademik" element={<Navigate to="/akademik/tahun-ajaran" replace />} />
             
             {/* kesantrian submenus */}
@@ -194,6 +217,43 @@ export default function App() {
               <ProtectedRoute>
                 <AppLayout>
                   <KeringananTagihan />
+                </AppLayout>
+              </ProtectedRoute>
+            } />
+
+            {/* dompet digital submenus */}
+            <Route path="/dompet/dompet-santri" element={
+              <ProtectedRoute>
+                <AppLayout>
+                  <DompetSantri />
+                </AppLayout>
+              </ProtectedRoute>
+            } />
+            <Route path="/dompet/rfid" element={
+              <ProtectedRoute>
+                <AppLayout>
+                  <DompetRFID />
+                </AppLayout>
+              </ProtectedRoute>
+            } />
+            <Route path="/dompet/history" element={
+              <ProtectedRoute>
+                <AppLayout>
+                  <DompetHistory />
+                </AppLayout>
+              </ProtectedRoute>
+            } />
+            <Route path="/dompet/settings" element={
+              <ProtectedRoute>
+                <AppLayout>
+                  <DompetSettings />
+                </AppLayout>
+              </ProtectedRoute>
+            } />
+            <Route path="/dompet/withdrawals" element={
+              <ProtectedRoute>
+                <AppLayout>
+                  <DompetWithdrawals />
                 </AppLayout>
               </ProtectedRoute>
             } />

@@ -11,6 +11,9 @@ use App\Http\Controllers\TagihanSantriController;
 use App\Http\Controllers\BukuKasController;
 use App\Http\Controllers\PembayaranController;
 use App\Http\Controllers\TransaksiKasController;
+use App\Http\Controllers\WalletController;
+use App\Http\Controllers\RfidTagController;
+use App\Http\Controllers\EposController;
 
 // Authentication routes (public)
 Route::post('/login', [AuthController::class, 'login']);
@@ -19,7 +22,10 @@ Route::post('/login', [AuthController::class, 'login']);
 Route::middleware('auth:sanctum')->group(function () {
     Route::post('/logout', [AuthController::class, 'logout']);
     Route::get('/user', [AuthController::class, 'user']);
-});
+    // Admin: manage users
+    Route::get('/v1/users', [\App\Http\Controllers\UserController::class, 'index']);
+    Route::put('/v1/users/{id}', [\App\Http\Controllers\UserController::class, 'update']);
+    Route::delete('/v1/users/{id}', [\App\Http\Controllers\UserController::class, 'destroy']);
 
 // API v1 endpoints untuk modul Kesantrian (Santri)
 Route::prefix('v1/kesantrian')->group(function () {
@@ -44,6 +50,38 @@ Route::prefix('v1/keuangan')->group(function () {
     
     // Transaksi Kas (Laporan)
     Route::apiResource('transaksi-kas', TransaksiKasController::class);
+});
+
+// API v1 endpoints untuk Dompet Digital / Wallets
+// Admin-protected wallet management (requires authentication)
+Route::prefix('v1/wallets')->middleware('auth:sanctum')->group(function () {
+    // Wallet management per-santri
+    Route::get('/', [WalletController::class, 'index']);
+    Route::get('/{santriId}', [WalletController::class, 'show']);
+    Route::post('/{santriId}/topup', [WalletController::class, 'topup']);
+    Route::post('/{santriId}/debit', [WalletController::class, 'debit']);
+    Route::get('/{santriId}/transactions', [WalletController::class, 'transactions']);
+    // Admin-only transaction management
+    Route::put('/transactions/{id}', [WalletController::class, 'updateTransaction']);
+    Route::delete('/transactions/{id}', [WalletController::class, 'voidTransaction']);
+    Route::get('/transactions', [WalletController::class, 'allTransactions']);
+
+    // RFID mapping
+    Route::get('rfid', [RfidTagController::class, 'index']);
+    Route::post('rfid', [RfidTagController::class, 'store']);
+    Route::put('rfid/{id}', [RfidTagController::class, 'update']);
+    Route::delete('rfid/{id}', [RfidTagController::class, 'destroy']);
+
+    // note: ePOS endpoints are public (for terminals) — add outside protected group
+});
+
+// Public ePOS endpoints (keep outside auth middleware so terminals can call them for now)
+Route::prefix('v1/wallets')->group(function () {
+    Route::post('epos/transaction', [EposController::class, 'transaction']);
+    Route::get('epos/pool', [EposController::class, 'pool']);
+    Route::post('withdrawals', [EposController::class, 'createWithdrawal']);
+    Route::get('withdrawals', [EposController::class, 'listWithdrawals']);
+});
 });
 
 // API v1 endpoints untuk modul Akademik

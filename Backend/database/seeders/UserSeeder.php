@@ -35,6 +35,7 @@ class UserSeeder extends Seeder
                 'name' => $adminName,
                 'password' => $adminPassword, // di-hash oleh cast 'password' => 'hashed'
                 'email_verified_at' => now(),
+                'role' => 'admin', // ensure seeded admin has admin role
             ]
         );
 
