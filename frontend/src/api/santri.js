@@ -1,7 +1,9 @@
 import api from './index';
 // Gunakan endpoint versi baru yang konsisten dengan modul Kesantrian
-export async function listSantri(page = 1, perPage = 10) {
-    const res = await api.get('/v1/kesantrian/santri', { params: { page, perPage } });
+export async function listSantri(page = 1, perPage = 10, q) {
+    const params = { page, perPage };
+    if (q && q.length >= 2) params.q = q;
+    const res = await api.get('/v1/kesantrian/santri', { params });
     return res.data;
 }
 export async function createSantri(formData) {

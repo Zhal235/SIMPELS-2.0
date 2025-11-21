@@ -700,8 +700,9 @@ function ModalTambahTunggakan({
       const payload: any[] = []
       rows.forEach(row => {
         row.bulan.forEach(bulan => {
+          // Note: santri_id is UUID (string) — do NOT cast to Number
           payload.push({
-            santri_id: Number(row.santri_id),
+            santri_id: String(row.santri_id),
             jenis_tagihan_id: Number(row.jenis_tagihan_id),
             bulan: bulan,
             nominal: Number(row.nominal)
@@ -718,7 +719,18 @@ function ModalTambahTunggakan({
     } catch (error: any) {
       console.error('Error submit:', error)
       console.error('Error response:', error.response?.data)
-      toast.error(error.response?.data?.message || 'Gagal menyimpan tunggakan')
+      // Show validation details if available
+      const errData = error.response?.data
+      if (errData?.errors) {
+        const messages: string[] = []
+        Object.entries(errData.errors).forEach(([field, msgs]: any) => {
+          const arr = Array.isArray(msgs) ? msgs : [msgs]
+          messages.push(`${field}: ${arr.join(', ')}`)
+        })
+        toast.error(errData.message + '\n' + messages.join('\n'))
+      } else {
+        toast.error(errData?.message || 'Gagal menyimpan tunggakan')
+      }
     } finally {
       setIsSubmitting(false)
     }

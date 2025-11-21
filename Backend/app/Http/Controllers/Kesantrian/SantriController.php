@@ -20,6 +20,15 @@ class SantriController extends Controller
             $page = max((int) $request->query('page', 1), 1);
             $perPage = max((int) $request->query('perPage', 10), 1);
             $query = Santri::query();
+            $q = trim((string) $request->query('q', ''));
+            // Search: if q has at least 2 chars, filter by nama_santri, nis, or nisn
+            if ($q !== '' && mb_strlen($q) >= 2) {
+                $query->where(function ($sub) use ($q) {
+                    $sub->where('nama_santri', 'like', "%{$q}%")
+                        ->orWhere('nis', 'like', "%{$q}%")
+                        ->orWhere('nisn', 'like', "%{$q}%");
+                });
+            }
             // Optional filter: santri tanpa asrama
             if ($request->boolean('withoutAsrama')) {
                 $query->whereNull('asrama_id');
@@ -69,6 +78,7 @@ class SantriController extends Controller
                 'alamat' => ['required', 'string'],
                 'nama_ayah' => ['required', 'string', 'max:255'],
                 'nama_ibu' => ['required', 'string', 'max:255'],
+                'jenis_penerimaan' => ['nullable', 'in:baru,mutasi_masuk'],
                 // optional fields
                 'nisn' => ['nullable', 'string', 'max:255'],
                 'nik_santri' => ['nullable', 'string', 'max:255'],
@@ -166,6 +176,7 @@ class SantriController extends Controller
                 'alamat' => ['required', 'string'],
                 'nama_ayah' => ['required', 'string', 'max:255'],
                 'nama_ibu' => ['required', 'string', 'max:255'],
+                'jenis_penerimaan' => ['nullable', 'in:baru,mutasi_masuk'],
                 // optional
                 'nisn' => ['nullable', 'string', 'max:255'],
                 'nik_santri' => ['nullable', 'string', 'max:255'],

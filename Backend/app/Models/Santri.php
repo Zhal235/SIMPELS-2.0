@@ -22,7 +22,7 @@ class Santri extends Model
         'kelas_id', 'kelas_nama', 'asrama_id', 'asrama_nama', 'asal_sekolah', 'hobi', 'cita_cita', 'jumlah_saudara', 'alamat',
         'provinsi', 'kabupaten', 'kecamatan', 'desa', 'kode_pos', 'no_kk', 'nama_ayah', 'nik_ayah',
         'pendidikan_ayah', 'pekerjaan_ayah', 'hp_ayah', 'nama_ibu', 'nik_ibu', 'pendidikan_ibu',
-        'pekerjaan_ibu', 'hp_ibu', 'foto',
+        'pekerjaan_ibu', 'hp_ibu', 'foto', 'jenis_penerimaan',
     ];
 
     /**

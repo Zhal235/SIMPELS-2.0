@@ -23,11 +23,14 @@ export default function KesantrianSantri() {
   const [currentPage, setCurrentPage] = useState(1)
   const [pageSize, setPageSize] = useState(10)
   const [totalItems, setTotalItems] = useState(0)
+  const [search, setSearch] = useState<string>('')
 
   async function fetchData() {
     try {
       setLoading(true)
-      const res = await listSantri(currentPage, pageSize)
+      // if search is less than 2 chars, ignore q param to the server
+      const q = search && search.trim().length >= 2 ? search.trim() : undefined
+      const res = await listSantri(currentPage, pageSize, q)
       const raw: any = res
       
       console.log('API Response:', raw)
@@ -69,6 +72,16 @@ export default function KesantrianSantri() {
   useEffect(() => {
     fetchData()
   }, [currentPage, pageSize])
+
+  // when search changes, debounce and fetch
+  useEffect(() => {
+    const handler = setTimeout(() => {
+      setCurrentPage(1)
+      fetchData()
+    }, 400)
+
+    return () => clearTimeout(handler)
+  }, [search])
 
   useEffect(() => {
     // when modal closes after create/edit, refresh table
@@ -184,14 +197,32 @@ export default function KesantrianSantri() {
 
   return (
     <div className="space-y-4">
-      <div className="flex justify-between">
+      <div className="flex justify-between items-center gap-4">
         <h1 className="text-2xl font-semibold text-gray-900">Data Santri</h1>
-        <button
-          className="btn btn-primary"
-          onClick={() => { setMode('create'); setCurrent(null); setModalOpen(true) }}
-        >
-          Tambah Santri
-        </button>
+        <div className="flex items-center gap-3">
+          <input
+            type="search"
+            value={search}
+            onChange={(e) => setSearch(e.target.value)}
+            placeholder="Cari nama / NIS (min 2 huruf)"
+            className="px-3 py-2 border rounded-md focus:ring-2 focus:ring-blue-500"
+            aria-label="Search Santri"
+          />
+          <button
+            type="button"
+            onClick={() => setSearch('')}
+            title="Bersihkan pencarian"
+            className="px-3 py-2 border rounded-md text-sm text-gray-600 hover:bg-gray-100"
+          >
+            Clear
+          </button>
+          <button
+            className="btn btn-primary"
+            onClick={() => { setMode('create'); setCurrent(null); setModalOpen(true) }}
+          >
+            Tambah Santri
+          </button>
+        </div>
       </div>
       <Card>
         {loading && items.length === 0 ? (
