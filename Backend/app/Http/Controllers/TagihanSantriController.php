@@ -259,6 +259,23 @@ class TagihanSantriController extends Controller
     }
 
     /**
+     * Get tagihan by santri (all non-deleted)
+     */
+    public function getBySantri(string $santriId)
+    {
+        $tagihan = TagihanSantri::with(['jenisTagihan', 'pembayaran'])
+            ->where('santri_id', $santriId)
+            ->whereNull('deleted_at')
+            ->orderBy('tahun', 'asc')
+            ->get();
+
+        return response()->json([
+            'success' => true,
+            'data' => $tagihan
+        ]);
+    }
+
+    /**
      * Update the specified resource (untuk update pembayaran)
      */
     public function update(Request $request, string $id)

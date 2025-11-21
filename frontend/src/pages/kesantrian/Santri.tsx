@@ -7,6 +7,7 @@ import { Button } from '@/components/ui/button'
 import SantriForm from './components/SantriForm'
 import type { Santri } from './components/SantriForm'
 import { listSantri, deleteSantri } from '@/api/santri'
+import MutasiKeluarModal from './components/MutasiKeluarModal'
 import { toast } from 'sonner'
 
 type Row = Santri & { aksi?: string }
@@ -17,6 +18,8 @@ export default function KesantrianSantri() {
   const [loading, setLoading] = useState<boolean>(false)
 
   const [modalOpen, setModalOpen] = useState(false)
+  const [mutasiModalOpen, setMutasiModalOpen] = useState(false)
+  const [mutasiTarget, setMutasiTarget] = useState<Row | null>(null)
   const [mode, setMode] = useState<'create' | 'edit' | 'preview'>('create')
   const [current, setCurrent] = useState<Row | null>(null)
   
@@ -148,17 +151,20 @@ export default function KesantrianSantri() {
             >
               <Eye size={16} />
             </Button>
+            {row.status !== 'mutasi_keluar' && (
             <Button
               variant="outline"
               size="icon"
               title="Mutasi"
               className="border-gray-200 text-gray-700 hover:text-brand hover:border-brand transition-all duration-150 rounded-lg shadow-sm bg-white"
               onClick={() => {
-                toast.info('Segera hadir: Fitur Mutasi akan ditambahkan.')
+                setMutasiTarget(row)
+                setMutasiModalOpen(true)
               }}
             >
               <Shuffle size={16} />
             </Button>
+            )}
             <Button
               variant="outline"
               size="icon"
@@ -317,6 +323,20 @@ export default function KesantrianSantri() {
           onSubmit={() => { fetchData() }}
         />
       </Modal>
+      {mutasiTarget && (
+        <Modal open={mutasiModalOpen} title={`Mutasi Keluar: ${mutasiTarget.nama_santri}`} onClose={() => setMutasiModalOpen(false)} footer={null}>
+          <MutasiKeluarModal
+            santri={mutasiTarget}
+            onClose={() => setMutasiModalOpen(false)}
+            onSuccess={() => {
+              setMutasiModalOpen(false)
+              setMutasiTarget(null)
+              // Refresh list
+              fetchData()
+            }}
+          />
+        </Modal>
+      )}
     </div>
   )
 }

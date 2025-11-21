@@ -35,6 +35,7 @@ Route::prefix('v1/keuangan')->group(function () {
     Route::post('tagihan-santri/generate', [TagihanSantriController::class, 'generate']);
     Route::post('tagihan-santri/tunggakan', [TagihanSantriController::class, 'createTunggakan']);
     Route::apiResource('tagihan-santri', TagihanSantriController::class);
+    Route::get('tagihan-santri/santri/{santriId}', [TagihanSantriController::class, 'getBySantri']);
     
     // Pembayaran
     Route::get('pembayaran/santri/{santriId}/history', [PembayaranController::class, 'history']);
@@ -82,4 +83,7 @@ Route::prefix('v1/kesantrian')->group(function () {
     Route::apiResource('asrama', AsramaController::class);
     Route::post('asrama/{id}/anggota', [AsramaController::class, 'tambahAnggota']);
     Route::delete('asrama/{id}/anggota/{santri_id}', [AsramaController::class, 'keluarkanAnggota']);
+    // Mutasi Keluar
+    Route::get('mutasi-keluar', [\App\Http\Controllers\Kesantrian\MutasiKeluarController::class, 'index']);
+    Route::post('mutasi-keluar', [\App\Http\Controllers\Kesantrian\MutasiKeluarController::class, 'store']);
 });

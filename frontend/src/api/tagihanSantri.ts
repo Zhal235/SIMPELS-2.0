@@ -5,6 +5,11 @@ export async function listTagihanSantri() {
   return res.data
 }
 
+export async function listTagihanBySantri(santriId: string | number) {
+  const res = await api.get(`/v1/keuangan/tagihan-santri/santri/${santriId}`)
+  return res.data
+}
+
 export async function createTagihanSantri(data: {
   santri_id: number
   jenis_tagihan_id: number
