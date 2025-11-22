@@ -25,7 +25,7 @@ class SantriController extends Controller
                 $query->whereNull('asrama_id');
             }
             $paginator = $query
-                ->with(['kelas', 'asrama'])
+                ->with(['kelas', 'asrama', 'rfid_tag', 'wallet'])
                 ->orderBy('nama_santri')
                 ->paginate($perPage, ['*'], 'page', $page);
 

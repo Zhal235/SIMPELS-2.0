@@ -8,6 +8,8 @@ use Illuminate\Database\Eloquent\Concerns\HasUuids;
 use App\Models\Kelas;
 use App\Models\Asrama;
 use App\Models\SantriTransactionLimit;
+use App\Models\RfidTag;
+use App\Models\Wallet;
 
 class Santri extends Model
 {
@@ -51,5 +53,21 @@ class Santri extends Model
     public function asrama()
     {
         return $this->belongsTo(Asrama::class, 'asrama_id');
+    }
+
+    /**
+     * Relasi ke RFID tag (satu santri -> satu rfid tag)
+     */
+    public function rfid_tag()
+    {
+        return $this->hasOne(RfidTag::class, 'santri_id');
+    }
+
+    /**
+     * Relasi ke dompet/wallet (satu santri -> satu wallet)
+     */
+    public function wallet()
+    {
+        return $this->hasOne(Wallet::class, 'santri_id');
     }
 }

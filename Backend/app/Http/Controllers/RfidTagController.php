@@ -58,4 +58,70 @@ class RfidTagController extends Controller
         $tag->delete();
         return response()->json(['success' => true, 'message' => 'Tag removed']);
     }
+
+    /**
+     * Get santri data by RFID UID (for EPOS integration)
+     */
+    public function getByUid($uid)
+    {
+        $tag = RfidTag::where('uid', $uid)->where('active', true)->with(['santri.wallet'])->first();
+
+        if (!$tag) {
+            return response()->json([
+                'success' => false,
+                'message' => 'RFID tag tidak ditemukan atau tidak aktif'
+            ], 404);
+        }
+
+        if (!$tag->santri) {
+            return response()->json([
+                'success' => false,
+                'message' => 'RFID tag belum terdaftar ke santri'
+            ], 404);
+        }
+
+        $santri = $tag->santri;
+        $wallet = $santri->wallet;
+
+        if (!$wallet) {
+            return response()->json([
+                'success' => false,
+                'message' => 'Wallet santri belum dibuat'
+            ], 404);
+        }
+
+        // Get transaction limit for the santri
+        $limit = \App\Models\SantriTransactionLimit::where('santri_id', $santri->id)->first();
+        $dailyLimit = $limit ? $limit->daily_limit : 15000;
+
+        // Calculate today's spending from wallet transactions
+        $todayStart = now()->startOfDay();
+        $todaySpent = \App\Models\WalletTransaction::where('wallet_id', $wallet->id)
+            ->where('type', 'debit')
+            ->where('method', 'epos')
+            ->where('is_void', false)
+            ->where('created_at', '>=', $todayStart)
+            ->sum('amount');
+
+        $remainingLimit = max(0, $dailyLimit - $todaySpent);
+
+        return response()->json([
+            'success' => true,
+            'data' => [
+                'santri_id' => $santri->id,
+                'nis' => $santri->nis,
+                'nama_santri' => $santri->nama_santri,
+                'kelas' => $santri->kelas_nama,
+                'asrama' => $santri->asrama_nama,
+                'foto' => $santri->foto,
+                'wallet_id' => $wallet->id,
+                'saldo' => floatval($wallet->balance),
+                'limit_harian' => floatval($dailyLimit),
+                'spent_today' => floatval($todaySpent),
+                'sisa_limit_hari_ini' => floatval($remainingLimit),
+                'rfid_uid' => $tag->uid,
+                'rfid_label' => $tag->label,
+            ]
+        ]);
+    }
 }

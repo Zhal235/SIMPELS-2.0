@@ -16,6 +16,45 @@ class WalletController extends Controller
     {
         $wallets = Wallet::with('santri')->get();
 
+        // Add transaction totals per wallet
+        $wallets->transform(function ($wallet) {
+            $wallet->total_credit = WalletTransaction::where('wallet_id', $wallet->id)
+                ->where('type', 'credit')
+                ->where('is_void', false)
+                ->sum('amount');
+            
+            $wallet->total_debit = WalletTransaction::where('wallet_id', $wallet->id)
+                ->where('type', 'debit')
+                ->where('is_void', false)
+                ->sum('amount');
+            
+            $wallet->total_credit_cash = WalletTransaction::where('wallet_id', $wallet->id)
+                ->where('type', 'credit')
+                ->where('method', 'cash')
+                ->where('is_void', false)
+                ->sum('amount');
+            
+            $wallet->total_credit_transfer = WalletTransaction::where('wallet_id', $wallet->id)
+                ->where('type', 'credit')
+                ->where('method', 'transfer')
+                ->where('is_void', false)
+                ->sum('amount');
+            
+            $wallet->total_debit_cash = WalletTransaction::where('wallet_id', $wallet->id)
+                ->where('type', 'debit')
+                ->where('method', 'cash')
+                ->where('is_void', false)
+                ->sum('amount');
+            
+            $wallet->total_debit_transfer = WalletTransaction::where('wallet_id', $wallet->id)
+                ->where('type', 'debit')
+                ->where('method', 'transfer')
+                ->where('is_void', false)
+                ->sum('amount');
+            
+            return $wallet;
+        });
+
         return response()->json(['success' => true, 'data' => $wallets]);
     }
 
@@ -314,5 +353,108 @@ class WalletController extends Controller
 
         $items = $q->with(['wallet','author'])->orderBy('created_at', 'desc')->get();
         return response()->json(['success' => true, 'data' => $items]);
+    }
+
+    /**
+     * Create withdrawal request from EPOS
+     * POST /api/v1/wallets/epos/withdrawal
+     */
+    public function createEposWithdrawal(Request $request)
+    {
+        $validator = Validator::make($request->all(), [
+            'withdrawal_number' => 'required|string|unique:epos_withdrawals,withdrawal_number',
+            'amount' => 'required|numeric|min:0.01',
+            'period_start' => 'required|date',
+            'period_end' => 'required|date',
+            'total_transactions' => 'integer|nullable',
+            'notes' => 'string|nullable',
+            'requested_by' => 'string|nullable',
+        ]);
+
+        if ($validator->fails()) {
+            return response()->json([
+                'success' => false,
+                'message' => 'Validation error',
+                'errors' => $validator->errors()
+            ], 422);
+        }
+
+        try {
+            $withdrawal = \App\Models\EposWithdrawal::create([
+                'withdrawal_number' => $request->withdrawal_number,
+                'amount' => $request->amount,
+                'period_start' => $request->period_start,
+                'period_end' => $request->period_end,
+                'total_transactions' => $request->total_transactions ?? 0,
+                'notes' => $request->notes,
+                'requested_by' => $request->requested_by ?? 'EPOS System',
+                'status' => 'pending',
+            ]);
+
+            \Log::info('EPOS withdrawal request created', [
+                'withdrawal_number' => $withdrawal->withdrawal_number,
+                'amount' => $withdrawal->amount
+            ]);
+
+            return response()->json([
+                'success' => true,
+                'message' => 'Withdrawal request created',
+                'data' => $withdrawal
+            ], 201);
+
+        } catch (\Exception $e) {
+            \Log::error('Create EPOS withdrawal error: ' . $e->getMessage());
+            return response()->json([
+                'success' => false,
+                'message' => 'Failed to create withdrawal request',
+                'error' => $e->getMessage()
+            ], 500);
+        }
+    }
+
+    /**
+     * Get withdrawal status by withdrawal number
+     * GET /api/v1/wallets/epos/withdrawal/{withdrawalNumber}/status
+     */
+    public function getEposWithdrawalStatus($withdrawalNumber)
+    {
+        $withdrawal = \App\Models\EposWithdrawal::where('withdrawal_number', $withdrawalNumber)->first();
+
+        if (!$withdrawal) {
+            return response()->json([
+                'success' => false,
+                'message' => 'Withdrawal not found'
+            ], 404);
+        }
+
+        return response()->json([
+            'success' => true,
+            'data' => [
+                'withdrawal_number' => $withdrawal->withdrawal_number,
+                'amount' => floatval($withdrawal->amount),
+                'status' => $withdrawal->status,
+                'status_label' => $withdrawal->status_label ?? ucfirst($withdrawal->status),
+                'approved_at' => $withdrawal->approved_at,
+                'approved_by' => $withdrawal->approved_by,
+                'completed_at' => $withdrawal->completed_at,
+                'notes' => $withdrawal->notes,
+                'created_at' => $withdrawal->created_at,
+                'updated_at' => $withdrawal->updated_at,
+            ]
+        ]);
+    }
+
+    /**
+     * Health check / Ping endpoint for EPOS
+     * GET /api/v1/wallets/ping
+     */
+    public function ping()
+    {
+        return response()->json([
+            'success' => true,
+            'message' => 'SIMPELS API is running',
+            'timestamp' => now()->toDateTimeString(),
+            'version' => '2.0'
+        ]);
     }
 }

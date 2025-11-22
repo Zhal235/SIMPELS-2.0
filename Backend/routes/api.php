@@ -34,70 +34,81 @@ Route::middleware('auth:sanctum')->group(function () {
     Route::put('/v1/roles/{id}', [\App\Http\Controllers\RoleController::class, 'update']);
     Route::delete('/v1/roles/{id}', [\App\Http\Controllers\RoleController::class, 'destroy']);
 
-// API v1 endpoints untuk modul Kesantrian (Santri)
-Route::prefix('v1/kesantrian')->group(function () {
-    Route::apiResource('santri', SantriController::class);
+    // API v1 endpoints untuk modul Kesantrian (Santri)
+    Route::prefix('v1/kesantrian')->group(function () {
+        Route::apiResource('santri', SantriController::class);
+    });
+
+    // API v1 endpoints untuk modul Keuangan
+    Route::prefix('v1/keuangan')->group(function () {
+        Route::apiResource('jenis-tagihan', JenisTagihanController::class);
+        Route::apiResource('buku-kas', BukuKasController::class);
+        
+        // Tagihan Santri
+        Route::post('tagihan-santri/generate', [TagihanSantriController::class, 'generate']);
+        Route::post('tagihan-santri/tunggakan', [TagihanSantriController::class, 'createTunggakan']);
+        Route::apiResource('tagihan-santri', TagihanSantriController::class);
+        Route::get('tagihan-santri/santri/{santriId}', [TagihanSantriController::class, 'getBySantri']);
+        
+        // Pembayaran
+        Route::get('pembayaran/santri/{santriId}/history', [PembayaranController::class, 'history']);
+        Route::get('pembayaran/santri/{santriId}/tagihan', [PembayaranController::class, 'getTagihanBySantri']);
+        Route::apiResource('pembayaran', PembayaranController::class);
+        
+        // Transaksi Kas (Laporan)
+        Route::apiResource('transaksi-kas', TransaksiKasController::class);
+    });
+
+    // API v1 endpoints untuk Dompet Digital / Wallets (protected)
+    Route::prefix('v1/wallets')->group(function () {
+        // Wallet Settings (admin only) - MUST BE BEFORE /{santriId} route
+        Route::get('settings', [WalletSettingsController::class, 'index']);
+        Route::put('settings/global', [WalletSettingsController::class, 'updateGlobalSettings']);
+        Route::get('settings/santri/all', [WalletSettingsController::class, 'allSantriWithLimits']);
+        Route::put('settings/santri/bulk', [WalletSettingsController::class, 'bulkUpdateSantriLimits']);
+        Route::put('settings/santri/{santriId}', [WalletSettingsController::class, 'setSantriLimit']);
+        Route::delete('settings/santri/{santriId}', [WalletSettingsController::class, 'deleteSantriLimit']);
+
+        // RFID mapping
+        Route::get('rfid', [RfidTagController::class, 'index']);
+        Route::post('rfid', [RfidTagController::class, 'store']);
+        Route::put('rfid/{id}', [RfidTagController::class, 'update']);
+        Route::delete('rfid/{id}', [RfidTagController::class, 'destroy']);
+
+        // Admin-only transaction management
+        Route::put('transactions/{id}', [WalletController::class, 'updateTransaction']);
+        Route::delete('transactions/{id}', [WalletController::class, 'voidTransaction']);
+        Route::get('transactions', [WalletController::class, 'allTransactions']);
+
+        // Wallet management per-santri - MUST BE AFTER specific routes to avoid conflicts
+        Route::get('/', [WalletController::class, 'index']);
+        // santriId is a UUID — constrain to avoid catching static paths like /ping
+        $uuidConstraint = '[0-9a-fA-F\-]{36}';
+        Route::get('/{santriId}', [WalletController::class, 'show'])->where('santriId', $uuidConstraint);
+        Route::post('/{santriId}/topup', [WalletController::class, 'topup'])->where('santriId', $uuidConstraint);
+        Route::post('/{santriId}/debit', [WalletController::class, 'debit'])->where('santriId', $uuidConstraint);
+        Route::get('/{santriId}/transactions', [WalletController::class, 'transactions'])->where('santriId', $uuidConstraint);
+    });
 });
 
-// API v1 endpoints untuk modul Keuangan
-Route::prefix('v1/keuangan')->group(function () {
-    Route::apiResource('jenis-tagihan', JenisTagihanController::class);
-    Route::apiResource('buku-kas', BukuKasController::class);
-    
-    // Tagihan Santri
-    Route::post('tagihan-santri/generate', [TagihanSantriController::class, 'generate']);
-    Route::post('tagihan-santri/tunggakan', [TagihanSantriController::class, 'createTunggakan']);
-    Route::apiResource('tagihan-santri', TagihanSantriController::class);
-    Route::get('tagihan-santri/santri/{santriId}', [TagihanSantriController::class, 'getBySantri']);
-    
-    // Pembayaran
-    Route::get('pembayaran/santri/{santriId}/history', [PembayaranController::class, 'history']);
-    Route::get('pembayaran/santri/{santriId}/tagihan', [PembayaranController::class, 'getTagihanBySantri']);
-    Route::apiResource('pembayaran', PembayaranController::class);
-    
-    // Transaksi Kas (Laporan)
-    Route::apiResource('transaksi-kas', TransaksiKasController::class);
-});
 
-// API v1 endpoints untuk Dompet Digital / Wallets
-// Admin-protected wallet management (requires authentication)
-Route::prefix('v1/wallets')->middleware('auth:sanctum')->group(function () {
-    // Wallet Settings (admin only) - MUST BE BEFORE /{santriId} route
-    Route::get('settings', [WalletSettingsController::class, 'index']);
-    Route::put('settings/global', [WalletSettingsController::class, 'updateGlobalSettings']);
-    Route::get('settings/santri/all', [WalletSettingsController::class, 'allSantriWithLimits']);
-    Route::put('settings/santri/bulk', [WalletSettingsController::class, 'bulkUpdateSantriLimits']);
-    Route::put('settings/santri/{santriId}', [WalletSettingsController::class, 'setSantriLimit']);
-    Route::delete('settings/santri/{santriId}', [WalletSettingsController::class, 'deleteSantriLimit']);
-
-    // RFID mapping
-    Route::get('rfid', [RfidTagController::class, 'index']);
-    Route::post('rfid', [RfidTagController::class, 'store']);
-    Route::put('rfid/{id}', [RfidTagController::class, 'update']);
-    Route::delete('rfid/{id}', [RfidTagController::class, 'destroy']);
-
-    // Admin-only transaction management
-    Route::put('transactions/{id}', [WalletController::class, 'updateTransaction']);
-    Route::delete('transactions/{id}', [WalletController::class, 'voidTransaction']);
-    Route::get('transactions', [WalletController::class, 'allTransactions']);
-
-    // Wallet management per-santri - MUST BE AFTER specific routes to avoid conflicts
-    Route::get('/', [WalletController::class, 'index']);
-    Route::get('/{santriId}', [WalletController::class, 'show']);
-    Route::post('/{santriId}/topup', [WalletController::class, 'topup']);
-    Route::post('/{santriId}/debit', [WalletController::class, 'debit']);
-    Route::get('/{santriId}/transactions', [WalletController::class, 'transactions']);
-
-    // note: ePOS endpoints are public (for terminals) — add outside protected group
-});
 
 // Public ePOS endpoints (keep outside auth middleware so terminals can call them for now)
 Route::prefix('v1/wallets')->group(function () {
+    // Health check / connection test
+    Route::get('ping', [WalletController::class, 'ping']);
+    
+    // RFID lookup by UID (for EPOS integration) - public endpoint
+    Route::get('rfid/uid/{uid}', [RfidTagController::class, 'getByUid']);
+    
     Route::post('epos/transaction', [EposController::class, 'transaction']);
     Route::get('epos/pool', [EposController::class, 'pool']);
     Route::post('withdrawals', [EposController::class, 'createWithdrawal']);
     Route::get('withdrawals', [EposController::class, 'listWithdrawals']);
-});
+    
+    // EPOS withdrawal endpoints
+    Route::post('epos/withdrawal', [WalletController::class, 'createEposWithdrawal']);
+    Route::get('epos/withdrawal/{withdrawalNumber}/status', [WalletController::class, 'getEposWithdrawalStatus']);
 });
 
 // API v1 endpoints untuk modul Akademik
