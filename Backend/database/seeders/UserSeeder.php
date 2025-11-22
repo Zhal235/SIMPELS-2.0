@@ -9,11 +9,9 @@ use Illuminate\Database\Seeder;
  * UserSeeder
  * -----------------------------
  * Catatan Perubahan (Komentar Teknis):
- * - Seeder ini membuat user admin (diambil dari ENV jika tersedia) dan
- *   sejumlah user demo menggunakan UserFactory.
+ * - Seeder ini membuat user admin saja (diambil dari ENV).
  * - Tidak mengubah logika bisnis, route, atau alur aplikasi. Hanya data awal.
  * - Password akan di-hash otomatis oleh Eloquent cast (lihat App\Models\User).
- * - Konfigurasi jumlah user demo melalui ENV SEEDER_USER_COUNT (default 10).
  * - Konfigurasi admin melalui ENV ADMIN_NAME, ADMIN_EMAIL, ADMIN_PASSWORD.
  */
 class UserSeeder extends Seeder
@@ -38,11 +36,5 @@ class UserSeeder extends Seeder
                 'role' => 'admin', // ensure seeded admin has admin role
             ]
         );
-
-        // Buat user demo tambahan via factory
-        $count = (int) env('SEEDER_USER_COUNT', 10);
-        if ($count > 0) {
-            User::factory($count)->create();
-        }
     }
 }

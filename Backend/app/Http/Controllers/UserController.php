@@ -18,6 +18,32 @@ class UserController extends Controller
         return response()->json(['success' => true, 'data' => $users]);
     }
 
+    // create user (admin only)
+    public function store(Request $request)
+    {
+        $user = $request->user();
+        if (!$user || ($user->role ?? 'user') !== 'admin') return response()->json(['success' => false, 'message' => 'Forbidden'], 403);
+
+        $validator = Validator::make($request->all(), [
+            'name' => 'required|string|max:255',
+            'email' => 'required|email|unique:users,email',
+            'password' => 'required|string|min:6',
+            'role' => 'nullable|string'
+        ]);
+
+        if ($validator->fails()) return response()->json(['success' => false, 'message' => 'Validation error', 'errors' => $validator->errors()], 422);
+
+        $u = User::create([
+            'name' => $request->input('name'),
+            'email' => $request->input('email'),
+            'password' => $request->input('password'),
+            'role' => $request->input('role') ?? 'user',
+            'email_verified_at' => now(),
+        ]);
+
+        return response()->json(['success' => true, 'data' => $u], 201);
+    }
+
     // update user (admin only) — allow changing role
     public function update(Request $request, $id)
     {

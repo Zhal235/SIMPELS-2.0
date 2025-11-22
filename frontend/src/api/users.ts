@@ -5,6 +5,11 @@ export async function listUsers() {
   return res.data
 }
 
+export async function createUser(payload: any) {
+  const res = await api.post('/v1/users', payload)
+  return res.data
+}
+
 export async function updateUser(id: string | number, payload: any) {
   const res = await api.put(`/v1/users/${id}`, payload)
   return res.data
@@ -15,4 +20,4 @@ export async function deleteUser(id: string | number) {
   return res.data
 }
 
-export default { listUsers, updateUser, deleteUser }
+export default { listUsers, updateUser, deleteUser, createUser }

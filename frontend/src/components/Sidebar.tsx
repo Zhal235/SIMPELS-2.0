@@ -25,6 +25,19 @@ export default function Sidebar() {
   const [dompetOpen, setDompetOpen] = useState(false)
   const location = useLocation()
   const currentUser = useAuthStore((s) => s.user)
+  const roles = useAuthStore((s) => s.roles)
+  const currentRole = roles?.find((r: any) => r.slug === currentUser?.role)
+
+  const hasAccess = (key: string) => {
+    // Admin always has access
+    if (!currentUser) return false
+    if (currentUser.role === 'admin') return true
+    if (!currentRole) return false
+    // if menus is null => full access
+    if (currentRole.menus === null) return true
+    if (!Array.isArray(currentRole.menus)) return false
+    return currentRole.menus.includes(key)
+  }
   const dompetActive = location.pathname.startsWith('/dompet')
   const kesantrianActive = location.pathname.startsWith('/kesantrian')
   const keuanganActive = location.pathname.startsWith('/keuangan')
@@ -53,6 +66,7 @@ export default function Sidebar() {
       <nav className="px-2 space-y-1 flex flex-col h-[calc(100vh-64px)]">
         <div className="flex-1 space-y-1 overflow-y-auto">
         {/* Dashboard */}
+        {hasAccess('dashboard') && (
         <NavLink
           to="/"
           className={({ isActive }) =>
@@ -63,7 +77,7 @@ export default function Sidebar() {
         >
           <LayoutDashboard className="w-5 h-5" />
           {sidebarOpen && <span>Dashboard</span>}
-        </NavLink>
+        </NavLink>)}
 
         {/* Kesantrian parent */}
         <div className="space-y-1">
@@ -85,7 +99,8 @@ export default function Sidebar() {
                 className="overflow-hidden"
               >
                 <ul className="ml-5 space-y-1 border-l border-gray-300 pl-3">
-                  <li>
+                    <li>
+                    {hasAccess('kesantrian.santri') && (
                     <NavLink
                       to="/kesantrian/santri"
                       className={({ isActive }) =>
@@ -94,9 +109,10 @@ export default function Sidebar() {
                     >
                       <Users className="w-5 h-5" />
                       {sidebarOpen && <span>Data Santri</span>}
-                    </NavLink>
+                    </NavLink>)}
                   </li>
                   <li>
+                    {hasAccess('kesantrian.kelas') && (
                     <NavLink
                       to="/kesantrian/kelas"
                       className={({ isActive }) =>
@@ -105,9 +121,10 @@ export default function Sidebar() {
                     >
                       <Building2 className="w-5 h-5" />
                       {sidebarOpen && <span>Kelas</span>}
-                    </NavLink>
+                    </NavLink>)}
                   </li>
                   <li>
+                    {hasAccess('kesantrian.asrama') && (
                     <NavLink
                       to="/kesantrian/asrama"
                       className={({ isActive }) =>
@@ -116,7 +133,7 @@ export default function Sidebar() {
                     >
                       <Home className="w-5 h-5" />
                       {sidebarOpen && <span>Asrama</span>}
-                    </NavLink>
+                    </NavLink>)}
                   </li>
                   {/* Mutasi parent dengan submenu */}
                   <li>
@@ -138,7 +155,8 @@ export default function Sidebar() {
                           className="overflow-hidden"
                         >
                           <ul className="ml-5 space-y-1 border-l border-gray-300 pl-3">
-                            <li>
+                              <li>
+                              {hasAccess('kesantrian.mutasi.masuk') && (
                               <NavLink
                                 to="/kesantrian/mutasi/masuk"
                                 className={({ isActive }) =>
@@ -146,10 +164,11 @@ export default function Sidebar() {
                                 }
                               >
                                 <LogIn className="w-4 h-4" />
-                                {sidebarOpen && <span>Masuk</span>}
-                              </NavLink>
+                                  {sidebarOpen && <span>Masuk</span>}
+                                </NavLink>)}
                             </li>
-                            <li>
+                              <li>
+                              {hasAccess('kesantrian.mutasi.keluar') && (
                               <NavLink
                                 to="/kesantrian/mutasi/keluar"
                                 className={({ isActive }) =>
@@ -157,8 +176,8 @@ export default function Sidebar() {
                                 }
                               >
                                 <LogOut className="w-4 h-4" />
-                                {sidebarOpen && <span>Keluar</span>}
-                              </NavLink>
+                                  {sidebarOpen && <span>Keluar</span>}
+                                </NavLink>)}
                             </li>
                           </ul>
                         </motion.div>
@@ -166,6 +185,7 @@ export default function Sidebar() {
                     </AnimatePresence>
                   </li>
                   <li>
+                    {hasAccess('kesantrian.alumni') && (
                     <NavLink
                       to="/kesantrian/alumni"
                       className={({ isActive }) =>
@@ -174,7 +194,7 @@ export default function Sidebar() {
                     >
                       <GraduationCap className="w-5 h-5" />
                       {sidebarOpen && <span>Alumni</span>}
-                    </NavLink>
+                    </NavLink>)}
                   </li>
                 </ul>
               </motion.div>
@@ -203,6 +223,7 @@ export default function Sidebar() {
               >
                 <ul className="ml-5 space-y-1 border-l border-gray-300 pl-3">
                   <li>
+                    {hasAccess('keuangan.pembayaran') && (
                     <NavLink
                       to="/keuangan/pembayaran"
                       className={({ isActive }) =>
@@ -211,9 +232,10 @@ export default function Sidebar() {
                     >
                       <CreditCard className="w-5 h-5" />
                       {sidebarOpen && <span>Pembayaran Santri</span>}
-                    </NavLink>
+                    </NavLink>)}
                   </li>
                   <li>
+                    {hasAccess('keuangan.transaksi-kas') && (
                     <NavLink
                       to="/keuangan/transaksi-kas"
                       className={({ isActive }) =>
@@ -222,9 +244,10 @@ export default function Sidebar() {
                     >
                       <Receipt className="w-5 h-5" />
                       {sidebarOpen && <span>Transaksi Kas</span>}
-                    </NavLink>
+                    </NavLink>)}
                   </li>
                   <li>
+                    {hasAccess('keuangan.buku-kas') && (
                     <NavLink
                       to="/keuangan/buku-kas"
                       className={({ isActive }) =>
@@ -233,9 +256,10 @@ export default function Sidebar() {
                     >
                       <BookOpen className="w-5 h-5" />
                       {sidebarOpen && <span>Buku Kas</span>}
-                    </NavLink>
+                    </NavLink>)}
                   </li>
                   <li>
+                    {hasAccess('keuangan.tagihan') && (
                     <NavLink
                       to="/keuangan/tagihan"
                       className={({ isActive }) =>
@@ -244,7 +268,7 @@ export default function Sidebar() {
                     >
                       <FileText className="w-5 h-5" />
                       {sidebarOpen && <span>Tagihan Santri</span>}
-                    </NavLink>
+                    </NavLink>)}
                   </li>
                   
                   {/* Tunggakan Santri dengan submenu */}
@@ -367,7 +391,7 @@ export default function Sidebar() {
             className={`w-full flex items-center gap-3 rounded-md px-3 py-2 text-sm ${dompetActive ? 'bg-white text-brand shadow-sm' : 'text-gray-700 hover:bg-white'}`}
           >
             <DollarSign className="w-5 h-5" />
-            {sidebarOpen && <span>Dompet Digital</span>}
+                      {sidebarOpen && <span>Dompet Digital</span>}
           </button>
           <AnimatePresence initial={false}>
             {dompetOpen && sidebarOpen && (
@@ -387,7 +411,7 @@ export default function Sidebar() {
                       }
                     >
                       <CreditCard className="w-5 h-5" />
-                      {sidebarOpen && <span>Dompet Santri</span>}
+                      {hasAccess('dompet.dompet-santri') && sidebarOpen && <span>Dompet Santri</span>}
                     </NavLink>
                   </li>
                   <li>
@@ -398,7 +422,7 @@ export default function Sidebar() {
                       }
                     >
                       <Users className="w-5 h-5" />
-                      {sidebarOpen && <span>RFID</span>}
+                      {hasAccess('dompet.rfid') && sidebarOpen && <span>RFID</span>}
                     </NavLink>
                   </li>
                   <li>
@@ -409,7 +433,7 @@ export default function Sidebar() {
                       }
                     >
                       <FileText className="w-5 h-5" />
-                      {sidebarOpen && <span>History & Laporan</span>}
+                      {hasAccess('dompet.history') && sidebarOpen && <span>History & Laporan</span>}
                     </NavLink>
                   </li>
                   <li>
@@ -420,7 +444,7 @@ export default function Sidebar() {
                       }
                     >
                       <Settings className="w-5 h-5" />
-                      {sidebarOpen && <span>Setting</span>}
+                      {hasAccess('dompet.settings') && sidebarOpen && <span>Setting</span>}
                     </NavLink>
                   </li>
                   <li>
@@ -431,7 +455,7 @@ export default function Sidebar() {
                       }
                     >
                       <Receipt className="w-5 h-5" />
-                      {sidebarOpen && <span>Penarikan (ePOS)</span>}
+                      {hasAccess('dompet.withdrawals') && sidebarOpen && <span>Penarikan (ePOS)</span>}
                     </NavLink>
                   </li>
                 </ul>
@@ -477,7 +501,7 @@ export default function Sidebar() {
           </AnimatePresence>
         </div>
         <div className="border-t border-gray-200 pt-2 space-y-1">
-          {sidebarOpen && currentUser?.role === 'admin' && (
+          {sidebarOpen && hasAccess('pengguna') && (
             <NavLink to="/pengguna" className={({ isActive }) => `flex items-center gap-3 rounded-md px-3 py-2 text-sm ${isActive ? 'bg-white text-brand shadow-sm' : 'text-gray-700 hover:bg-white'}`}>
               <UserCog className="w-5 h-5" />
               {sidebarOpen && <span>Pengguna</span>}

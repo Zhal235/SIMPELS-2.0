@@ -24,8 +24,14 @@ Route::middleware('auth:sanctum')->group(function () {
     Route::get('/user', [AuthController::class, 'user']);
     // Admin: manage users
     Route::get('/v1/users', [\App\Http\Controllers\UserController::class, 'index']);
+    Route::post('/v1/users', [\App\Http\Controllers\UserController::class, 'store']);
     Route::put('/v1/users/{id}', [\App\Http\Controllers\UserController::class, 'update']);
     Route::delete('/v1/users/{id}', [\App\Http\Controllers\UserController::class, 'destroy']);
+    // Roles management (admin only)
+    Route::get('/v1/roles', [\App\Http\Controllers\RoleController::class, 'index']);
+    Route::post('/v1/roles', [\App\Http\Controllers\RoleController::class, 'store']);
+    Route::put('/v1/roles/{id}', [\App\Http\Controllers\RoleController::class, 'update']);
+    Route::delete('/v1/roles/{id}', [\App\Http\Controllers\RoleController::class, 'destroy']);
 
 // API v1 endpoints untuk modul Kesantrian (Santri)
 Route::prefix('v1/kesantrian')->group(function () {

@@ -7,6 +7,7 @@ import { Toaster } from 'sonner'
 import { Toaster as HotToaster } from 'react-hot-toast'
 import { useAuthStore } from './stores/useAuthStore'
 import { getCurrentUser } from './api/auth'
+import { listRoles } from './api/roles'
 
 const Dashboard = lazy(() => import('./pages/Dashboard'))
 const SantriLegacy = lazy(() => import('./pages/Santri'))
@@ -76,6 +77,13 @@ export default function App() {
       try {
         const res: any = await getCurrentUser()
         if (res?.user) setUser(res.user)
+        // load roles into store for permission checks
+        try {
+          const rolesPayload: any = await listRoles()
+          if (rolesPayload?.success) setRoles(rolesPayload.data || [])
+        } catch (err) {
+          // ignore
+        }
       } catch (e) {
         // ignore - interceptor in api will logout on 401
       }

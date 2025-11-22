@@ -32,6 +32,8 @@ export default function DompetSantri() {
   const [method, setMethod] = useState<'cash' | 'transfer'>('cash')
 
   const currentUser = useAuthStore((s) => s.user)
+  const roles = useAuthStore((s) => s.roles)
+  const currentRole = roles?.find((r: any) => (r.slug === (currentUser?.role)))
 
   useEffect(() => { loadInitial() }, [])
 
@@ -247,7 +249,7 @@ export default function DompetSantri() {
                     { key: 'amount', header: 'Nominal', render: (v:any) => `Rp ${Number(v).toLocaleString('id-ID')}` },
                     { key: 'author', header: 'Admin', render: (_v:any, r:any) => r?.author?.name ?? (r.created_by && currentUser && r.created_by === currentUser.id ? currentUser.name : '-') },
                     // show actions only for admin
-                    ...(currentUser?.role === 'admin' ? [{ key: 'actions', header: 'Aksi', render: (_v:any, r:any) => (
+                    ...( (currentUser?.role === 'admin') || (currentRole?.menus && currentRole?.menus.includes('dompet.manage')) ? [{ key: 'actions', header: 'Aksi', render: (_v:any, r:any) => (
                       <div className="flex gap-2">
                         <button disabled={r.voided} onClick={() => { setEditingTxn(r); setEditAmount(String(r.amount)); setEditDesc(r.description ?? ''); setEditMethod((r.method as any) || 'cash'); setShowEditModal(true) }} className="px-3 py-1.5 bg-yellow-500 text-white rounded-lg text-sm">Edit</button>
                         <button disabled={r.voided} onClick={() => { setEditingTxn(r); setShowVoidConfirm(true) }} className="px-3 py-1.5 bg-red-600 text-white rounded-lg text-sm">Hapus</button>
