@@ -7,6 +7,7 @@ use Illuminate\Database\Eloquent\Model;
 use Illuminate\Database\Eloquent\Concerns\HasUuids;
 use App\Models\Kelas;
 use App\Models\Asrama;
+use App\Models\SantriTransactionLimit;
 
 class Santri extends Model
 {
@@ -16,6 +17,17 @@ class Santri extends Model
     protected $primaryKey = 'id';
     public $incrementing = false;
     protected $keyType = 'string';
+
+    protected static function booted()
+    {
+        static::created(function ($santri) {
+            // Auto-create transaction limit with default 15000
+            SantriTransactionLimit::firstOrCreate(
+                ['santri_id' => $santri->id],
+                ['daily_limit' => 15000]
+            );
+        });
+    }
 
     protected $fillable = [
         'nis', 'nisn', 'nik_santri', 'nama_santri', 'tempat_lahir', 'tanggal_lahir', 'jenis_kelamin',

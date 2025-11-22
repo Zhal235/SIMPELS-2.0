@@ -3,6 +3,10 @@ export async function listTagihanSantri() {
     const res = await api.get('/v1/keuangan/tagihan-santri');
     return res.data;
 }
+export async function listTagihanBySantri(santriId) {
+    const res = await api.get(`/v1/keuangan/tagihan-santri/santri/${santriId}`);
+    return res.data;
+}
 export async function createTagihanSantri(data) {
     const res = await api.post('/v1/keuangan/tagihan-santri', data);
     return res.data;

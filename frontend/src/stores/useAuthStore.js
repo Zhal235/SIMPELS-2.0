@@ -5,6 +5,7 @@ export const useAuthStore = create(persist((set) => ({
     user: null,
     setToken: (token) => set({ token }),
     setUser: (user) => set({ user }),
+    setRoles: (roles) => set({ roles }),
     logout: () => set({ token: null, user: null }),
 }), {
     name: 'auth-store', // localStorage key

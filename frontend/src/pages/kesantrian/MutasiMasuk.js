@@ -5,7 +5,7 @@ import { createSantri, listSantri, deleteSantri } from '../../api/santri';
 import { listKelas } from '../../api/kelas';
 import { listAsrama } from '../../api/asrama';
 import { listJenisTagihan } from '../../api/jenisTagihan';
-import { createTagihanSantri } from '../../api/tagihanSantri';
+import { createTunggakan } from '../../api/tagihanSantri';
 import toast from 'react-hot-toast';
 export default function MutasiMasuk() {
     const [showWizard, setShowWizard] = useState(false);
@@ -248,21 +248,23 @@ export default function MutasiMasuk() {
                 formData.append('hp_ibu', formStep1.orang_tua.hp_ibu);
             console.log('Menyimpan data santri...');
             const santriResponse = await createSantri(formData);
-            if (!santriResponse.success) {
+            const newSantriId = ((santriResponse && santriResponse.data && santriResponse.data.id) ||
+                (santriResponse && santriResponse.id) ||
+                (santriResponse && santriResponse.santri && santriResponse.santri.id));
+            if (!newSantriId) {
                 throw new Error('Gagal menyimpan data santri');
             }
-            const newSantriId = santriResponse.data.id;
             console.log('Santri berhasil disimpan dengan ID:', newSantriId);
-            // 2. Generate tagihan untuk santri
-            console.log('Membuat tagihan...');
-            for (const tagihan of selectedTagihan) {
-                await createTagihanSantri({
-                    santri_id: newSantriId,
-                    jenis_tagihan_id: tagihan.jenis_tagihan_id,
-                    nominal: tagihan.nominal,
-                    jatuh_tempo: tagihan.jatuh_tempo,
-                    status: 'belum_bayar'
-                });
+            // 2. Buat tagihan sebagai tunggakan (endpoint tersedia di backend)
+            console.log('Membuat tagihan (tunggakan)...');
+            const tunggakan = selectedTagihan.map((tagihan) => ({
+                santri_id: newSantriId,
+                jenis_tagihan_id: tagihan.jenis_tagihan_id,
+                bulan: getBulanNamaFromDate(tagihan.jatuh_tempo),
+                nominal: Number(tagihan.nominal) || 0,
+            }));
+            if (tunggakan.length > 0) {
+                await createTunggakan(tunggakan);
             }
             toast.success('Mutasi masuk berhasil! Santri telah terdaftar dengan tagihan lengkap.');
             // Reset form
@@ -276,7 +278,7 @@ export default function MutasiMasuk() {
             console.error('Error:', error);
             console.error('Error response:', error.response?.data);
             const errorData = error.response?.data;
-            const errorMessage = errorData?.message || 'Gagal menyimpan data';
+            const errorMessage = errorData?.message || error?.message || 'Gagal menyimpan data';
             const errors = errorData?.errors;
             if (errors) {
                 // Tampilkan error validasi dengan detail
@@ -367,9 +369,8 @@ export default function MutasiMasuk() {
             nominal = 0;
         }
         // Hitung jatuh tempo berdasarkan tipe
-        let jatuhTempo = new Date().toISOString().split('T')[0];
+        let jatuhTempo = toLocalDateStr(new Date());
         if (jenisTagihan.kategori === 'Rutin' && jenisTagihan.bulan) {
-            // Sesuaikan jatuh tempo dengan bulan yang di-ceklis saat pembuatan jenis tagihan
             const bulanRaw = jenisTagihan.bulan;
             let bulanList = [];
             if (Array.isArray(bulanRaw)) {
@@ -400,6 +401,9 @@ export default function MutasiMasuk() {
             };
             const today = new Date();
             const defaultDay = (() => {
+                const namaUpper = (jenisTagihan.namaTagihan || jenisTagihan.nama_tagihan || '').toString().toUpperCase();
+                if (namaUpper === 'BERAS' || namaUpper === 'BMP')
+                    return 10;
                 const jt = jenisTagihan.jatuhTempo || jenisTagihan.jatuh_tempo || '';
                 const match = String(jt).match(/(\d{1,2})/);
                 const d = match ? Number(match[1]) : 10;
@@ -421,17 +425,40 @@ export default function MutasiMasuk() {
                 }
             }
             if (foundDate) {
-                jatuhTempo = foundDate.toISOString().split('T')[0];
+                jatuhTempo = toLocalDateStr(foundDate);
             }
         }
-        // Jika perlu pilih kelas, simpan dulu pending
+        // Non Rutin: gunakan jatuhTempo yang ditetapkan saat pembuatan jenis tagihan jika ada
+        if (jenisTagihan.kategori === 'Non Rutin') {
+            const jt = jenisTagihan.jatuhTempo || jenisTagihan.jatuh_tempo;
+            if (jt) {
+                jatuhTempo = jt;
+            }
+        }
+        // Jika perlu pilih kelas, khusus BERAS jangan tampilkan modal
         if (needsKelasSelection) {
-            // Set state untuk show modal pilih kelas
-            setPendingTagihan({
-                jenis_tagihan: jenisTagihan,
-                jatuh_tempo: jatuhTempo
-            });
-            setShowKelasModal(true);
+            const namaUpper = (jenisTagihan.namaTagihan || jenisTagihan.nama_tagihan || '').toString().toUpperCase();
+            const isBeras = namaUpper === 'BERAS';
+            if (!isBeras) {
+                // Tampilkan modal untuk pilih nominal per kelas
+                setPendingTagihan({
+                    jenis_tagihan: jenisTagihan,
+                    jatuh_tempo: jatuhTempo
+                });
+                setShowKelasModal(true);
+                return;
+            }
+            // BERAS: langsung tambahkan dengan nominal 0, bisa diedit di Tagihan Terpilih
+            const newTagihanBeras = {
+                jenis_tagihan_id: jenisTagihan.id,
+                nama_tagihan: jenisTagihan.namaTagihan || jenisTagihan.nama_tagihan || 'Tagihan',
+                nominal: 0,
+                jatuh_tempo: jatuhTempo,
+                is_custom_nominal: false,
+                tipe_nominal: jenisTagihan.tipeNominal || jenisTagihan.tipe_nominal
+            };
+            setSelectedTagihan([...selectedTagihan, newTagihanBeras]);
+            toast.success('Tagihan BERAS ditambahkan');
             return;
         }
         const newTagihan = {
@@ -561,7 +588,7 @@ function Step3Tagihan({ jenisTagihanList, kelasList, selectedTagihan, addTagihan
     return (_jsxs("div", { className: "space-y-6", children: [_jsx("h2", { className: "text-lg font-semibold text-gray-900 mb-4", children: "Pilih Tagihan" }), _jsxs("div", { children: [_jsxs("label", { className: "block text-sm font-medium text-gray-700 mb-2", children: ["Jenis Tagihan Tersedia (", jenisTagihanList.length, " item)"] }), jenisTagihanList.length === 0 ? (_jsxs("div", { className: "p-8 border-2 border-dashed border-gray-300 rounded-lg text-center", children: [_jsx("p", { className: "text-gray-500 mb-2", children: "Belum ada jenis tagihan tersedia" }), _jsx("p", { className: "text-sm text-gray-400", children: "Silakan tambahkan jenis tagihan di menu Keuangan \u2192 Jenis Tagihan terlebih dahulu" })] })) : (_jsx("div", { className: "grid grid-cols-1 md:grid-cols-2 gap-3", children: jenisTagihanList.map((jenis) => (_jsx("div", { className: "p-4 border border-gray-300 rounded-lg hover:border-blue-500 cursor-pointer transition-colors", onClick: () => addTagihan(jenis), children: _jsxs("div", { className: "flex justify-between items-start", children: [_jsxs("div", { className: "flex-1", children: [_jsx("p", { className: "font-medium text-gray-900", children: jenis.namaTagihan || jenis.nama_tagihan || 'Tagihan' }), _jsx("p", { className: "text-xs text-gray-500 mt-1", children: jenis.kategori || '' })] }), _jsx("button", { onClick: (e) => {
                                             e.stopPropagation();
                                             addTagihan(jenis);
-                                        }, className: "p-1 text-blue-600 hover:bg-blue-50 rounded flex-shrink-0", type: "button", children: _jsx(Plus, { className: "w-5 h-5" }) })] }) }, jenis.id))) }))] }), selectedTagihan.length > 0 && (_jsxs("div", { className: "pt-4 border-t", children: [_jsx("h3", { className: "text-md font-semibold text-gray-900 mb-3", children: "Tagihan Terpilih" }), _jsx("div", { className: "space-y-3", children: selectedTagihan.map((tagihan) => (_jsxs("div", { className: "p-4 bg-blue-50 border border-blue-200 rounded-lg", children: [_jsxs("div", { className: "flex justify-between items-start mb-3", children: [_jsx("div", { className: "flex-1", children: _jsx("p", { className: "font-medium text-gray-900", children: tagihan.nama_tagihan }) }), _jsx("button", { onClick: () => removeTagihan(tagihan.jenis_tagihan_id), className: "text-red-600 hover:bg-red-100 p-1 rounded", children: _jsx(X, { className: "w-5 h-5" }) })] }), _jsxs("div", { className: "grid grid-cols-1 md:grid-cols-2 gap-3", children: [_jsxs("div", { children: [_jsxs("label", { className: "block text-xs text-gray-600 mb-1", children: ["Nominal ", tagihan.is_custom_nominal && _jsx("span", { className: "text-blue-600", children: "(Custom)" })] }), tagihan.tipe_nominal === 'per_individu' || tagihan.tipe_nominal === 'per_kelas' || tagihan.tipe_nominal === 'beda_perkelas' ? (_jsxs(_Fragment, { children: [_jsx("input", { type: "number", value: tagihan.nominal || '', onChange: (e) => updateTagihanNominal(tagihan.jenis_tagihan_id, Number(e.target.value) || 0), className: "w-full px-3 py-1.5 text-sm border border-gray-300 rounded focus:ring-2 focus:ring-blue-500", placeholder: "Masukkan nominal", min: "0" }), _jsx("p", { className: "text-xs text-gray-500 mt-1", children: formatRupiah(Number(tagihan.nominal) || 0) }), tagihan.kelas_id && (_jsxs("p", { className: "text-xs text-blue-600 mt-1", children: ["Tingkat ", kelasList.find((k) => k.id === tagihan.kelas_id)?.tingkat || tagihan.kelas_id] }))] })) : (_jsxs(_Fragment, { children: [_jsx("div", { className: "w-full px-3 py-1.5 text-sm border border-gray-200 rounded bg-gray-50 text-gray-700", children: tagihan.nominal || 0 }), _jsx("p", { className: "text-xs text-gray-500 mt-1", children: formatRupiah(Number(tagihan.nominal) || 0) })] }))] }), _jsxs("div", { children: [_jsx("label", { className: "block text-xs text-gray-600 mb-1", children: "Jatuh Tempo" }), _jsx("input", { type: "date", value: tagihan.jatuh_tempo || '', onChange: (e) => updateTagihanJatuhTempo(tagihan.jenis_tagihan_id, e.target.value), className: "w-full px-3 py-1.5 text-sm border border-gray-300 rounded focus:ring-2 focus:ring-blue-500" })] })] })] }, tagihan.jenis_tagihan_id))) }), _jsx("div", { className: "mt-4 p-4 bg-gray-100 rounded-lg", children: _jsxs("div", { className: "flex justify-between items-center", children: [_jsx("span", { className: "font-semibold text-gray-900", children: "Total Tagihan:" }), _jsx("span", { className: "text-xl font-bold text-blue-600", children: formatRupiah(totalTagihan) })] }) })] }))] }));
+                                        }, className: "p-1 text-blue-600 hover:bg-blue-50 rounded flex-shrink-0", type: "button", children: _jsx(Plus, { className: "w-5 h-5" }) })] }) }, jenis.id))) }))] }), selectedTagihan.length > 0 && (_jsxs("div", { className: "pt-4 border-t", children: [_jsx("h3", { className: "text-md font-semibold text-gray-900 mb-3", children: "Tagihan Terpilih" }), _jsx("div", { className: "space-y-3", children: selectedTagihan.map((tagihan) => (_jsxs("div", { className: "p-4 bg-blue-50 border border-blue-200 rounded-lg", children: [_jsxs("div", { className: "flex justify-between items-start mb-3", children: [_jsx("div", { className: "flex-1", children: _jsx("p", { className: "font-medium text-gray-900", children: tagihan.nama_tagihan }) }), _jsx("button", { onClick: () => removeTagihan(tagihan.jenis_tagihan_id), className: "text-red-600 hover:bg-red-100 p-1 rounded", children: _jsx(X, { className: "w-5 h-5" }) })] }), _jsxs("div", { className: "grid grid-cols-1 md:grid-cols-2 gap-3", children: [_jsxs("div", { children: [_jsxs("label", { className: "block text-xs text-gray-600 mb-1", children: ["Nominal ", tagihan.is_custom_nominal && _jsx("span", { className: "text-blue-600", children: "(Custom)" })] }), tagihan.tipe_nominal === 'per_individu' || tagihan.tipe_nominal === 'per_kelas' || tagihan.tipe_nominal === 'beda_perkelas' ? (_jsxs(_Fragment, { children: [_jsx("input", { type: "number", value: tagihan.nominal || '', onChange: (e) => updateTagihanNominal(tagihan.jenis_tagihan_id, Number(e.target.value) || 0), className: "w-full px-3 py-1.5 text-sm border border-gray-300 rounded focus:ring-2 focus:ring-blue-500", placeholder: "Masukkan nominal", min: "0" }), _jsx("p", { className: "text-xs text-gray-500 mt-1", children: formatRupiah(Number(tagihan.nominal) || 0) }), tagihan.kelas_id && (_jsxs("p", { className: "text-xs text-blue-600 mt-1", children: ["Tingkat ", kelasList.find((k) => k.id === tagihan.kelas_id)?.tingkat || tagihan.kelas_id] }))] })) : (_jsxs(_Fragment, { children: [_jsx("div", { className: "w-full px-3 py-1.5 text-sm border border-gray-200 rounded bg-gray-50 text-gray-700", children: tagihan.nominal || 0 }), _jsx("p", { className: "text-xs text-gray-500 mt-1", children: formatRupiah(Number(tagihan.nominal) || 0) })] }))] }), _jsxs("div", { children: [_jsx("label", { className: "block text-xs text-gray-600 mb-1", children: "Jatuh Tempo" }), tagihan.tipe_nominal === 'per_individu' ? (_jsx("input", { type: "date", value: tagihan.jatuh_tempo || '', onChange: (e) => updateTagihanJatuhTempo(tagihan.jenis_tagihan_id, e.target.value), className: "w-full px-3 py-1.5 text-sm border border-gray-300 rounded focus:ring-2 focus:ring-blue-500" })) : (_jsx("div", { className: "w-full px-3 py-1.5 text-sm border border-gray-200 rounded bg-gray-50 text-gray-700", children: tagihan.jatuh_tempo || '-' }))] })] })] }, tagihan.jenis_tagihan_id))) }), _jsx("div", { className: "mt-4 p-4 bg-gray-100 rounded-lg", children: _jsxs("div", { className: "flex justify-between items-center", children: [_jsx("span", { className: "font-semibold text-gray-900", children: "Total Tagihan:" }), _jsx("span", { className: "text-xl font-bold text-blue-600", children: formatRupiah(totalTagihan) })] }) })] }))] }));
 }
 // Component untuk Step 4
 function Step4Review({ formStep1, formStep2, selectedTagihan, kelasList, asramaList }) {
@@ -577,3 +604,17 @@ function Step4Review({ formStep1, formStep2, selectedTagihan, kelasList, asramaL
     const totalTagihan = selectedTagihan.reduce((sum, t) => sum + Number(t.nominal), 0);
     return (_jsxs("div", { className: "space-y-6", children: [_jsx("h2", { className: "text-lg font-semibold text-gray-900 mb-4", children: "Review & Konfirmasi" }), _jsxs("div", { className: "p-4 bg-gray-50 rounded-lg", children: [_jsx("h3", { className: "font-semibold text-gray-900 mb-3", children: "Data Santri" }), _jsxs("div", { className: "grid grid-cols-2 gap-3 text-sm", children: [_jsxs("div", { children: [_jsx("span", { className: "text-gray-600", children: "Nama:" }), _jsx("p", { className: "font-medium", children: formStep1.nama_santri })] }), _jsxs("div", { children: [_jsx("span", { className: "text-gray-600", children: "NIS:" }), _jsx("p", { className: "font-medium", children: formStep1.nis })] }), _jsxs("div", { children: [_jsx("span", { className: "text-gray-600", children: "Tempat, Tgl Lahir:" }), _jsxs("p", { className: "font-medium", children: [formStep1.tempat_lahir, ", ", formStep1.tanggal_lahir] })] }), _jsxs("div", { children: [_jsx("span", { className: "text-gray-600", children: "Jenis Kelamin:" }), _jsx("p", { className: "font-medium", children: formStep1.jenis_kelamin === 'L' ? 'Laki-laki' : 'Perempuan' })] }), _jsxs("div", { children: [_jsx("span", { className: "text-gray-600", children: "Asal Sekolah:" }), _jsx("p", { className: "font-medium", children: formStep1.asal_sekolah })] }), _jsxs("div", { children: [_jsx("span", { className: "text-gray-600", children: "Orang Tua:" }), _jsxs("p", { className: "font-medium", children: [formStep1.orang_tua.nama_ayah, " & ", formStep1.orang_tua.nama_ibu] })] })] })] }), _jsxs("div", { className: "p-4 bg-gray-50 rounded-lg", children: [_jsx("h3", { className: "font-semibold text-gray-900 mb-3", children: "Penempatan" }), _jsxs("div", { className: "grid grid-cols-2 gap-3 text-sm", children: [_jsxs("div", { children: [_jsx("span", { className: "text-gray-600", children: "Kelas:" }), _jsx("p", { className: "font-medium", children: kelas?.nama_kelas || '-' })] }), _jsxs("div", { children: [_jsx("span", { className: "text-gray-600", children: "Asrama:" }), _jsx("p", { className: "font-medium", children: asrama?.nama_asrama || '-' })] })] })] }), _jsxs("div", { className: "p-4 bg-gray-50 rounded-lg", children: [_jsx("h3", { className: "font-semibold text-gray-900 mb-3", children: "Tagihan" }), _jsxs("div", { className: "space-y-2", children: [selectedTagihan.map((tagihan) => (_jsxs("div", { className: "flex justify-between text-sm", children: [_jsx("span", { className: "text-gray-700", children: tagihan.nama_tagihan }), _jsx("span", { className: "font-medium", children: formatRupiah(tagihan.nominal) })] }, tagihan.jenis_tagihan_id))), _jsxs("div", { className: "pt-2 border-t flex justify-between font-semibold", children: [_jsx("span", { children: "Total:" }), _jsx("span", { className: "text-blue-600", children: formatRupiah(totalTagihan) })] })] })] }), _jsx("div", { className: "p-4 bg-green-50 border border-green-200 rounded-lg", children: _jsx("p", { className: "text-sm text-green-800", children: "\u2713 Data santri siap disimpan. Klik \"Simpan & Selesai\" untuk menyelesaikan proses mutasi masuk." }) })] }));
 }
+const toLocalDateStr = (date) => {
+    const y = date.getFullYear();
+    const m = String(date.getMonth() + 1).padStart(2, '0');
+    const d = String(date.getDate()).padStart(2, '0');
+    return `${y}-${m}-${d}`;
+};
+const bulanNamaID = ['Januari', 'Februari', 'Maret', 'April', 'Mei', 'Juni', 'Juli', 'Agustus', 'September', 'Oktober', 'November', 'Desember'];
+const getBulanNamaFromDate = (dateStr) => {
+    if (!dateStr)
+        return '';
+    const d = new Date(dateStr);
+    const idx = d.getMonth();
+    return bulanNamaID[idx] || '';
+};

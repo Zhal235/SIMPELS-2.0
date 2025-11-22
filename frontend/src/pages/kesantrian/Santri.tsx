@@ -3,11 +3,13 @@ import Card from '../../components/Card'
 import Table from '../../components/Table'
 import Modal from '../../components/Modal'
 import { Edit2, Eye, Shuffle, Trash2 } from 'lucide-react'
+import { useNavigate } from 'react-router-dom'
 import { Button } from '@/components/ui/button'
 import SantriForm from './components/SantriForm'
 import type { Santri } from './components/SantriForm'
-import { listSantri, deleteSantri } from '@/api/santri'
-import MutasiKeluarModal from './components/MutasiKeluarModal'
+import { listSantri, deleteSantri, updateSantri, getSantri } from '@/api/santri'
+import { getTagihanBySantri } from '@/api/pembayaran'
+import { deleteTagihanSantri } from '@/api/tagihanSantri'
 import { toast } from 'sonner'
 
 type Row = Santri & { aksi?: string }
@@ -18,42 +20,55 @@ export default function KesantrianSantri() {
   const [loading, setLoading] = useState<boolean>(false)
 
   const [modalOpen, setModalOpen] = useState(false)
-  const [mutasiModalOpen, setMutasiModalOpen] = useState(false)
-  const [mutasiTarget, setMutasiTarget] = useState<Row | null>(null)
   const [mode, setMode] = useState<'create' | 'edit' | 'preview'>('create')
   const [current, setCurrent] = useState<Row | null>(null)
+  const [mutasiModalOpen, setMutasiModalOpen] = useState(false)
+  const [mutasiTarget, setMutasiTarget] = useState<Row | null>(null)
+  const [tanggalKeluar, setTanggalKeluar] = useState<string>('')
+  const [alasan, setAlasan] = useState<string>('')
+  const [tujuanMutasi, setTujuanMutasi] = useState<string>('')
+  const [tagihanPreview, setTagihanPreview] = useState<any[]>([])
+  const [previewDelete, setPreviewDelete] = useState<any[]>([])
+  const [previewKeep, setPreviewKeep] = useState<any[]>([])
+  const totalDelete = useMemo(() => previewDelete.reduce((s: number, t: any) => s + Number(t?.nominal ?? t?.sisa ?? 0), 0), [previewDelete])
+  const totalKeep = useMemo(() => previewKeep.reduce((s: number, t: any) => s + Number(t?.nominal ?? t?.sisa ?? 0), 0), [previewKeep])
   
   const [currentPage, setCurrentPage] = useState(1)
   const [pageSize, setPageSize] = useState(10)
   const [totalItems, setTotalItems] = useState(0)
-  const [search, setSearch] = useState<string>('')
+  const navigate = useNavigate()
 
   async function fetchData() {
     try {
       setLoading(true)
-      // if search is less than 2 chars, ignore q param to the server
-      const q = search && search.trim().length >= 2 ? search.trim() : undefined
-      const res = await listSantri(currentPage, pageSize, q)
+      const res = await listSantri(currentPage, pageSize)
       const raw: any = res
       
       console.log('API Response:', raw)
       
+      const applyMutasiKeluarFilter = (arr: any[]) => {
+        return (arr || []).filter((it) => String(it?.status || 'aktif').toLowerCase() !== 'keluar')
+      }
+
       // Handle different response structures
       if (raw?.data?.data) {
         // Laravel pagination format
-        setItems(raw.data.data)
-        setTotalItems(raw.data.total || raw.data.data.length)
+        const arr = applyMutasiKeluarFilter(raw.data.data)
+        setItems(arr)
+        setTotalItems(arr.length)
         console.log('Items:', raw.data.data.length, 'Total:', raw.data.total)
       } else if (raw?.data) {
         const dataArray = Array.isArray(raw.data) ? raw.data : []
-        setItems(dataArray)
+        const arr = applyMutasiKeluarFilter(dataArray)
+        setItems(arr)
         // Jika tidak ada total, asumsikan ada lebih banyak data jika hasil = pageSize
-        setTotalItems(raw.total || (dataArray.length === pageSize ? pageSize * 10 : dataArray.length))
+        setTotalItems(arr.length)
         console.log('Items:', dataArray.length, 'Total estimate:', totalItems)
       } else {
         const dataArray = Array.isArray(raw) ? raw : []
-        setItems(dataArray)
-        setTotalItems(dataArray.length === pageSize ? pageSize * 10 : dataArray.length)
+        const arr = applyMutasiKeluarFilter(dataArray)
+        setItems(arr)
+        setTotalItems(arr.length)
         console.log('Items:', dataArray.length)
       }
     } catch (e: any) {
@@ -76,22 +91,57 @@ export default function KesantrianSantri() {
     fetchData()
   }, [currentPage, pageSize])
 
-  // when search changes, debounce and fetch
-  useEffect(() => {
-    const handler = setTimeout(() => {
-      setCurrentPage(1)
-      fetchData()
-    }, 400)
-
-    return () => clearTimeout(handler)
-  }, [search])
-
   useEffect(() => {
     // when modal closes after create/edit, refresh table
     if (!modalOpen && (mode === 'create' || mode === 'edit')) {
       fetchData()
     }
   }, [modalOpen])
+
+  useEffect(() => {
+    const fetchTagihan = async () => {
+      if (!mutasiTarget) return
+      try {
+        const res: any = await getTagihanBySantri((mutasiTarget as any).id)
+        const list = Array.isArray(res?.data) ? res.data : (Array.isArray(res) ? res : [])
+        setTagihanPreview(list)
+      } catch (e) {
+        console.error('Gagal mengambil tagihan santri', e)
+        setTagihanPreview([])
+      }
+    }
+    if (mutasiModalOpen) fetchTagihan()
+  }, [mutasiModalOpen, mutasiTarget])
+
+  function bulanToNum(b: string) {
+    const map: Record<string, number> = {
+      Januari: 1, Februari: 2, Maret: 3, April: 4, Mei: 5, Juni: 6,
+      Juli: 7, Agustus: 8, September: 9, Oktober: 10, November: 11, Desember: 12,
+    }
+    return map[b] || 1
+  }
+
+  useEffect(() => {
+    if (!tanggalKeluar || tagihanPreview.length === 0) {
+      setPreviewDelete([])
+      setPreviewKeep(tagihanPreview)
+      return
+    }
+    const dt = new Date(tanggalKeluar)
+    const outY = dt.getFullYear()
+    const outM = dt.getMonth() + 1
+    const del: any[] = []
+    const keep: any[] = []
+    tagihanPreview.forEach((t: any) => {
+      const tY = Number(t?.tahun || 0)
+      const tM = bulanToNum(String(t?.bulan || ''))
+      const shouldDelete = tY > outY || (tY === outY && tM > outM)
+      if (shouldDelete) del.push(t)
+      else keep.push(t)
+    })
+    setPreviewDelete(del)
+    setPreviewKeep(keep)
+  }, [tanggalKeluar, tagihanPreview])
 
   const columns = useMemo(() => (
     [
@@ -151,20 +201,24 @@ export default function KesantrianSantri() {
             >
               <Eye size={16} />
             </Button>
-            {row.status !== 'mutasi_keluar' && (
             <Button
               variant="outline"
               size="icon"
               title="Mutasi"
               className="border-gray-200 text-gray-700 hover:text-brand hover:border-brand transition-all duration-150 rounded-lg shadow-sm bg-white"
               onClick={() => {
-                setMutasiTarget(row)
-                setMutasiModalOpen(true)
+                if (row.id) {
+                  setMutasiTarget(row)
+                  setTanggalKeluar('')
+                  setAlasan('')
+                  setMutasiModalOpen(true)
+                } else {
+                  toast.info('ID santri tidak ditemukan')
+                }
               }}
             >
               <Shuffle size={16} />
             </Button>
-            )}
             <Button
               variant="outline"
               size="icon"
@@ -203,32 +257,14 @@ export default function KesantrianSantri() {
 
   return (
     <div className="space-y-4">
-      <div className="flex justify-between items-center gap-4">
+      <div className="flex justify-between">
         <h1 className="text-2xl font-semibold text-gray-900">Data Santri</h1>
-        <div className="flex items-center gap-3">
-          <input
-            type="search"
-            value={search}
-            onChange={(e) => setSearch(e.target.value)}
-            placeholder="Cari nama / NIS (min 2 huruf)"
-            className="px-3 py-2 border rounded-md focus:ring-2 focus:ring-blue-500"
-            aria-label="Search Santri"
-          />
-          <button
-            type="button"
-            onClick={() => setSearch('')}
-            title="Bersihkan pencarian"
-            className="px-3 py-2 border rounded-md text-sm text-gray-600 hover:bg-gray-100"
-          >
-            Clear
-          </button>
-          <button
-            className="btn btn-primary"
-            onClick={() => { setMode('create'); setCurrent(null); setModalOpen(true) }}
-          >
-            Tambah Santri
-          </button>
-        </div>
+        <button
+          className="btn btn-primary"
+          onClick={() => { setMode('create'); setCurrent(null); setModalOpen(true) }}
+        >
+          Tambah Santri
+        </button>
       </div>
       <Card>
         {loading && items.length === 0 ? (
@@ -237,7 +273,7 @@ export default function KesantrianSantri() {
           <div className="p-4 text-sm text-gray-500">Belum ada data santri.</div>
         ) : (
           <>
-            <Table columns={columns as any} data={items} getRowKey={(row: Row, idx: number) => String(row?.id ?? idx)} />
+            <Table columns={columns as any} data={items} getRowKey={(row: Row, idx: number) => String((row as any)?.id ?? idx)} />
             
             {/* Pagination */}
             <div className="px-6 py-4 border-t flex items-center justify-between">
@@ -323,19 +359,143 @@ export default function KesantrianSantri() {
           onSubmit={() => { fetchData() }}
         />
       </Modal>
-      {mutasiTarget && (
-        <Modal open={mutasiModalOpen} title={`Mutasi Keluar: ${mutasiTarget.nama_santri}`} onClose={() => setMutasiModalOpen(false)} footer={null}>
-          <MutasiKeluarModal
-            santri={mutasiTarget}
-            onClose={() => setMutasiModalOpen(false)}
-            onSuccess={() => {
-              setMutasiModalOpen(false)
-              setMutasiTarget(null)
-              // Refresh list
-              fetchData()
-            }}
-          />
-        </Modal>
+
+      {mutasiModalOpen && mutasiTarget && (
+        <div className="fixed inset-0 z-50 bg-black/50 flex items-center justify-center p-4">
+          <div className="bg-white rounded-lg shadow-xl w-full max-w-lg max-h-[85vh] overflow-hidden flex flex-col">
+            <div className="p-4 border-b">
+              <h2 className="text-lg font-semibold">Konfirmasi Mutasi Keluar</h2>
+              <p className="text-sm text-gray-600">{mutasiTarget.nama_santri}</p>
+            </div>
+            <div className="p-4 space-y-3 overflow-y-auto">
+              <div className="space-y-1">
+                <label className="text-sm text-gray-700">Tanggal Keluar</label>
+                <input type="date" className="w-full border rounded px-3 py-2" value={tanggalKeluar} onChange={(e) => setTanggalKeluar(e.target.value)} />
+              </div>
+              <div className="space-y-1">
+                <label className="text-sm text-gray-700">Alasan</label>
+                <textarea className="w-full border rounded px-3 py-2" rows={3} value={alasan} onChange={(e) => setAlasan(e.target.value)} />
+              </div>
+              <div className="space-y-1">
+                <label className="text-sm text-gray-700">Tujuan Mutasi</label>
+                <input type="text" className="w-full border rounded px-3 py-2" placeholder="Nama sekolah/pesantren tujuan" value={tujuanMutasi} onChange={(e) => setTujuanMutasi(e.target.value)} />
+              </div>
+              <div className="space-y-2">
+                <h3 className="text-sm font-semibold text-gray-900">Preview Tagihan Setelah Mutasi</h3>
+                <div className="flex items-center justify-between text-sm">
+                  <div className="font-medium">Total Dihapus: {totalDelete.toLocaleString('id-ID')}</div>
+                  <div className="font-medium">Total Tunggakan: {totalKeep.toLocaleString('id-ID')}</div>
+                </div>
+                {!tanggalKeluar ? (
+                  <p className="text-xs text-gray-500">Pilih tanggal keluar untuk melihat preview perubahan tagihan.</p>
+                ) : (
+                  <div className="grid grid-cols-1 md:grid-cols-2 gap-3">
+                    <div className="border rounded p-2">
+                      <div className="font-medium text-sm text-gray-800 mb-1">Dihapus (setelah bulan keluar)</div>
+                      {previewDelete.length === 0 ? (
+                        <div className="text-xs text-gray-500">Tidak ada tagihan yang akan dihapus.</div>
+                      ) : (
+                        <ul className="space-y-1 max-h-[40vh] overflow-auto pr-1">
+                          {previewDelete.map((t: any) => (
+                            <li key={`del-${t.id}`} className="text-xs flex justify-between">
+                              <span>{t.jenis_tagihan?.nama_tagihan ?? t.jenis_tagihan} — {t.bulan} {t.tahun}</span>
+                              <span className="font-medium">{Number(t.nominal ?? t.sisa ?? 0).toLocaleString('id-ID')}</span>
+                            </li>
+                          ))}
+                        </ul>
+                      )}
+                      <div className="pt-2 mt-2 border-t text-xs font-semibold flex justify-between">
+                        <span>Total</span>
+                        <span>{totalDelete.toLocaleString('id-ID')}</span>
+                      </div>
+                    </div>
+                    <div className="border rounded p-2">
+                      <div className="font-medium text-sm text-gray-800 mb-1">Tetap (sebagai tunggakan)</div>
+                      {previewKeep.length === 0 ? (
+                        <div className="text-xs text-gray-500">Tidak ada tagihan tersisa.</div>
+                      ) : (
+                        <ul className="space-y-1 max-h-[40vh] overflow-auto pr-1">
+                          {previewKeep.map((t: any) => (
+                            <li key={`keep-${t.id}`} className="text-xs flex justify-between">
+                              <span>{t.jenis_tagihan?.nama_tagihan ?? t.jenis_tagihan} — {t.bulan} {t.tahun}</span>
+                              <span className="font-medium">{Number(t.nominal ?? t.sisa ?? 0).toLocaleString('id-ID')}</span>
+                            </li>
+                          ))}
+                        </ul>
+                      )}
+                      <div className="pt-2 mt-2 border-t text-xs font-semibold flex justify-between">
+                        <span>Total</span>
+                        <span>{totalKeep.toLocaleString('id-ID')}</span>
+                      </div>
+                    </div>
+                  </div>
+                )}
+              </div>
+            </div>
+            <div className="p-4 border-t flex justify-end gap-2">
+              <button className="px-4 py-2 rounded border" onClick={() => { setMutasiModalOpen(false); setMutasiTarget(null); setTanggalKeluar(''); setAlasan('') }}>Batal</button>
+              <button className="px-4 py-2 rounded bg-red-600 text-white disabled:opacity-50" disabled={!tanggalKeluar} onClick={async () => {
+                if (!mutasiTarget) return
+                try {
+                  let detail: any = mutasiTarget
+                  // Pastikan field wajib tersedia; jika tidak, ambil dari endpoint detail
+                  const needDetail = !detail?.tempat_lahir || !detail?.tanggal_lahir || !detail?.alamat || !detail?.nama_ayah || !detail?.nama_ibu
+                  if (needDetail && (mutasiTarget as any).id) {
+                    try {
+                      const resp: any = await getSantri((mutasiTarget as any).id)
+                      detail = resp?.data || detail
+                    } catch (err) {
+                      console.warn('Gagal memuat detail santri untuk validasi update')
+                    }
+                  }
+
+                  const fd = new FormData()
+                  fd.append('nis', String(detail?.nis || mutasiTarget.nis || ''))
+                  fd.append('nama_santri', String(detail?.nama_santri || mutasiTarget.nama_santri || ''))
+                  fd.append('tempat_lahir', String(detail?.tempat_lahir || ''))
+                  fd.append('tanggal_lahir', String(detail?.tanggal_lahir || ''))
+                  fd.append('jenis_kelamin', String(detail?.jenis_kelamin || mutasiTarget.jenis_kelamin || 'L'))
+                  fd.append('alamat', String(detail?.alamat || ''))
+                  fd.append('nama_ayah', String(detail?.nama_ayah || ''))
+                  fd.append('nama_ibu', String(detail?.nama_ibu || ''))
+                  fd.append('kelas_id', '')
+                  fd.append('asrama_id', '')
+                  fd.append('kelas_nama', '')
+                  fd.append('asrama_nama', '')
+                  fd.append('status', 'keluar')
+                  if (tanggalKeluar) fd.append('tanggal_keluar', tanggalKeluar)
+                  if (tujuanMutasi) fd.append('tujuan_mutasi', tujuanMutasi)
+                  if (alasan) fd.append('alasan_mutasi', alasan)
+                  await updateSantri((mutasiTarget as any).id, fd)
+                  const deletable = (previewDelete || []).filter((t: any) => t && t.id)
+                  for (const t of deletable) {
+                    try { await deleteTagihanSantri(t.id) } catch (err) { console.error('Gagal hapus tagihan', t?.id, err) }
+                  }
+                  const info = {
+                    tanggalKeluar,
+                    alasan,
+                    kelasTertinggal: (mutasiTarget as any).kelas ?? (mutasiTarget as any).kelas_nama ?? null,
+                    tujuanMutasi: tujuanMutasi || '-',
+                  }
+                  try { localStorage.setItem(`mutasi_keluar:${(mutasiTarget as any).id}`, JSON.stringify(info)) } catch {}
+                  toast.success('Mutasi keluar berhasil diproses')
+                  setMutasiModalOpen(false)
+                  setMutasiTarget(null)
+                  setTanggalKeluar('')
+                  setAlasan('')
+                  setTujuanMutasi('')
+                  fetchData()
+                } catch (e: any) {
+                  if (e?.response?.status === 422) {
+                    toast.error('Validasi gagal. Lengkapi data profil santri sebelum mutasi.')
+                  } else {
+                    console.error(e)
+                  }
+                }
+              }}>Konfirmasi Mutasi</button>
+            </div>
+          </div>
+        </div>
       )}
     </div>
   )

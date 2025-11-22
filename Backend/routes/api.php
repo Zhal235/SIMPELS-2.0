@@ -14,6 +14,7 @@ use App\Http\Controllers\TransaksiKasController;
 use App\Http\Controllers\WalletController;
 use App\Http\Controllers\RfidTagController;
 use App\Http\Controllers\EposController;
+use App\Http\Controllers\WalletSettingsController;
 
 // Authentication routes (public)
 Route::post('/login', [AuthController::class, 'login']);
@@ -61,22 +62,31 @@ Route::prefix('v1/keuangan')->group(function () {
 // API v1 endpoints untuk Dompet Digital / Wallets
 // Admin-protected wallet management (requires authentication)
 Route::prefix('v1/wallets')->middleware('auth:sanctum')->group(function () {
-    // Wallet management per-santri
-    Route::get('/', [WalletController::class, 'index']);
-    Route::get('/{santriId}', [WalletController::class, 'show']);
-    Route::post('/{santriId}/topup', [WalletController::class, 'topup']);
-    Route::post('/{santriId}/debit', [WalletController::class, 'debit']);
-    Route::get('/{santriId}/transactions', [WalletController::class, 'transactions']);
-    // Admin-only transaction management
-    Route::put('/transactions/{id}', [WalletController::class, 'updateTransaction']);
-    Route::delete('/transactions/{id}', [WalletController::class, 'voidTransaction']);
-    Route::get('/transactions', [WalletController::class, 'allTransactions']);
+    // Wallet Settings (admin only) - MUST BE BEFORE /{santriId} route
+    Route::get('settings', [WalletSettingsController::class, 'index']);
+    Route::put('settings/global', [WalletSettingsController::class, 'updateGlobalSettings']);
+    Route::get('settings/santri/all', [WalletSettingsController::class, 'allSantriWithLimits']);
+    Route::put('settings/santri/bulk', [WalletSettingsController::class, 'bulkUpdateSantriLimits']);
+    Route::put('settings/santri/{santriId}', [WalletSettingsController::class, 'setSantriLimit']);
+    Route::delete('settings/santri/{santriId}', [WalletSettingsController::class, 'deleteSantriLimit']);
 
     // RFID mapping
     Route::get('rfid', [RfidTagController::class, 'index']);
     Route::post('rfid', [RfidTagController::class, 'store']);
     Route::put('rfid/{id}', [RfidTagController::class, 'update']);
     Route::delete('rfid/{id}', [RfidTagController::class, 'destroy']);
+
+    // Admin-only transaction management
+    Route::put('transactions/{id}', [WalletController::class, 'updateTransaction']);
+    Route::delete('transactions/{id}', [WalletController::class, 'voidTransaction']);
+    Route::get('transactions', [WalletController::class, 'allTransactions']);
+
+    // Wallet management per-santri - MUST BE AFTER specific routes to avoid conflicts
+    Route::get('/', [WalletController::class, 'index']);
+    Route::get('/{santriId}', [WalletController::class, 'show']);
+    Route::post('/{santriId}/topup', [WalletController::class, 'topup']);
+    Route::post('/{santriId}/debit', [WalletController::class, 'debit']);
+    Route::get('/{santriId}/transactions', [WalletController::class, 'transactions']);
 
     // note: ePOS endpoints are public (for terminals) — add outside protected group
 });

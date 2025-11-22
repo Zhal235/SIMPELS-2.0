@@ -4,9 +4,12 @@ import Card from '../../components/Card';
 import Table from '../../components/Table';
 import Modal from '../../components/Modal';
 import { Edit2, Eye, Shuffle, Trash2 } from 'lucide-react';
+import { useNavigate } from 'react-router-dom';
 import { Button } from '@/components/ui/button';
 import SantriForm from './components/SantriForm';
-import { listSantri, deleteSantri } from '@/api/santri';
+import { listSantri, deleteSantri, updateSantri, getSantri } from '@/api/santri';
+import { getTagihanBySantri } from '@/api/pembayaran';
+import { deleteTagihanSantri } from '@/api/tagihanSantri';
 import { toast } from 'sonner';
 export default function KesantrianSantri() {
     // Mulai dengan data kosong; sebelumnya ada data dummy untuk demo yang membuat tabel menampilkan 3 baris saat reload
@@ -15,33 +18,50 @@ export default function KesantrianSantri() {
     const [modalOpen, setModalOpen] = useState(false);
     const [mode, setMode] = useState('create');
     const [current, setCurrent] = useState(null);
+    const [mutasiModalOpen, setMutasiModalOpen] = useState(false);
+    const [mutasiTarget, setMutasiTarget] = useState(null);
+    const [tanggalKeluar, setTanggalKeluar] = useState('');
+    const [alasan, setAlasan] = useState('');
+    const [tujuanMutasi, setTujuanMutasi] = useState('');
+    const [tagihanPreview, setTagihanPreview] = useState([]);
+    const [previewDelete, setPreviewDelete] = useState([]);
+    const [previewKeep, setPreviewKeep] = useState([]);
+    const totalDelete = useMemo(() => previewDelete.reduce((s, t) => s + Number(t?.nominal ?? t?.sisa ?? 0), 0), [previewDelete]);
+    const totalKeep = useMemo(() => previewKeep.reduce((s, t) => s + Number(t?.nominal ?? t?.sisa ?? 0), 0), [previewKeep]);
     const [currentPage, setCurrentPage] = useState(1);
     const [pageSize, setPageSize] = useState(10);
     const [totalItems, setTotalItems] = useState(0);
+    const navigate = useNavigate();
     async function fetchData() {
         try {
             setLoading(true);
             const res = await listSantri(currentPage, pageSize);
             const raw = res;
             console.log('API Response:', raw);
+            const applyMutasiKeluarFilter = (arr) => {
+                return (arr || []).filter((it) => String(it?.status || 'aktif').toLowerCase() !== 'keluar');
+            };
             // Handle different response structures
             if (raw?.data?.data) {
                 // Laravel pagination format
-                setItems(raw.data.data);
-                setTotalItems(raw.data.total || raw.data.data.length);
+                const arr = applyMutasiKeluarFilter(raw.data.data);
+                setItems(arr);
+                setTotalItems(arr.length);
                 console.log('Items:', raw.data.data.length, 'Total:', raw.data.total);
             }
             else if (raw?.data) {
                 const dataArray = Array.isArray(raw.data) ? raw.data : [];
-                setItems(dataArray);
+                const arr = applyMutasiKeluarFilter(dataArray);
+                setItems(arr);
                 // Jika tidak ada total, asumsikan ada lebih banyak data jika hasil = pageSize
-                setTotalItems(raw.total || (dataArray.length === pageSize ? pageSize * 10 : dataArray.length));
+                setTotalItems(arr.length);
                 console.log('Items:', dataArray.length, 'Total estimate:', totalItems);
             }
             else {
                 const dataArray = Array.isArray(raw) ? raw : [];
-                setItems(dataArray);
-                setTotalItems(dataArray.length === pageSize ? pageSize * 10 : dataArray.length);
+                const arr = applyMutasiKeluarFilter(dataArray);
+                setItems(arr);
+                setTotalItems(arr.length);
                 console.log('Items:', dataArray.length);
             }
         }
@@ -73,6 +93,53 @@ export default function KesantrianSantri() {
             fetchData();
         }
     }, [modalOpen]);
+    useEffect(() => {
+        const fetchTagihan = async () => {
+            if (!mutasiTarget)
+                return;
+            try {
+                const res = await getTagihanBySantri(mutasiTarget.id);
+                const list = Array.isArray(res?.data) ? res.data : (Array.isArray(res) ? res : []);
+                setTagihanPreview(list);
+            }
+            catch (e) {
+                console.error('Gagal mengambil tagihan santri', e);
+                setTagihanPreview([]);
+            }
+        };
+        if (mutasiModalOpen)
+            fetchTagihan();
+    }, [mutasiModalOpen, mutasiTarget]);
+    function bulanToNum(b) {
+        const map = {
+            Januari: 1, Februari: 2, Maret: 3, April: 4, Mei: 5, Juni: 6,
+            Juli: 7, Agustus: 8, September: 9, Oktober: 10, November: 11, Desember: 12,
+        };
+        return map[b] || 1;
+    }
+    useEffect(() => {
+        if (!tanggalKeluar || tagihanPreview.length === 0) {
+            setPreviewDelete([]);
+            setPreviewKeep(tagihanPreview);
+            return;
+        }
+        const dt = new Date(tanggalKeluar);
+        const outY = dt.getFullYear();
+        const outM = dt.getMonth() + 1;
+        const del = [];
+        const keep = [];
+        tagihanPreview.forEach((t) => {
+            const tY = Number(t?.tahun || 0);
+            const tM = bulanToNum(String(t?.bulan || ''));
+            const shouldDelete = tY > outY || (tY === outY && tM > outM);
+            if (shouldDelete)
+                del.push(t);
+            else
+                keep.push(t);
+        });
+        setPreviewDelete(del);
+        setPreviewKeep(keep);
+    }, [tanggalKeluar, tagihanPreview]);
     const columns = useMemo(() => ([
         {
             key: 'no',
@@ -100,7 +167,15 @@ export default function KesantrianSantri() {
             key: 'aksi',
             header: 'Aksi',
             render: (_, row) => (_jsxs("div", { className: "flex gap-2", children: [_jsx(Button, { variant: "outline", size: "icon", title: "Edit", className: "border-gray-200 text-gray-700 hover:text-brand hover:border-brand transition-all duration-150 rounded-lg shadow-sm bg-white", onClick: () => { setMode('edit'); setCurrent(row); setModalOpen(true); }, children: _jsx(Edit2, { size: 16 }) }), _jsx(Button, { variant: "outline", size: "icon", title: "Lihat Detail", className: "border-gray-200 text-gray-700 hover:text-brand hover:border-brand transition-all duration-150 rounded-lg shadow-sm bg-white", onClick: () => { setMode('preview'); setCurrent(row); setModalOpen(true); }, children: _jsx(Eye, { size: 16 }) }), _jsx(Button, { variant: "outline", size: "icon", title: "Mutasi", className: "border-gray-200 text-gray-700 hover:text-brand hover:border-brand transition-all duration-150 rounded-lg shadow-sm bg-white", onClick: () => {
-                            toast.info('Segera hadir: Fitur Mutasi akan ditambahkan.');
+                            if (row.id) {
+                                setMutasiTarget(row);
+                                setTanggalKeluar('');
+                                setAlasan('');
+                                setMutasiModalOpen(true);
+                            }
+                            else {
+                                toast.info('ID santri tidak ditemukan');
+                            }
                         }, children: _jsx(Shuffle, { size: 16 }) }), _jsx(Button, { variant: "outline", size: "icon", title: "Hapus", className: "border-gray-200 text-gray-700 hover:text-red-500 hover:border-red-300 transition-all duration-150 rounded-lg shadow-sm bg-white", onClick: async () => {
                             const ok = confirm('Yakin ingin hapus data santri ini?');
                             if (!ok)
@@ -140,7 +215,79 @@ export default function KesantrianSantri() {
                                             })
                                                 .map((page, idx, arr) => (_jsxs("div", { children: [idx > 0 && arr[idx - 1] !== page - 1 && (_jsx("span", { className: "px-2 text-gray-400", children: "..." })), _jsx("button", { onClick: () => setCurrentPage(page), className: `px-3 py-1 border rounded ${currentPage === page
                                                             ? 'bg-blue-600 text-white border-blue-600'
-                                                            : 'border-gray-300 hover:bg-gray-50'}`, children: page })] }, page))) }), _jsx("button", { onClick: () => setCurrentPage(Math.min(Math.ceil(totalItems / pageSize), currentPage + 1)), disabled: currentPage >= Math.ceil(totalItems / pageSize), className: "px-3 py-1 border border-gray-300 rounded hover:bg-gray-50 disabled:opacity-50 disabled:cursor-not-allowed", children: "Next \u2192" })] })] })] })) }), _jsx(Modal, { open: modalOpen, title: mode === 'create' ? 'Tambah Santri' : mode === 'edit' ? 'Edit Santri' : 'Preview Santri', onClose: () => setModalOpen(false), footer: null, children: _jsx(SantriForm, { mode: mode, initial: current ?? undefined, onCancel: () => setModalOpen(false), onSubmit: () => { fetchData(); } }) })] }));
+                                                            : 'border-gray-300 hover:bg-gray-50'}`, children: page })] }, page))) }), _jsx("button", { onClick: () => setCurrentPage(Math.min(Math.ceil(totalItems / pageSize), currentPage + 1)), disabled: currentPage >= Math.ceil(totalItems / pageSize), className: "px-3 py-1 border border-gray-300 rounded hover:bg-gray-50 disabled:opacity-50 disabled:cursor-not-allowed", children: "Next \u2192" })] })] })] })) }), _jsx(Modal, { open: modalOpen, title: mode === 'create' ? 'Tambah Santri' : mode === 'edit' ? 'Edit Santri' : 'Preview Santri', onClose: () => setModalOpen(false), footer: null, children: _jsx(SantriForm, { mode: mode, initial: current ?? undefined, onCancel: () => setModalOpen(false), onSubmit: () => { fetchData(); } }) }), mutasiModalOpen && mutasiTarget && (_jsx("div", { className: "fixed inset-0 z-50 bg-black/50 flex items-center justify-center p-4", children: _jsxs("div", { className: "bg-white rounded-lg shadow-xl w-full max-w-lg max-h-[85vh] overflow-hidden flex flex-col", children: [_jsxs("div", { className: "p-4 border-b", children: [_jsx("h2", { className: "text-lg font-semibold", children: "Konfirmasi Mutasi Keluar" }), _jsx("p", { className: "text-sm text-gray-600", children: mutasiTarget.nama_santri })] }), _jsxs("div", { className: "p-4 space-y-3 overflow-y-auto", children: [_jsxs("div", { className: "space-y-1", children: [_jsx("label", { className: "text-sm text-gray-700", children: "Tanggal Keluar" }), _jsx("input", { type: "date", className: "w-full border rounded px-3 py-2", value: tanggalKeluar, onChange: (e) => setTanggalKeluar(e.target.value) })] }), _jsxs("div", { className: "space-y-1", children: [_jsx("label", { className: "text-sm text-gray-700", children: "Alasan" }), _jsx("textarea", { className: "w-full border rounded px-3 py-2", rows: 3, value: alasan, onChange: (e) => setAlasan(e.target.value) })] }), _jsxs("div", { className: "space-y-1", children: [_jsx("label", { className: "text-sm text-gray-700", children: "Tujuan Mutasi" }), _jsx("input", { type: "text", className: "w-full border rounded px-3 py-2", placeholder: "Nama sekolah/pesantren tujuan", value: tujuanMutasi, onChange: (e) => setTujuanMutasi(e.target.value) })] }), _jsxs("div", { className: "space-y-2", children: [_jsx("h3", { className: "text-sm font-semibold text-gray-900", children: "Preview Tagihan Setelah Mutasi" }), _jsxs("div", { className: "flex items-center justify-between text-sm", children: [_jsxs("div", { className: "font-medium", children: ["Total Dihapus: ", totalDelete.toLocaleString('id-ID')] }), _jsxs("div", { className: "font-medium", children: ["Total Tunggakan: ", totalKeep.toLocaleString('id-ID')] })] }), !tanggalKeluar ? (_jsx("p", { className: "text-xs text-gray-500", children: "Pilih tanggal keluar untuk melihat preview perubahan tagihan." })) : (_jsxs("div", { className: "grid grid-cols-1 md:grid-cols-2 gap-3", children: [_jsxs("div", { className: "border rounded p-2", children: [_jsx("div", { className: "font-medium text-sm text-gray-800 mb-1", children: "Dihapus (setelah bulan keluar)" }), previewDelete.length === 0 ? (_jsx("div", { className: "text-xs text-gray-500", children: "Tidak ada tagihan yang akan dihapus." })) : (_jsx("ul", { className: "space-y-1 max-h-[40vh] overflow-auto pr-1", children: previewDelete.map((t) => (_jsxs("li", { className: "text-xs flex justify-between", children: [_jsxs("span", { children: [t.jenis_tagihan?.nama_tagihan ?? t.jenis_tagihan, " \u2014 ", t.bulan, " ", t.tahun] }), _jsx("span", { className: "font-medium", children: Number(t.nominal ?? t.sisa ?? 0).toLocaleString('id-ID') })] }, `del-${t.id}`))) })), _jsxs("div", { className: "pt-2 mt-2 border-t text-xs font-semibold flex justify-between", children: [_jsx("span", { children: "Total" }), _jsx("span", { children: totalDelete.toLocaleString('id-ID') })] })] }), _jsxs("div", { className: "border rounded p-2", children: [_jsx("div", { className: "font-medium text-sm text-gray-800 mb-1", children: "Tetap (sebagai tunggakan)" }), previewKeep.length === 0 ? (_jsx("div", { className: "text-xs text-gray-500", children: "Tidak ada tagihan tersisa." })) : (_jsx("ul", { className: "space-y-1 max-h-[40vh] overflow-auto pr-1", children: previewKeep.map((t) => (_jsxs("li", { className: "text-xs flex justify-between", children: [_jsxs("span", { children: [t.jenis_tagihan?.nama_tagihan ?? t.jenis_tagihan, " \u2014 ", t.bulan, " ", t.tahun] }), _jsx("span", { className: "font-medium", children: Number(t.nominal ?? t.sisa ?? 0).toLocaleString('id-ID') })] }, `keep-${t.id}`))) })), _jsxs("div", { className: "pt-2 mt-2 border-t text-xs font-semibold flex justify-between", children: [_jsx("span", { children: "Total" }), _jsx("span", { children: totalKeep.toLocaleString('id-ID') })] })] })] }))] })] }), _jsxs("div", { className: "p-4 border-t flex justify-end gap-2", children: [_jsx("button", { className: "px-4 py-2 rounded border", onClick: () => { setMutasiModalOpen(false); setMutasiTarget(null); setTanggalKeluar(''); setAlasan(''); }, children: "Batal" }), _jsx("button", { className: "px-4 py-2 rounded bg-red-600 text-white disabled:opacity-50", disabled: !tanggalKeluar, onClick: async () => {
+                                        if (!mutasiTarget)
+                                            return;
+                                        try {
+                                            let detail = mutasiTarget;
+                                            // Pastikan field wajib tersedia; jika tidak, ambil dari endpoint detail
+                                            const needDetail = !detail?.tempat_lahir || !detail?.tanggal_lahir || !detail?.alamat || !detail?.nama_ayah || !detail?.nama_ibu;
+                                            if (needDetail && mutasiTarget.id) {
+                                                try {
+                                                    const resp = await getSantri(mutasiTarget.id);
+                                                    detail = resp?.data || detail;
+                                                }
+                                                catch (err) {
+                                                    console.warn('Gagal memuat detail santri untuk validasi update');
+                                                }
+                                            }
+                                            const fd = new FormData();
+                                            fd.append('nis', String(detail?.nis || mutasiTarget.nis || ''));
+                                            fd.append('nama_santri', String(detail?.nama_santri || mutasiTarget.nama_santri || ''));
+                                            fd.append('tempat_lahir', String(detail?.tempat_lahir || ''));
+                                            fd.append('tanggal_lahir', String(detail?.tanggal_lahir || ''));
+                                            fd.append('jenis_kelamin', String(detail?.jenis_kelamin || mutasiTarget.jenis_kelamin || 'L'));
+                                            fd.append('alamat', String(detail?.alamat || ''));
+                                            fd.append('nama_ayah', String(detail?.nama_ayah || ''));
+                                            fd.append('nama_ibu', String(detail?.nama_ibu || ''));
+                                            fd.append('kelas_id', '');
+                                            fd.append('asrama_id', '');
+                                            fd.append('kelas_nama', '');
+                                            fd.append('asrama_nama', '');
+                                            fd.append('status', 'keluar');
+                                            if (tanggalKeluar)
+                                                fd.append('tanggal_keluar', tanggalKeluar);
+                                            if (tujuanMutasi)
+                                                fd.append('tujuan_mutasi', tujuanMutasi);
+                                            if (alasan)
+                                                fd.append('alasan_mutasi', alasan);
+                                            await updateSantri(mutasiTarget.id, fd);
+                                            const deletable = (previewDelete || []).filter((t) => t && t.id);
+                                            for (const t of deletable) {
+                                                try {
+                                                    await deleteTagihanSantri(t.id);
+                                                }
+                                                catch (err) {
+                                                    console.error('Gagal hapus tagihan', t?.id, err);
+                                                }
+                                            }
+                                            const info = {
+                                                tanggalKeluar,
+                                                alasan,
+                                                kelasTertinggal: mutasiTarget.kelas ?? mutasiTarget.kelas_nama ?? null,
+                                                tujuanMutasi: tujuanMutasi || '-',
+                                            };
+                                            try {
+                                                localStorage.setItem(`mutasi_keluar:${mutasiTarget.id}`, JSON.stringify(info));
+                                            }
+                                            catch { }
+                                            toast.success('Mutasi keluar berhasil diproses');
+                                            setMutasiModalOpen(false);
+                                            setMutasiTarget(null);
+                                            setTanggalKeluar('');
+                                            setAlasan('');
+                                            setTujuanMutasi('');
+                                            fetchData();
+                                        }
+                                        catch (e) {
+                                            if (e?.response?.status === 422) {
+                                                toast.error('Validasi gagal. Lengkapi data profil santri sebelum mutasi.');
+                                            }
+                                            else {
+                                                console.error(e);
+                                            }
+                                        }
+                                    }, children: "Konfirmasi Mutasi" })] })] }) }))] }));
 }
 // Helpers to resolve foto URL to backend origin
 function getFotoSrc(foto) {
