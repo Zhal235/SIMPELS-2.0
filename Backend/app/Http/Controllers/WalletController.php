@@ -453,7 +453,7 @@ class WalletController extends Controller
         return response()->json([
             'success' => true,
             'message' => 'SIMPELS API is running',
-            'timestamp' => now()->toDateTimeString(),
+            'timestamp' => now()->timezone('Asia/Jakarta')->toDateTimeString(),
             'version' => '2.0'
         ]);
     }

@@ -50,14 +50,14 @@ class EposController extends Controller
         $wallet = Wallet::firstOrCreate(['santri_id' => $santriId], ['balance' => 0]);
 
         // compute today's spending BEFORE applying this transaction
+        // Since app timezone is Asia/Jakarta, DB timestamps are already in WIB
         $todayStart = now()->startOfDay();
-            // use UTC day-start to avoid timezone mismatches and count all transactions for the same calendar day
-            $todayUtcStart = now()->utc()->startOfDay();
-            $spentTodayBefore = WalletTransaction::where('wallet_id', $wallet->id)
+
+        $spentTodayBefore = WalletTransaction::where('wallet_id', $wallet->id)
             ->where('type', 'debit')
             ->where('method', 'epos')
-            ->where('is_void', false)
-                    ->where('created_at', '>=', $todayUtcStart)
+            ->where('voided', 0)
+            ->where('created_at', '>=', $todayStart)
             ->sum('amount');
 
         // daily limit retrieval
@@ -149,12 +149,14 @@ class EposController extends Controller
             $pool->save();
 
             // compute today's spending and remaining daily limit for the santri
+            // recompute spent today (DB timestamps already in WIB since app timezone is Asia/Jakarta)
             $todayStart = now()->startOfDay();
+
             $spentToday = WalletTransaction::where('wallet_id', $wallet->id)
                 ->where('type', 'debit')
                 ->where('method', 'epos')
-                ->where('is_void', false)
-                    ->where('created_at', '>=', $todayUtcStart)
+                ->where('voided', 0)
+                ->where('created_at', '>=', $todayStart)
                 ->sum('amount');
 
             $limitModel = \App\Models\SantriTransactionLimit::where('santri_id', $santriId)->first();
@@ -163,10 +165,19 @@ class EposController extends Controller
 
             DB::commit();
 
+            $txnData = $txn->toArray();
+            // ensure created_at/updated_at are returned in WIB
+            if ($txn->created_at) {
+                $txnData['created_at'] = $txn->created_at->timezone('Asia/Jakarta')->toDateTimeString();
+            }
+            if ($txn->updated_at) {
+                $txnData['updated_at'] = $txn->updated_at->timezone('Asia/Jakarta')->toDateTimeString();
+            }
+
             return response()->json(['success' => true, 'data' => [
                 'wallet_balance' => $wallet->balance,
                 'pool_balance' => $pool->balance,
-                'transaction' => $txn,
+                'transaction' => $txnData,
                 'spent_today' => (float) $spentToday,
                 'remaining_limit' => (float) $remainingLimit,
                 'limit_harian' => (float) $dailyLimit

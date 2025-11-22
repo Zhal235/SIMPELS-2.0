@@ -96,12 +96,23 @@ class RfidTagController extends Controller
 
         // Calculate today's spending from wallet transactions
         $todayStart = now()->startOfDay();
+        
+        \Log::info('RfidTagController::getByUid - calculating spent_today', [
+            'wallet_id' => $wallet->id,
+            'today_start' => $todayStart->toDateTimeString()
+        ]);
+        
         $todaySpent = \App\Models\WalletTransaction::where('wallet_id', $wallet->id)
             ->where('type', 'debit')
             ->where('method', 'epos')
-            ->where('is_void', false)
+            ->where('voided', 0)
             ->where('created_at', '>=', $todayStart)
             ->sum('amount');
+
+        \Log::info('RfidTagController::getByUid - spent_today result', [
+            'wallet_id' => $wallet->id,
+            'spent_today' => $todaySpent
+        ]);
 
         $remainingLimit = max(0, $dailyLimit - $todaySpent);
 
