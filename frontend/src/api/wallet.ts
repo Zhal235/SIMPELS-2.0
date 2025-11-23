@@ -81,8 +81,18 @@ export async function createEposWithdrawal(amount: number, note?: string, reques
 }
 
 export async function listEposWithdrawals(params?: any) {
-  // EPOS withdrawals have pool_id (not null)
-  const res = await api.get('/v1/wallets/withdrawals', { params: { ...params, is_epos: true } })
+  // Get EPOS withdrawals from new endpoint
+  const res = await api.get('/v1/wallets/epos/withdrawals', { params })
+  return res.data
+}
+
+export async function approveEposWithdrawal(id: number | string) {
+  const res = await api.put(`/v1/wallets/epos/withdrawal/${id}/approve`)
+  return res.data
+}
+
+export async function rejectEposWithdrawal(id: number | string, reason: string) {
+  const res = await api.put(`/v1/wallets/epos/withdrawal/${id}/reject`, { reason })
   return res.data
 }
 

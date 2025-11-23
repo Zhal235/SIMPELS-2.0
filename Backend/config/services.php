@@ -35,4 +35,9 @@ return [
         ],
     ],
 
+    'epos' => [
+        'api_url' => env('EPOS_API_URL', 'http://localhost:8002'),
+        'timeout' => env('EPOS_API_TIMEOUT', 30),
+    ],
+
 ];

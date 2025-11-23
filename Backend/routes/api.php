@@ -112,6 +112,9 @@ Route::prefix('v1/wallets')->group(function () {
     // EPOS withdrawal endpoints
     Route::post('epos/withdrawal', [WalletController::class, 'createEposWithdrawal']);
     Route::get('epos/withdrawal/{withdrawalNumber}/status', [WalletController::class, 'getEposWithdrawalStatus']);
+    Route::put('epos/withdrawal/{id}/approve', [WalletController::class, 'approveEposWithdrawal']);
+    Route::put('epos/withdrawal/{id}/reject', [WalletController::class, 'rejectEposWithdrawal']);
+    Route::get('epos/withdrawals', [WalletController::class, 'listEposWithdrawals']);
 });
 
 // API v1 endpoints untuk modul Akademik
