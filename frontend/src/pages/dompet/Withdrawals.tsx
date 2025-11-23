@@ -2,7 +2,7 @@ import React, { useEffect, useState } from 'react'
 import Card from '../../components/Card'
 import Table from '../../components/Table'
 import Modal from '../../components/Modal'
-import { getEposPool, listWithdrawals, createWithdrawal } from '../../api/wallet'
+import { getEposPool, listEposWithdrawals, createEposWithdrawal } from '../../api/wallet'
 import toast from 'react-hot-toast'
 
 export default function Withdrawals() {
@@ -12,13 +12,14 @@ export default function Withdrawals() {
   const [showModal, setShowModal] = useState(false)
   const [amount, setAmount] = useState('')
   const [note, setNote] = useState('')
+  const [requestedBy, setRequestedBy] = useState('')
 
   useEffect(() => { load() }, [])
 
   async function load() {
     try {
       setLoading(true)
-      const [pRes, wRes] = await Promise.all([getEposPool(), listWithdrawals()])
+      const [pRes, wRes] = await Promise.all([getEposPool(), listEposWithdrawals()])
       if (pRes.success) setPool(pRes.data)
       if (wRes.success) setWithdrawals(wRes.data || [])
     } catch (err) {
@@ -31,11 +32,15 @@ export default function Withdrawals() {
     e?.preventDefault()
     const amt = Number(amount)
     if (!amt || amt <= 0) { toast.error('Nominal tidak valid'); return }
+    if (!requestedBy.trim()) { toast.error('Nama yang meminta tidak boleh kosong'); return }
     try {
-      const res = await createWithdrawal(amt, note)
+      const res = await createEposWithdrawal(amt, note, requestedBy)
       if (res.success) {
         toast.success('Permintaan penarikan dibuat')
         setShowModal(false)
+        setAmount('')
+        setNote('')
+        setRequestedBy('')
         load()
       }
     } catch (err: any) {
@@ -45,12 +50,23 @@ export default function Withdrawals() {
   }
 
   const columns = [
-    { key: 'id', header: 'ID' },
-    { key: 'amount', header: 'Nominal' },
-    { key: 'status', header: 'Status' },
-    { key: 'requested_by', header: 'Diminta oleh' },
-    { key: 'processed_by', header: 'Diproses oleh' },
-    { key: 'created_at', header: 'Waktu' },
+    { key: 'id', header: 'ID', render: (v: any) => <div className="text-xs">{v}</div> },
+    { key: 'amount', header: 'Nominal', render: (v: any) => <div>{`Rp ${parseFloat(v || 0).toLocaleString('id-ID')}`}</div> },
+    { key: 'status', header: 'Status', render: (v: any) => <span className={`px-2 py-1 rounded text-xs ${v === 'pending' ? 'bg-yellow-100 text-yellow-700' : v === 'approved' ? 'bg-green-100 text-green-700' : 'bg-red-100 text-red-700'}`}>{v}</span> },
+    { 
+      key: 'notes', 
+      header: 'Diminta oleh', 
+      render: (v: any) => {
+        const match = v?.match(/Diminta oleh: ([^|]+)/);
+        return <div className="text-sm">{match ? match[1].trim() : '-'}</div>;
+      } 
+    },
+    { 
+      key: 'processed_by', 
+      header: 'Diproses oleh', 
+      render: (v: any) => <div className="text-sm">{v ? `User ID: ${v}` : '-'}</div> 
+    },
+    { key: 'created_at', header: 'Waktu', render: (v: any) => <div className="text-xs">{new Date(v).toLocaleString('id-ID')}</div> },
   ]
 
   return (
@@ -90,10 +106,38 @@ export default function Withdrawals() {
         </>
       )}>
         <form onSubmit={handleCreate} className="space-y-3">
-          <label className="block text-sm">Nominal (Rp)</label>
-          <input value={amount} onChange={(e) => setAmount(e.target.value)} className="rounded-md border px-3 py-2 w-full" />
-          <label className="block text-sm">Catatan (opsional)</label>
-          <input value={note} onChange={(e) => setNote(e.target.value)} className="rounded-md border px-3 py-2 w-full" />
+          <div>
+            <label className="block text-sm font-medium mb-1">Nominal (Rp) *</label>
+            <input 
+              type="number"
+              value={amount} 
+              onChange={(e) => setAmount(e.target.value)} 
+              className="rounded-md border px-3 py-2 w-full" 
+              placeholder="Masukkan nominal"
+              required
+            />
+          </div>
+          <div>
+            <label className="block text-sm font-medium mb-1">Diminta oleh *</label>
+            <input 
+              type="text"
+              value={requestedBy} 
+              onChange={(e) => setRequestedBy(e.target.value)} 
+              className="rounded-md border px-3 py-2 w-full" 
+              placeholder="Nama orang yang meminta"
+              required
+            />
+          </div>
+          <div>
+            <label className="block text-sm font-medium mb-1">Catatan (opsional)</label>
+            <input 
+              type="text"
+              value={note} 
+              onChange={(e) => setNote(e.target.value)} 
+              className="rounded-md border px-3 py-2 w-full"
+              placeholder="Catatan tambahan"
+            />
+          </div>
         </form>
       </Modal>
     </div>

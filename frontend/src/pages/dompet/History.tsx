@@ -2,7 +2,7 @@ import React, { useEffect, useState } from 'react'
 import Card from '../../components/Card'
 import Table from '../../components/Table'
 import Modal from '../../components/Modal'
-import { listWalletTransactions, listWallets, createWithdrawal } from '../../api/wallet'
+import { listWalletTransactions, listWallets, createWithdrawal, listCashWithdrawals } from '../../api/wallet'
 import { useLocation } from 'react-router-dom'
 import toast from 'react-hot-toast'
 
@@ -12,6 +12,7 @@ export default function History() {
   const [mode, setMode] = useState<Mode>('history')
   const [transactions, setTransactions] = useState<any[]>([])
   const [wallets, setWallets] = useState<any[]>([])
+  const [withdrawals, setWithdrawals] = useState<any[]>([])
   const [loading, setLoading] = useState(true)
   const [showWithdrawModal, setShowWithdrawModal] = useState(false)
   const [withdrawAmount, setWithdrawAmount] = useState<number | ''>('')
@@ -30,12 +31,16 @@ export default function History() {
         const res = await listWalletTransactions(params)
         if (res.success) setTransactions(res.data || [])
       } else {
-        // Laporan mode: fetch all wallets
-        const res = await listWallets()
-        console.log('DEBUG listWallets response:', res)
-        if (res.success) {
-          console.log('DEBUG first wallet:', res.data?.[0])
-          setWallets(res.data || [])
+        // Laporan mode: fetch all wallets and cash withdrawals
+        const [walletsRes, cashWithdrawalsRes] = await Promise.all([
+          listWallets(),
+          listCashWithdrawals({ status: 'done' })
+        ])
+        if (walletsRes.success) {
+          setWallets(walletsRes.data || [])
+        }
+        if (cashWithdrawalsRes.success) {
+          setWithdrawals(cashWithdrawalsRes.data || [])
         }
       }
     } catch (err) {
@@ -80,20 +85,29 @@ export default function History() {
   ]
 
   // Calculate totals for Laporan mode
-  const totalBalance = wallets.reduce((sum, w) => sum + parseFloat(w.balance || 0), 0)
-  const totalCredit = wallets.reduce((sum, w) => sum + parseFloat(w.total_credit || 0), 0)
-  const totalDebit = wallets.reduce((sum, w) => sum + parseFloat(w.total_debit || 0), 0)
   const totalCreditCash = wallets.reduce((sum, w) => sum + parseFloat(w.total_credit_cash || 0), 0)
   const totalCreditTransfer = wallets.reduce((sum, w) => sum + parseFloat(w.total_credit_transfer || 0), 0)
   const totalDebitCash = wallets.reduce((sum, w) => sum + parseFloat(w.total_debit_cash || 0), 0)
   const totalDebitTransfer = wallets.reduce((sum, w) => sum + parseFloat(w.total_debit_transfer || 0), 0)
+  const totalDebitEpos = wallets.reduce((sum, w) => sum + parseFloat(w.total_debit_epos || 0), 0)
+  
+  // Calculate total withdrawals (dana yang sudah ditarik dari transfer ke cash)
+  const totalWithdrawals = withdrawals.reduce((sum, w) => sum + parseFloat(w.amount || 0), 0)
+  
+  // Saldo Cash = credit cash - debit cash + withdrawals (karena withdrawal adalah pemindahan dari transfer ke cash)
+  const totalCashBalance = (totalCreditCash - totalDebitCash) + totalWithdrawals
+  // Saldo Bank = credit transfer - debit transfer - withdrawals (karena withdrawal mengurangi transfer)
+  const totalBankBalance = (totalCreditTransfer - totalDebitTransfer) - totalWithdrawals
+  const totalBalance = totalCashBalance + totalBankBalance
+  const totalCredit = totalCreditCash + totalCreditTransfer
+  const totalDebit = totalDebitCash + totalDebitTransfer + totalDebitEpos
 
   async function handleWithdraw() {
     if (!withdrawAmount || withdrawAmount <= 0) {
       toast.error('Masukkan nominal yang valid')
       return
     }
-    const bankBalance = totalCreditTransfer - totalDebitTransfer
+    const bankBalance = totalBankBalance
     if (withdrawAmount > bankBalance) {
       toast.error(`Saldo transfer tidak mencukupi (tersedia: Rp ${bankBalance.toLocaleString('id-ID')})`)
       return
@@ -161,7 +175,7 @@ export default function History() {
             </Card>
             <Card>
               <div className="text-sm text-gray-500 mb-1">Saldo Cash</div>
-              <div className="text-2xl font-bold text-gray-700">Rp {(totalCreditCash - totalDebitCash).toLocaleString('id-ID')}</div>
+              <div className="text-2xl font-bold text-gray-700">Rp {totalCashBalance.toLocaleString('id-ID')}</div>
               <div className="text-xs text-gray-500 mt-1">Masuk: Rp {totalCreditCash.toLocaleString('id-ID')}</div>
               <div className="text-xs text-gray-500">Keluar: Rp {totalDebitCash.toLocaleString('id-ID')}</div>
             </Card>
@@ -170,7 +184,7 @@ export default function History() {
                 <span>Saldo Bank/Transfer</span>
                 <button className="text-blue-600 text-xs hover:underline" onClick={() => setShowWithdrawModal(true)}>Tarik Dana</button>
               </div>
-              <div className="text-2xl font-bold text-purple-600">Rp {(totalCreditTransfer - totalDebitTransfer).toLocaleString('id-ID')}</div>
+              <div className="text-2xl font-bold text-purple-600">Rp {totalBankBalance.toLocaleString('id-ID')}</div>
               <div className="text-xs text-gray-500 mt-1">Masuk: Rp {totalCreditTransfer.toLocaleString('id-ID')}</div>
               <div className="text-xs text-gray-500">Keluar: Rp {totalDebitTransfer.toLocaleString('id-ID')}</div>
             </Card>
@@ -214,7 +228,7 @@ export default function History() {
         <div className="space-y-4">
           <div>
             <div className="text-sm text-gray-500 mb-2">Saldo Bank/Transfer tersedia:</div>
-            <div className="text-2xl font-bold text-purple-600">Rp {(totalCreditTransfer - totalDebitTransfer).toLocaleString('id-ID')}</div>
+            <div className="text-2xl font-bold text-purple-600">Rp {totalBankBalance.toLocaleString('id-ID')}</div>
           </div>
           <div>
             <label className="block text-sm font-medium mb-1">Nominal Tarik Dana (Rp)</label>

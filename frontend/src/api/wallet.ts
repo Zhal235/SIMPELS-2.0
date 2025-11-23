@@ -66,11 +66,28 @@ export async function getEposPool() {
 }
 
 export async function createWithdrawal(amount: number, note?: string) {
-  const res = await api.post('/v1/wallets/withdrawals', { amount, note })
+  const res = await api.post('/v1/wallets/cash-withdrawal', { amount, note })
   return res.data
 }
 
 export async function listWithdrawals(params?: any) {
   const res = await api.get('/v1/wallets/withdrawals', { params })
+  return res.data
+}
+
+export async function createEposWithdrawal(amount: number, note?: string, requestedBy?: string) {
+  const res = await api.post('/v1/wallets/withdrawals', { amount, note, requested_by: requestedBy })
+  return res.data
+}
+
+export async function listEposWithdrawals(params?: any) {
+  // EPOS withdrawals have pool_id (not null)
+  const res = await api.get('/v1/wallets/withdrawals', { params: { ...params, is_epos: true } })
+  return res.data
+}
+
+export async function listCashWithdrawals(params?: any) {
+  // Cash withdrawals have notes starting with 'CASH_TRANSFER:'
+  const res = await api.get('/v1/wallets/withdrawals', { params: { ...params, is_cash: true } })
   return res.data
 }

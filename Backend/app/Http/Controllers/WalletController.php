@@ -9,6 +9,7 @@ use Illuminate\Support\Facades\DB;
 use App\Models\Wallet;
 use App\Models\WalletTransaction;
 use App\Models\Santri;
+use App\Models\EposPool;
 
 class WalletController extends Controller
 {
@@ -20,36 +21,42 @@ class WalletController extends Controller
         $wallets->transform(function ($wallet) {
             $wallet->total_credit = WalletTransaction::where('wallet_id', $wallet->id)
                 ->where('type', 'credit')
-                ->where('is_void', false)
+                ->where('voided', false)
                 ->sum('amount');
             
             $wallet->total_debit = WalletTransaction::where('wallet_id', $wallet->id)
                 ->where('type', 'debit')
-                ->where('is_void', false)
+                ->where('voided', false)
                 ->sum('amount');
             
             $wallet->total_credit_cash = WalletTransaction::where('wallet_id', $wallet->id)
                 ->where('type', 'credit')
                 ->where('method', 'cash')
-                ->where('is_void', false)
+                ->where('voided', false)
                 ->sum('amount');
             
             $wallet->total_credit_transfer = WalletTransaction::where('wallet_id', $wallet->id)
                 ->where('type', 'credit')
                 ->where('method', 'transfer')
-                ->where('is_void', false)
+                ->where('voided', false)
                 ->sum('amount');
             
             $wallet->total_debit_cash = WalletTransaction::where('wallet_id', $wallet->id)
                 ->where('type', 'debit')
                 ->where('method', 'cash')
-                ->where('is_void', false)
+                ->where('voided', false)
                 ->sum('amount');
             
             $wallet->total_debit_transfer = WalletTransaction::where('wallet_id', $wallet->id)
                 ->where('type', 'debit')
                 ->where('method', 'transfer')
-                ->where('is_void', false)
+                ->where('voided', false)
+                ->sum('amount');
+            
+            $wallet->total_debit_epos = WalletTransaction::where('wallet_id', $wallet->id)
+                ->where('type', 'debit')
+                ->where('method', 'epos')
+                ->where('voided', false)
                 ->sum('amount');
             
             return $wallet;
@@ -351,7 +358,7 @@ class WalletController extends Controller
             $q->whereBetween('created_at', [$request->query('start'), $request->query('end')]);
         }
 
-        $items = $q->with(['wallet','author'])->orderBy('created_at', 'desc')->get();
+        $items = $q->with(['wallet.santri','author'])->orderBy('created_at', 'desc')->get();
         return response()->json(['success' => true, 'data' => $items]);
     }
 
@@ -442,6 +449,96 @@ class WalletController extends Controller
                 'updated_at' => $withdrawal->updated_at,
             ]
         ]);
+    }
+
+    /**
+     * Cash withdrawal: transfer dari saldo bank/transfer ke cash
+     * POST /api/v1/wallets/cash-withdrawal
+     */
+    public function cashWithdrawal(Request $request)
+    {
+        $validator = Validator::make($request->all(), [
+            'amount' => 'required|numeric|min:0.01',
+            'note' => 'string|nullable'
+        ]);
+
+        if ($validator->fails()) {
+            return response()->json([
+                'success' => false,
+                'message' => 'Validation error',
+                'errors' => $validator->errors()
+            ], 422);
+        }
+
+        $amount = $request->input('amount');
+        $note = $request->input('note', '');
+
+        DB::beginTransaction();
+        try {
+            // Calculate total transfer balance across all santri wallets
+            $totalTransferCredit = WalletTransaction::where('type', 'credit')
+                ->where('method', 'transfer')
+                ->where('voided', false)
+                ->sum('amount');
+
+            $totalTransferDebit = WalletTransaction::where('type', 'debit')
+                ->where('method', 'transfer')
+                ->where('voided', false)
+                ->sum('amount');
+
+            $availableTransferBalance = $totalTransferCredit - $totalTransferDebit;
+
+            // Check if transfer balance is sufficient
+            if ($availableTransferBalance < $amount) {
+                DB::rollBack();
+                return response()->json([
+                    'success' => false,
+                    'message' => 'Saldo transfer tidak mencukupi',
+                    'data' => [
+                        'requested' => $amount,
+                        'available' => $availableTransferBalance
+                    ]
+                ], 422);
+            }
+
+            // Create cash withdrawal record (tidak menggunakan pool_id)
+            // Gunakan wallet_withdrawals dengan pool_id = NULL untuk membedakan dari EPOS withdrawal
+            $reference = 'CWDRAW-' . now()->format('YmdHis') . '-' . Str::upper(Str::random(6));
+            
+            $withdrawal = DB::table('wallet_withdrawals')->insertGetId([
+                'pool_id' => null, // NULL untuk cash withdrawal, bukan NULL untuk EPOS
+                'amount' => $amount,
+                'status' => 'done',
+                'requested_by' => auth()->id(),
+                'processed_by' => auth()->id(),
+                'epos_ref' => $reference, // Gunakan field ini untuk reference cash withdrawal
+                'notes' => 'CASH_TRANSFER: Tarik dana Transfer → Cash' . ($note ? ' - ' . $note : ''),
+                'created_at' => now(),
+                'updated_at' => now()
+            ]);
+
+            DB::commit();
+
+            return response()->json([
+                'success' => true,
+                'data' => [
+                    'withdrawal_id' => $withdrawal,
+                    'amount' => $amount,
+                    'status' => 'done',
+                    'reference' => $reference,
+                    'timestamp' => now()->timezone('Asia/Jakarta')->toDateTimeString()
+                ]
+            ], 201);
+
+        } catch (\Exception $e) {
+            DB::rollBack();
+            \Log::error('Cash withdrawal error: ' . $e->getMessage());
+            return response()->json([
+                'success' => false,
+                'message' => 'Tarik dana gagal',
+                'error' => $e->getMessage()
+            ], 500);
+        }
     }
 
     /**

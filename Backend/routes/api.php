@@ -80,6 +80,9 @@ Route::middleware('auth:sanctum')->group(function () {
         Route::delete('transactions/{id}', [WalletController::class, 'voidTransaction']);
         Route::get('transactions', [WalletController::class, 'allTransactions']);
 
+        // Cash withdrawal (tarik dana dari bank ke cash)
+        Route::post('cash-withdrawal', [WalletController::class, 'cashWithdrawal']);
+
         // Wallet management per-santri - MUST BE AFTER specific routes to avoid conflicts
         Route::get('/', [WalletController::class, 'index']);
         // santriId is a UUID — constrain to avoid catching static paths like /ping

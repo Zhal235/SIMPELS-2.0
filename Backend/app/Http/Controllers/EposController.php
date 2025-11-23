@@ -200,7 +200,8 @@ class EposController extends Controller
     {
         $validator = Validator::make($request->all(), [
             'amount' => 'required|numeric|min:0.01',
-            'note' => 'string|nullable'
+            'note' => 'string|nullable',
+            'requested_by' => 'string|nullable'
         ]);
 
         if ($validator->fails()) {
@@ -211,14 +212,23 @@ class EposController extends Controller
         if (!$pool) return response()->json(['success' => false, 'message' => 'ePOS pool not found'], 404);
 
         $amount = $request->input('amount');
+        $requestedByName = $request->input('requested_by');
+        $note = $request->input('note');
+
+        // Build notes with requested_by name
+        $fullNotes = "Diminta oleh: {$requestedByName}";
+        if ($note) {
+            $fullNotes .= " | {$note}";
+        }
 
         // create withdrawal request (pending) — admin will process
         $withdrawal = WalletWithdrawal::create([
             'pool_id' => $pool->id,
             'amount' => $amount,
             'status' => 'pending',
-            'requested_by' => auth()->id(),
-            'notes' => $request->input('note')
+            'requested_by' => null, // Tidak FK lagi, hanya untuk tracking
+            'processed_by' => auth()->id(), // User yang sedang login sebagai yang memproses
+            'notes' => $fullNotes
         ]);
 
         return response()->json(['success' => true, 'data' => $withdrawal], 201);
