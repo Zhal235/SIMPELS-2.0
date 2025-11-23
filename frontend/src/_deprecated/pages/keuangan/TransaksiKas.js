@@ -2,6 +2,7 @@ import { jsx as _jsx, jsxs as _jsxs } from "react/jsx-runtime";
 import { useState, useEffect } from 'react';
 import { Search, Trash2, X, ArrowDownCircle, ArrowUpCircle, Eye, ArrowRightLeft } from 'lucide-react';
 import { listBukuKas, listTransaksiKas, createTransaksiKas, deleteTransaksiKas } from '../../api/bukuKas';
+import { listKategoriPengeluaran, createKategoriPengeluaran } from '../../api/kategoriPengeluaran';
 import toast from 'react-hot-toast';
 // Helper function untuk format rupiah
 const formatRupiah = (nominal) => {
@@ -24,6 +25,7 @@ const formatTanggal = (tanggal) => {
 export default function TransaksiKas() {
     const [transaksiList, setTransaksiList] = useState([]);
     const [bukuKasList, setBukuKasList] = useState([]);
+    const [categories, setCategories] = useState([]);
     const [loading, setLoading] = useState(true);
     const [showModal, setShowModal] = useState(false);
     const [showPreview, setShowPreview] = useState(false);
@@ -39,6 +41,7 @@ export default function TransaksiKas() {
         buku_kas_id: '',
         tanggal: new Date().toISOString().split('T')[0],
         kategori: '',
+        kategori_id: '',
         nominal: '',
         keterangan: '',
         nama_pemohon: '',
@@ -60,15 +63,19 @@ export default function TransaksiKas() {
     const loadData = async () => {
         try {
             setLoading(true);
-            const [transaksiRes, bukuKasRes] = await Promise.all([
+            const [transaksiRes, bukuKasRes, kategoriRes] = await Promise.all([
                 listTransaksiKas(),
-                listBukuKas()
+                listBukuKas(),
+                listKategoriPengeluaran()
             ]);
             if (transaksiRes.success) {
                 setTransaksiList(transaksiRes.data);
             }
             if (bukuKasRes.success) {
                 setBukuKasList(bukuKasRes.data);
+            }
+            if (kategoriRes) {
+                setCategories(kategoriRes);
             }
         }
         catch (error) {
@@ -85,12 +92,36 @@ export default function TransaksiKas() {
             const keteranganFull = formData.nama_pemohon
                 ? `${formData.keterangan} (Pemohon: ${formData.nama_pemohon})`
                 : formData.keterangan;
+            // ensure category exists or create if missing
+            let kategoriIdToSend = undefined;
+            if (formData.kategori_id) {
+                kategoriIdToSend = Number(formData.kategori_id);
+            }
+            else if (formData.kategori) {
+                const found = categories.find(c => c.name.toLowerCase() === formData.kategori.toLowerCase());
+                if (found)
+                    kategoriIdToSend = found.id;
+                else {
+                    // create new category on the fly
+                    try {
+                        const created = await createKategoriPengeluaran({ name: formData.kategori });
+                        if (created) {
+                            setCategories(prev => [...prev, created]);
+                            kategoriIdToSend = created.id;
+                        }
+                    }
+                    catch (err) {
+                        // ignore — server validation will surface if problem
+                    }
+                }
+            }
             const response = await createTransaksiKas({
                 buku_kas_id: Number(formData.buku_kas_id),
                 tanggal: formData.tanggal,
                 jenis: 'pengeluaran',
                 metode: formData.metode,
                 kategori: formData.kategori,
+                kategori_id: kategoriIdToSend,
                 nominal: Number(formData.nominal),
                 keterangan: keteranganFull
             });
@@ -126,6 +157,7 @@ export default function TransaksiKas() {
             buku_kas_id: '',
             tanggal: new Date().toISOString().split('T')[0],
             kategori: '',
+            kategori_id: '',
             nominal: '',
             keterangan: '',
             nama_pemohon: '',
@@ -237,7 +269,25 @@ export default function TransaksiKas() {
                                                             }, className: "text-blue-600 hover:text-blue-800 transition-colors", title: "Preview transaksi", children: _jsx(Eye, { className: "w-4 h-4" }) }), !transaksi.pembayaran_id ? (_jsx("button", { onClick: () => handleDelete(transaksi.id), className: "text-red-600 hover:text-red-800 transition-colors", title: "Hapus transaksi", children: _jsx(Trash2, { className: "w-4 h-4" }) })) : (_jsx("span", { className: "text-xs text-gray-400", title: "Transaksi dari pembayaran", children: "\uD83D\uDD12" }))] }) })] }, transaksi.id)))) })] }) }), filteredTransaksi.length > 0 && (_jsx("div", { className: "bg-gray-50 px-6 py-3 border-t", children: _jsxs("p", { className: "text-sm text-gray-600", children: ["Menampilkan ", filteredTransaksi.length, " dari ", transaksiList.length, " transaksi"] }) }))] }), showModal && (_jsx("div", { className: "fixed inset-0 z-50 flex items-center justify-center p-4 bg-black/50", children: _jsxs("div", { className: "bg-white rounded-lg max-w-2xl w-full max-h-[90vh] overflow-y-auto", children: [_jsxs("div", { className: "flex items-center justify-between p-6 border-b sticky top-0 bg-white z-10", children: [_jsx("h2", { className: "text-xl font-bold text-gray-900", children: "Tambah Transaksi Pengeluaran" }), _jsx("button", { onClick: () => {
                                         setShowModal(false);
                                         resetForm();
-                                    }, className: "text-gray-400 hover:text-gray-600", children: _jsx(X, { className: "w-6 h-6" }) })] }), _jsxs("form", { onSubmit: handleSubmit, className: "p-6", children: [_jsxs("div", { className: "space-y-4", children: [_jsxs("div", { children: [_jsxs("label", { className: "block text-sm font-medium text-gray-700 mb-2", children: ["Buku Kas ", _jsx("span", { className: "text-red-500", children: "*" })] }), _jsxs("select", { value: formData.buku_kas_id, onChange: (e) => setFormData({ ...formData, buku_kas_id: e.target.value }), required: true, className: "w-full px-4 py-2 border border-gray-300 rounded-lg focus:ring-2 focus:ring-blue-500 focus:border-transparent", children: [_jsx("option", { value: "", children: "Pilih Buku Kas" }), bukuKasList.map(bk => (_jsx("option", { value: bk.id, children: bk.nama_kas }, bk.id)))] })] }), _jsxs("div", { children: [_jsxs("label", { className: "block text-sm font-medium text-gray-700 mb-2", children: ["Tanggal ", _jsx("span", { className: "text-red-500", children: "*" })] }), _jsx("input", { type: "date", value: formData.tanggal, onChange: (e) => setFormData({ ...formData, tanggal: e.target.value }), required: true, className: "w-full px-4 py-2 border border-gray-300 rounded-lg focus:ring-2 focus:ring-blue-500 focus:border-transparent" })] }), _jsxs("div", { children: [_jsxs("label", { className: "block text-sm font-medium text-gray-700 mb-2", children: ["Kategori Pengeluaran ", _jsx("span", { className: "text-red-500", children: "*" })] }), _jsx("input", { type: "text", value: formData.kategori, onChange: (e) => setFormData({ ...formData, kategori: e.target.value }), placeholder: "Contoh: Pembelian ATK, Gaji Pegawai, Listrik, dll", required: true, className: "w-full px-4 py-2 border border-gray-300 rounded-lg focus:ring-2 focus:ring-blue-500 focus:border-transparent" })] }), _jsxs("div", { children: [_jsxs("label", { className: "block text-sm font-medium text-gray-700 mb-2", children: ["Nominal Pengeluaran ", _jsx("span", { className: "text-red-500", children: "*" })] }), _jsx("input", { type: "number", value: formData.nominal, onChange: (e) => setFormData({ ...formData, nominal: e.target.value }), placeholder: "0", min: "0", required: true, className: "w-full px-4 py-2 border border-gray-300 rounded-lg focus:ring-2 focus:ring-blue-500 focus:border-transparent" }), formData.nominal && (_jsx("p", { className: "mt-1 text-sm text-gray-600", children: formatRupiah(Number(formData.nominal)) }))] }), _jsxs("div", { children: [_jsx("label", { className: "block text-sm font-medium text-gray-700 mb-2", children: "Nama Pemohon" }), _jsx("input", { type: "text", value: formData.nama_pemohon, onChange: (e) => setFormData({ ...formData, nama_pemohon: e.target.value }), placeholder: "Nama orang yang mengajukan pengeluaran", className: "w-full px-4 py-2 border border-gray-300 rounded-lg focus:ring-2 focus:ring-blue-500 focus:border-transparent" })] }), _jsxs("div", { children: [_jsxs("label", { className: "block text-sm font-medium text-gray-700 mb-2", children: ["Metode Pengeluaran ", _jsx("span", { className: "text-red-500", children: "*" })] }), _jsxs("div", { className: "grid grid-cols-2 gap-3", children: [_jsx("button", { type: "button", onClick: () => setFormData({ ...formData, metode: 'cash' }), className: `px-4 py-3 border-2 rounded-lg font-medium transition-colors ${formData.metode === 'cash'
+                                    }, className: "text-gray-400 hover:text-gray-600", children: _jsx(X, { className: "w-6 h-6" }) })] }), _jsxs("form", { onSubmit: handleSubmit, className: "p-6", children: [_jsxs("div", { className: "space-y-4", children: [_jsxs("div", { children: [_jsxs("label", { className: "block text-sm font-medium text-gray-700 mb-2", children: ["Buku Kas ", _jsx("span", { className: "text-red-500", children: "*" })] }), _jsxs("select", { value: formData.buku_kas_id, onChange: (e) => setFormData({ ...formData, buku_kas_id: e.target.value }), required: true, className: "w-full px-4 py-2 border border-gray-300 rounded-lg focus:ring-2 focus:ring-blue-500 focus:border-transparent", children: [_jsx("option", { value: "", children: "Pilih Buku Kas" }), bukuKasList.map(bk => (_jsx("option", { value: bk.id, children: bk.nama_kas }, bk.id)))] })] }), _jsxs("div", { children: [_jsxs("label", { className: "block text-sm font-medium text-gray-700 mb-2", children: ["Tanggal ", _jsx("span", { className: "text-red-500", children: "*" })] }), _jsx("input", { type: "date", value: formData.tanggal, onChange: (e) => setFormData({ ...formData, tanggal: e.target.value }), required: true, className: "w-full px-4 py-2 border border-gray-300 rounded-lg focus:ring-2 focus:ring-blue-500 focus:border-transparent" })] }), _jsxs("div", { children: [_jsxs("label", { className: "block text-sm font-medium text-gray-700 mb-2", children: ["Kategori Pengeluaran ", _jsx("span", { className: "text-red-500", children: "*" })] }), _jsxs("div", { className: "flex gap-2", children: [_jsxs("div", { className: "flex-1", children: [_jsx("input", { list: "kategori-list", type: "text", value: formData.kategori, onChange: (e) => {
+                                                                        const newVal = e.target.value;
+                                                                        const found = categories.find(c => c.name.toLowerCase() === newVal.toLowerCase());
+                                                                        setFormData({ ...formData, kategori: newVal, kategori_id: found ? String(found.id) : '' });
+                                                                    }, placeholder: "Contoh: Pembelian ATK, Gaji Pegawai, Listrik, dll", required: true, className: "w-full px-4 py-2 border border-gray-300 rounded-lg focus:ring-2 focus:ring-blue-500 focus:border-transparent" }), _jsx("datalist", { id: "kategori-list", children: categories.map(c => (_jsx("option", { value: c.name }, c.id))) })] }), _jsx("button", { type: "button", onClick: async () => {
+                                                                if (!formData.kategori || formData.kategori.trim() === '')
+                                                                    return;
+                                                                try {
+                                                                    const created = await createKategoriPengeluaran({ name: formData.kategori });
+                                                                    if (created) {
+                                                                        setCategories(prev => [...prev, created]);
+                                                                        setFormData(prev => ({ ...prev, kategori_id: String(created.id), kategori: created.name }));
+                                                                        toast.success('Kategori pengeluaran berhasil dibuat');
+                                                                    }
+                                                                }
+                                                                catch (err) {
+                                                                    toast.error(err.response?.data?.message || 'Gagal membuat kategori');
+                                                                }
+                                                            }, className: "px-3 py-2 bg-blue-600 text-white rounded-lg hover:bg-blue-700", children: "Tambah" })] })] }), _jsxs("div", { children: [_jsxs("label", { className: "block text-sm font-medium text-gray-700 mb-2", children: ["Nominal Pengeluaran ", _jsx("span", { className: "text-red-500", children: "*" })] }), _jsx("input", { type: "number", value: formData.nominal, onChange: (e) => setFormData({ ...formData, nominal: e.target.value }), placeholder: "0", min: "0", required: true, className: "w-full px-4 py-2 border border-gray-300 rounded-lg focus:ring-2 focus:ring-blue-500 focus:border-transparent" }), formData.nominal && (_jsx("p", { className: "mt-1 text-sm text-gray-600", children: formatRupiah(Number(formData.nominal)) }))] }), _jsxs("div", { children: [_jsx("label", { className: "block text-sm font-medium text-gray-700 mb-2", children: "Nama Pemohon" }), _jsx("input", { type: "text", value: formData.nama_pemohon, onChange: (e) => setFormData({ ...formData, nama_pemohon: e.target.value }), placeholder: "Nama orang yang mengajukan pengeluaran", className: "w-full px-4 py-2 border border-gray-300 rounded-lg focus:ring-2 focus:ring-blue-500 focus:border-transparent" })] }), _jsxs("div", { children: [_jsxs("label", { className: "block text-sm font-medium text-gray-700 mb-2", children: ["Metode Pengeluaran ", _jsx("span", { className: "text-red-500", children: "*" })] }), _jsxs("div", { className: "grid grid-cols-2 gap-3", children: [_jsx("button", { type: "button", onClick: () => setFormData({ ...formData, metode: 'cash' }), className: `px-4 py-3 border-2 rounded-lg font-medium transition-colors ${formData.metode === 'cash'
                                                                 ? 'border-blue-600 bg-blue-50 text-blue-700'
                                                                 : 'border-gray-300 hover:border-gray-400'}`, children: "\uD83D\uDCB5 Cash" }), _jsx("button", { type: "button", onClick: () => setFormData({ ...formData, metode: 'transfer' }), className: `px-4 py-3 border-2 rounded-lg font-medium transition-colors ${formData.metode === 'transfer'
                                                                 ? 'border-blue-600 bg-blue-50 text-blue-700'
