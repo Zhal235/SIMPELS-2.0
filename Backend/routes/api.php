@@ -57,6 +57,9 @@ Route::middleware('auth:sanctum')->group(function () {
         
         // Transaksi Kas (Laporan)
         Route::apiResource('transaksi-kas', TransaksiKasController::class);
+        // Report endpoints (basic)
+        Route::get('reports/summary', [\App\Http\Controllers\Keuangan\ReportsController::class, 'summary']);
+        Route::get('reports/expenses-by-category', [\App\Http\Controllers\Keuangan\ReportsController::class, 'expensesByCategory']);
         // Kategori Pengeluaran (CRUD + search)
         Route::apiResource('kategori-pengeluaran', \App\Http\Controllers\KategoriPengeluaranController::class)->except(['show']);
     });

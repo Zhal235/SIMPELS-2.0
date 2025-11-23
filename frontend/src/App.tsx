@@ -31,6 +31,10 @@ const TunggakanMutasi = lazy(() => import('./pages/keuangan/TunggakanMutasi'))
 const TunggakanAlumni = lazy(() => import('./pages/keuangan/TunggakanAlumni'))
 const JenisTagihan = lazy(() => import('./pages/keuangan/JenisTagihan'))
 const KeringananTagihan = lazy(() => import('./pages/keuangan/KeringananTagihan'))
+// Laporan Keuangan
+const LaporanIndex = lazy(() => import('./pages/keuangan/LaporanIndex'))
+const LaporanRingkasan = lazy(() => import('./pages/keuangan/Ringkasan'))
+const LaporanByCategory = lazy(() => import('./pages/keuangan/PengeluaranKategori'))
 // Dompet Digital subpages
 const DompetSantri = lazy(() => import('./pages/dompet/DompetSantri'))
 const DompetRFID = lazy(() => import('./pages/dompet/RFID'))
@@ -225,6 +229,28 @@ export default function App() {
               <ProtectedRoute>
                 <AppLayout>
                   <KeringananTagihan />
+                </AppLayout>
+              </ProtectedRoute>
+            } />
+            {/* laporan keuangan */}
+            <Route path="/keuangan/laporan" element={
+              <ProtectedRoute>
+                <AppLayout>
+                  <LaporanIndex />
+                </AppLayout>
+              </ProtectedRoute>
+            } />
+            <Route path="/keuangan/laporan/ringkasan" element={
+              <ProtectedRoute>
+                <AppLayout>
+                  <LaporanRingkasan />
+                </AppLayout>
+              </ProtectedRoute>
+            } />
+            <Route path="/keuangan/laporan/pengeluaran-kategori" element={
+              <ProtectedRoute>
+                <AppLayout>
+                  <LaporanByCategory />
                 </AppLayout>
               </ProtectedRoute>
             } />

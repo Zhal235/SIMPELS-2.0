@@ -259,6 +259,19 @@ export default function Sidebar() {
                     </NavLink>)}
                   </li>
                   <li>
+                    {hasAccess('keuangan.laporan') && (
+                      <NavLink
+                        to="/keuangan/laporan"
+                        className={({ isActive }) =>
+                          `flex items-center gap-3 rounded-md px-3 py-2 text-sm ${isActive ? 'bg-white text-brand shadow-sm' : 'text-gray-700 hover:bg-white'}`
+                        }
+                      >
+                        <FileText className="w-5 h-5" />
+                        {sidebarOpen && <span>Laporan</span>}
+                      </NavLink>
+                    )}
+                  </li>
+                  <li>
                     {hasAccess('keuangan.tagihan') && (
                     <NavLink
                       to="/keuangan/tagihan"
