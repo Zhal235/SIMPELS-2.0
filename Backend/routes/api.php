@@ -114,6 +114,7 @@ Route::prefix('v1/wallets')->group(function () {
     Route::get('epos/withdrawal/{withdrawalNumber}/status', [WalletController::class, 'getEposWithdrawalStatus']);
     Route::put('epos/withdrawal/{id}/approve', [WalletController::class, 'approveEposWithdrawal']);
     Route::put('epos/withdrawal/{id}/reject', [WalletController::class, 'rejectEposWithdrawal']);
+    Route::post('epos/withdrawal/{withdrawalNumber}/reject', [WalletController::class, 'rejectEposWithdrawalByNumber']);
     Route::get('epos/withdrawals', [WalletController::class, 'listEposWithdrawals']);
 });
 

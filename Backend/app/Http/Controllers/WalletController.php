@@ -563,6 +563,84 @@ class WalletController extends Controller
     }
 
     /**
+     * Reject EPOS withdrawal request by withdrawal number (from ePOS)
+     * POST /api/v1/wallets/epos/withdrawal/{withdrawalNumber}/reject
+     */
+    public function rejectEposWithdrawalByNumber(Request $request, $withdrawalNumber)
+    {
+        $validator = Validator::make($request->all(), [
+            'reason' => 'required|string|min:5'
+        ]);
+
+        if ($validator->fails()) {
+            return response()->json([
+                'success' => false,
+                'message' => 'Alasan penolakan harus diisi (minimal 5 karakter)',
+                'errors' => $validator->errors()
+            ], 422);
+        }
+
+        DB::beginTransaction();
+        try {
+            $withdrawal = \App\Models\EposWithdrawal::where('withdrawal_number', $withdrawalNumber)->firstOrFail();
+
+            if ($withdrawal->status === \App\Models\EposWithdrawal::STATUS_REJECTED) {
+                return response()->json([
+                    'success' => true,
+                    'message' => 'Withdrawal sudah ditolak sebelumnya'
+                ]);
+            }
+
+            if ($withdrawal->status === \App\Models\EposWithdrawal::STATUS_COMPLETED) {
+                return response()->json([
+                    'success' => false,
+                    'message' => 'Withdrawal yang sudah selesai tidak bisa dibatalkan'
+                ], 422);
+            }
+
+            // Update withdrawal status
+            $withdrawal->status = \App\Models\EposWithdrawal::STATUS_REJECTED;
+            $withdrawal->rejected_by = 1; // System/ePOS
+            $withdrawal->rejected_at = now();
+            $withdrawal->rejection_reason = $request->reason;
+            $withdrawal->save();
+
+            DB::commit();
+
+            \Log::info('EPOS withdrawal rejected from ePOS', [
+                'withdrawal_number' => $withdrawalNumber,
+                'reason' => $request->reason
+            ]);
+
+            return response()->json([
+                'success' => true,
+                'message' => 'Withdrawal berhasil ditolak',
+                'data' => [
+                    'withdrawal' => $withdrawal
+                ]
+            ]);
+
+        } catch (\Illuminate\Database\Eloquent\ModelNotFoundException $e) {
+            DB::rollBack();
+            return response()->json([
+                'success' => false,
+                'message' => 'Withdrawal tidak ditemukan'
+            ], 404);
+        } catch (\Exception $e) {
+            DB::rollBack();
+            \Log::error('Failed to reject EPOS withdrawal from ePOS', [
+                'withdrawal_number' => $withdrawalNumber,
+                'error' => $e->getMessage(),
+                'trace' => $e->getTraceAsString()
+            ]);
+            return response()->json([
+                'success' => false,
+                'message' => 'Gagal menolak withdrawal: ' . $e->getMessage()
+            ], 500);
+        }
+    }
+
+    /**
      * Reject EPOS withdrawal request
      * PUT /api/v1/wallets/epos/withdrawal/{id}/reject
      */
@@ -663,16 +741,21 @@ class WalletController extends Controller
     {
         $query = \App\Models\EposWithdrawal::query()->orderBy('created_at', 'desc');
 
-        // Filter by status
-        if ($request->has('status') && $request->status) {
-            $query->where('status', $request->status);
+        // Filter by status - default tampilkan semua untuk history lengkap
+        $status = $request->input('status', 'all');
+        if ($status !== 'all') {
+            $query->where('status', $status);
         }
 
         $withdrawals = $query->get();
 
         return response()->json([
             'success' => true,
-            'data' => $withdrawals
+            'data' => $withdrawals,
+            'meta' => [
+                'status_filter' => $status,
+                'total' => $withdrawals->count()
+            ]
         ]);
     }
 
