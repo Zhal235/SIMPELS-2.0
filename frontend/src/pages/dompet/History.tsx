@@ -85,6 +85,9 @@ export default function History() {
   ]
 
   // Calculate totals for Laporan mode
+  // Total Saldo Keseluruhan = jumlah balance semua santri
+  const totalBalance = wallets.reduce((sum, w) => sum + parseFloat(w.balance || 0), 0)
+  
   const totalCreditCash = wallets.reduce((sum, w) => sum + parseFloat(w.total_credit_cash || 0), 0)
   const totalCreditTransfer = wallets.reduce((sum, w) => sum + parseFloat(w.total_credit_transfer || 0), 0)
   const totalDebitCash = wallets.reduce((sum, w) => sum + parseFloat(w.total_debit_cash || 0), 0)
@@ -94,11 +97,10 @@ export default function History() {
   // Calculate total withdrawals (dana yang sudah ditarik dari transfer ke cash)
   const totalWithdrawals = withdrawals.reduce((sum, w) => sum + parseFloat(w.amount || 0), 0)
   
-  // Saldo Cash = credit cash - debit cash + withdrawals (karena withdrawal adalah pemindahan dari transfer ke cash)
-  const totalCashBalance = (totalCreditCash - totalDebitCash) + totalWithdrawals
+  // Saldo Cash = credit cash - debit cash - debit epos + withdrawals (karena withdrawal adalah pemindahan dari transfer ke cash)
+  const totalCashBalance = (totalCreditCash - totalDebitCash - totalDebitEpos) + totalWithdrawals
   // Saldo Bank = credit transfer - debit transfer - withdrawals (karena withdrawal mengurangi transfer)
   const totalBankBalance = (totalCreditTransfer - totalDebitTransfer) - totalWithdrawals
-  const totalBalance = totalCashBalance + totalBankBalance
   const totalCredit = totalCreditCash + totalCreditTransfer
   const totalDebit = totalDebitCash + totalDebitTransfer + totalDebitEpos
 
