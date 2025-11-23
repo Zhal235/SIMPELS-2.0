@@ -6,6 +6,7 @@ use App\Models\TransaksiKas;
 use App\Models\BukuKas;
 use Illuminate\Http\Request;
 use Illuminate\Support\Facades\Validator;
+use Illuminate\Support\Facades\DB;
 
 class TransaksiKasController extends Controller
 {
@@ -14,7 +15,7 @@ class TransaksiKasController extends Controller
      */
     public function index(Request $request)
     {
-        $query = TransaksiKas::with(['bukuKas', 'pembayaran']);
+        $query = TransaksiKas::with(['bukuKas', 'pembayaran', 'kategoriPengeluaran']);
 
         // Filter by buku kas
         if ($request->has('buku_kas_id')) {
@@ -29,6 +30,24 @@ class TransaksiKasController extends Controller
         // Filter by date range
         if ($request->has('start_date') && $request->has('end_date')) {
             $query->whereBetween('tanggal', [$request->start_date, $request->end_date]);
+        }
+
+        // Jika diminta agregasi per kategori
+        if ($request->get('group_by') === 'kategori') {
+            $groupQ = clone $query;
+            if ($request->has('jenis')) {
+                $groupQ->where('jenis', $request->jenis);
+            }
+
+            $grouped = $groupQ->select('kategori_id', 'kategori', DB::raw('SUM(nominal) as total'))
+                ->groupBy('kategori_id', 'kategori')
+                ->orderBy('total', 'desc')
+                ->get();
+
+            return response()->json([
+                'success' => true,
+                'data' => $grouped
+            ]);
         }
 
         $transaksi = $query->orderBy('tanggal', 'desc')->get();
@@ -49,7 +68,8 @@ class TransaksiKasController extends Controller
             'tanggal' => 'required|date',
             'jenis' => 'required|in:pemasukan,pengeluaran',
             'metode' => 'required|in:cash,transfer',
-            'kategori' => 'required|string',
+            'kategori' => 'required_without:kategori_id|string',
+            'kategori_id' => 'nullable|exists:kategori_pengeluaran,id',
             'nominal' => 'required|numeric|min:0',
             'keterangan' => 'nullable|string',
         ]);
@@ -70,7 +90,8 @@ class TransaksiKasController extends Controller
             'tanggal' => $request->tanggal,
             'jenis' => $request->jenis,
             'metode' => $request->metode,
-            'kategori' => $request->kategori,
+            'kategori' => $request->kategori_id ? (\App\Models\KategoriPengeluaran::find($request->kategori_id)->name ?? $request->kategori) : $request->kategori,
+            'kategori_id' => $request->kategori_id ?? null,
             'nominal' => $request->nominal,
             'keterangan' => $request->keterangan,
         ]);

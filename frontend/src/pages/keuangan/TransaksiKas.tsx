@@ -1,6 +1,7 @@
 import { useState, useEffect } from 'react'
 import { Plus, Search, Trash2, X, ArrowDownCircle, ArrowUpCircle, Filter, Calendar, Eye, ArrowRightLeft } from 'lucide-react'
 import { listBukuKas, listTransaksiKas, createTransaksiKas, deleteTransaksiKas } from '../../api/bukuKas'
+import { listKategoriPengeluaran, createKategoriPengeluaran } from '../../api/kategoriPengeluaran'
 import toast from 'react-hot-toast'
 
 // Helper function untuk format rupiah
@@ -41,6 +42,8 @@ type TransaksiKas = {
   metode: 'cash' | 'transfer'
   kategori: string
   nominal: number
+  kategori_id?: number | null
+  kategoriPengeluaran?: { id: number, name: string } | null
   keterangan?: string
   pembayaran_id?: number
   buku_kas?: BukuKas
@@ -50,6 +53,7 @@ type TransaksiKas = {
 export default function TransaksiKas() {
   const [transaksiList, setTransaksiList] = useState<TransaksiKas[]>([])
   const [bukuKasList, setBukuKasList] = useState<BukuKas[]>([])
+  const [categories, setCategories] = useState<Array<{id:number,name:string}>>([])
   const [loading, setLoading] = useState(true)
   const [showModal, setShowModal] = useState(false)
   const [showPreview, setShowPreview] = useState(false)
@@ -66,6 +70,7 @@ export default function TransaksiKas() {
     buku_kas_id: '',
     tanggal: new Date().toISOString().split('T')[0],
     kategori: '',
+    kategori_id: '',
     nominal: '',
     keterangan: '',
     nama_pemohon: '',
@@ -90,9 +95,10 @@ export default function TransaksiKas() {
   const loadData = async () => {
     try {
       setLoading(true)
-      const [transaksiRes, bukuKasRes] = await Promise.all([
+      const [transaksiRes, bukuKasRes, kategoriRes] = await Promise.all([
         listTransaksiKas(),
-        listBukuKas()
+        listBukuKas(),
+        listKategoriPengeluaran()
       ])
       
       if (transaksiRes.success) {
@@ -101,6 +107,10 @@ export default function TransaksiKas() {
       
       if (bukuKasRes.success) {
         setBukuKasList(bukuKasRes.data)
+      }
+
+      if (kategoriRes) {
+        setCategories(kategoriRes)
       }
     } catch (error) {
       console.error('Error loading data:', error)
@@ -118,12 +128,35 @@ export default function TransaksiKas() {
         ? `${formData.keterangan} (Pemohon: ${formData.nama_pemohon})`
         : formData.keterangan
 
+      // ensure category exists or create if missing
+      let kategoriIdToSend: number | undefined = undefined
+
+      if (formData.kategori_id) {
+        kategoriIdToSend = Number(formData.kategori_id)
+      } else if (formData.kategori) {
+        const found = categories.find(c => c.name.toLowerCase() === formData.kategori.toLowerCase())
+        if (found) kategoriIdToSend = found.id
+        else {
+          // create new category on the fly
+          try {
+            const created = await createKategoriPengeluaran({ name: formData.kategori })
+            if (created) {
+              setCategories(prev => [...prev, created])
+              kategoriIdToSend = created.id
+            }
+          } catch (err: any) {
+            // ignore — server validation will surface if problem
+          }
+        }
+      }
+
       const response = await createTransaksiKas({
         buku_kas_id: Number(formData.buku_kas_id),
         tanggal: formData.tanggal,
         jenis: 'pengeluaran',
         metode: formData.metode,
         kategori: formData.kategori,
+        kategori_id: kategoriIdToSend,
         nominal: Number(formData.nominal),
         keterangan: keteranganFull
       })
@@ -160,6 +193,7 @@ export default function TransaksiKas() {
       buku_kas_id: '',
       tanggal: new Date().toISOString().split('T')[0],
       kategori: '',
+      kategori_id: '',
       nominal: '',
       keterangan: '',
       nama_pemohon: '',
@@ -613,14 +647,47 @@ export default function TransaksiKas() {
                   <label className="block text-sm font-medium text-gray-700 mb-2">
                     Kategori Pengeluaran <span className="text-red-500">*</span>
                   </label>
-                  <input
-                    type="text"
-                    value={formData.kategori}
-                    onChange={(e) => setFormData({ ...formData, kategori: e.target.value })}
-                    placeholder="Contoh: Pembelian ATK, Gaji Pegawai, Listrik, dll"
-                    required
-                    className="w-full px-4 py-2 border border-gray-300 rounded-lg focus:ring-2 focus:ring-blue-500 focus:border-transparent"
-                  />
+                  <div className="flex gap-2">
+                    <div className="flex-1">
+                      <input
+                        list="kategori-list"
+                        type="text"
+                        value={formData.kategori}
+                        onChange={(e) => {
+                            const newVal = e.target.value
+                            const found = categories.find(c => c.name.toLowerCase() === newVal.toLowerCase())
+                            setFormData({ ...formData, kategori: newVal, kategori_id: found ? String(found.id) : '' })
+                          }}
+                        placeholder="Contoh: Pembelian ATK, Gaji Pegawai, Listrik, dll"
+                        required
+                        className="w-full px-4 py-2 border border-gray-300 rounded-lg focus:ring-2 focus:ring-blue-500 focus:border-transparent"
+                      />
+                      <datalist id="kategori-list">
+                        {categories.map(c => (
+                          <option key={c.id} value={c.name} />
+                        ))}
+                      </datalist>
+                    </div>
+                    <button
+                      type="button"
+                      onClick={async () => {
+                        if (!formData.kategori || formData.kategori.trim() === '') return
+                        try {
+                          const created = await createKategoriPengeluaran({ name: formData.kategori })
+                          if (created) {
+                            setCategories(prev => [...prev, created])
+                            setFormData(prev => ({ ...prev, kategori_id: String(created.id), kategori: created.name }))
+                            toast.success('Kategori pengeluaran berhasil dibuat')
+                          }
+                        } catch (err: any) {
+                          toast.error(err.response?.data?.message || 'Gagal membuat kategori')
+                        }
+                      }}
+                      className="px-3 py-2 bg-blue-600 text-white rounded-lg hover:bg-blue-700"
+                    >
+                      Tambah
+                    </button>
+                  </div>
                 </div>
 
                 {/* Nominal */}

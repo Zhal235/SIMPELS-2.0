@@ -24,6 +24,7 @@ class DatabaseSeeder extends Seeder
             RoleSeeder::class,
             KelasSeeder::class,
             AsramaSeeder::class,
+            KategoriPengeluaranSeeder::class,
             SantriSeeder::class,
         ]);
     }

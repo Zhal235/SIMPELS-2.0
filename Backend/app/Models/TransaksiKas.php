@@ -19,6 +19,7 @@ class TransaksiKas extends Model
         'jenis',
         'metode',
         'kategori',
+        'kategori_id',
         'nominal',
         'keterangan',
         'pembayaran_id',
@@ -43,6 +44,11 @@ class TransaksiKas extends Model
     public function pembayaran()
     {
         return $this->belongsTo(Pembayaran::class);
+    }
+
+    public function kategoriPengeluaran()
+    {
+        return $this->belongsTo(\App\Models\KategoriPengeluaran::class, 'kategori_id');
     }
 
     /**

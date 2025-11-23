@@ -57,6 +57,8 @@ Route::middleware('auth:sanctum')->group(function () {
         
         // Transaksi Kas (Laporan)
         Route::apiResource('transaksi-kas', TransaksiKasController::class);
+        // Kategori Pengeluaran (CRUD + search)
+        Route::apiResource('kategori-pengeluaran', \App\Http\Controllers\KategoriPengeluaranController::class)->except(['show']);
     });
 
     // API v1 endpoints untuk Dompet Digital / Wallets (protected)
