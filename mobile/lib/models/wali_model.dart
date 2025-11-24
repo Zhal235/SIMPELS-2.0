@@ -1,35 +1,31 @@
 class WaliModel {
-  final int id;
+  final String noHp;
   final String nama;
-  final String email;
-  final String? noHp;
-  final String? alamat;
+  final String tipe; // 'ayah' atau 'ibu'
+  final String? label; // 'Ayah dari Ahmad Zaki'
 
   WaliModel({
-    required this.id,
+    required this.noHp,
     required this.nama,
-    required this.email,
-    this.noHp,
-    this.alamat,
+    required this.tipe,
+    this.label,
   });
 
   factory WaliModel.fromJson(Map<String, dynamic> json) {
     return WaliModel(
-      id: json['id'] ?? 0,
+      noHp: json['no_hp'] ?? '',
       nama: json['nama'] ?? '',
-      email: json['email'] ?? '',
-      noHp: json['no_hp'],
-      alamat: json['alamat'],
+      tipe: json['tipe'] ?? 'ayah',
+      label: json['label'],
     );
   }
 
   Map<String, dynamic> toJson() {
     return {
-      'id': id,
-      'nama': nama,
-      'email': email,
       'no_hp': noHp,
-      'alamat': alamat,
+      'nama': nama,
+      'tipe': tipe,
+      'label': label,
     };
   }
 }

@@ -27,6 +27,10 @@ dependencies:
   # Auth & Security
   flutter_secure_storage: ^9.0.0
   
+  # File Handling
+  file_picker: ^6.1.1
+  image_picker: ^1.0.4
+  
   # Utils
   intl: ^0.19.0
   logger: ^2.0.2

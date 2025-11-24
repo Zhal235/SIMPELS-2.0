@@ -2,9 +2,10 @@ import 'package:flutter/material.dart';
 import 'package:provider/provider.dart';
 import '../providers/auth_provider.dart';
 import 'home_screen.dart';
+import 'select_account_screen.dart';
 
 class LoginScreen extends StatefulWidget {
-  const LoginScreen({Key? key}) : super(key: key);
+  const LoginScreen({super.key});
 
   @override
   State<LoginScreen> createState() => _LoginScreenState();
@@ -27,17 +28,27 @@ class _LoginScreenState extends State<LoginScreen> {
     if (_formKey.currentState!.validate()) {
       final authProvider = Provider.of<AuthProvider>(context, listen: false);
       
-      final success = await authProvider.login(
+      final result = await authProvider.login(
         _emailController.text.trim(),
         _passwordController.text,
       );
 
       if (mounted) {
-        if (success) {
-          Navigator.pushReplacement(
-            context,
-            MaterialPageRoute(builder: (_) => const HomeScreen()),
-          );
+        if (result != null) {
+          // Check jumlah santri
+          if (authProvider.hasMultipleSantri) {
+            // Jika lebih dari 1 santri, ke Select Account Screen
+            Navigator.pushReplacement(
+              context,
+              MaterialPageRoute(builder: (_) => const SelectAccountScreen()),
+            );
+          } else {
+            // Jika hanya 1 santri, langsung ke Home
+              Navigator.pushReplacement(
+                context,
+                MaterialPageRoute(builder: (_) => HomeScreen(key: HomeScreen.homeKey)),
+              );
+          }
         } else {
           ScaffoldMessenger.of(context).showSnackBar(
             SnackBar(
@@ -80,7 +91,7 @@ class _LoginScreenState extends State<LoginScreen> {
                 ),
                 const SizedBox(height: 8),
                 Text(
-                  'Login sebagai Wali Santri',
+                  'Login dengan Nomor HP',
                   textAlign: TextAlign.center,
                   style: TextStyle(
                     fontSize: 16,
@@ -90,17 +101,18 @@ class _LoginScreenState extends State<LoginScreen> {
                 const SizedBox(height: 48),
                 TextFormField(
                   controller: _emailController,
-                  keyboardType: TextInputType.emailAddress,
+                  keyboardType: TextInputType.phone,
                   decoration: const InputDecoration(
-                    labelText: 'Email',
-                    prefixIcon: Icon(Icons.email),
+                    labelText: 'Nomor HP',
+                    hintText: '08123456789 atau +628123456789',
+                    prefixIcon: Icon(Icons.phone),
                   ),
                   validator: (value) {
                     if (value == null || value.isEmpty) {
-                      return 'Email tidak boleh kosong';
+                      return 'Nomor HP tidak boleh kosong';
                     }
-                    if (!value.contains('@')) {
-                      return 'Email tidak valid';
+                    if (value.length < 10) {
+                      return 'Nomor HP tidak valid';
                     }
                     return null;
                   },

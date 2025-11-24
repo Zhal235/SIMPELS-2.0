@@ -63,14 +63,36 @@ mobile/
 
 ## API Backend
 
-Backend URL: `http://localhost:8000/api`
+Backend URL: `http://localhost:8001/api` (sesuaikan dengan port backend Anda)
 
 Endpoints yang digunakan:
-- `POST /api/auth/login` - Login wali santri
+- `POST /api/auth/login` - Login wali santri dengan nomor HP
 - `GET /api/wali/santri` - Data santri
 - `GET /api/wali/wallet` - Saldo dompet
 - `GET /api/wali/pembayaran` - Riwayat pembayaran
 - `GET /api/wali/tunggakan` - Tunggakan
+
+### Login dengan Nomor HP
+
+Sistem login menggunakan **nomor HP wali santri** yang terdaftar di database:
+
+```
+Nomor HP: [Nomor HP Ayah/Ibu dari database santri]
+Password: 123456 (default untuk semua)
+```
+
+**Contoh Nomor HP untuk Testing:**
+- `081234567800` - Ayah dari Ahmad Putra & Budi Saputra (2 santri)
+- `081234567900` - Ibu dari Ahmad Putra
+- `081234567902` - Ibu dari Dimas Pratama
+
+**Fitur:**
+- Login dengan nomor HP Ayah atau Ibu
+- Jika 1 nomor punya beberapa santri → tampil pilihan santri
+- Switch account tanpa logout
+- Format nomor HP: `08xxx`, `8xxx`, `+628xxx`, atau `628xxx` (dinormalisasi otomatis)
+
+> **Note:** Data nomor HP diambil dari kolom `hp_ayah` dan `hp_ibu` di tabel `santri`.
 
 ## License
 

@@ -127,12 +127,25 @@ mobile/
 ## Yang Masih Perlu Dikembangkan
 
 ### Backend (Laravel)
-⏳ Buat API endpoints untuk wali santri:
-- `POST /api/auth/login` - Login wali
-- `GET /api/wali/santri` - Data santri
-- `GET /api/wali/wallet/{id}` - Saldo dompet
-- `GET /api/wali/pembayaran/{id}` - Riwayat pembayaran
-- `GET /api/wali/tunggakan/{id}` - Tunggakan
+✅ API endpoints untuk wali santri sudah tersedia:
+- `POST /api/auth/login` - Login wali ✅
+- `GET /api/wali/santri` - Data santri ✅
+- `GET /api/wali/wallet/{id}` - Saldo dompet ✅
+- `GET /api/wali/pembayaran/{id}` - Riwayat pembayaran ✅
+- `GET /api/wali/tunggakan/{id}` - Tunggakan ✅
+
+**Login dengan Nomor HP:**
+```
+Nomor HP: [HP Ayah/Ibu dari data santri]
+Password: 123456 (default semua)
+```
+
+**Contoh untuk Testing:**
+- `081234567800` - Ayah Ahmad Putra & Budi Saputra
+- `081234567900` - Ibu Ahmad Putra  
+- `081234567902` - Ibu Dimas Pratama
+
+> **Note:** Sistem login langsung menggunakan nomor HP dari database santri. Tidak perlu seeder khusus.
 
 ### Mobile App
 ⏳ Implementasi fitur lengkap:

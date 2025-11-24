@@ -15,9 +15,24 @@ use App\Http\Controllers\WalletController;
 use App\Http\Controllers\RfidTagController;
 use App\Http\Controllers\EposController;
 use App\Http\Controllers\WalletSettingsController;
+use App\Http\Controllers\Api\WaliController;
 
 // Authentication routes (public)
 Route::post('/login', [AuthController::class, 'login']);
+
+// Wali Santri Mobile App routes
+Route::prefix('auth')->group(function () {
+    Route::post('login', [WaliController::class, 'login']);
+});
+
+Route::middleware('auth:sanctum')->prefix('wali')->group(function () {
+    Route::get('santri', [WaliController::class, 'getSantri']);
+    Route::get('wallet/{santri_id}', [WaliController::class, 'getWallet']);
+    Route::get('tagihan/{santri_id}', [WaliController::class, 'getAllTagihan']);
+    Route::get('pembayaran/{santri_id}', [WaliController::class, 'getPembayaran']);
+    Route::get('tunggakan/{santri_id}', [WaliController::class, 'getTunggakan']);
+    Route::post('bayar/{santri_id}', [WaliController::class, 'submitPayment']);
+});
 
 // Protected routes
 Route::middleware('auth:sanctum')->group(function () {

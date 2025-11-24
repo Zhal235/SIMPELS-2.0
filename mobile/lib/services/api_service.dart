@@ -1,4 +1,5 @@
 import 'package:dio/dio.dart';
+import 'dart:io';
 import '../config/app_config.dart';
 import '../utils/storage_helper.dart';
 
@@ -10,6 +11,7 @@ class ApiService {
       baseUrl: AppConfig.apiBaseUrl,
       connectTimeout: AppConfig.connectTimeout,
       receiveTimeout: AppConfig.receiveTimeout,
+      responseType: ResponseType.json,
       headers: {
         'Content-Type': 'application/json',
         'Accept': 'application/json',
@@ -36,9 +38,9 @@ class ApiService {
   }
 
   // Auth
-  Future<Response> login(String email, String password) async {
+  Future<Response> login(String noHp, String password) async {
     return await _dio.post(AppConfig.loginEndpoint, data: {
-      'email': email,
+      'no_hp': noHp,
       'password': password,
     });
   }
@@ -58,5 +60,39 @@ class ApiService {
 
   Future<Response> getWaliTunggakan(int santriId) async {
     return await _dio.get('${AppConfig.waliTunggakanEndpoint}/$santriId');
+  }
+
+  Future<Response> getAllTagihan(String santriId) async {
+    try {
+      final response = await _dio.get('${AppConfig.waliTagihanEndpoint}/$santriId');
+      print('getAllTagihan raw response: ${response.data.runtimeType}');
+      return response;
+    } catch (e) {
+      print('getAllTagihan error: $e');
+      rethrow;
+    }
+  }
+
+  Future<Response> submitPayment({
+    required String santriId,
+    required String tagihanId,
+    required double amount,
+    required File buktiFile,
+    required String metode,
+  }) async {
+    final formData = FormData.fromMap({
+      'tagihan_id': tagihanId,
+      'amount': amount,
+      'metode': metode,
+      'bukti': await MultipartFile.fromFile(
+        buktiFile.path,
+        filename: 'bukti_transfer_${DateTime.now().millisecondsSinceEpoch}.jpg',
+      ),
+    });
+
+    return await _dio.post(
+      '/wali/bayar/$santriId',
+      data: formData,
+    );
   }
 }

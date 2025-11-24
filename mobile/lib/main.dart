@@ -9,7 +9,7 @@ void main() {
 }
 
 class SimpleMobileApp extends StatelessWidget {
-  const SimpleMobileApp({Key? key}) : super(key: key);
+  const SimpleMobileApp({super.key});
 
   @override
   Widget build(BuildContext context) {

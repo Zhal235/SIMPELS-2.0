@@ -36,4 +36,28 @@ class StorageHelper {
     final token = await getToken();
     return token != null && token.isNotEmpty;
   }
+
+  static Future<void> saveSantriList(List<Map<String, dynamic>> santriList) async {
+    final prefs = await SharedPreferences.getInstance();
+    await prefs.setString('santri_list', jsonEncode(santriList));
+  }
+
+  static Future<List<Map<String, dynamic>>?> getSantriList() async {
+    final prefs = await SharedPreferences.getInstance();
+    final santriStr = prefs.getString('santri_list');
+    if (santriStr != null) {
+      return List<Map<String, dynamic>>.from(jsonDecode(santriStr));
+    }
+    return null;
+  }
+
+  static Future<void> saveActiveSantriId(String santriId) async {
+    final prefs = await SharedPreferences.getInstance();
+    await prefs.setString('active_santri_id', santriId);
+  }
+
+  static Future<String?> getActiveSantriId() async {
+    final prefs = await SharedPreferences.getInstance();
+    return prefs.getString('active_santri_id');
+  }
 }

@@ -1,6 +1,6 @@
 class AppConfig {
   // API Configuration
-  static const String apiBaseUrl = 'http://localhost:8000/api';
+  static const String apiBaseUrl = 'http://localhost:8001/api';
   
   // Endpoints
   static const String loginEndpoint = '/auth/login';
@@ -8,6 +8,7 @@ class AppConfig {
   static const String waliWalletEndpoint = '/wali/wallet';
   static const String waliPembayaranEndpoint = '/wali/pembayaran';
   static const String waliTunggakanEndpoint = '/wali/tunggakan';
+  static const String waliTagihanEndpoint = '/wali/tagihan';
   
   // App Info
   static const String appName = 'SIMPELS Mobile';
