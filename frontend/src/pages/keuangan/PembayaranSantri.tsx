@@ -1,4 +1,5 @@
 import { useState, useEffect } from 'react'
+import { useSearchParams } from 'react-router-dom'
 import { Search, User, Home, Building2, Phone, Users, CheckCircle, XCircle, X, Printer } from 'lucide-react'
 import { listSantri } from '../../api/santri'
 import { getTagihanBySantri, prosesPembayaran, listPembayaran, getHistoryPembayaran } from '../../api/pembayaran'
@@ -83,6 +84,7 @@ type Tagihan = {
 }
 
 export default function PembayaranSantri() {
+  const [searchParams] = useSearchParams()
   const [searchQuery, setSearchQuery] = useState('')
   const [showSearchResults, setShowSearchResults] = useState(false)
   const [selectedSantri, setSelectedSantri] = useState<Santri | null>(null)
@@ -107,9 +109,23 @@ const isLunasTab = activeTab === 'lunas'
     const fetchSantri = async () => {
       try {
         setLoadingSantri(true)
-        const res = await listSantri(1, 100) // Fetch 100 santri untuk search
+        const res = await listSantri(1, 1000) // Fetch lebih banyak santri untuk search
         let santriData = Array.isArray(res) ? res : (res?.data ? res.data : [])
         setSantriList(santriData)
+        
+        // Auto-select santri dari URL parameter jika ada
+        const santriId = searchParams.get('santri_id')
+        const nama = searchParams.get('nama')
+        
+        if (santriId && santriData.length > 0) {
+          const foundSantri = santriData.find((s: any) => s.id === santriId)
+          if (foundSantri) {
+            handleSelectSantri(foundSantri)
+            if (nama) {
+              setSearchQuery(decodeURIComponent(nama))
+            }
+          }
+        }
       } catch (error) {
         console.error('Error fetching santri:', error)
         toast.error('Gagal memuat data santri')
@@ -118,7 +134,7 @@ const isLunasTab = activeTab === 'lunas'
       }
     }
     fetchSantri()
-  }, [])
+  }, [searchParams])
 
   // Filter santri berdasarkan search query
   const getFilteredSantri = () => {

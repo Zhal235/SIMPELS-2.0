@@ -19,7 +19,7 @@ class TagihanSantriController extends Controller
         // Groupby per santri dengan total tagihan, dibayar, dan sisa
         $tagihan = DB::table('tagihan_santri')
             ->join('santri', 'tagihan_santri.santri_id', '=', 'santri.id')
-            ->join('kelas', 'santri.kelas_id', '=', 'kelas.id')
+            ->leftJoin('kelas', 'santri.kelas_id', '=', 'kelas.id')
             ->select(
                 'santri.id as santri_id',
                 'santri.nis as santri_nis',

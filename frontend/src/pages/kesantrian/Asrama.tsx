@@ -138,7 +138,14 @@ export default function KesantrianAsrama() {
       // ambil santri tanpa asrama
       const res = await api.get('/v1/kesantrian/santri', { params: { page: 1, perPage: 1000, withoutAsrama: 1 } })
       const list: any[] = Array.isArray(res?.data?.data) ? res.data.data : []
-      const mapped: Santri[] = list.map((s: any) => ({ id: s.id, nama_santri: s.nama_santri, asrama: s.asrama || s.asrama_nama || null }))
+      
+      // Filter hanya santri aktif (bukan mutasi/alumni)
+      const santriAktif = list.filter((s: any) => {
+        const status = s.status || 'aktif'
+        return !['mutasi', 'keluar', 'mutasi_keluar', 'alumni', 'lulus'].includes(status)
+      })
+      
+      const mapped: Santri[] = santriAktif.map((s: any) => ({ id: s.id, nama_santri: s.nama_santri, asrama: s.asrama || s.asrama_nama || null }))
       setAvailableSantri(mapped)
     } catch (err) {
       console.error('Gagal memuat santri tanpa asrama', err)

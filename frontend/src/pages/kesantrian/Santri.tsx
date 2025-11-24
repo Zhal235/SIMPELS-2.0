@@ -10,6 +10,7 @@ import type { Santri } from './components/SantriForm'
 import { listSantri, deleteSantri, updateSantri, getSantri } from '@/api/santri'
 import { getTagihanBySantri } from '@/api/pembayaran'
 import { deleteTagihanSantri } from '@/api/tagihanSantri'
+import { createMutasiKeluar } from '@/api/mutasiKeluar'
 import { toast } from 'sonner'
 
 type Row = Santri & { aksi?: string }
@@ -437,40 +438,14 @@ export default function KesantrianSantri() {
               <button className="px-4 py-2 rounded bg-red-600 text-white disabled:opacity-50" disabled={!tanggalKeluar} onClick={async () => {
                 if (!mutasiTarget) return
                 try {
-                  let detail: any = mutasiTarget
-                  // Pastikan field wajib tersedia; jika tidak, ambil dari endpoint detail
-                  const needDetail = !detail?.tempat_lahir || !detail?.tanggal_lahir || !detail?.alamat || !detail?.nama_ayah || !detail?.nama_ibu
-                  if (needDetail && (mutasiTarget as any).id) {
-                    try {
-                      const resp: any = await getSantri((mutasiTarget as any).id)
-                      detail = resp?.data || detail
-                    } catch (err) {
-                      console.warn('Gagal memuat detail santri untuk validasi update')
-                    }
-                  }
-
-                  const fd = new FormData()
-                  fd.append('nis', String(detail?.nis || mutasiTarget.nis || ''))
-                  fd.append('nama_santri', String(detail?.nama_santri || mutasiTarget.nama_santri || ''))
-                  fd.append('tempat_lahir', String(detail?.tempat_lahir || ''))
-                  fd.append('tanggal_lahir', String(detail?.tanggal_lahir || ''))
-                  fd.append('jenis_kelamin', String(detail?.jenis_kelamin || mutasiTarget.jenis_kelamin || 'L'))
-                  fd.append('alamat', String(detail?.alamat || ''))
-                  fd.append('nama_ayah', String(detail?.nama_ayah || ''))
-                  fd.append('nama_ibu', String(detail?.nama_ibu || ''))
-                  fd.append('kelas_id', '')
-                  fd.append('asrama_id', '')
-                  fd.append('kelas_nama', '')
-                  fd.append('asrama_nama', '')
-                  fd.append('status', 'keluar')
-                  if (tanggalKeluar) fd.append('tanggal_keluar', tanggalKeluar)
-                  if (tujuanMutasi) fd.append('tujuan_mutasi', tujuanMutasi)
-                  if (alasan) fd.append('alasan_mutasi', alasan)
-                  await updateSantri((mutasiTarget as any).id, fd)
-                  const deletable = (previewDelete || []).filter((t: any) => t && t.id)
-                  for (const t of deletable) {
-                    try { await deleteTagihanSantri(t.id) } catch (err) { console.error('Gagal hapus tagihan', t?.id, err) }
-                  }
+                  // Gunakan API createMutasiKeluar yang sudah handle update santri dan delete tagihan
+                  await createMutasiKeluar({
+                    santri_id: (mutasiTarget as any).id,
+                    tanggal_mutasi: tanggalKeluar,
+                    tujuan: tujuanMutasi || null,
+                    alasan: alasan || null,
+                  })
+                  
                   const info = {
                     tanggalKeluar,
                     alasan,

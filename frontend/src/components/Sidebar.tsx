@@ -306,17 +306,6 @@ export default function Sidebar() {
                           <ul className="ml-5 space-y-1 border-l border-gray-300 pl-3">
                             <li>
                               <NavLink
-                                to="/keuangan/tunggakan/aktif"
-                                className={({ isActive }) =>
-                                  `flex items-center gap-3 rounded-md px-3 py-2 text-sm ${isActive ? 'bg-white text-brand shadow-sm' : 'text-gray-700 hover:bg-white'}`
-                                }
-                              >
-                                <Users className="w-4 h-4" />
-                                {sidebarOpen && <span>Aktif</span>}
-                              </NavLink>
-                            </li>
-                            <li>
-                              <NavLink
                                 to="/keuangan/tunggakan/mutasi"
                                 className={({ isActive }) =>
                                   `flex items-center gap-3 rounded-md px-3 py-2 text-sm ${isActive ? 'bg-white text-brand shadow-sm' : 'text-gray-700 hover:bg-white'}`

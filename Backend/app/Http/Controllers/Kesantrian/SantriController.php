@@ -73,7 +73,9 @@ class SantriController extends Controller
                 'nisn' => ['nullable', 'string', 'max:255'],
                 'nik_santri' => ['nullable', 'string', 'max:255'],
                 'kelas_id' => ['nullable'],
+                'kelas_nama' => ['nullable', 'string', 'max:255'], // Tidak disimpan tapi perlu di-allow
                 'asrama_id' => ['nullable'],
+                'asrama_nama' => ['nullable', 'string', 'max:255'], // Tidak disimpan tapi perlu di-allow
                 'asal_sekolah' => ['nullable', 'string', 'max:255'],
                 'hobi' => ['nullable', 'string', 'max:255'],
                 'cita_cita' => ['nullable', 'string', 'max:255'],
@@ -94,13 +96,16 @@ class SantriController extends Controller
                 'hp_ibu' => ['nullable', 'string', 'max:255'],
                 'foto' => ['nullable', 'file', 'image', 'max:2048'],
                 // status & penerimaan
-                'status' => ['nullable', Rule::in(['aktif', 'keluar'])],
+                'status' => ['nullable', Rule::in(['aktif', 'keluar', 'mutasi', 'alumni', 'lulus'])],
                 'jenis_penerimaan' => ['nullable', Rule::in(['baru', 'mutasi_masuk'])],
                 // mutasi metadata
                 'tanggal_keluar' => ['nullable', 'date'],
                 'tujuan_mutasi' => ['nullable', 'string', 'max:255'],
                 'alasan_mutasi' => ['nullable', 'string'],
             ]);
+            
+            // Remove kelas_nama dan asrama_nama dari validated data karena bukan kolom di database
+            unset($validated['kelas_nama'], $validated['asrama_nama']);
 
             // handle foto upload if exists
             if ($request->hasFile('foto')) {
@@ -177,7 +182,9 @@ class SantriController extends Controller
                 'nisn' => ['nullable', 'string', 'max:255'],
                 'nik_santri' => ['nullable', 'string', 'max:255'],
                 'kelas_id' => ['nullable'],
+                'kelas_nama' => ['nullable', 'string', 'max:255'], // Tidak disimpan tapi perlu di-allow
                 'asrama_id' => ['nullable'],
+                'asrama_nama' => ['nullable', 'string', 'max:255'], // Tidak disimpan tapi perlu di-allow
                 'asal_sekolah' => ['nullable', 'string', 'max:255'],
                 'hobi' => ['nullable', 'string', 'max:255'],
                 'cita_cita' => ['nullable', 'string', 'max:255'],
@@ -198,13 +205,16 @@ class SantriController extends Controller
                 'hp_ibu' => ['nullable', 'string', 'max:255'],
                 'foto' => ['nullable', 'file', 'image', 'max:2048'],
                 // status & penerimaan
-                'status' => ['nullable', Rule::in(['aktif', 'keluar'])],
+                'status' => ['nullable', Rule::in(['aktif', 'keluar', 'mutasi', 'alumni', 'lulus'])],
                 'jenis_penerimaan' => ['nullable', Rule::in(['baru', 'mutasi_masuk'])],
                 // mutasi metadata
                 'tanggal_keluar' => ['nullable', 'date'],
                 'tujuan_mutasi' => ['nullable', 'string', 'max:255'],
                 'alasan_mutasi' => ['nullable', 'string'],
             ]);
+            
+            // Remove kelas_nama dan asrama_nama dari validated data karena bukan kolom di database
+            unset($validated['kelas_nama'], $validated['asrama_nama']);
 
             // handle foto upload if exists
             if ($request->hasFile('foto')) {

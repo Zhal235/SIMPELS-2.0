@@ -130,7 +130,14 @@ export default function KesantrianKelas() {
         : Array.isArray((raw as any)?.data)
           ? (raw as any).data
           : []
-      setSantriList(dataArr as SantriItem[])
+      
+      // Filter hanya santri aktif (bukan mutasi/alumni)
+      const santriAktif = dataArr.filter((s: any) => {
+        const status = s.status || 'aktif'
+        return !['mutasi', 'keluar', 'mutasi_keluar', 'alumni', 'lulus'].includes(status)
+      })
+      
+      setSantriList(santriAktif as SantriItem[])
     } catch (err) {
       handleError(err)
     } finally {

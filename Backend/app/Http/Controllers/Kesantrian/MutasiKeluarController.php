@@ -38,9 +38,11 @@ class MutasiKeluarController extends Controller
                 'created_by' => $request->user()?->id ?? null,
             ]);
 
-            // Update santri status
+            // Update santri status dan keluarkan dari kelas/asrama
             $santri = Santri::findOrFail($data['santri_id']);
             $santri->status = 'mutasi_keluar';
+            $santri->kelas_id = null;
+            $santri->asrama_id = null;
             $santri->save();
 
             // Delete (soft-delete) tagihan that occur after mutasi date

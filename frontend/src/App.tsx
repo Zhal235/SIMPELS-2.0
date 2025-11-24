@@ -26,7 +26,6 @@ const PembayaranSantri = lazy(() => import('./pages/keuangan/PembayaranSantri'))
 const TransaksiKas = lazy(() => import('./pages/keuangan/TransaksiKas'))
 const BukuKas = lazy(() => import('./pages/keuangan/BukuKas'))
 const TagihanSantri = lazy(() => import('./pages/keuangan/TagihanSantri'))
-const TunggakanAktif = lazy(() => import('./pages/keuangan/TunggakanAktif'))
 const TunggakanMutasi = lazy(() => import('./pages/keuangan/TunggakanMutasi'))
 const TunggakanAlumni = lazy(() => import('./pages/keuangan/TunggakanAlumni'))
 const JenisTagihan = lazy(() => import('./pages/keuangan/JenisTagihan'))
@@ -126,7 +125,7 @@ export default function App() {
             <Route path="/kesantrian" element={<Navigate to="/kesantrian/santri" replace />} />
             <Route path="/kesantrian/mutasi" element={<Navigate to="/kesantrian/mutasi/masuk" replace />} />
             <Route path="/keuangan" element={<Navigate to="/keuangan/pembayaran" replace />} />
-            <Route path="/keuangan/tunggakan" element={<Navigate to="/keuangan/tunggakan/aktif" replace />} />
+            <Route path="/keuangan/tunggakan" element={<Navigate to="/keuangan/tunggakan/mutasi" replace />} />
             <Route path="/keuangan/pengaturan" element={<Navigate to="/keuangan/pengaturan/jenis-tagihan" replace />} />
             <Route path="/dompet" element={<Navigate to="/dompet/dompet-santri" replace />} />
             <Route path="/akademik" element={<Navigate to="/akademik/tahun-ajaran" replace />} />
@@ -201,13 +200,6 @@ export default function App() {
               <ProtectedRoute>
                 <AppLayout>
                   <TagihanSantri />
-                </AppLayout>
-              </ProtectedRoute>
-            } />
-            <Route path="/keuangan/tunggakan/aktif" element={
-              <ProtectedRoute>
-                <AppLayout>
-                  <TunggakanAktif />
                 </AppLayout>
               </ProtectedRoute>
             } />
