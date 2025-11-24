@@ -58,9 +58,10 @@ class TransaksiKas extends Model
     {
         $prefix = $jenis === 'pemasukan' ? 'MSK' : 'KLR';
         $date = date('Ymd');
-        $lastTransaksi = self::whereDate('created_at', today())
-            ->where('jenis', $jenis)
-            ->orderBy('id', 'desc')
+        
+        // Cari nomor terakhir dengan prefix dan tanggal yang sama
+        $lastTransaksi = self::where('no_transaksi', 'LIKE', $prefix . '-' . $date . '-%')
+            ->orderBy('no_transaksi', 'desc')
             ->first();
         
         if ($lastTransaksi) {

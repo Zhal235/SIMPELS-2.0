@@ -126,8 +126,8 @@ class PembayaranController extends Controller
                 'type' => $statusPembayaran,
                 'santri' => [
                     'nis' => $tagihan->santri->nis,
-                    'nama_santri' => $tagihan->santri->nama_santri,
-                    'kelas' => $tagihan->santri->kelas?->nama_kelas,
+                    'nama_santri' => $tagihan->santri->nama,
+                    'kelas' => $tagihan->santri->kelas?->nama_kelas ?? '-',
                 ],
                 'tagihan' => [
                     'jenis_tagihan' => $tagihan->jenisTagihan->nama_tagihan,
@@ -181,19 +181,45 @@ class PembayaranController extends Controller
             ]);
 
             // Catat sebagai transaksi pemasukan di buku kas
-            // JANGAN increment saldo_awal, biarkan dihitung dari transaksi
-            $noTransaksiKas = TransaksiKas::generateNoTransaksi('pemasukan');
-            TransaksiKas::create([
-                'buku_kas_id' => $tagihan->jenisTagihan->buku_kas_id,
-                'no_transaksi' => $noTransaksiKas,
-                'tanggal' => $request->tanggal_bayar,
-                'jenis' => 'pemasukan',
-                'metode' => $request->metode_pembayaran,
-                'kategori' => 'Pembayaran Tagihan',
-                'nominal' => $request->nominal_bayar,
-                'keterangan' => $request->keterangan ?? "Pembayaran {$tagihan->jenisTagihan->nama_tagihan} - {$tagihan->bulan} {$tagihan->tahun}",
-                'pembayaran_id' => $pembayaran->id,
-            ]);
+            // Retry jika ada duplicate key
+            $maxRetries = 5;
+            $transaksiKasCreated = false;
+            
+            for ($i = 0; $i < $maxRetries; $i++) {
+                try {
+                    $noTransaksiKas = TransaksiKas::generateNoTransaksi('pemasukan');
+                    
+                    // Add random suffix if retry
+                    if ($i > 0) {
+                        $noTransaksiKas .= '-' . $i;
+                    }
+                    
+                    TransaksiKas::create([
+                        'buku_kas_id' => $tagihan->jenisTagihan->buku_kas_id,
+                        'no_transaksi' => $noTransaksiKas,
+                        'tanggal' => $request->tanggal_bayar,
+                        'jenis' => 'pemasukan',
+                        'metode' => $request->metode_pembayaran,
+                        'kategori' => 'Pembayaran Tagihan',
+                        'nominal' => $request->nominal_bayar,
+                        'keterangan' => $request->keterangan ?? "Pembayaran {$tagihan->jenisTagihan->nama_tagihan} - {$tagihan->bulan} {$tagihan->tahun}",
+                        'pembayaran_id' => $pembayaran->id,
+                    ]);
+                    
+                    $transaksiKasCreated = true;
+                    break;
+                } catch (\Illuminate\Database\QueryException $e) {
+                    if ($e->getCode() !== '23000') { // Not a constraint violation
+                        throw $e;
+                    }
+                    // Continue to retry with new number
+                    usleep(100000); // Wait 100ms before retry
+                }
+            }
+            
+            if (!$transaksiKasCreated) {
+                throw new \Exception('Gagal membuat transaksi kas setelah beberapa percobaan');
+            }
 
             DB::commit();
 

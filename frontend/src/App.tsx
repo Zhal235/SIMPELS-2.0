@@ -33,6 +33,13 @@ const JenisTagihan = lazy(() => import('./pages/keuangan/JenisTagihan'))
 const KeringananTagihan = lazy(() => import('./pages/keuangan/KeringananTagihan'))
 // Laporan Keuangan
 const LaporanIndex = lazy(() => import('./pages/keuangan/LaporanIndex'))
+const LaporanDashboard = lazy(() => import('./pages/keuangan/LaporanDashboard'))
+const LaporanTagihanSantri = lazy(() => import('./pages/keuangan/LaporanTagihanSantri'))
+const LaporanTunggakanSantri = lazy(() => import('./pages/keuangan/LaporanTunggakanSantri'))
+const LaporanArusKas = lazy(() => import('./pages/keuangan/LaporanArusKas'))
+const LaporanLabaRugi = lazy(() => import('./pages/keuangan/LaporanLabaRugi'))
+const LaporanPerBukuKas = lazy(() => import('./pages/keuangan/LaporanPerBukuKas'))
+const LaporanDetailTransaksi = lazy(() => import('./pages/keuangan/LaporanDetailTransaksi'))
 const LaporanRingkasan = lazy(() => import('./pages/keuangan/Ringkasan'))
 const LaporanByCategory = lazy(() => import('./pages/keuangan/PengeluaranKategori'))
 // Dompet Digital subpages
@@ -237,6 +244,55 @@ export default function App() {
               <ProtectedRoute>
                 <AppLayout>
                   <LaporanIndex />
+                </AppLayout>
+              </ProtectedRoute>
+            } />
+            <Route path="/keuangan/laporan/dashboard" element={
+              <ProtectedRoute>
+                <AppLayout>
+                  <LaporanDashboard />
+                </AppLayout>
+              </ProtectedRoute>
+            } />
+            <Route path="/keuangan/laporan/tagihan-santri" element={
+              <ProtectedRoute>
+                <AppLayout>
+                  <LaporanTagihanSantri />
+                </AppLayout>
+              </ProtectedRoute>
+            } />
+            <Route path="/keuangan/laporan/tunggakan-santri" element={
+              <ProtectedRoute>
+                <AppLayout>
+                  <LaporanTunggakanSantri />
+                </AppLayout>
+              </ProtectedRoute>
+            } />
+            <Route path="/keuangan/laporan/arus-kas" element={
+              <ProtectedRoute>
+                <AppLayout>
+                  <LaporanArusKas />
+                </AppLayout>
+              </ProtectedRoute>
+            } />
+            <Route path="/keuangan/laporan/laba-rugi" element={
+              <ProtectedRoute>
+                <AppLayout>
+                  <LaporanLabaRugi />
+                </AppLayout>
+              </ProtectedRoute>
+            } />
+            <Route path="/keuangan/laporan/per-buku-kas" element={
+              <ProtectedRoute>
+                <AppLayout>
+                  <LaporanPerBukuKas />
+                </AppLayout>
+              </ProtectedRoute>
+            } />
+            <Route path="/keuangan/laporan/detail-transaksi" element={
+              <ProtectedRoute>
+                <AppLayout>
+                  <LaporanDetailTransaksi />
                 </AppLayout>
               </ProtectedRoute>
             } />
