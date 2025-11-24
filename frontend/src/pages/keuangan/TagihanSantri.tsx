@@ -66,8 +66,8 @@ export default function TagihanSantri() {
   }, [])
 
   const filteredData = dataTagihan.filter(item => 
-    item.santri_nama.toLowerCase().includes(searchTerm.toLowerCase()) ||
-    item.kelas.toLowerCase().includes(searchTerm.toLowerCase())
+    (item.santri_nama || '').toLowerCase().includes(searchTerm.toLowerCase()) ||
+    (item.kelas || '').toLowerCase().includes(searchTerm.toLowerCase())
   )
 
   const handleShowDetail = (santri: TagihanSantri) => {
