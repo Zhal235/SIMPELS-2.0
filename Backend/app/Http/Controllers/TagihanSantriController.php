@@ -22,6 +22,7 @@ class TagihanSantriController extends Controller
             ->join('kelas', 'santri.kelas_id', '=', 'kelas.id')
             ->select(
                 'santri.id as santri_id',
+                'santri.nis as santri_nis',
                 'santri.nama_santri as santri_nama',
                 'kelas.nama_kelas as kelas',
                 DB::raw('SUM(tagihan_santri.nominal) as total_tagihan'),
@@ -29,7 +30,7 @@ class TagihanSantriController extends Controller
                 DB::raw('SUM(tagihan_santri.sisa) as sisa_tagihan')
             )
             ->whereNull('tagihan_santri.deleted_at')
-            ->groupBy('santri.id', 'santri.nama_santri', 'kelas.nama_kelas')
+            ->groupBy('santri.id', 'santri.nis', 'santri.nama_santri', 'kelas.nama_kelas')
             ->get();
 
         // Ambil detail tagihan untuk setiap santri
@@ -61,6 +62,7 @@ class TagihanSantriController extends Controller
 
             return [
                 'santri_id' => $item->santri_id,
+                'santri_nis' => $item->santri_nis,
                 'santri_nama' => $item->santri_nama,
                 'kelas' => $item->kelas,
                 'total_tagihan' => (float) $item->total_tagihan,

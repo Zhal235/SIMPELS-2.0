@@ -38,7 +38,7 @@ export default function LaporanTagihanSantri() {
   const [loading, setLoading] = useState(false)
   
   // Filters
-  const [filterBulan, setFilterBulan] = useState<string>(new Date().getMonth() + 1 + '')
+  const [filterBulan, setFilterBulan] = useState<string>('all')
   const [filterTahun, setFilterTahun] = useState<string>(new Date().getFullYear() + '')
   const [filterStatus, setFilterStatus] = useState<string>('all')
   const [filterJenisTagihan, setFilterJenisTagihan] = useState<string>('all')
@@ -73,9 +73,17 @@ export default function LaporanTagihanSantri() {
   const fetchJenisTagihan = async () => {
     try {
       const response = await api.get('/v1/keuangan/jenis-tagihan')
-      setJenisTagihanList(response.data.data || [])
+      const dataArray = Array.isArray(response.data.data) ? response.data.data : 
+                       Array.isArray(response.data) ? response.data : []
+      // Convert camelCase to snake_case for consistency
+      const mapped = dataArray.map((item: any) => ({
+        id: item.id,
+        nama_tagihan: item.namaTagihan || item.nama_tagihan
+      }))
+      setJenisTagihanList(mapped)
     } catch (error) {
       console.error('Error fetching jenis tagihan:', error)
+      setJenisTagihanList([])
     }
   }
 
@@ -94,8 +102,9 @@ export default function LaporanTagihanSantri() {
             allTagihan.push({
               id: tagihan.id,
               santri: {
+                id: s.santri_id,
                 nama: s.santri_nama,
-                nis: s.santri_id, // Using ID as NIS for now
+                nis: s.santri_nis || s.nis || 'N/A',
                 kelas: {
                   nama_kelas: s.kelas
                 }
@@ -105,9 +114,9 @@ export default function LaporanTagihanSantri() {
               },
               bulan: tagihan.bulan,
               tahun: tagihan.tahun,
-              nominal: parseFloat(tagihan.nominal),
-              dibayar: parseFloat(tagihan.dibayar),
-              sisa: parseFloat(tagihan.sisa),
+              nominal: parseFloat(tagihan.nominal || 0),
+              dibayar: parseFloat(tagihan.dibayar || 0),
+              sisa: parseFloat(tagihan.sisa || 0),
               status: tagihan.status,
               jatuh_tempo: tagihan.jatuh_tempo
             })
@@ -119,7 +128,12 @@ export default function LaporanTagihanSantri() {
       let filtered = allTagihan
 
       if (filterBulan && filterBulan !== 'all') {
-        filtered = filtered.filter(t => t.bulan === filterBulan)
+        // Convert bulan number to month name
+        const bulanNama = bulanOptions.find(b => b.value === filterBulan)?.label
+        filtered = filtered.filter(t => {
+          // Check both numeric and text format
+          return t.bulan === filterBulan || t.bulan === bulanNama
+        })
       }
       if (filterTahun) {
         filtered = filtered.filter(t => t.tahun === parseInt(filterTahun))
@@ -144,17 +158,17 @@ export default function LaporanTagihanSantri() {
       const totalTagihan = filtered.reduce((sum: number, t: any) => sum + t.nominal, 0)
       const totalDibayar = filtered.reduce((sum: number, t: any) => sum + t.dibayar, 0)
       const totalSisa = filtered.reduce((sum: number, t: any) => sum + t.sisa, 0)
-      const jumlahLunas = filtered.filter(t => t.status === 'lunas').length
-      const jumlahBelumLunas = filtered.filter(t => t.status === 'belum_bayar').length
-      const jumlahCicilan = filtered.filter(t => t.status === 'sebagian').length
+      const jumlahLunas = filtered.filter((t: any) => t.status === 'lunas').length
+      const jumlahBelumLunas = filtered.filter((t: any) => t.status === 'belum_bayar').length
+      const jumlahCicilan = filtered.filter((t: any) => t.status === 'sebagian').length
 
       setSummary({
         total_tagihan: totalTagihan,
         total_dibayar: totalDibayar,
         total_sisa: totalSisa,
-        jumlah_lunas,
-        jumlah_belum_lunas,
-        jumlah_cicilan
+        jumlah_lunas: jumlahLunas,
+        jumlah_belum_lunas: jumlahBelumLunas,
+        jumlah_cicilan: jumlahCicilan
       })
     } catch (error) {
       console.error('Error fetching tagihan:', error)
