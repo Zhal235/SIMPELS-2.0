@@ -2,7 +2,7 @@ import 'package:flutter/material.dart';
 import 'package:provider/provider.dart';
 import '../providers/auth_provider.dart';
 import '../services/api_service.dart';
-import '../models/santri_model.dart';
+// models import removed because types aren't used in this file
 import 'login_screen.dart';
 
 class HomeScreen extends StatefulWidget {
@@ -11,7 +11,17 @@ class HomeScreen extends StatefulWidget {
 
   // A global key is used by other screens to reliably access the HomeScreen state
   // (useful after hot-reload / hot-restart to ensure navigation targets the active instance)
-  static final GlobalKey<_HomeScreenState> homeKey = GlobalKey<_HomeScreenState>();
+  // Use a non-private generic type to avoid exposing private state in public API
+  static final GlobalKey homeKey = GlobalKey();
+
+  // Public helper so other widgets can request navigation without exposing
+  // the private `_HomeScreenState` type in our public API.
+  static void navigateToTab(int index) {
+    final state = homeKey.currentState;
+    if (state is _HomeScreenState) {
+      state.navigateTo(index);
+    }
+  }
 
   @override
   State<HomeScreen> createState() => _HomeScreenState();
@@ -29,12 +39,12 @@ class _HomeScreenState extends State<HomeScreen> {
     _screens = [
       DashboardTab(onNavigateToTab: (index) {
         // debug: show navigation attempts
-        print('HomeScreen: request navigate to tab $index');
+        debugPrint('HomeScreen: request navigate to tab $index');
         if (!mounted) return;
         setState(() {
           _selectedIndex = index;
         });
-        print('HomeScreen: selectedIndex now $_selectedIndex');
+        debugPrint('HomeScreen: selectedIndex now $_selectedIndex');
       }),
       const PembayaranTab(),
       const TunggakanTab(),
@@ -48,7 +58,7 @@ class _HomeScreenState extends State<HomeScreen> {
     setState(() {
       _selectedIndex = index;
     });
-    print('HomeScreen.navigateTo: selectedIndex=$_selectedIndex');
+    debugPrint('HomeScreen.navigateTo: selectedIndex=$_selectedIndex');
   }
 
   @override
@@ -149,7 +159,7 @@ class DashboardTab extends StatelessWidget {
                   Builder(
                     builder: (context) {
                       if (santri?.fotoUrl != null) {
-                        print('[HomeScreen] Foto URL: ${santri!.fotoUrl}');
+                        debugPrint('[HomeScreen] Foto URL: ${santri!.fotoUrl}');
                       }
                       return CircleAvatar(
                         radius: 50,
@@ -159,7 +169,7 @@ class DashboardTab extends StatelessWidget {
                             : null,
                         onBackgroundImageError: santri?.fotoUrl != null
                             ? (exception, stackTrace) {
-                                print('[HomeScreen] Error loading foto: $exception');
+                                debugPrint('[HomeScreen] Error loading foto: $exception');
                               }
                             : null,
                         child: santri?.fotoUrl == null || santri!.fotoUrl!.isEmpty
@@ -189,7 +199,7 @@ class DashboardTab extends StatelessWidget {
                     'NIS: ${santri?.nis ?? '-'} • ${santri?.kelas ?? 'Belum ada kelas'}',
                     style: TextStyle(
                       fontSize: 14,
-                      color: Colors.white.withOpacity(0.9),
+                      color: Colors.white.withAlpha(230),
                     ),
                   ),
                   if (santri?.asrama != null) ...[
@@ -198,7 +208,7 @@ class DashboardTab extends StatelessWidget {
                       'Asrama: ${santri!.asrama}',
                       style: TextStyle(
                         fontSize: 14,
-                        color: Colors.white.withOpacity(0.9),
+                          color: Colors.white.withAlpha(230),
                       ),
                     ),
                   ],
@@ -237,7 +247,7 @@ class DashboardTab extends StatelessWidget {
                         children: [
                           Icon(
                             Icons.account_balance_wallet,
-                            color: Colors.white.withOpacity(0.9),
+                            color: Colors.white.withAlpha(230),
                             size: 24,
                           ),
                           const SizedBox(width: 8),
@@ -247,7 +257,7 @@ class DashboardTab extends StatelessWidget {
                               overflow: TextOverflow.ellipsis,
                               style: TextStyle(
                                 fontSize: 14,
-                                color: Colors.white.withOpacity(0.9),
+                                 color: Colors.white.withAlpha(230),
                               ),
                             ),
                           ),
@@ -269,7 +279,7 @@ class DashboardTab extends StatelessWidget {
                           vertical: 8,
                         ),
                         decoration: BoxDecoration(
-                          color: Colors.white.withOpacity(0.2),
+                          color: Colors.white.withAlpha(51),
                           borderRadius: BorderRadius.circular(8),
                         ),
                         child: Row(
@@ -278,14 +288,14 @@ class DashboardTab extends StatelessWidget {
                             Icon(
                               Icons.trending_up,
                               size: 16,
-                              color: Colors.white.withOpacity(0.9),
+                               color: Colors.white.withAlpha(230),
                             ),
                             const SizedBox(width: 6),
                             Text(
                               'Limit Harian: Rp ${_formatCurrency(santri?.limitHarian ?? 15000)}',
                               style: TextStyle(
                                 fontSize: 12,
-                                color: Colors.white.withOpacity(0.9),
+                                 color: Colors.white.withAlpha(230),
                                 fontWeight: FontWeight.w500,
                               ),
                             ),
@@ -313,7 +323,7 @@ class DashboardTab extends StatelessWidget {
                     color: Colors.orange,
                     onTap: () {
                       // Navigate to Tunggakan tab (index 2)
-                      print('QuickMenu: Tunggakan tapped');
+                      debugPrint('QuickMenu: Tunggakan tapped');
                       if (onNavigateToTab != null) {
                         onNavigateToTab!(2);
                       } else {
@@ -321,7 +331,7 @@ class DashboardTab extends StatelessWidget {
                         if (homeState != null) {
                           homeState.navigateTo(2);
                         } else if (HomeScreen.homeKey.currentState != null) {
-                          HomeScreen.homeKey.currentState!.navigateTo(2);
+                          HomeScreen.navigateToTab(2);
                         } else {
                           Navigator.pushReplacement(
                             context,
@@ -342,7 +352,7 @@ class DashboardTab extends StatelessWidget {
                     title: 'Riwayat',
                     color: Colors.blue,
                     onTap: () {
-                      print('QuickMenu: Riwayat tapped');
+                      debugPrint('QuickMenu: Riwayat tapped');
                       if (onNavigateToTab != null) {
                         onNavigateToTab!(1);
                       } else {
@@ -350,7 +360,7 @@ class DashboardTab extends StatelessWidget {
                         if (homeState != null) {
                           homeState.navigateTo(1);
                         } else if (HomeScreen.homeKey.currentState != null) {
-                          HomeScreen.homeKey.currentState!.navigateTo(1);
+                          HomeScreen.navigateToTab(1);
                         } else {
                           Navigator.pushReplacement(
                             context,
@@ -371,7 +381,7 @@ class DashboardTab extends StatelessWidget {
                     title: 'Bayar',
                     color: Colors.green,
                     onTap: () {
-                      print('QuickMenu: Bayar tapped');
+                      debugPrint('QuickMenu: Bayar tapped');
                       if (onNavigateToTab != null) {
                         onNavigateToTab!(1);
                       } else {
@@ -379,7 +389,7 @@ class DashboardTab extends StatelessWidget {
                         if (homeState != null) {
                           homeState.navigateTo(1);
                         } else if (HomeScreen.homeKey.currentState != null) {
-                          HomeScreen.homeKey.currentState!.navigateTo(1);
+                          HomeScreen.navigateToTab(1);
                         } else {
                           Navigator.pushReplacement(
                             context,
@@ -434,7 +444,7 @@ class DashboardTab extends StatelessWidget {
             width: 60,
             height: 60,
             decoration: BoxDecoration(
-              color: color.withOpacity(0.1),
+              color: color.withAlpha(26),
               borderRadius: BorderRadius.circular(12),
             ),
             child: Icon(icon, size: 30, color: color),
@@ -472,7 +482,7 @@ class _PembayaranTabState extends State<PembayaranTab> with SingleTickerProvider
   late TabController _tabController;
   bool _isLoading = true;
   Map<String, dynamic>? _tagihanData;
-  Set<int> _selectedTagihanIds = {};
+  final Set<int> _selectedTagihanIds = {};
   
   // Selection mode is active when any tagihan is selected
   bool get _isSelectionMode => _selectedTagihanIds.isNotEmpty;
@@ -531,7 +541,7 @@ class _PembayaranTabState extends State<PembayaranTab> with SingleTickerProvider
           .map((t) => Map<String, dynamic>.from(t))
           .toList();
     } catch (e) {
-      print('Error in _getSelectedTagihan: $e');
+      debugPrint('Error in _getSelectedTagihan: $e');
       return [];
     }
   }
@@ -554,14 +564,14 @@ class _PembayaranTabState extends State<PembayaranTab> with SingleTickerProvider
       if (response.statusCode == 200) {
         // Backend mengirim data yang sudah dikategorisasi
         final responseBody = response.data;
-        print('[_loadTagihan] Response: ${responseBody.runtimeType}');
+        debugPrint('[_loadTagihan] Response: ${responseBody.runtimeType}');
         
         if (responseBody is Map && responseBody['success'] == true) {
           setState(() {
             _tagihanData = Map<String, dynamic>.from(responseBody);
             _isLoading = false;
           });
-          print('[_loadTagihan] Data loaded successfully');
+          debugPrint('[_loadTagihan] Data loaded successfully');
         } else {
           throw Exception('Invalid response format');
         }
@@ -569,7 +579,7 @@ class _PembayaranTabState extends State<PembayaranTab> with SingleTickerProvider
         throw Exception('HTTP ${response.statusCode}');
       }
     } catch (e) {
-      print('Error loading tagihan: $e');
+      debugPrint('Error loading tagihan: $e');
       setState(() => _isLoading = false);
       if (mounted) {
         ScaffoldMessenger.of(context).showSnackBar(
@@ -640,7 +650,7 @@ class _PembayaranTabState extends State<PembayaranTab> with SingleTickerProvider
                       color: Colors.white,
                       boxShadow: [
                         BoxShadow(
-                          color: Colors.black.withOpacity(0.1),
+                          color: Colors.black.withAlpha(26),
                           blurRadius: 8,
                           offset: const Offset(0, -2),
                         ),
@@ -679,8 +689,8 @@ class _PembayaranTabState extends State<PembayaranTab> with SingleTickerProvider
                             onPressed: _selectedTagihanIds.isEmpty ? null : () {
                               try {
                                 final selectedTagihan = _getSelectedTagihan();
-                                print('[Bayar Button] Selected tagihan count: ${selectedTagihan.length}');
-                                print('[Bayar Button] Total: $totalSelected');
+                                debugPrint('[Bayar Button] Selected tagihan count: ${selectedTagihan.length}');
+                                debugPrint('[Bayar Button] Total: $totalSelected');
                                 
                                 // Navigate to upload bukti screen
                                 Navigator.pushNamed(
@@ -699,7 +709,7 @@ class _PembayaranTabState extends State<PembayaranTab> with SingleTickerProvider
                                   }
                                 });
                               } catch (e) {
-                                print('[Bayar Button ERROR] $e');
+                                debugPrint('[Bayar Button ERROR] $e');
                                 ScaffoldMessenger.of(context).showSnackBar(
                                   SnackBar(content: Text('Error: $e')),
                                 );
@@ -810,7 +820,7 @@ class _PembayaranTabState extends State<PembayaranTab> with SingleTickerProvider
         child: Card(
           margin: const EdgeInsets.only(bottom: 12),
           shape: RoundedRectangleBorder(borderRadius: BorderRadius.circular(12)),
-          color: isSelected ? const Color(0xFF1976D2).withOpacity(0.1) : Colors.white,
+          color: isSelected ? const Color(0xFF1976D2).withAlpha(26) : Colors.white,
           child: Padding(
             padding: const EdgeInsets.all(16),
             child: Column(
@@ -830,8 +840,8 @@ class _PembayaranTabState extends State<PembayaranTab> with SingleTickerProvider
                       activeColor: const Color(0xFF1976D2),
                     ),
                   if (hasPendingBukti)
-                    Padding(
-                      padding: const EdgeInsets.only(right: 8),
+                    const Padding(
+                      padding: EdgeInsets.only(right: 8),
                       child: Icon(Icons.schedule, color: Colors.orange, size: 20),
                     ),
                 Expanded(
@@ -846,7 +856,7 @@ class _PembayaranTabState extends State<PembayaranTab> with SingleTickerProvider
                 Container(
                   padding: const EdgeInsets.symmetric(horizontal: 8, vertical: 4),
                   decoration: BoxDecoration(
-                    color: statusColor.withOpacity(0.1),
+                    color: statusColor.withAlpha(26),
                     borderRadius: BorderRadius.circular(4),
                   ),
                   child: Text(
@@ -1094,14 +1104,17 @@ class ProfileTab extends StatelessWidget {
                 ),
               );
 
-              if (confirm == true && context.mounted) {
-                await authProvider.logout();
-                Navigator.pushAndRemoveUntil(
-                  context,
-                  MaterialPageRoute(builder: (_) => const LoginScreen()),
-                  (route) => false,
-                );
-              }
+              if (confirm != true) return;
+              if (!context.mounted) return;
+
+              await authProvider.logout();
+              if (!context.mounted) return;
+
+              Navigator.pushAndRemoveUntil(
+                context,
+                MaterialPageRoute(builder: (_) => const LoginScreen()),
+                (route) => false,
+              );
             },
             icon: const Icon(Icons.logout),
             label: const Text('Logout'),

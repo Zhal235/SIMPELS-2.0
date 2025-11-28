@@ -102,8 +102,8 @@ class _UploadBuktiScreenState extends State<UploadBuktiScreen> {
         catatan: _catatanController.text,
       );
 
-      print('[Upload] Response status: ${response.statusCode}');
-      print('[Upload] Response data: ${response.data}');
+      debugPrint('[Upload] Response status: ${response.statusCode}');
+      debugPrint('[Upload] Response data: ${response.data}');
       
       if (response.statusCode == 201) {
         if (mounted) {
@@ -120,7 +120,7 @@ class _UploadBuktiScreenState extends State<UploadBuktiScreen> {
         throw Exception(errorMsg);
       }
     } catch (e) {
-      print('[Upload] Error: $e');
+      debugPrint('[Upload] Error: $e');
       if (mounted) {
         ScaffoldMessenger.of(context).showSnackBar(
           SnackBar(

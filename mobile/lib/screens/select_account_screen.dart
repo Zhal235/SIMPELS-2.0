@@ -58,7 +58,7 @@ class SelectAccountScreen extends StatelessWidget {
                     'Pilih santri yang ingin Anda lihat',
                     style: TextStyle(
                       fontSize: 14,
-                      color: Colors.white.withOpacity(0.9),
+                      color: Colors.white.withAlpha(230),
                     ),
                   ),
                 ],
@@ -107,7 +107,7 @@ class SelectAccountScreen extends StatelessWidget {
               // Avatar
               CircleAvatar(
                 radius: 32,
-                backgroundColor: Theme.of(context).colorScheme.primary.withOpacity(0.1),
+                backgroundColor: Theme.of(context).colorScheme.primary.withAlpha(26),
                 backgroundImage: santri.fotoUrl != null 
                     ? NetworkImage(santri.fotoUrl!)
                     : null,
@@ -167,7 +167,7 @@ class SelectAccountScreen extends StatelessWidget {
                         vertical: 6,
                       ),
                       decoration: BoxDecoration(
-                        color: Colors.green.withOpacity(0.1),
+                        color: Colors.green.withAlpha(26),
                         borderRadius: BorderRadius.circular(8),
                       ),
                       child: Row(

@@ -66,7 +66,7 @@ class _SplashScreenState extends State<SplashScreen> {
               'Sistem Informasi Pesantren',
               style: TextStyle(
                 fontSize: 16,
-                color: Colors.white.withOpacity(0.9),
+                color: Colors.white.withAlpha(230),
               ),
             ),
             const SizedBox(height: 48),

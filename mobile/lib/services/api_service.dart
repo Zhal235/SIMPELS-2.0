@@ -1,6 +1,7 @@
 import 'package:dio/dio.dart';
+import 'package:flutter/foundation.dart';
 import 'dart:io';
-import 'dart:typed_data';
+// typed data provided by foundation import
 import '../config/app_config.dart';
 import '../utils/storage_helper.dart';
 
@@ -66,10 +67,10 @@ class ApiService {
   Future<Response> getAllTagihan(String santriId) async {
     try {
       final response = await _dio.get('${AppConfig.waliTagihanEndpoint}/$santriId');
-      print('getAllTagihan raw response: ${response.data.runtimeType}');
+      debugPrint('getAllTagihan raw response: ${response.data.runtimeType}');
       return response;
     } catch (e) {
-      print('getAllTagihan error: $e');
+      debugPrint('getAllTagihan error: $e');
       rethrow;
     }
   }
@@ -137,9 +138,9 @@ class ApiService {
     
     final formData = FormData.fromMap(formFields);
 
-    print('[API] Uploading bukti to: /wali/upload-bukti/$santriId');
-    print('[API] Tagihan IDs: $tagihanIds');
-    print('[API] Total: $totalNominal');
+    debugPrint('[API] Uploading bukti to: /wali/upload-bukti/$santriId');
+    debugPrint('[API] Tagihan IDs: $tagihanIds');
+    debugPrint('[API] Total: $totalNominal');
 
     return await _dio.post(
       '/wali/upload-bukti/$santriId',

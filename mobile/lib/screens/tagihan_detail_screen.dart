@@ -1,6 +1,5 @@
 import 'package:flutter/material.dart';
 import 'package:provider/provider.dart';
-import 'package:image_picker/image_picker.dart';
 import 'package:file_picker/file_picker.dart';
 import 'dart:io';
 import '../providers/auth_provider.dart';
@@ -155,13 +154,13 @@ class _TagihanDetailScreenState extends State<TagihanDetailScreen> {
         foregroundColor: Colors.white,
       ),
       body: status == 'lunas'
-          ? Center(
+          ? const Center(
               child: Column(
                 mainAxisAlignment: MainAxisAlignment.center,
                 children: [
                   Icon(Icons.check_circle, size: 80, color: Colors.green),
-                  const SizedBox(height: 16),
-                  const Text(
+                  SizedBox(height: 16),
+                  Text(
                     'Tagihan Sudah Lunas',
                     style: TextStyle(fontSize: 18, fontWeight: FontWeight.bold),
                   ),
@@ -215,7 +214,7 @@ class _TagihanDetailScreenState extends State<TagihanDetailScreen> {
                                   vertical: 6,
                                 ),
                                 decoration: BoxDecoration(
-                                  color: statusColor.withOpacity(0.1),
+                                  color: statusColor.withAlpha(26),
                                   borderRadius: BorderRadius.circular(4),
                                 ),
                                 child: Text(
@@ -313,7 +312,7 @@ class _TagihanDetailScreenState extends State<TagihanDetailScreen> {
                           else
                             Column(
                               children: [
-                                Icon(
+                                const Icon(
                                   Icons.check_circle,
                                   size: 48,
                                   color: Colors.green,
