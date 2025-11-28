@@ -284,6 +284,20 @@ export default function Sidebar() {
                     </NavLink>)}
                   </li>
                   
+                  {/* Bukti Transfer */}
+                  <li>
+                    {hasAccess('keuangan.bukti-transfer') && (
+                    <NavLink
+                      to="/keuangan/bukti-transfer"
+                      className={({ isActive }) =>
+                        `flex items-center gap-3 rounded-md px-3 py-2 text-sm ${isActive ? 'bg-white text-brand shadow-sm' : 'text-gray-700 hover:bg-white'}`
+                      }
+                    >
+                      <FileText className="w-5 h-5" />
+                      {sidebarOpen && <span>Bukti Transfer</span>}
+                    </NavLink>)}
+                  </li>
+                  
                   {/* Tunggakan Santri dengan submenu */}
                   <li>
                     <button

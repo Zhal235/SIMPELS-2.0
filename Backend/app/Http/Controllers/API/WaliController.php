@@ -98,7 +98,7 @@ class WaliController extends Controller
                 'jenis_kelamin' => $s->jenis_kelamin,
                 'kelas' => $s->kelas_nama ?? ($s->kelas->nama_kelas ?? null),
                 'asrama' => $s->asrama_nama ?? ($s->asrama->nama_asrama ?? $s->asrama->nama ?? null),
-                'foto_url' => $s->foto ? url('storage/' . $s->foto) : null,
+                'foto_url' => $s->foto ? \Storage::url($s->foto) : null,
                 'saldo_dompet' => $s->wallet ? ($s->wallet->balance ?? 0) : 0,
                 'limit_harian' => $transactionLimit ? $transactionLimit->daily_limit : 15000,
                 'hubungan' => $tipeWali,
@@ -161,7 +161,7 @@ class WaliController extends Controller
                     'jenis_kelamin' => $s->jenis_kelamin,
                     'kelas' => $s->kelas->nama ?? null,
                     'asrama' => $s->asrama->nama ?? null,
-                    'foto_url' => $s->foto ? url('storage/' . $s->foto) : null,
+                    'foto_url' => $s->foto ? \Storage::url($s->foto) : null,
                     'saldo_dompet' => $this->getSaldoDompet($s->id),
                 ];
             });
@@ -236,13 +236,48 @@ class WaliController extends Controller
             ->with('jenisTagihan')
             ->orderBy('created_at', 'desc')
             ->get()
-            ->map(function ($t) {
+            ->map(function ($t) use ($santriId) {
                 $nominal = $t->nominal ?? 0;
                 $dibayar = $t->dibayar ?? 0;
                 $sisa = $nominal - $dibayar;
                 
                 // Tentukan status berdasarkan DB
                 $status = $t->status ?? 'belum_bayar';
+                
+                // Check apakah ada bukti transfer pending untuk tagihan ini
+                $hasPendingBukti = false;
+                
+                try {
+                    // Check if bukti_transfer table exists and has data
+                    if (\Schema::hasTable('bukti_transfer')) {
+                        // Since tagihan_ids is stored as JSON array, check if this tagihan ID is in any pending bukti
+                        $pendingBukti = \App\Models\BuktiTransfer::where('status', 'pending')
+                            ->where('santri_id', $santriId)
+                            ->get();
+                        
+                        \Log::info("Checking tagihan {$t->id} against " . $pendingBukti->count() . " pending bukti");
+                        
+                        foreach ($pendingBukti as $bukti) {
+                            $tagihanIds = $bukti->tagihan_ids ?? [];
+                            \Log::info("Bukti {$bukti->id} has tagihan_ids: " . json_encode($tagihanIds));
+                            
+                            // Convert both to string for comparison
+                            $tagihanIdsAsStrings = array_map('strval', $tagihanIds);
+                            if (in_array(strval($t->id), $tagihanIdsAsStrings)) {
+                                $hasPendingBukti = true;
+                                \Log::info("Tagihan {$t->id} FOUND in bukti {$bukti->id}!");
+                                break;
+                            }
+                        }
+                        
+                        if (!$hasPendingBukti) {
+                            \Log::info("Tagihan {$t->id} NOT found in any pending bukti");
+                        }
+                    }
+                } catch (\Exception $e) {
+                    // Silently fail if table doesn't exist yet
+                    \Log::error('bukti_transfer check failed: ' . $e->getMessage());
+                }
                 
                 return [
                     'id' => $t->id,
@@ -254,6 +289,7 @@ class WaliController extends Controller
                     'dibayar' => (float)$dibayar,
                     'sisa' => (float)$sisa,
                     'status' => $status,
+                    'has_pending_bukti' => $hasPendingBukti,
                     'jatuh_tempo' => $t->jatuh_tempo ?? null,
                     'tanggal_dibuat' => $t->created_at->format('Y-m-d H:i:s'),
                 ];
@@ -428,6 +464,109 @@ class WaliController extends Controller
                 'pembayaran' => $pembayaran,
             ], 201);
 
+        } catch (\Exception $e) {
+            return response()->json([
+                'success' => false,
+                'error' => $e->getMessage(),
+            ], 500);
+        }
+    }
+
+    /**
+     * Upload bukti transfer untuk multiple tagihan
+     */
+    public function uploadBukti(Request $request, $santriId)
+    {
+        $request->validate([
+            'tagihan_ids' => 'required|array|min:1',
+            'tagihan_ids.*' => 'required|integer|exists:tagihan_santri,id',
+            'total_nominal' => 'required|numeric|min:1',
+            'bukti' => 'required|file|mimes:jpeg,jpg,png|max:5120',
+            'catatan' => 'nullable|string|max:500',
+        ]);
+
+        try {
+            // Verify santri exists
+            $santri = Santri::find($santriId);
+            if (!$santri) {
+                return response()->json(['error' => 'Santri tidak ditemukan'], 404);
+            }
+
+            // Verify all tagihan belong to this santri
+            $tagihans = TagihanSantri::whereIn('id', $request->tagihan_ids)
+                ->where('santri_id', $santriId)
+                ->get();
+
+            if ($tagihans->count() !== count($request->tagihan_ids)) {
+                return response()->json(['error' => 'Beberapa tagihan tidak valid'], 400);
+            }
+
+            // Store bukti transfer file
+            $filePath = $request->file('bukti')->store('bukti_transfer', 'public');
+
+            // Create bukti transfer record
+            $buktiTransfer = \App\Models\BuktiTransfer::create([
+                'santri_id' => $santriId,
+                'tagihan_ids' => $request->tagihan_ids,
+                'total_nominal' => $request->total_nominal,
+                'bukti_path' => $filePath,
+                'status' => 'pending',
+                'catatan_wali' => $request->catatan,
+                'uploaded_at' => now(),
+            ]);
+
+            return response()->json([
+                'success' => true,
+                'message' => 'Bukti transfer berhasil dikirim. Tunggu konfirmasi admin.',
+                'data' => $buktiTransfer,
+            ], 201);
+
+        } catch (\Exception $e) {
+            return response()->json([
+                'success' => false,
+                'error' => $e->getMessage(),
+            ], 500);
+        }
+    }
+
+    /**
+     * Get history bukti transfer untuk santri
+     */
+    public function getBuktiHistory($santriId)
+    {
+        try {
+            $buktiList = \App\Models\BuktiTransfer::where('santri_id', $santriId)
+                ->with(['santri', 'processedBy'])
+                ->orderBy('uploaded_at', 'desc')
+                ->get()
+                ->map(function ($bukti) {
+                    // Get tagihan details
+                    $tagihans = TagihanSantri::whereIn('id', $bukti->tagihan_ids)->get();
+                    
+                    return [
+                        'id' => $bukti->id,
+                        'total_nominal' => $bukti->total_nominal,
+                        'status' => $bukti->status,
+                        'catatan_wali' => $bukti->catatan_wali,
+                        'catatan_admin' => $bukti->catatan_admin,
+                        'bukti_url' => $bukti->bukti_url,
+                        'uploaded_at' => $bukti->uploaded_at->format('Y-m-d H:i:s'),
+                        'processed_at' => $bukti->processed_at ? $bukti->processed_at->format('Y-m-d H:i:s') : null,
+                        'tagihan' => $tagihans->map(function ($t) {
+                            return [
+                                'jenis' => $t->jenisTagihan->nama_tagihan ?? 'Biaya',
+                                'bulan' => $t->bulan,
+                                'tahun' => $t->tahun,
+                                'nominal' => $t->nominal,
+                            ];
+                        }),
+                    ];
+                });
+
+            return response()->json([
+                'success' => true,
+                'data' => $buktiList,
+            ]);
         } catch (\Exception $e) {
             return response()->json([
                 'success' => false,

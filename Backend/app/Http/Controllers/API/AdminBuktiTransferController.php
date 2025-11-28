@@ -1,0 +1,198 @@
+<?php
+
+namespace App\Http\Controllers\Api;
+
+use App\Http\Controllers\Controller;
+use App\Models\BuktiTransfer;
+use App\Models\TagihanSantri;
+use App\Models\Pembayaran;
+use Illuminate\Http\Request;
+use Illuminate\Support\Facades\DB;
+use Illuminate\Support\Facades\Auth;
+use Illuminate\Support\Facades\Storage;
+
+class AdminBuktiTransferController extends Controller
+{
+    /**
+     * Get all bukti transfer (with filter)
+     */
+    public function index(Request $request)
+    {
+        try {
+            $query = BuktiTransfer::with(['santri', 'processedBy']);
+
+            // Filter by status
+            if ($request->has('status')) {
+                $query->where('status', $request->status);
+            } else {
+                // Default: show only pending
+                $query->where('status', 'pending');
+            }
+
+            $buktiList = $query->orderBy('uploaded_at', 'desc')
+                ->get()
+                ->map(function ($bukti) {
+                    // Get tagihan details
+                    $tagihans = TagihanSantri::whereIn('id', $bukti->tagihan_ids)
+                        ->with('jenisTagihan')
+                        ->get();
+                    
+                    return [
+                        'id' => $bukti->id,
+                        'santri' => $bukti->santri ? [
+                            'id' => $bukti->santri->id,
+                            'nis' => $bukti->santri->nis,
+                            'nama' => $bukti->santri->nama_santri ?? $bukti->santri->nama,
+                            'kelas' => optional($bukti->santri->kelas)->nama_kelas ?? optional($bukti->santri->kelas)->nama ?? null,
+                        ] : null,
+                        'total_nominal' => $bukti->total_nominal,
+                        'status' => $bukti->status,
+                        'catatan_wali' => $bukti->catatan_wali,
+                        'catatan_admin' => $bukti->catatan_admin,
+                        'bukti_url' => $bukti->bukti_path ? url('storage/' . $bukti->bukti_path) : null,
+                        'uploaded_at' => $bukti->uploaded_at->format('Y-m-d H:i:s'),
+                        'processed_at' => $bukti->processed_at ? $bukti->processed_at->format('Y-m-d H:i:s') : null,
+                        'processed_by' => $bukti->processedBy ? $bukti->processedBy->name : null,
+                        'tagihan' => $tagihans->map(function ($t) {
+                            return [
+                                'id' => $t->id,
+                                'jenis' => $t->jenisTagihan->nama_tagihan ?? 'Biaya',
+                                'bulan' => $t->bulan,
+                                'tahun' => $t->tahun,
+                                'nominal' => $t->nominal,
+                                'dibayar' => $t->dibayar,
+                                'sisa' => $t->sisa,
+                                'status' => $t->status,
+                            ];
+                        }),
+                    ];
+                });
+
+            return response()->json([
+                'success' => true,
+                'data' => $buktiList,
+            ]);
+        } catch (\Exception $e) {
+            return response()->json([
+                'success' => false,
+                'error' => $e->getMessage(),
+            ], 500);
+        }
+    }
+
+    /**
+     * Approve bukti transfer
+     */
+    public function approve(Request $request, $id)
+    {
+        $request->validate([
+            'catatan' => 'nullable|string|max:500',
+        ]);
+
+        try {
+            DB::beginTransaction();
+
+            $bukti = BuktiTransfer::findOrFail($id);
+
+            if ($bukti->status !== 'pending') {
+                return response()->json([
+                    'error' => 'Bukti transfer sudah diproses sebelumnya'
+                ], 400);
+            }
+
+            // Get all tagihan
+            $tagihans = TagihanSantri::whereIn('id', $bukti->tagihan_ids)->get();
+
+            // Process each tagihan
+            foreach ($tagihans as $tagihan) {
+                // Calculate how much to pay for this tagihan
+                $sisaTagihan = $tagihan->nominal - $tagihan->dibayar;
+                $nominalBayar = min($sisaTagihan, $bukti->total_nominal / count($tagihans));
+
+                // Update tagihan
+                $tagihan->dibayar += $nominalBayar;
+                $tagihan->sisa = $tagihan->nominal - $tagihan->dibayar;
+                
+                if ($tagihan->sisa <= 0) {
+                    $tagihan->status = 'lunas';
+                } else if ($tagihan->dibayar > 0) {
+                    $tagihan->status = 'sebagian';
+                }
+                
+                $tagihan->save();
+
+                // Create pembayaran record (use correct column names)
+                Pembayaran::create([
+                    'tagihan_santri_id' => $tagihan->id,
+                    'santri_id' => $bukti->santri_id,
+                    'nominal_bayar' => $nominalBayar,
+                    'metode_pembayaran' => 'transfer',
+                    'bukti_pembayaran' => $bukti->bukti_path,
+                    'status_pembayaran' => 'completed',
+                    'tanggal_bayar' => now(),
+                    'keterangan' => 'Pembayaran via verifikasi bukti transfer (admin ' . (Auth::user()?->name ?? Auth::id()) . ')',
+                ]);
+            }
+
+            // Update bukti transfer status
+            $bukti->update([
+                'status' => 'approved',
+                'catatan_admin' => $request->catatan,
+                'processed_at' => now(),
+                'processed_by' => Auth::id(),
+            ]);
+
+            DB::commit();
+
+            return response()->json([
+                'success' => true,
+                'message' => 'Bukti transfer berhasil disetujui dan pembayaran diproses',
+            ]);
+
+        } catch (\Exception $e) {
+            DB::rollBack();
+            return response()->json([
+                'success' => false,
+                'error' => $e->getMessage(),
+            ], 500);
+        }
+    }
+
+    /**
+     * Reject bukti transfer
+     */
+    public function reject(Request $request, $id)
+    {
+        $request->validate([
+            'catatan' => 'required|string|max:500',
+        ]);
+
+        try {
+            $bukti = BuktiTransfer::findOrFail($id);
+
+            if ($bukti->status !== 'pending') {
+                return response()->json([
+                    'error' => 'Bukti transfer sudah diproses sebelumnya'
+                ], 400);
+            }
+
+            $bukti->update([
+                'status' => 'rejected',
+                'catatan_admin' => $request->catatan,
+                'processed_at' => now(),
+                'processed_by' => Auth::id(),
+            ]);
+
+            return response()->json([
+                'success' => true,
+                'message' => 'Bukti transfer ditolak',
+            ]);
+
+        } catch (\Exception $e) {
+            return response()->json([
+                'success' => false,
+                'error' => $e->getMessage(),
+            ], 500);
+        }
+    }
+}

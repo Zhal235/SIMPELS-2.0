@@ -1,5 +1,6 @@
 import 'package:dio/dio.dart';
 import 'dart:io';
+import 'dart:typed_data';
 import '../config/app_config.dart';
 import '../utils/storage_helper.dart';
 
@@ -94,5 +95,59 @@ class ApiService {
       '/wali/bayar/$santriId',
       data: formData,
     );
+  }
+
+  Future<Response> uploadBuktiTransfer({
+    required String santriId,
+    required List<int> tagihanIds,
+    required double totalNominal,
+    File? buktiFile,
+    Uint8List? buktiBytes,
+    String? catatan,
+  }) async {
+    MultipartFile multipartFile;
+    
+    if (buktiBytes != null) {
+      // For web platform
+      multipartFile = MultipartFile.fromBytes(
+        buktiBytes,
+        filename: 'bukti_transfer_${DateTime.now().millisecondsSinceEpoch}.jpg',
+      );
+    } else if (buktiFile != null) {
+      // For mobile platform
+      multipartFile = await MultipartFile.fromFile(
+        buktiFile.path,
+        filename: 'bukti_transfer_${DateTime.now().millisecondsSinceEpoch}.jpg',
+      );
+    } else {
+      throw Exception('No file provided');
+    }
+
+    // Build form data with proper array format for Laravel
+    final Map<String, dynamic> formFields = {
+      'total_nominal': totalNominal.toString(),
+      'catatan': catatan ?? '',
+      'bukti': multipartFile,
+    };
+    
+    // Add array items individually with [] notation for Laravel
+    for (int i = 0; i < tagihanIds.length; i++) {
+      formFields['tagihan_ids[$i]'] = tagihanIds[i].toString();
+    }
+    
+    final formData = FormData.fromMap(formFields);
+
+    print('[API] Uploading bukti to: /wali/upload-bukti/$santriId');
+    print('[API] Tagihan IDs: $tagihanIds');
+    print('[API] Total: $totalNominal');
+
+    return await _dio.post(
+      '/wali/upload-bukti/$santriId',
+      data: formData,
+    );
+  }
+
+  Future<Response> getBuktiHistory(String santriId) async {
+    return await _dio.get('/wali/bukti-history/$santriId');
   }
 }

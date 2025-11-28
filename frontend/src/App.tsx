@@ -26,6 +26,7 @@ const PembayaranSantri = lazy(() => import('./pages/keuangan/PembayaranSantri'))
 const TransaksiKas = lazy(() => import('./pages/keuangan/TransaksiKas'))
 const BukuKas = lazy(() => import('./pages/keuangan/BukuKas'))
 const TagihanSantri = lazy(() => import('./pages/keuangan/TagihanSantri'))
+const BuktiTransfer = lazy(() => import('./pages/keuangan/BuktiTransfer'))
 const TunggakanMutasi = lazy(() => import('./pages/keuangan/TunggakanMutasi'))
 const TunggakanAlumni = lazy(() => import('./pages/keuangan/TunggakanAlumni'))
 const JenisTagihan = lazy(() => import('./pages/keuangan/JenisTagihan'))
@@ -200,6 +201,13 @@ export default function App() {
               <ProtectedRoute>
                 <AppLayout>
                   <TagihanSantri />
+                </AppLayout>
+              </ProtectedRoute>
+            } />
+            <Route path="/keuangan/bukti-transfer" element={
+              <ProtectedRoute>
+                <AppLayout>
+                  <BuktiTransfer />
                 </AppLayout>
               </ProtectedRoute>
             } />

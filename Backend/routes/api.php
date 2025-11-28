@@ -32,6 +32,17 @@ Route::middleware('auth:sanctum')->prefix('wali')->group(function () {
     Route::get('pembayaran/{santri_id}', [WaliController::class, 'getPembayaran']);
     Route::get('tunggakan/{santri_id}', [WaliController::class, 'getTunggakan']);
     Route::post('bayar/{santri_id}', [WaliController::class, 'submitPayment']);
+    
+    // Bukti Transfer
+    Route::post('upload-bukti/{santri_id}', [WaliController::class, 'uploadBukti']);
+    Route::get('bukti-history/{santri_id}', [WaliController::class, 'getBuktiHistory']);
+});
+
+// Admin Bukti Transfer routes
+Route::middleware('auth:sanctum')->prefix('admin/bukti-transfer')->group(function () {
+    Route::get('/', [\App\Http\Controllers\Api\AdminBuktiTransferController::class, 'index']);
+    Route::post('/{id}/approve', [\App\Http\Controllers\Api\AdminBuktiTransferController::class, 'approve']);
+    Route::post('/{id}/reject', [\App\Http\Controllers\Api\AdminBuktiTransferController::class, 'reject']);
 });
 
 // Protected routes

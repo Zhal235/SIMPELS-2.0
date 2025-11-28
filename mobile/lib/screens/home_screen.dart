@@ -4,7 +4,6 @@ import '../providers/auth_provider.dart';
 import '../services/api_service.dart';
 import '../models/santri_model.dart';
 import 'login_screen.dart';
-import 'tagihan_detail_screen.dart';
 
 class HomeScreen extends StatefulWidget {
   final int initialIndex;
@@ -147,19 +146,31 @@ class DashboardTab extends StatelessWidget {
               child: Column(
                 children: [
                   // Photo Profile
-                  CircleAvatar(
-                    radius: 50,
-                    backgroundColor: Colors.white,
-                    backgroundImage: santri?.fotoUrl != null
-                        ? NetworkImage(santri!.fotoUrl!)
-                        : null,
-                    child: santri?.fotoUrl == null
-                        ? Icon(
-                            santri?.jenisKelamin == 'L' ? Icons.boy : Icons.girl,
-                            size: 50,
-                            color: Theme.of(context).colorScheme.primary,
-                          )
-                        : null,
+                  Builder(
+                    builder: (context) {
+                      if (santri?.fotoUrl != null) {
+                        print('[HomeScreen] Foto URL: ${santri!.fotoUrl}');
+                      }
+                      return CircleAvatar(
+                        radius: 50,
+                        backgroundColor: Colors.white,
+                        backgroundImage: santri?.fotoUrl != null && santri!.fotoUrl!.isNotEmpty
+                            ? NetworkImage(santri.fotoUrl!)
+                            : null,
+                        onBackgroundImageError: santri?.fotoUrl != null
+                            ? (exception, stackTrace) {
+                                print('[HomeScreen] Error loading foto: $exception');
+                              }
+                            : null,
+                        child: santri?.fotoUrl == null || santri!.fotoUrl!.isEmpty
+                            ? Icon(
+                                santri?.jenisKelamin == 'L' ? Icons.boy : Icons.girl,
+                                size: 50,
+                                color: Theme.of(context).colorScheme.primary,
+                              )
+                            : null,
+                      );
+                    },
                   ),
                   const SizedBox(height: 16),
                   // Nama Santri
@@ -461,6 +472,10 @@ class _PembayaranTabState extends State<PembayaranTab> with SingleTickerProvider
   late TabController _tabController;
   bool _isLoading = true;
   Map<String, dynamic>? _tagihanData;
+  Set<int> _selectedTagihanIds = {};
+  
+  // Selection mode is active when any tagihan is selected
+  bool get _isSelectionMode => _selectedTagihanIds.isNotEmpty;
   
   @override
   void initState() {
@@ -473,6 +488,52 @@ class _PembayaranTabState extends State<PembayaranTab> with SingleTickerProvider
   void dispose() {
     _tabController.dispose();
     super.dispose();
+  }
+
+  void _toggleSelection(int tagihanId) {
+    setState(() {
+      if (_selectedTagihanIds.contains(tagihanId)) {
+        _selectedTagihanIds.remove(tagihanId);
+      } else {
+        _selectedTagihanIds.add(tagihanId);
+      }
+    });
+  }
+
+  double _calculateTotal() {
+    if (_tagihanData == null) return 0;
+    
+    double total = 0;
+    final allTagihan = _tagihanData!['data']?['semua'] ?? [];
+    
+    for (var tagihan in allTagihan) {
+      if (_selectedTagihanIds.contains(tagihan['id'])) {
+        final sisa = double.tryParse(tagihan['sisa'].toString()) ?? 0;
+        total += sisa;
+      }
+    }
+    return total;
+  }
+
+  List<Map<String, dynamic>> _getSelectedTagihan() {
+    if (_tagihanData == null) return [];
+    
+    try {
+      final allTagihan = _tagihanData!['data']?['semua'] as List?;
+      if (allTagihan == null) return [];
+      
+      return allTagihan
+          .whereType<Map>()
+          .where((t) {
+            final id = t['id'];
+            return id != null && _selectedTagihanIds.contains(id);
+          })
+          .map((t) => Map<String, dynamic>.from(t))
+          .toList();
+    } catch (e) {
+      print('Error in _getSelectedTagihan: $e');
+      return [];
+    }
   }
 
   Future<void> _loadTagihan() async {
@@ -520,13 +581,27 @@ class _PembayaranTabState extends State<PembayaranTab> with SingleTickerProvider
 
   @override
   Widget build(BuildContext context) {
+    final totalSelected = _calculateTotal();
+    
     return Scaffold(
       backgroundColor: Colors.grey[50],
       appBar: AppBar(
-        title: const Text('Pembayaran'),
+        title: _isSelectionMode 
+            ? Text('${_selectedTagihanIds.length} dipilih')
+            : const Text('Pembayaran'),
         backgroundColor: Theme.of(context).colorScheme.primary,
         foregroundColor: Colors.white,
         elevation: 0,
+        leading: _isSelectionMode
+            ? IconButton(
+                icon: const Icon(Icons.close),
+                onPressed: () {
+                  setState(() {
+                    _selectedTagihanIds.clear();
+                  });
+                },
+              )
+            : null,
         bottom: TabBar(
           controller: _tabController,
           indicatorColor: Colors.white,
@@ -543,17 +618,117 @@ class _PembayaranTabState extends State<PembayaranTab> with SingleTickerProvider
       ),
       body: _isLoading
           ? const Center(child: CircularProgressIndicator())
-          : RefreshIndicator(
-              onRefresh: _loadTagihan,
-              child: TabBarView(
-                controller: _tabController,
-                children: [
-                  _buildTagihanList(_tagihanData?['data']?['semua'] ?? []),
-                  _buildTagihanList(_tagihanData?['data']?['lunas'] ?? []),
-                  _buildTagihanList(_tagihanData?['data']?['belum_bayar'] ?? []),
-                  _buildTagihanList(_tagihanData?['data']?['tunggakan'] ?? []),
-                ],
-              ),
+          : Column(
+              children: [
+                Expanded(
+                  child: RefreshIndicator(
+                    onRefresh: _loadTagihan,
+                    child: TabBarView(
+                      controller: _tabController,
+                      children: [
+                        _buildTagihanList(_tagihanData?['data']?['semua'] ?? []),
+                        _buildTagihanList(_tagihanData?['data']?['lunas'] ?? []),
+                        _buildTagihanList(_tagihanData?['data']?['belum_bayar'] ?? []),
+                        _buildTagihanList(_tagihanData?['data']?['tunggakan'] ?? []),
+                      ],
+                    ),
+                  ),
+                ),
+                if (_isSelectionMode)
+                  Container(
+                    decoration: BoxDecoration(
+                      color: Colors.white,
+                      boxShadow: [
+                        BoxShadow(
+                          color: Colors.black.withOpacity(0.1),
+                          blurRadius: 8,
+                          offset: const Offset(0, -2),
+                        ),
+                      ],
+                    ),
+                    padding: const EdgeInsets.all(16),
+                    child: SafeArea(
+                      child: Row(
+                        children: [
+                          Expanded(
+                            child: Column(
+                              crossAxisAlignment: CrossAxisAlignment.start,
+                              mainAxisSize: MainAxisSize.min,
+                              children: [
+                                Text(
+                                  '${_selectedTagihanIds.length} tagihan dipilih',
+                                  style: const TextStyle(
+                                    fontSize: 12,
+                                    color: Colors.grey,
+                                  ),
+                                ),
+                                const SizedBox(height: 4),
+                                Text(
+                                  'Rp ${totalSelected.toStringAsFixed(0).replaceAllMapped(RegExp(r'(\d{1,3})(?=(\d{3})+(?!\d))'), (Match m) => '${m[1]}.')}',
+                                  style: const TextStyle(
+                                    fontSize: 20,
+                                    fontWeight: FontWeight.bold,
+                                    color: Color(0xFF1976D2),
+                                  ),
+                                ),
+                              ],
+                            ),
+                          ),
+                          const SizedBox(width: 16),
+                          ElevatedButton(
+                            onPressed: _selectedTagihanIds.isEmpty ? null : () {
+                              try {
+                                final selectedTagihan = _getSelectedTagihan();
+                                print('[Bayar Button] Selected tagihan count: ${selectedTagihan.length}');
+                                print('[Bayar Button] Total: $totalSelected');
+                                
+                                // Navigate to upload bukti screen
+                                Navigator.pushNamed(
+                                  context,
+                                  '/upload-bukti',
+                                  arguments: {
+                                    'selectedTagihan': selectedTagihan,
+                                    'totalNominal': totalSelected,
+                                  },
+                                ).then((result) {
+                                  if (result == true) {
+                                    setState(() {
+                                      _selectedTagihanIds.clear();
+                                    });
+                                    _loadTagihan();
+                                  }
+                                });
+                              } catch (e) {
+                                print('[Bayar Button ERROR] $e');
+                                ScaffoldMessenger.of(context).showSnackBar(
+                                  SnackBar(content: Text('Error: $e')),
+                                );
+                              }
+                            },
+                            style: ElevatedButton.styleFrom(
+                              backgroundColor: const Color(0xFF1976D2),
+                              padding: const EdgeInsets.symmetric(
+                                horizontal: 32,
+                                vertical: 16,
+                              ),
+                              shape: RoundedRectangleBorder(
+                                borderRadius: BorderRadius.circular(8),
+                              ),
+                            ),
+                            child: const Text(
+                              'Bayar',
+                              style: TextStyle(
+                                fontSize: 16,
+                                fontWeight: FontWeight.bold,
+                                color: Colors.white,
+                              ),
+                            ),
+                          ),
+                        ],
+                      ),
+                    ),
+                  ),
+              ],
             ),
     );
   }
@@ -587,22 +762,35 @@ class _PembayaranTabState extends State<PembayaranTab> with SingleTickerProvider
 
   Widget _buildTagihanCard(Map<String, dynamic> tagihan) {
     final status = tagihan['status'] ?? '';
+    final tagihanId = tagihan['id'] as int?;
+    final hasPendingBukti = tagihan['has_pending_bukti'] == true;
+    final isSelected = tagihanId != null && _selectedTagihanIds.contains(tagihanId);
+    
+    // Disable selection for paid or pending tagihan
+    final canSelect = status != 'lunas' && !hasPendingBukti;
+    
     final Color statusColor;
     final String statusText;
 
-    switch (status) {
-      case 'lunas':
-        statusColor = Colors.green;
-        statusText = 'LUNAS';
-        break;
-      case 'sebagian':
-        statusColor = Colors.orange;
-        statusText = 'SEBAGIAN';
-        break;
-      case 'belum_bayar':
-      default:
-        statusColor = Colors.red;
-        statusText = 'BELUM BAYAR';
+    // Priority: pending bukti > status lunas > other statuses
+    if (hasPendingBukti) {
+      statusColor = Colors.orange;
+      statusText = 'PENDING';
+    } else {
+      switch (status) {
+        case 'lunas':
+          statusColor = Colors.green;
+          statusText = 'LUNAS';
+          break;
+        case 'sebagian':
+          statusColor = Colors.orange;
+          statusText = 'SEBAGIAN';
+          break;
+        case 'belum_bayar':
+        default:
+          statusColor = Colors.red;
+          statusText = 'BELUM BAYAR';
+      }
     }
 
     final nominal = double.tryParse(tagihan['nominal'].toString()) ?? 0;
@@ -612,33 +800,40 @@ class _PembayaranTabState extends State<PembayaranTab> with SingleTickerProvider
 
     return GestureDetector(
       onTap: () {
-        Navigator.push(
-          context,
-          MaterialPageRoute(
-            builder: (_) => TagihanDetailScreen(tagihan: {
-              ...tagihan,
-              'jumlah': nominal,
-              'sudah_dibayar': dibayar,
-            }),
-          ),
-        ).then((result) {
-          // Refresh tagihan jika pembayaran berhasil
-          if (result == true) {
-            _loadTagihan();
-          }
-        });
+        // Allow selection if item is selectable
+        if (canSelect && tagihanId != null) {
+          _toggleSelection(tagihanId);
+        }
       },
-      child: Card(
-        margin: const EdgeInsets.only(bottom: 12),
-        shape: RoundedRectangleBorder(borderRadius: BorderRadius.circular(12)),
-        child: Padding(
-          padding: const EdgeInsets.all(16),
-          child: Column(
-            crossAxisAlignment: CrossAxisAlignment.start,
-            children: [
-            Row(
-              mainAxisAlignment: MainAxisAlignment.spaceBetween,
+      child: Opacity(
+        opacity: hasPendingBukti ? 0.6 : 1.0,
+        child: Card(
+          margin: const EdgeInsets.only(bottom: 12),
+          shape: RoundedRectangleBorder(borderRadius: BorderRadius.circular(12)),
+          color: isSelected ? const Color(0xFF1976D2).withOpacity(0.1) : Colors.white,
+          child: Padding(
+            padding: const EdgeInsets.all(16),
+            child: Column(
+              crossAxisAlignment: CrossAxisAlignment.start,
               children: [
+              Row(
+                mainAxisAlignment: MainAxisAlignment.spaceBetween,
+                children: [
+                  if (canSelect)
+                    Checkbox(
+                      value: isSelected,
+                      onChanged: (bool? value) {
+                        if (tagihanId != null) {
+                          _toggleSelection(tagihanId);
+                        }
+                      },
+                      activeColor: const Color(0xFF1976D2),
+                    ),
+                  if (hasPendingBukti)
+                    Padding(
+                      padding: const EdgeInsets.only(right: 8),
+                      child: Icon(Icons.schedule, color: Colors.orange, size: 20),
+                    ),
                 Expanded(
                   child: Text(
                     jenisTgh.toString(),
@@ -765,6 +960,7 @@ class _PembayaranTabState extends State<PembayaranTab> with SingleTickerProvider
             ],
           ),
         ),
+      ),
       ),
     );
   }
