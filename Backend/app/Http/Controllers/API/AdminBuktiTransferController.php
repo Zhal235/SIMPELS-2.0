@@ -6,6 +6,7 @@ use App\Http\Controllers\Controller;
 use App\Models\BuktiTransfer;
 use App\Models\TagihanSantri;
 use App\Models\Pembayaran;
+use App\Models\TransaksiKas;
 use Illuminate\Http\Request;
 use Illuminate\Support\Facades\DB;
 use Illuminate\Support\Facades\Auth;
@@ -73,6 +74,8 @@ class AdminBuktiTransferController extends Controller
                 'data' => $buktiList,
             ]);
         } catch (\Exception $e) {
+            \Log::error('Error fetching bukti transfer: ' . $e->getMessage());
+            \Log::error($e->getTraceAsString());
             return response()->json([
                 'success' => false,
                 'error' => $e->getMessage(),
@@ -109,6 +112,9 @@ class AdminBuktiTransferController extends Controller
                 $sisaTagihan = $tagihan->nominal - $tagihan->dibayar;
                 $nominalBayar = min($sisaTagihan, $bukti->total_nominal / count($tagihans));
 
+                // Capture sisa before applying payment
+                $sisaSebelum = $sisaTagihan;
+
                 // Update tagihan
                 $tagihan->dibayar += $nominalBayar;
                 $tagihan->sisa = $tagihan->nominal - $tagihan->dibayar;
@@ -121,17 +127,80 @@ class AdminBuktiTransferController extends Controller
                 
                 $tagihan->save();
 
-                // Create pembayaran record (use correct column names)
-                Pembayaran::create([
+                // Prepare pembayaran attributes — ensure required fields exist
+                $bukuKasId = DB::table('buku_kas')->value('id');
+                if (!$bukuKasId) {
+                    // Create a default buku kas if none exists
+                    $bukuKasId = DB::table('buku_kas')->insertGetId([
+                        'nama_kas' => 'Kas Default',
+                        'saldo_cash_awal' => 0,
+                        'saldo_bank_awal' => 0,
+                        'created_at' => now(),
+                        'updated_at' => now(),
+                    ]);
+                }
+
+                $noTransaksi = Pembayaran::generateNoTransaksi();
+
+                // nominalBayar already applied and saved above — compute sisa after
+                $sisaSesudah = $tagihan->sisa;
+
+                $statusPembayaran = $sisaSesudah <= 0 ? 'lunas' : 'sebagian';
+
+                $pembayaran = Pembayaran::create([
                     'tagihan_santri_id' => $tagihan->id,
                     'santri_id' => $bukti->santri_id,
+                    'buku_kas_id' => $bukuKasId,
+                    'no_transaksi' => $noTransaksi,
+                    'tanggal_bayar' => now(),
                     'nominal_bayar' => $nominalBayar,
                     'metode_pembayaran' => 'transfer',
-                    'bukti_pembayaran' => $bukti->bukti_path,
-                    'status_pembayaran' => 'completed',
-                    'tanggal_bayar' => now(),
+                    'status_pembayaran' => $statusPembayaran,
+                    'sisa_sebelum' => $sisaSebelum,
+                    'sisa_sesudah' => $sisaSesudah,
                     'keterangan' => 'Pembayaran via verifikasi bukti transfer (admin ' . (Auth::user()?->name ?? Auth::id()) . ')',
+                    'bukti_pembayaran' => $bukti->bukti_path,
                 ]);
+
+                // Catat sebagai transaksi pemasukan di buku kas
+                $maxRetries = 5;
+                $transaksiKasCreated = false;
+                
+                for ($i = 0; $i < $maxRetries; $i++) {
+                    try {
+                        $noTransaksiKas = TransaksiKas::generateNoTransaksi('pemasukan');
+                        
+                        // Add random suffix if retry
+                        if ($i > 0) {
+                            $noTransaksiKas .= '-' . $i;
+                        }
+                        
+                        TransaksiKas::create([
+                            'buku_kas_id' => $bukuKasId,
+                            'no_transaksi' => $noTransaksiKas,
+                            'tanggal' => now(),
+                            'jenis' => 'pemasukan',
+                            'metode' => 'transfer',
+                            'kategori' => 'Pembayaran Tagihan',
+                            'nominal' => $nominalBayar,
+                            'keterangan' => 'Pembayaran ' . $tagihan->jenisTagihan->nama_tagihan . ' - ' . $tagihan->bulan . ' ' . $tagihan->tahun . ' (via bukti transfer)',
+                            'pembayaran_id' => $pembayaran->id,
+                        ]);
+                        
+                        $transaksiKasCreated = true;
+                        break;
+                    } catch (\Illuminate\Database\QueryException $e) {
+                        if ($e->getCode() !== '23000') { // Not a constraint violation
+                            throw $e;
+                        }
+                        // Continue to retry with new number
+                        usleep(100000); // Wait 100ms before retry
+                    }
+                }
+                
+                if (!$transaksiKasCreated) {
+                    throw new \Exception('Gagal membuat transaksi kas setelah beberapa percobaan');
+                }
             }
 
             // Update bukti transfer status

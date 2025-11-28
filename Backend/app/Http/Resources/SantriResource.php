@@ -3,6 +3,7 @@
 namespace App\Http\Resources;
 
 use Illuminate\Http\Resources\Json\JsonResource;
+use Illuminate\Support\Facades\Storage;
 
 class SantriResource extends JsonResource
 {
@@ -22,7 +23,7 @@ class SantriResource extends JsonResource
             'alamat' => $this->alamat,
             'nama_ayah' => $this->nama_ayah,
             'nama_ibu' => $this->nama_ibu,
-            'foto_url' => $this->foto ? asset('storage/'.$this->foto) : null,
+            'foto' => $this->foto ? Storage::url($this->foto) : null,
             'created_at' => $this->created_at?->format('Y-m-d H:i:s'),
         ];
     }

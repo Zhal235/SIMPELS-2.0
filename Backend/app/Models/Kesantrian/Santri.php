@@ -10,7 +10,7 @@ class Santri extends Model
 {
     use HasFactory;
 
-    protected $table = 'santris';
+    protected $table = 'santri';
 
     protected $fillable = [
         'nis',

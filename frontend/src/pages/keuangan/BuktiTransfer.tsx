@@ -1,6 +1,6 @@
 import { useState, useEffect } from 'react';
 import api from '../../api';
-import { CheckCircle, XCircle, Eye, FileText, User, Calendar, DollarSign } from 'lucide-react';
+import { CheckCircle, XCircle, Eye, FileText, User, Calendar, DollarSign, Filter } from 'lucide-react';
 import Modal from '../../components/Modal'
 import toast from 'react-hot-toast';
 
@@ -44,16 +44,30 @@ export default function BuktiTransfer() {
   const [actionType, setActionType] = useState<'approve' | 'reject' | null>(null);
   const [catatan, setCatatan] = useState('');
   const [processing, setProcessing] = useState(false);
-  const [filter, setFilter] = useState<'pending' | 'all'>('pending');
+  const [activeTab, setActiveTab] = useState<'pending' | 'history'>('pending');
+  const [historyFilter, setHistoryFilter] = useState<'all' | 'approved' | 'rejected'>('all');
 
   useEffect(() => {
     loadBuktiTransfer();
-  }, [filter]);
+  }, [activeTab, historyFilter]);
 
   const loadBuktiTransfer = async () => {
     try {
       setLoading(true);
-      const params = filter === 'all' ? {} : { status: 'pending' };
+      let params: any = {};
+      
+      if (activeTab === 'pending') {
+        params.status = 'pending';
+      } else {
+        // History tab - apply filter
+        if (historyFilter === 'approved') {
+          params.status = 'approved';
+        } else if (historyFilter === 'rejected') {
+          params.status = 'rejected';
+        }
+        // If 'all', don't add status param to get all processed bukti
+      }
+      
       const response = await api.get('/admin/bukti-transfer', { params });
       setBuktiList(response.data.data);
     } catch (error: any) {
@@ -175,34 +189,76 @@ export default function BuktiTransfer() {
 
   return (
     <div className="p-6">
-      <div className="flex justify-between items-center mb-6">
-        <div>
-          <h1 className="text-2xl font-bold text-gray-800">Bukti Transfer</h1>
-          <p className="text-gray-600 mt-1">Verifikasi pembayaran dari wali santri</p>
+      <div className="mb-6">
+        <div className="flex justify-between items-center mb-6">
+          <div>
+            <h1 className="text-2xl font-bold text-gray-800">Bukti Transfer</h1>
+            <p className="text-gray-600 mt-1">Verifikasi pembayaran dari wali santri</p>
+          </div>
         </div>
-        
-        <div className="flex gap-2">
+
+        {/* Tabs */}
+        <div className="flex gap-2 border-b">
           <button
-            onClick={() => setFilter('pending')}
-            className={`px-4 py-2 rounded-lg font-medium transition-colors ${
-              filter === 'pending'
-                ? 'bg-blue-600 text-white'
-                : 'bg-gray-200 text-gray-700 hover:bg-gray-300'
+            onClick={() => setActiveTab('pending')}
+            className={`px-4 py-3 font-medium border-b-2 transition-colors ${
+              activeTab === 'pending'
+                ? 'border-blue-600 text-blue-600'
+                : 'border-transparent text-gray-600 hover:text-gray-900'
             }`}
           >
             Pending
           </button>
           <button
-            onClick={() => setFilter('all')}
-            className={`px-4 py-2 rounded-lg font-medium transition-colors ${
-              filter === 'all'
-                ? 'bg-blue-600 text-white'
-                : 'bg-gray-200 text-gray-700 hover:bg-gray-300'
+            onClick={() => setActiveTab('history')}
+            className={`px-4 py-3 font-medium border-b-2 transition-colors ${
+              activeTab === 'history'
+                ? 'border-blue-600 text-blue-600'
+                : 'border-transparent text-gray-600 hover:text-gray-900'
             }`}
           >
-            Semua
+            Histori
           </button>
         </div>
+
+        {/* History Filter - shown only in history tab */}
+        {activeTab === 'history' && (
+          <div className="mt-4 flex gap-2">
+            <button
+              onClick={() => setHistoryFilter('all')}
+              className={`flex items-center gap-2 px-4 py-2 rounded-lg font-medium transition-colors ${
+                historyFilter === 'all'
+                  ? 'bg-blue-600 text-white'
+                  : 'bg-gray-200 text-gray-700 hover:bg-gray-300'
+              }`}
+            >
+              <Filter className="h-4 w-4" />
+              Semua
+            </button>
+            <button
+              onClick={() => setHistoryFilter('approved')}
+              className={`flex items-center gap-2 px-4 py-2 rounded-lg font-medium transition-colors ${
+                historyFilter === 'approved'
+                  ? 'bg-green-600 text-white'
+                  : 'bg-gray-200 text-gray-700 hover:bg-gray-300'
+              }`}
+            >
+              <CheckCircle className="h-4 w-4" />
+              Disetujui
+            </button>
+            <button
+              onClick={() => setHistoryFilter('rejected')}
+              className={`flex items-center gap-2 px-4 py-2 rounded-lg font-medium transition-colors ${
+                historyFilter === 'rejected'
+                  ? 'bg-red-600 text-white'
+                  : 'bg-gray-200 text-gray-700 hover:bg-gray-300'
+              }`}
+            >
+              <XCircle className="h-4 w-4" />
+              Ditolak
+            </button>
+          </div>
+        )}
       </div>
 
       {loading ? (
@@ -233,8 +289,18 @@ export default function BuktiTransfer() {
                     
                     <div className="flex items-center gap-2 text-sm text-gray-600">
                       <Calendar className="h-4 w-4" />
-                      <span>{formatDate(bukti.uploaded_at)}</span>
+                      <span>
+                        {activeTab === 'history' && bukti.processed_at
+                          ? `Diproses: ${formatDate(bukti.processed_at)}`
+                          : `Upload: ${formatDate(bukti.uploaded_at)}`}
+                      </span>
                     </div>
+                    
+                    {activeTab === 'history' && bukti.processed_by && (
+                      <p className="text-xs text-gray-500 mt-1">
+                        Oleh: <span className="font-semibold">{bukti.processed_by}</span>
+                      </p>
+                    )}
                   </div>
                   
                   <div className="text-right">
@@ -292,7 +358,7 @@ export default function BuktiTransfer() {
                     <span className="font-medium">Lihat Bukti</span>
                   </button>
                   
-                  {bukti.status === 'pending' && (
+                  {activeTab === 'pending' && bukti.status === 'pending' && (
                     <>
                       <button
                         onClick={() => handleAction(bukti, 'approve')}

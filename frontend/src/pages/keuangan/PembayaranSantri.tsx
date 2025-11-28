@@ -111,6 +111,13 @@ const isLunasTab = activeTab === 'lunas'
         setLoadingSantri(true)
         const res = await listSantri(1, 1000) // Fetch lebih banyak santri untuk search
         let santriData = Array.isArray(res) ? res : (res?.data ? res.data : [])
+        
+        // Debug: log first santri with foto
+        const fotoDebug = santriData.find((s: any) => s.foto)
+        if (fotoDebug) {
+          console.log('Santri dengan foto:', fotoDebug)
+        }
+        
         setSantriList(santriData)
         
         // Auto-select santri dari URL parameter jika ada
@@ -148,17 +155,55 @@ const isLunasTab = activeTab === 'lunas'
     )
   }
 
-  const getFotoUrl = (santri: Santri) => {
-    if (santri.foto) {
-      // Check if foto is a URL or file path
-      if (santri.foto.startsWith('http')) {
-        return santri.foto
+  const getFotoUrl = (santri: Santri): string | null => {
+    try {
+      if (!santri.foto) return null
+      
+      const s = String(santri.foto || '')
+      if (!s) return null
+      if (/^data:/i.test(s)) return s
+      
+      const origin = getBackendOrigin()
+      
+      if (/^https?:\/\//i.test(s)) {
+        // Jika URL absolut mengarah ke localhost:8000, ubah ke origin backend saat ini
+        try {
+          const u = new URL(s)
+          const o = new URL(origin)
+          const isLocalHost = ['localhost', '127.0.0.1'].includes(u.hostname)
+          if (isLocalHost && u.port && o.port && u.port !== o.port) {
+            u.protocol = o.protocol
+            u.hostname = o.hostname
+            u.port = o.port
+            return u.toString()
+          }
+        } catch {}
+        return s
       }
-      // Construct URL from API if it's a file path
-      return `${import.meta.env.VITE_API_URL || 'http://localhost:8000'}/storage/${santri.foto}`
+      
+      if (s.startsWith('/')) return origin + s
+      if (s.startsWith('storage') || s.startsWith('uploads')) return `${origin}/${s}`
+      return s
+    } catch {
+      return null
     }
-    // Fallback to avatar
-    return `https://api.dicebear.com/7.x/avataaars/svg?seed=${santri.nama_santri}`
+  }
+
+  const getBackendOrigin = (): string => {
+    const fallback = 'http://127.0.0.1:8001'
+    try {
+      const base = import.meta.env.VITE_API_BASE || ''
+      if (base) {
+        const u = new URL(base)
+        return u.origin
+      }
+    } catch {}
+    // Attempt heuristic based on current origin (e.g. Vite dev server on 5173)
+    try {
+      const loc = window.location.origin
+      if (loc.includes(':5173')) return loc.replace(':5173', ':8001')
+    } catch {}
+    return fallback
   }
 
   // Helper untuk mendapatkan nama orang tua
@@ -477,9 +522,14 @@ const isLunasTab = activeTab === 'lunas'
                     className="w-full text-left px-4 py-3 hover:bg-blue-50 border-b border-gray-100 last:border-b-0 transition-colors flex items-center gap-3"
                   >
                     <img
-                      src={getFotoUrl(santri)}
+                      src={getFotoUrl(santri) || 'data:image/svg+xml,%3Csvg xmlns="http://www.w3.org/2000/svg" viewBox="0 0 24 24" fill="none" stroke="currentColor"%3E%3Cpath d="M20 21v-2a4 4 0 0 0-4-4H8a4 4 0 0 0-4 4v2"/%3E%3Ccircle cx="12" cy="7" r="4"/%3E%3C/svg%3E'}
                       alt={santri.nama_santri}
-                      className="w-10 h-10 rounded-full object-cover"
+                      className="w-10 h-10 rounded-full object-cover bg-gray-300"
+                      onError={(e) => {
+                        console.error(`Failed to load foto for ${santri.nama_santri}`)
+                        const target = e.currentTarget as HTMLImageElement
+                        target.src = 'data:image/svg+xml,%3Csvg xmlns="http://www.w3.org/2000/svg" viewBox="0 0 24 24" fill="none" stroke="currentColor"%3E%3Cpath d="M20 21v-2a4 4 0 0 0-4-4H8a4 4 0 0 0-4 4v2"/%3E%3Ccircle cx="12" cy="7" r="4"/%3E%3C/svg%3E'
+                      }}
                     />
                     <div className="flex-1 min-w-0">
                       <p className="font-medium text-gray-900 truncate">{santri.nama_santri}</p>
@@ -507,9 +557,14 @@ const isLunasTab = activeTab === 'lunas'
             <div className="flex items-start gap-6">
               {/* Foto */}
               <img
-                src={getFotoUrl(selectedSantri)}
+                src={getFotoUrl(selectedSantri) || 'data:image/svg+xml,%3Csvg xmlns="http://www.w3.org/2000/svg" viewBox="0 0 24 24" fill="none" stroke="currentColor"%3E%3Cpath d="M20 21v-2a4 4 0 0 0-4-4H8a4 4 0 0 0-4 4v2"/%3E%3Ccircle cx="12" cy="7" r="4"/%3E%3C/svg%3E'}
                 alt={selectedSantri.nama_santri}
-                className="w-24 h-24 rounded-lg object-cover border-2 border-gray-200"
+                className="w-24 h-24 rounded-lg object-cover border-2 border-gray-200 bg-gray-300"
+                onError={(e) => {
+                  console.error(`Failed to load main foto for ${selectedSantri.nama_santri}`)
+                  const target = e.currentTarget as HTMLImageElement
+                  target.src = 'data:image/svg+xml,%3Csvg xmlns="http://www.w3.org/2000/svg" viewBox="0 0 24 24" fill="none" stroke="currentColor"%3E%3Cpath d="M20 21v-2a4 4 0 0 0-4-4H8a4 4 0 0 0-4 4v2"/%3E%3Ccircle cx="12" cy="7" r="4"/%3E%3C/svg%3E'
+                }}
               />
               
               {/* Info Santri */}

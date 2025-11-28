@@ -4,6 +4,7 @@ namespace App\Http\Controllers\Kesantrian;
 
 use App\Http\Controllers\Controller;
 use App\Models\Santri;
+use App\Http\Resources\SantriResource;
 use Illuminate\Http\Request;
 use Illuminate\Support\Facades\Storage;
 use Illuminate\Validation\Rule;
@@ -29,15 +30,8 @@ class SantriController extends Controller
                 ->orderBy('nama_santri')
                 ->paginate($perPage, ['*'], 'page', $page);
 
-            // Map agar field "kelas" berupa nama_kelas (string), bukan object relasi
-            $items = collect($paginator->items())->map(function (Santri $s) {
-                $arr = $s->toArray();
-                // Overwrite field 'kelas' menjadi string nama kelas
-                $arr['kelas'] = optional($s->kelas)->nama_kelas ?? ($arr['kelas_nama'] ?? null);
-                // Tambahkan field 'asrama' sebagai string nama asrama
-                $arr['asrama'] = optional($s->asrama)->nama_asrama ?? ($arr['asrama_nama'] ?? null);
-                return $arr;
-            })->all();
+            // Use SantriResource to properly format foto URLs
+            $items = SantriResource::collection($paginator->items());
 
             return response()->json([
                 'status' => 'success',
@@ -110,7 +104,7 @@ class SantriController extends Controller
             // handle foto upload if exists
             if ($request->hasFile('foto')) {
                 $path = $request->file('foto')->store('foto-santri', 'public');
-                $validated['foto'] = 'storage/' . $path; // relative URL
+                $validated['foto'] = $path; // store relative path only
             }
 
             $santri = Santri::create($validated);
@@ -146,12 +140,9 @@ class SantriController extends Controller
                 'message' => 'Santri tidak ditemukan',
             ], 404);
         }
-        $arr = $santri->toArray();
-        $arr['kelas'] = optional($santri->kelas)->nama_kelas ?? ($arr['kelas_nama'] ?? null);
-        $arr['asrama'] = optional($santri->asrama)->nama_asrama ?? ($arr['asrama_nama'] ?? null);
         return response()->json([
             'status' => 'success',
-            'data' => $arr,
+            'data' => new SantriResource($santri),
         ]);
     }
 
@@ -220,7 +211,7 @@ class SantriController extends Controller
             if ($request->hasFile('foto')) {
                 // optionally delete old file - skipped here
                 $path = $request->file('foto')->store('foto-santri', 'public');
-                $validated['foto'] = 'storage/' . $path;
+                $validated['foto'] = $path; // store relative path only
             }
 
             $santri->update($validated);
