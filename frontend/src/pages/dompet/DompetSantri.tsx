@@ -35,13 +35,67 @@ export default function DompetSantri() {
   const roles = useAuthStore((s) => s.roles)
   const currentRole = roles?.find((r: any) => (r.slug === (currentUser?.role)))
 
+  const getBackendOrigin = () => {
+    // Get API URL from env - remove /api suffix if present
+    const apiBase = import.meta.env.VITE_API_BASE || import.meta.env.VITE_API_URL
+    if (apiBase) {
+      const url = apiBase.replace(/\/api\/?$/, '').replace(/\/$/, '')
+      return url
+    }
+    // Fallback: use current window origin and change port
+    return window.location.origin.replace(/5173/, '8001') // Vite dev (5173) -> Laravel (8001)
+  }
+
+  const getFotoUrl = (santri: any): string | null => {
+    try {
+      if (!santri.foto) return null
+      
+      const s = String(santri.foto || '')
+      if (!s) return null
+      if (/^data:/i.test(s)) return s
+      
+      const origin = getBackendOrigin()
+      
+      if (/^https?:\/\//i.test(s)) {
+        // Jika URL absolut mengarah ke localhost:8000, ubah ke origin backend saat ini
+        try {
+          const u = new URL(s)
+          const o = new URL(origin)
+          const isLocalHost = ['localhost', '127.0.0.1'].includes(u.hostname)
+          if (isLocalHost && u.port && o.port && u.port !== o.port) {
+            u.protocol = o.protocol
+            u.hostname = o.hostname
+            u.port = o.port
+            return u.toString()
+          }
+        } catch {}
+        return s
+      }
+      
+      if (s.startsWith('/')) return origin + s
+      if (s.startsWith('storage') || s.startsWith('uploads')) return `${origin}/${s}`
+      return s
+    } catch {
+      return null
+    }
+  }
+
   useEffect(() => { loadInitial() }, [])
 
   async function loadInitial() {
     try {
       setLoading(true)
       const santriRes = await listSantri(1, 200)
-      if (santriRes?.status === 'success') setSantriList(santriRes.data || [])
+      if (santriRes?.status === 'success') {
+        const santriData = santriRes.data || []
+        // Debug foto - cek santri pertama yang punya foto
+        const withFoto = santriData.find((s: any) => s.foto)
+        if (withFoto) {
+          console.log('[DompetSantri] Santri dengan foto:', withFoto.nama_santri, 'foto:', withFoto.foto)
+          console.log('[DompetSantri] getFotoUrl result:', getFotoUrl(withFoto))
+        }
+        setSantriList(santriData)
+      }
     } catch (err) {
       console.error(err)
       toast.error('Gagal memuat data')
@@ -186,7 +240,15 @@ export default function DompetSantri() {
               <div className="absolute top-full left-0 right-0 mt-2 bg-white border border-gray-300 rounded-lg shadow-lg z-10 max-h-64 overflow-y-auto">
                 {santriList.filter(s => (s.nama_santri || '').toLowerCase().includes(searchQuery.toLowerCase()) || (s.nis || '').includes(searchQuery)).map(s => (
                   <button key={s.id} onClick={() => handleSelectSantri(s)} className="w-full text-left px-4 py-3 hover:bg-blue-50 border-b border-gray-100 last:border-b-0 transition-colors flex items-center gap-3">
-                    <img src={s.foto ? (s.foto.startsWith('http') ? s.foto : `${import.meta.env.VITE_API_URL || 'http://localhost:8000'}/storage/${s.foto}`) : `https://api.dicebear.com/7.x/identicon/svg?seed=${s.nama_santri}`} alt={s.nama_santri} className="w-10 h-10 rounded-full object-cover" />
+                    <img 
+                      src={getFotoUrl(s) || 'data:image/svg+xml,%3Csvg xmlns="http://www.w3.org/2000/svg" viewBox="0 0 24 24" fill="none" stroke="currentColor"%3E%3Cpath d="M20 21v-2a4 4 0 0 0-4-4H8a4 4 0 0 0-4 4v2"/%3E%3Ccircle cx="12" cy="7" r="4"/%3E%3C/svg%3E'} 
+                      alt={s.nama_santri} 
+                      className="w-10 h-10 rounded-full object-cover bg-gray-100" 
+                      onError={(e) => {
+                        console.error(`Failed to load foto for ${s.nama_santri}`)
+                        e.currentTarget.src = 'data:image/svg+xml,%3Csvg xmlns="http://www.w3.org/2000/svg" viewBox="0 0 24 24" fill="none" stroke="currentColor"%3E%3Cpath d="M20 21v-2a4 4 0 0 0-4-4H8a4 4 0 0 0-4 4v2"/%3E%3Ccircle cx="12" cy="7" r="4"/%3E%3C/svg%3E'
+                      }}
+                    />
                     <div className="flex-1 min-w-0">
                       <p className="font-medium text-gray-900 truncate">{s.nama_santri}</p>
                       <p className="text-xs text-gray-500">NIS: {s.nis} • {s.kelas || 'N/A'}</p>
@@ -213,7 +275,15 @@ export default function DompetSantri() {
       {selectedSantri && (
         <div className="space-y-4">
           <div className="bg-white rounded-lg shadow p-6 mb-2 flex items-start gap-6">
-            <img src={(selectedSantri.foto && (selectedSantri.foto.startsWith('http') ? selectedSantri.foto : `${import.meta.env.VITE_API_URL || 'http://localhost:8000'}/storage/${selectedSantri.foto}`)) || `https://api.dicebear.com/7.x/identicon/svg?seed=${selectedSantri.nama_santri}`} alt={selectedSantri.nama_santri} className="w-24 h-24 rounded-lg object-cover border-2 border-gray-200" />
+            <img 
+              src={getFotoUrl(selectedSantri) || 'data:image/svg+xml,%3Csvg xmlns="http://www.w3.org/2000/svg" viewBox="0 0 24 24" fill="none" stroke="currentColor"%3E%3Cpath d="M20 21v-2a4 4 0 0 0-4-4H8a4 4 0 0 0-4 4v2"/%3E%3Ccircle cx="12" cy="7" r="4"/%3E%3C/svg%3E'} 
+              alt={selectedSantri.nama_santri} 
+              className="w-24 h-24 rounded-lg object-cover border-2 border-gray-200 bg-gray-100"
+              onError={(e) => {
+                console.error(`Failed to load main foto for ${selectedSantri.nama_santri}`)
+                e.currentTarget.src = 'data:image/svg+xml,%3Csvg xmlns="http://www.w3.org/2000/svg" viewBox="0 0 24 24" fill="none" stroke="currentColor"%3E%3Cpath d="M20 21v-2a4 4 0 0 0-4-4H8a4 4 0 0 0-4 4v2"/%3E%3Ccircle cx="12" cy="7" r="4"/%3E%3C/svg%3E'
+              }}
+            />
             <div className="flex-1 grid grid-cols-2 gap-4">
               <div>
                 <p className="text-xs text-gray-500">Nama Santri</p>
@@ -241,12 +311,40 @@ export default function DompetSantri() {
             </div>
             <Table
               columns={[
-                { key: 'reference', header: 'No Ref' },
-                { key: 'created_at', header: 'Tanggal / Jam', render: (_v:any, r:any) => new Date(r.created_at).toLocaleString('id-ID') },
-                { key: 'description', header: 'Keterangan', render: (v:any) => String(v ?? '-'), },
-                { key: 'type', header: 'Tipe' },
-                { key: 'method', header: 'Metode', render: (_v:any, r:any) => (r?.method ?? '-') },
-                    { key: 'amount', header: 'Nominal', render: (v:any) => `Rp ${Number(v).toLocaleString('id-ID')}` },
+                { key: 'reference', header: 'No Ref', render: (v: any) => v || '-' },
+                { 
+                  key: 'tanggal', 
+                  header: 'Tanggal / Jam', 
+                  render: (v: any, r: any) => {
+                    try {
+                      const dateValue = v || r.created_at || r.tanggal;
+                      if (!dateValue) return '-';
+                      const date = new Date(dateValue);
+                      if (isNaN(date.getTime())) return '-';
+                      return date.toLocaleString('id-ID', {
+                        day: '2-digit',
+                        month: '2-digit',
+                        year: 'numeric',
+                        hour: '2-digit',
+                        minute: '2-digit'
+                      });
+                    } catch {
+                      return '-';
+                    }
+                  }
+                },
+                { key: 'keterangan', header: 'Keterangan', render: (v: any, r: any) => String(v || r.description || '-') },
+                { key: 'tipe', header: 'Tipe', render: (v: any, r: any) => (v || r.type || '-') },
+                { key: 'metode', header: 'Metode', render: (v: any, r: any) => (v || r.method || '-') },
+                { 
+                  key: 'jumlah', 
+                  header: 'Nominal', 
+                  render: (v: any, r: any) => {
+                    const amount = Number(v || r.amount || 0);
+                    if (isNaN(amount)) return 'Rp 0';
+                    return `Rp ${amount.toLocaleString('id-ID')}`;
+                  }
+                },
                     { key: 'author', header: 'Admin', render: (_v:any, r:any) => r?.author?.name ?? (r.created_by && currentUser && r.created_by === currentUser.id ? currentUser.name : '-') },
                     // show actions only for admin
                     ...( (currentUser?.role === 'admin') || (currentRole?.menus && currentRole?.menus.includes('dompet.manage')) ? [{ key: 'actions', header: 'Aksi', render: (_v:any, r:any) => (

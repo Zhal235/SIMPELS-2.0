@@ -22,9 +22,18 @@ class SantriResource extends JsonResource
             'asrama' => $this->asrama?->nama_asrama,
             'alamat' => $this->alamat,
             'nama_ayah' => $this->nama_ayah,
+            'hp_ayah' => $this->hp_ayah,
             'nama_ibu' => $this->nama_ibu,
+            'hp_ibu' => $this->hp_ibu,
             'foto' => $this->foto ? Storage::url($this->foto) : null,
             'created_at' => $this->created_at?->format('Y-m-d H:i:s'),
+            // keep a nested object for backward/alternate shapes used by some frontends
+            'orang_tua' => [
+                'nama_ayah' => $this->nama_ayah,
+                'hp_ayah' => $this->hp_ayah,
+                'nama_ibu' => $this->nama_ibu,
+                'hp_ibu' => $this->hp_ibu,
+            ],
         ];
     }
 }

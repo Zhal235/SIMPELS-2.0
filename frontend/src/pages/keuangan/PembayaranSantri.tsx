@@ -1,7 +1,7 @@
 import { useState, useEffect } from 'react'
 import { useSearchParams } from 'react-router-dom'
 import { Search, User, Home, Building2, Phone, Users, CheckCircle, XCircle, X, Printer } from 'lucide-react'
-import { listSantri } from '../../api/santri'
+import { listSantri, getSantri } from '../../api/santri'
 import { getTagihanBySantri, prosesPembayaran, listPembayaran, getHistoryPembayaran } from '../../api/pembayaran'
 import { useAuthStore } from '../../stores/useAuthStore'
 import toast from 'react-hot-toast'
@@ -36,8 +36,11 @@ const getCurrentWIBForBackend = (): string => {
 type OrangTua = {
   nama_ayah?: string
   hp_ayah?: string
+  no_hp?: string
+  no_hp_ayah?: string
   nama_ibu?: string
   hp_ibu?: string
+  no_hp_ibu?: string
 }
 
 type Santri = {
@@ -51,8 +54,11 @@ type Santri = {
   asrama?: string
   nama_ayah?: string
   hp_ayah?: string
+  no_hp?: string
+  no_hp_ayah?: string
   nama_ibu?: string
   hp_ibu?: string
+  no_hp_ibu?: string
   orang_tua?: OrangTua
   // Add other fields as needed from your API
 }
@@ -219,9 +225,29 @@ const isLunasTab = activeTab === 'lunas'
 
   // Helper untuk mendapatkan nomor HP
   const getNoHpString = (santri: Santri) => {
-    const hpAyah = santri.orang_tua?.hp_ayah || santri.hp_ayah || ''
-    const hpIbu = santri.orang_tua?.hp_ibu || santri.hp_ibu || ''
-    
+    const pick = (...cands: Array<string | undefined | null>) => {
+      for (const c of cands) {
+        if (typeof c === 'string' && c.trim() !== '') return c.trim()
+      }
+      return ''
+    }
+
+    const hpAyah = pick(
+      santri.orang_tua?.hp_ayah,
+      (santri as any).hp_ayah,
+      (santri as any).no_hp_ayah,
+      santri.orang_tua?.no_hp_ayah,
+      santri.orang_tua?.no_hp,
+      (santri as any).no_hp
+    )
+
+    const hpIbu = pick(
+      santri.orang_tua?.hp_ibu,
+      (santri as any).hp_ibu,
+      (santri as any).no_hp_ibu,
+      santri.orang_tua?.no_hp_ibu
+    )
+
     if (hpAyah && hpIbu) return `${hpAyah} / ${hpIbu}`
     if (hpAyah) return hpAyah
     if (hpIbu) return hpIbu
@@ -229,11 +255,25 @@ const isLunasTab = activeTab === 'lunas'
   }
 
   const handleSelectSantri = async (santri: Santri) => {
+    // Immediately set basic data for UI responsiveness
     setSelectedSantri(santri)
     setSearchQuery(santri.nama_santri)
     setShowSearchResults(false)
     setSelectedTagihan([])
     
+    // Ensure we have the full santri payload (some list endpoints omit phone fields)
+    try {
+      const resFull = await getSantri(santri.id)
+      // controller may return resource directly or wrapped in data
+      const payload = (resFull && (resFull.data || resFull)) as any
+      // prefer nested data if present
+      const full = payload?.data || payload
+      if (full) setSelectedSantri(full)
+    } catch (err) {
+      // ignore - keep previously-set santri
+      console.debug('Unable to fetch full santri record', err)
+    }
+
     // Fetch tagihan dari backend (semua tagihan termasuk lunas)
     try {
       // Fetch tagihan belum lunas

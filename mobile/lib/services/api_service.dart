@@ -8,9 +8,44 @@ import '../utils/storage_helper.dart';
 class ApiService {
   late Dio _dio;
 
+  /// Get base URL based on platform
+  static String getBaseUrl() {
+    // For web, always use localhost
+    if (kIsWeb) {
+      return 'http://localhost:8001';
+    }
+    
+    // For Android emulator
+    if (Platform.isAndroid) {
+      return 'http://10.0.2.2:8001';
+    }
+    
+    // For iOS simulator or other platforms
+    return 'http://localhost:8001';
+  }
+
+  /// Convert relative storage URL to full URL
+  static String getFullImageUrl(String? relativePath) {
+    if (relativePath == null || relativePath.isEmpty) return '';
+    
+    // If already full URL, return as is
+    if (relativePath.startsWith('http://') || relativePath.startsWith('https://')) {
+      return relativePath;
+    }
+    
+    // Get base URL without /api suffix
+    final baseUrl = getBaseUrl();
+    
+    // Remove leading slash if present to avoid double slashes
+    final cleanPath = relativePath.startsWith('/') ? relativePath.substring(1) : relativePath;
+    
+    return '$baseUrl/$cleanPath';
+  }
+
   ApiService() {
+    final baseUrl = getBaseUrl();
     _dio = Dio(BaseOptions(
-      baseUrl: AppConfig.apiBaseUrl,
+      baseUrl: '$baseUrl/api',
       connectTimeout: AppConfig.connectTimeout,
       receiveTimeout: AppConfig.receiveTimeout,
       responseType: ResponseType.json,
@@ -52,8 +87,16 @@ class ApiService {
     return await _dio.get(AppConfig.waliSantriEndpoint);
   }
 
-  Future<Response> getWaliWallet(int santriId) async {
+  Future<Response> getWaliWallet(String santriId) async {
     return await _dio.get('${AppConfig.waliWalletEndpoint}/$santriId');
+  }
+
+  /// Get wallet transactions (full history) using admin-style endpoint
+  Future<Response> getWalletTransactions(String santriId, {int page = 1, int limit = 50}) async {
+    return await _dio.get('/v1/wallets/$santriId/transactions', queryParameters: {
+      'page': page,
+      'limit': limit,
+    });
   }
 
   Future<Response> getWaliPembayaran(int santriId) async {
@@ -105,6 +148,7 @@ class ApiService {
     File? buktiFile,
     Uint8List? buktiBytes,
     String? catatan,
+    double? nominalTopup,
   }) async {
     MultipartFile multipartFile;
     
@@ -131,6 +175,11 @@ class ApiService {
       'bukti': multipartFile,
     };
     
+    // Add topup nominal if provided
+    if (nominalTopup != null && nominalTopup > 0) {
+      formFields['nominal_topup'] = nominalTopup.toString();
+    }
+    
     // Add array items individually with [] notation for Laravel
     for (int i = 0; i < tagihanIds.length; i++) {
       formFields['tagihan_ids[$i]'] = tagihanIds[i].toString();
@@ -141,6 +190,7 @@ class ApiService {
     debugPrint('[API] Uploading bukti to: /wali/upload-bukti/$santriId');
     debugPrint('[API] Tagihan IDs: $tagihanIds');
     debugPrint('[API] Total: $totalNominal');
+    if (nominalTopup != null) debugPrint('[API] Topup: $nominalTopup');
 
     return await _dio.post(
       '/wali/upload-bukti/$santriId',
@@ -150,5 +200,64 @@ class ApiService {
 
   Future<Response> getBuktiHistory(String santriId) async {
     return await _dio.get('/wali/bukti-history/$santriId');
+  }
+
+  /// Topup wallet (admin or authorized user) via v1 wallets endpoint
+  Future<Response> topupWallet(String santriId, double amount, {String? method, String? description}) async {
+    final payload = {
+      'amount': amount,
+      if (method != null) 'method': method,
+      if (description != null) 'description': description,
+    };
+
+    return await _dio.post('/v1/wallets/$santriId/topup', data: payload);
+  }
+
+  /// Allow wali to set per-santri daily limit (calling /wali route added)
+  Future<Response> setSantriDailyLimit(String santriId, double dailyLimit) async {
+    return await _dio.put('${AppConfig.waliWalletEndpoint}/$santriId/limit', data: {
+      'daily_limit': dailyLimit,
+    });
+  }
+
+  /// Upload bukti transfer untuk top-up dompet
+  Future<Response> uploadBuktiTopup({
+    required String santriId,
+    required double nominal,
+    File? buktiFile,
+    Uint8List? buktiBytes,
+    String? catatan,
+  }) async {
+    MultipartFile multipartFile;
+    
+    if (buktiBytes != null) {
+      // For web platform
+      multipartFile = MultipartFile.fromBytes(
+        buktiBytes,
+        filename: 'bukti_topup_${DateTime.now().millisecondsSinceEpoch}.jpg',
+      );
+    } else if (buktiFile != null) {
+      // For mobile platform
+      multipartFile = await MultipartFile.fromFile(
+        buktiFile.path,
+        filename: 'bukti_topup_${DateTime.now().millisecondsSinceEpoch}.jpg',
+      );
+    } else {
+      throw Exception('No file provided');
+    }
+
+    final formData = FormData.fromMap({
+      'nominal': nominal.toString(),
+      'catatan': catatan ?? '',
+      'bukti': multipartFile,
+    });
+
+    debugPrint('[API] Uploading bukti topup to: /wali/upload-bukti-topup/$santriId');
+    debugPrint('[API] Nominal: $nominal');
+
+    return await _dio.post(
+      '/wali/upload-bukti-topup/$santriId',
+      data: formData,
+    );
   }
 }

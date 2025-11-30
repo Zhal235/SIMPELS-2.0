@@ -176,7 +176,74 @@ class WalletController extends Controller
             return response()->json(['success' => true, 'data' => []]);
         }
 
-        $txns = WalletTransaction::where('wallet_id', $wallet->id)->with('author')->orderBy('created_at', 'desc')->get();
+        $txns = WalletTransaction::where('wallet_id', $wallet->id)
+            ->with('author')
+            ->orderBy('created_at', 'desc')
+            ->get()
+            ->map(function ($t) {
+                // Use the 'type' field from database, fallback to amount sign
+                $tipe = $t->type ?? (($t->amount ?? 0) < 0 ? 'debit' : 'credit');
+                
+                // Generate reference if not exists
+                $reference = $t->reference;
+                if (!$reference) {
+                    // Generate reference based on type and created date
+                    $prefix = strtoupper(substr($tipe, 0, 3));
+                    $reference = $prefix . '-' . $t->created_at->format('YmdHis') . '-' . str_pad($t->id, 6, '0', STR_PAD_LEFT);
+                }
+                
+                // Determine method - if null, infer from context
+                $method = $t->method;
+                if (!$method) {
+                    // Try to infer from description
+                    if (stripos($t->description, 'epos') !== false || $tipe === 'epos_in' || $tipe === 'epos_out') {
+                        $method = 'epos';
+                    } elseif (stripos($t->description, 'transfer') !== false) {
+                        $method = 'transfer';
+                    } else {
+                        $method = 'cash';
+                    }
+                }
+                
+                // Determine author/admin name
+                $authorName = null;
+                if ($t->author) {
+                    $authorName = $t->author->name;
+                } elseif ($method === 'epos' || in_array($tipe, ['epos_in', 'epos_out'])) {
+                    $authorName = 'System ePOS';
+                } elseif ($t->created_by) {
+                    $authorName = 'Admin (ID: ' . $t->created_by . ')';
+                } else {
+                    $authorName = 'System';
+                }
+                
+                return [
+                    'id' => $t->id,
+                    'reference' => $reference,
+                    'created_at' => $t->created_at ? $t->created_at->toIso8601String() : null,
+                    'tanggal' => $t->created_at ? $t->created_at->format('Y-m-d H:i:s') : null,
+                    'description' => $t->description ?: 'Transaksi ' . ucfirst($tipe),
+                    'keterangan' => $t->description ?: 'Transaksi ' . ucfirst($tipe),
+                    'amount' => abs($t->amount ?? 0),
+                    'jumlah' => abs($t->amount ?? 0),
+                    'type' => $tipe,
+                    'tipe' => $tipe,
+                    'saldo_akhir' => $t->balance_after ?? 0,
+                    'balance_after' => $t->balance_after ?? 0,
+                    'method' => $method,
+                    'metode' => $method,
+                    'created_by' => $t->created_by,
+                    'author' => $t->author ? [
+                        'id' => $t->author->id,
+                        'name' => $t->author->name,
+                    ] : [
+                        'id' => null,
+                        'name' => $authorName,
+                    ],
+                    'voided' => $t->voided ?? false,
+                ];
+            });
+            
         return response()->json(['success' => true, 'data' => $txns]);
     }
 

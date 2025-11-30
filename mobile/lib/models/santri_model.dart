@@ -1,3 +1,5 @@
+import '../services/api_service.dart';
+
 class SantriModel {
   final String id; // UUID
   final String nis;
@@ -26,6 +28,28 @@ class SantriModel {
   });
 
   factory SantriModel.fromJson(Map<String, dynamic> json) {
+    // Parse limit_harian dengan fallback ke 15000 jika null
+    final limitHarianValue = json['limit_harian'] != null
+        ? double.tryParse(json['limit_harian'].toString()) ?? 15000.0
+        : 15000.0;
+    
+    // Convert relative foto_url to full URL
+    final relativeFotoUrl = json['foto_url'];
+    String? fullFotoUrl;
+    
+    if (relativeFotoUrl != null && relativeFotoUrl.toString().isNotEmpty) {
+      final fotoStr = relativeFotoUrl.toString();
+      // If already a full URL, use it directly
+      if (fotoStr.startsWith('http://') || fotoStr.startsWith('https://')) {
+        fullFotoUrl = fotoStr;
+      } else {
+        // Convert relative path to full URL
+        fullFotoUrl = ApiService.getFullImageUrl(fotoStr);
+      }
+      print('[SantriModel] Original foto_url: $relativeFotoUrl');
+      print('[SantriModel] Full foto URL: $fullFotoUrl');
+    }
+    
     return SantriModel(
       id: json['id']?.toString() ?? '',
       nis: json['nis'] ?? '',
@@ -33,13 +57,11 @@ class SantriModel {
       jenisKelamin: json['jenis_kelamin'] ?? '',
       kelas: json['kelas'],
       asrama: json['asrama'],
-      fotoUrl: json['foto_url'],
+      fotoUrl: fullFotoUrl,
       saldoDompet: json['saldo_dompet'] != null 
           ? double.parse(json['saldo_dompet'].toString()) 
           : 0,
-        limitHarian: json['limit_harian'] != null
-          ? double.tryParse(json['limit_harian'].toString())
-          : null,
+      limitHarian: limitHarianValue,
       hubungan: json['hubungan'],
       namaWali: json['nama_wali'],
     );

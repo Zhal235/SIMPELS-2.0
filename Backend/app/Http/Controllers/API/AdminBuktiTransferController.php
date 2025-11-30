@@ -7,6 +7,7 @@ use App\Models\BuktiTransfer;
 use App\Models\TagihanSantri;
 use App\Models\Pembayaran;
 use App\Models\TransaksiKas;
+use App\Models\Wallet;
 use Illuminate\Http\Request;
 use Illuminate\Support\Facades\DB;
 use Illuminate\Support\Facades\Auth;
@@ -33,13 +34,17 @@ class AdminBuktiTransferController extends Controller
             $buktiList = $query->orderBy('uploaded_at', 'desc')
                 ->get()
                 ->map(function ($bukti) {
-                    // Get tagihan details
-                    $tagihans = TagihanSantri::whereIn('id', $bukti->tagihan_ids)
-                        ->with('jenisTagihan')
-                        ->get();
+                    // Get tagihan details (if not topup-only)
+                    $tagihans = collect([]);
+                    if ($bukti->tagihan_ids && count($bukti->tagihan_ids) > 0) {
+                        $tagihans = TagihanSantri::whereIn('id', $bukti->tagihan_ids)
+                            ->with('jenisTagihan')
+                            ->get();
+                    }
                     
                     return [
                         'id' => $bukti->id,
+                        'jenis_transaksi' => $bukti->jenis_transaksi ?? 'pembayaran',
                         'santri' => $bukti->santri ? [
                             'id' => $bukti->santri->id,
                             'nis' => $bukti->santri->nis,
@@ -103,14 +108,37 @@ class AdminBuktiTransferController extends Controller
                 ], 400);
             }
 
-            // Get all tagihan
-            $tagihans = TagihanSantri::whereIn('id', $bukti->tagihan_ids)->get();
+            // Check if this is topup-only or combined transaction
+            $isTopupOnly = $bukti->jenis_transaksi === 'topup';
+            $isPembayaranTopup = $bukti->jenis_transaksi === 'pembayaran_topup';
+            
+            // Extract topup amount from catatan_admin if combined
+            $nominalTopup = 0;
+            $nominalPembayaran = $bukti->total_nominal;
+            
+            if ($isPembayaranTopup && $bukti->catatan_admin) {
+                // Parse catatan_admin to get topup amount
+                if (preg_match('/Top-up dompet: Rp ([0-9.,]+)/', $bukti->catatan_admin, $matches)) {
+                    $nominalTopup = (float) str_replace(['.', ','], ['', '.'], $matches[1]);
+                    // Pembayaran amount is total minus topup
+                    if (preg_match('/Pembayaran tagihan: Rp ([0-9.,]+)/', $bukti->catatan_admin, $matchesPembayaran)) {
+                        $nominalPembayaran = (float) str_replace(['.', ','], ['', '.'], $matchesPembayaran[1]);
+                    }
+                }
+            } else if ($isTopupOnly) {
+                $nominalTopup = $bukti->total_nominal;
+                $nominalPembayaran = 0;
+            }
 
-            // Process each tagihan
-            foreach ($tagihans as $tagihan) {
-                // Calculate how much to pay for this tagihan
-                $sisaTagihan = $tagihan->nominal - $tagihan->dibayar;
-                $nominalBayar = min($sisaTagihan, $bukti->total_nominal / count($tagihans));
+            // Process tagihan if not topup-only
+            if (!$isTopupOnly && $bukti->tagihan_ids && count($bukti->tagihan_ids) > 0) {
+                $tagihans = TagihanSantri::whereIn('id', $bukti->tagihan_ids)->get();
+
+                // Process each tagihan
+                foreach ($tagihans as $tagihan) {
+                    // Calculate how much to pay for this tagihan
+                    $sisaTagihan = $tagihan->nominal - $tagihan->dibayar;
+                    $nominalBayar = min($sisaTagihan, $nominalPembayaran / count($tagihans));
 
                 // Capture sisa before applying payment
                 $sisaSebelum = $sisaTagihan;
@@ -201,12 +229,56 @@ class AdminBuktiTransferController extends Controller
                 if (!$transaksiKasCreated) {
                     throw new \Exception('Gagal membuat transaksi kas setelah beberapa percobaan');
                 }
+                }
+            }
+
+            // Process topup if exists
+            if ($nominalTopup > 0) {
+                $wallet = \App\Models\Wallet::where('santri_id', $bukti->santri_id)->first();
+                
+                if (!$wallet) {
+                    // Create wallet if doesn't exist
+                    $wallet = \App\Models\Wallet::create([
+                        'santri_id' => $bukti->santri_id,
+                        'balance' => 0,
+                    ]);
+                }
+
+                // Add topup to wallet
+                $oldBalance = $wallet->balance;
+                $wallet->balance += $nominalTopup;
+                $wallet->save();
+
+                // Create wallet transaction record
+                \DB::table('wallet_transactions')->insert([
+                    'wallet_id' => (int)$wallet->id,
+                    'amount' => (float)$nominalTopup,
+                    'type' => 'credit',
+                    'description' => 'Top-up via bukti transfer (admin ' . (Auth::user()?->name ?? Auth::id()) . ')',
+                    'balance_after' => (float)$wallet->balance,
+                    'created_by' => Auth::id(),
+                    'created_at' => now(),
+                    'updated_at' => now(),
+                ]);
+                
+                \Log::info('Wallet transaction created', [
+                    'wallet_id' => $wallet->id,
+                    'amount' => $nominalTopup,
+                    'balance_after' => $wallet->balance,
+                ]);
             }
 
             // Update bukti transfer status
+            $catatan = $request->catatan ?? '';
+            if ($nominalTopup > 0 && $nominalPembayaran > 0) {
+                $catatan = "Pembayaran tagihan (Rp " . number_format($nominalPembayaran, 0, ',', '.') . ") dan Top-up dompet (Rp " . number_format($nominalTopup, 0, ',', '.') . ") telah diproses. " . $catatan;
+            } else if ($nominalTopup > 0) {
+                $catatan = "Top-up dompet (Rp " . number_format($nominalTopup, 0, ',', '.') . ") telah diproses. " . $catatan;
+            }
+
             $bukti->update([
                 'status' => 'approved',
-                'catatan_admin' => $request->catatan,
+                'catatan_admin' => $catatan,
                 'processed_at' => now(),
                 'processed_by' => Auth::id(),
             ]);
@@ -220,9 +292,12 @@ class AdminBuktiTransferController extends Controller
 
         } catch (\Exception $e) {
             DB::rollBack();
+            \Log::error('Error approving bukti transfer: ' . $e->getMessage());
+            \Log::error($e->getTraceAsString());
             return response()->json([
                 'success' => false,
                 'error' => $e->getMessage(),
+                'trace' => config('app.debug') ? $e->getTraceAsString() : null,
             ], 500);
         }
     }

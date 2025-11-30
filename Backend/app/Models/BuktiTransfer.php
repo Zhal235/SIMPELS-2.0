@@ -14,6 +14,7 @@ class BuktiTransfer extends Model
 
     protected $fillable = [
         'santri_id',
+        'jenis_transaksi',
         'tagihan_ids',
         'total_nominal',
         'bukti_path',

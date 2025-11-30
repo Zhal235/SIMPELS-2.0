@@ -28,6 +28,8 @@ Route::prefix('auth')->group(function () {
 Route::middleware('auth:sanctum')->prefix('wali')->group(function () {
     Route::get('santri', [WaliController::class, 'getSantri']);
     Route::get('wallet/{santri_id}', [WaliController::class, 'getWallet']);
+    // allow wali (parent) to update per-santri wallet daily limit
+    Route::put('wallet/{santri_id}/limit', [WaliController::class, 'setSantriDailyLimit']);
     Route::get('tagihan/{santri_id}', [WaliController::class, 'getAllTagihan']);
     Route::get('pembayaran/{santri_id}', [WaliController::class, 'getPembayaran']);
     Route::get('tunggakan/{santri_id}', [WaliController::class, 'getTunggakan']);
@@ -35,6 +37,7 @@ Route::middleware('auth:sanctum')->prefix('wali')->group(function () {
     
     // Bukti Transfer
     Route::post('upload-bukti/{santri_id}', [WaliController::class, 'uploadBukti']);
+    Route::post('upload-bukti-topup/{santri_id}', [WaliController::class, 'uploadBuktiTopup']);
     Route::get('bukti-history/{santri_id}', [WaliController::class, 'getBuktiHistory']);
 });
 

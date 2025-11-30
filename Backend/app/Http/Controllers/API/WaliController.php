@@ -8,6 +8,7 @@ use App\Models\Santri;
 use App\Models\Pembayaran;
 use App\Models\TagihanSantri;
 use App\Models\Wallet;
+use App\Models\SantriTransactionLimit;
 use Illuminate\Http\Request;
 use Illuminate\Support\Facades\Auth;
 use Illuminate\Support\Facades\Hash;
@@ -91,6 +92,18 @@ class WaliController extends Controller
             // Get transaction limit
             $transactionLimit = \App\Models\SantriTransactionLimit::where('santri_id', $s->id)->first();
             
+            // Generate full foto URL with CORS support
+            $fotoUrl = null;
+            if ($s->foto) {
+                // If foto is already a full URL, use it directly
+                if (str_starts_with($s->foto, 'http://') || str_starts_with($s->foto, 'https://')) {
+                    $fotoUrl = $s->foto;
+                } else {
+                    // Use public-storage route for CORS support (needed for Flutter web)
+                    $fotoUrl = url('public-storage/' . $s->foto);
+                }
+            }
+            
             return [
                 'id' => $s->id,
                 'nis' => $s->nis,
@@ -98,7 +111,7 @@ class WaliController extends Controller
                 'jenis_kelamin' => $s->jenis_kelamin,
                 'kelas' => $s->kelas_nama ?? ($s->kelas->nama_kelas ?? null),
                 'asrama' => $s->asrama_nama ?? ($s->asrama->nama_asrama ?? $s->asrama->nama ?? null),
-                'foto_url' => $s->foto ? \Storage::url($s->foto) : null,
+                'foto_url' => $fotoUrl,
                 'saldo_dompet' => $s->wallet ? ($s->wallet->balance ?? 0) : 0,
                 'limit_harian' => $transactionLimit ? $transactionLimit->daily_limit : 15000,
                 'hubungan' => $tipeWali,
@@ -180,15 +193,19 @@ class WaliController extends Controller
         $santri = Santri::findOrFail($santriId);
         $wallet = Wallet::where('santri_id', $santriId)->first();
         
+        // Get transaction limit from santri_transaction_limits table
+        $transactionLimit = SantriTransactionLimit::where('santri_id', $santriId)->first();
+        $limitHarian = $transactionLimit ? $transactionLimit->daily_limit : 15000;
+        
         if (!$wallet) {
             return response()->json([
                 'success' => true,
                 'data' => [
                     'santri_id' => $santri->id,
-                    'santri_nama' => $santri->nama,
-                    'saldo' => 0,
-                    'limit_harian' => 0,
-                    'limit_tersisa' => 0,
+                    'santri_nama' => $santri->nama_santri,
+                    'saldo' => 0.0,
+                    'limit_harian' => (float)$limitHarian,
+                    'limit_tersisa' => (float)$limitHarian,
                     'transaksi_terakhir' => [],
                 ],
             ]);
@@ -196,18 +213,30 @@ class WaliController extends Controller
 
         // Get recent transactions
         $recentTransactions = \DB::table('wallet_transactions')
-            ->where('santri_id', $santriId)
+            ->where('wallet_id', $wallet->id)
             ->orderBy('created_at', 'desc')
             ->limit(10)
             ->get()
             ->map(function ($t) {
+                // Parse created_at to Carbon and format properly
+                $tanggal = $t->created_at ? \Carbon\Carbon::parse($t->created_at)->toIso8601String() : now()->toIso8601String();
+                
+                // Ensure amount is numeric
+                $amount = is_numeric($t->amount) ? (float)$t->amount : 0.0;
+                
+                // Determine type from 'type' field
+                $tipe = $t->type ?? 'credit';
+                
+                // Ensure balance_after is numeric
+                $balanceAfter = is_numeric($t->balance_after) ? (float)$t->balance_after : 0.0;
+                
                 return [
-                    'id' => $t->id,
-                    'tanggal' => $t->created_at,
-                    'keterangan' => $t->description ?? $t->keterangan ?? '',
-                    'jumlah' => abs($t->amount ?? $t->jumlah ?? 0),
-                    'tipe' => ($t->amount ?? $t->jumlah ?? 0) < 0 ? 'debit' : 'credit',
-                    'saldo_akhir' => $t->balance_after ?? $t->saldo_akhir ?? 0,
+                    'id' => (string)$t->id,
+                    'tanggal' => $tanggal,
+                    'keterangan' => $t->description ?? '',
+                    'jumlah' => $amount,
+                    'tipe' => $tipe,
+                    'saldo_akhir' => $balanceAfter,
                 ];
             });
 
@@ -215,13 +244,38 @@ class WaliController extends Controller
             'success' => true,
             'data' => [
                 'santri_id' => $santri->id,
-                'santri_nama' => $santri->nama,
-                'saldo' => $wallet->balance ?? $wallet->saldo ?? 0,
-                'limit_harian' => $wallet->daily_limit ?? 50000,
-                'limit_tersisa' => $wallet->remaining_limit ?? 50000,
+                'santri_nama' => $santri->nama_santri,
+                'saldo' => (float)($wallet->balance ?? $wallet->saldo ?? 0),
+                'limit_harian' => (float)$limitHarian,
+                'limit_tersisa' => (float)($wallet->remaining_limit ?? $limitHarian),
                 'transaksi_terakhir' => $recentTransactions,
             ],
         ]);
+    }
+
+    /**
+     * Allow wali (authenticated parent) to set a per-santri daily transaction limit.
+     * This endpoint is intentionally permissive for the current app — in a stricter
+     * environment you may want to add authorization checks to ensure the caller
+     * is in fact the guardian of the requested santri.
+     */
+    public function setSantriDailyLimit(Request $request, $santriId)
+    {
+        $request->validate([
+            'daily_limit' => 'required|numeric|min:0'
+        ]);
+
+        $santri = Santri::find($santriId);
+        if (!$santri) {
+            return response()->json(['success' => false, 'message' => 'Santri not found'], 404);
+        }
+
+        $limit = SantriTransactionLimit::updateOrCreate(
+            ['santri_id' => $santriId],
+            ['daily_limit' => $request->input('daily_limit')]
+        );
+
+        return response()->json(['success' => true, 'data' => $limit]);
     }
 
     /**
@@ -478,9 +532,10 @@ class WaliController extends Controller
     public function uploadBukti(Request $request, $santriId)
     {
         $request->validate([
-            'tagihan_ids' => 'required|array|min:1',
+            'tagihan_ids' => 'nullable|array', // Bisa kosong untuk top-up only
             'tagihan_ids.*' => 'required|integer|exists:tagihan_santri,id',
             'total_nominal' => 'required|numeric|min:1',
+            'nominal_topup' => 'nullable|numeric|min:0',
             'bukti' => 'required|file|mimes:jpeg,jpg,png|max:5120',
             'catatan' => 'nullable|string|max:500',
         ]);
@@ -492,28 +547,56 @@ class WaliController extends Controller
                 return response()->json(['error' => 'Santri tidak ditemukan'], 404);
             }
 
-            // Verify all tagihan belong to this santri
-            $tagihans = TagihanSantri::whereIn('id', $request->tagihan_ids)
-                ->where('santri_id', $santriId)
-                ->get();
+            $tagihanIds = $request->tagihan_ids ?? [];
 
-            if ($tagihans->count() !== count($request->tagihan_ids)) {
-                return response()->json(['error' => 'Beberapa tagihan tidak valid'], 400);
+            // Verify all tagihan belong to this santri (only if tagihan_ids provided)
+            if (!empty($tagihanIds)) {
+                $tagihans = TagihanSantri::whereIn('id', $tagihanIds)
+                    ->where('santri_id', $santriId)
+                    ->get();
+
+                if ($tagihans->count() !== count($tagihanIds)) {
+                    return response()->json(['error' => 'Beberapa tagihan tidak valid'], 400);
+                }
             }
 
             // Store bukti transfer file
             $filePath = $request->file('bukti')->store('bukti_transfer', 'public');
 
+            $nominalTopup = $request->input('nominal_topup', 0);
+            $totalNominal = $request->total_nominal;
+            
+            // Determine transaction type
+            $jenisTransaksi = 'pembayaran';
+            if (empty($tagihanIds) && $nominalTopup > 0) {
+                $jenisTransaksi = 'topup';
+            } else if ($nominalTopup > 0) {
+                $jenisTransaksi = 'pembayaran_topup';
+            }
+
             // Create bukti transfer record
             $buktiTransfer = \App\Models\BuktiTransfer::create([
                 'santri_id' => $santriId,
-                'tagihan_ids' => $request->tagihan_ids,
-                'total_nominal' => $request->total_nominal,
+                'jenis_transaksi' => $jenisTransaksi,
+                'tagihan_ids' => $tagihanIds,
+                'total_nominal' => $totalNominal,
                 'bukti_path' => $filePath,
                 'status' => 'pending',
                 'catatan_wali' => $request->catatan,
                 'uploaded_at' => now(),
             ]);
+
+            // Store breakdown info in catatan_admin
+            if ($jenisTransaksi === 'topup') {
+                $buktiTransfer->update([
+                    'catatan_admin' => "Top-up dompet: Rp " . number_format($nominalTopup, 0, ',', '.')
+                ]);
+            } else if ($jenisTransaksi === 'pembayaran_topup') {
+                $nominalPembayaran = $totalNominal - $nominalTopup;
+                $catatanAdmin = "Pembayaran tagihan: Rp " . number_format($nominalPembayaran, 0, ',', '.') . "\n";
+                $catatanAdmin .= "Top-up dompet: Rp " . number_format($nominalTopup, 0, ',', '.');
+                $buktiTransfer->update(['catatan_admin' => $catatanAdmin]);
+            }
 
             return response()->json([
                 'success' => true,
@@ -540,11 +623,15 @@ class WaliController extends Controller
                 ->orderBy('uploaded_at', 'desc')
                 ->get()
                 ->map(function ($bukti) {
-                    // Get tagihan details
-                    $tagihans = TagihanSantri::whereIn('id', $bukti->tagihan_ids)->get();
+                    // Get tagihan details (if not topup-only)
+                    $tagihans = collect([]);
+                    if ($bukti->tagihan_ids && count($bukti->tagihan_ids) > 0) {
+                        $tagihans = TagihanSantri::whereIn('id', $bukti->tagihan_ids)->get();
+                    }
                     
                     return [
                         'id' => $bukti->id,
+                        'jenis_transaksi' => $bukti->jenis_transaksi ?? 'pembayaran',
                         'total_nominal' => $bukti->total_nominal,
                         'status' => $bukti->status,
                         'catatan_wali' => $bukti->catatan_wali,
@@ -567,6 +654,53 @@ class WaliController extends Controller
                 'success' => true,
                 'data' => $buktiList,
             ]);
+        } catch (\Exception $e) {
+            return response()->json([
+                'success' => false,
+                'error' => $e->getMessage(),
+            ], 500);
+        }
+    }
+
+    /**
+     * Upload bukti transfer untuk top-up dompet
+     */
+    public function uploadBuktiTopup(Request $request, $santriId)
+    {
+        $request->validate([
+            'nominal' => 'required|numeric|min:1',
+            'bukti' => 'required|file|mimes:jpeg,jpg,png|max:5120',
+            'catatan' => 'nullable|string|max:500',
+        ]);
+
+        try {
+            // Verify santri exists
+            $santri = Santri::find($santriId);
+            if (!$santri) {
+                return response()->json(['error' => 'Santri tidak ditemukan'], 404);
+            }
+
+            // Store bukti transfer file
+            $filePath = $request->file('bukti')->store('bukti_transfer', 'public');
+
+            // Create bukti transfer record for topup
+            $buktiTransfer = \App\Models\BuktiTransfer::create([
+                'santri_id' => $santriId,
+                'jenis_transaksi' => 'topup',
+                'tagihan_ids' => null, // No tagihan for topup
+                'total_nominal' => $request->nominal,
+                'bukti_path' => $filePath,
+                'status' => 'pending',
+                'catatan_wali' => $request->catatan,
+                'uploaded_at' => now(),
+            ]);
+
+            return response()->json([
+                'success' => true,
+                'message' => 'Bukti top-up berhasil dikirim. Tunggu konfirmasi admin.',
+                'data' => $buktiTransfer,
+            ], 201);
+
         } catch (\Exception $e) {
             return response()->json([
                 'success' => false,

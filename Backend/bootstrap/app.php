@@ -30,6 +30,7 @@ return Application::configure(basePath: dirname(__DIR__))
         */
         $middleware->append([
             \App\Http\Middleware\SecurityHeaders::class,
+            \App\Http\Middleware\AddStorageCorsHeaders::class,
         ]);
     })
     ->withExceptions(function (Exceptions $exceptions) {

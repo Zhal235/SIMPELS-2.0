@@ -1,5 +1,8 @@
 class AppConfig {
   // API Configuration
+  // For Web: use localhost
+  // For Android emulator: use 10.0.2.2
+  // For physical device: use your computer's IP address (e.g., 192.168.1.100)
   static const String apiBaseUrl = 'http://localhost:8001/api';
   
   // Endpoints
