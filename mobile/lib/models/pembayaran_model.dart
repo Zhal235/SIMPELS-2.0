@@ -20,8 +20,8 @@ class PembayaranModel {
       id: json['id'] ?? 0,
       tanggal: json['tanggal'] ?? '',
       keterangan: json['keterangan'] ?? '',
-      jumlah: json['jumlah'] != null 
-          ? double.parse(json['jumlah'].toString()) 
+      jumlah: json['jumlah'] != null
+          ? double.parse(json['jumlah'].toString())
           : 0.0,
       metodePembayaran: json['metode_pembayaran'],
       status: json['status'] ?? 'pending',

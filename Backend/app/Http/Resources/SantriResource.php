@@ -18,6 +18,7 @@ class SantriResource extends JsonResource
             'nisn' => $this->nisn,
             'nama_santri' => $this->nama_santri,
             'jenis_kelamin' => $this->jenis_kelamin,
+            'status' => $this->status,
             'kelas' => $this->kelas?->nama_kelas,
             'asrama' => $this->asrama?->nama_asrama,
             'alamat' => $this->alamat,

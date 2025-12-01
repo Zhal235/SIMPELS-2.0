@@ -9,6 +9,7 @@ use App\Models\Pembayaran;
 use App\Models\TagihanSantri;
 use App\Models\Wallet;
 use App\Models\SantriTransactionLimit;
+use App\Models\DataCorrection;
 use Illuminate\Http\Request;
 use Illuminate\Support\Facades\Auth;
 use Illuminate\Support\Facades\Hash;
@@ -29,11 +30,23 @@ class WaliController extends Controller
         // Normalize nomor HP (hapus spasi, +, 0 di depan, dll)
         $normalizedHp = $this->normalizePhoneNumber($request->no_hp);
 
-        // Password default adalah 123456
-        if ($request->password !== '123456') {
-            throw ValidationException::withMessages([
-                'password' => ['Password salah.'],
-            ]);
+        // Check if wali has custom password
+        $passwordWali = \App\Models\PasswordWali::where('no_hp', $request->no_hp)->first();
+        
+        if ($passwordWali) {
+            // Wali has custom password
+            if (!Hash::check($request->password, $passwordWali->password)) {
+                throw ValidationException::withMessages([
+                    'password' => ['Password salah.'],
+                ]);
+            }
+        } else {
+            // Use default password 123456
+            if ($request->password !== '123456') {
+                throw ValidationException::withMessages([
+                    'password' => ['Password salah.'],
+                ]);
+            }
         }
 
         // Cari santri berdasarkan hp_ayah atau hp_ibu
@@ -753,5 +766,153 @@ class WaliController extends Controller
     {
         $wallet = Wallet::where('santri_id', $santriId)->first();
         return $wallet ? ($wallet->balance ?? $wallet->saldo ?? 0) : 0;
+    }
+
+    /**
+     * Change password for wali (mobile app)
+     */
+    public function changePassword(Request $request)
+    {
+        $request->validate([
+            'no_hp' => 'required|string',
+            'current_password' => 'required|string',
+            'new_password' => 'required|string|min:6|confirmed',
+        ]);
+
+        $normalizedHp = $this->normalizePhoneNumber($request->no_hp);
+        
+        // Check if wali has santri
+        $santri = Santri::where(function($query) use ($normalizedHp, $request) {
+            $query->where('hp_ayah', 'LIKE', '%' . $normalizedHp . '%')
+                  ->orWhere('hp_ayah', 'LIKE', '%' . $request->no_hp . '%')
+                  ->orWhere('hp_ibu', 'LIKE', '%' . $normalizedHp . '%')
+                  ->orWhere('hp_ibu', 'LIKE', '%' . $request->no_hp . '%');
+        })->where('status', 'aktif')->first();
+
+        if (!$santri) {
+            return response()->json([
+                'success' => false,
+                'message' => 'Nomor HP tidak terdaftar',
+            ], 404);
+        }
+
+        // Check existing custom password or default
+        $passwordWali = \App\Models\PasswordWali::where('no_hp', $request->no_hp)->first();
+        
+        if ($passwordWali) {
+            // User has custom password
+            if (!Hash::check($request->current_password, $passwordWali->password)) {
+                return response()->json([
+                    'success' => false,
+                    'message' => 'Password lama tidak sesuai',
+                ], 422);
+            }
+        } else {
+            // Check default password
+            if ($request->current_password !== '123456') {
+                return response()->json([
+                    'success' => false,
+                    'message' => 'Password lama tidak sesuai',
+                ], 422);
+            }
+        }
+
+        // Store/update custom password in database
+        \App\Models\PasswordWali::updateOrCreate(
+            ['no_hp' => $request->no_hp],
+            [
+                'password' => Hash::make($request->new_password),
+                'updated_at' => now(),
+            ]
+        );
+
+        return response()->json([
+            'success' => true,
+            'message' => 'Password berhasil diubah',
+        ], 200);
+    }
+
+    /**
+     * Get detailed santri data
+     */
+    public function getSantriDetail($santri_id)
+    {
+        $santri = Santri::with(['kelas', 'asrama'])
+            ->where('id', $santri_id)
+            ->where('status', 'aktif')
+            ->first();
+
+        if (!$santri) {
+            return response()->json([
+                'success' => false,
+                'message' => 'Data santri tidak ditemukan'
+            ], 404);
+        }
+
+        return response()->json([
+            'success' => true,
+            'data' => [
+                'nis' => $santri->nis ?? '-',
+                'nama_santri' => $santri->nama_santri ?? '-',
+                'jenis_kelamin' => $santri->jenis_kelamin ?? '-',
+                'tempat_lahir' => $santri->tempat_lahir ?? '-',
+                'tanggal_lahir' => $santri->tanggal_lahir ?? '-',
+                'nik' => $santri->nik ?? '-',
+                'no_kk' => $santri->no_kk ?? '-',
+                'alamat' => $santri->alamat ?? '-',
+                'kelas_nama' => $santri->kelas ? $santri->kelas->nama_kelas : '-',
+                'asrama_nama' => $santri->asrama ? $santri->asrama->nama_asrama : '-',
+                'status' => $santri->status ? ucfirst($santri->status) : '-',
+                'nama_ayah' => $santri->nama_ayah ?? '-',
+                'nik_ayah' => $santri->nik_ayah ?? '-',
+                'hp_ayah' => $santri->hp_ayah ?? '-',
+                'pekerjaan_ayah' => $santri->pekerjaan_ayah ?? '-',
+                'nama_ibu' => $santri->nama_ibu ?? '-',
+                'nik_ibu' => $santri->nik_ibu ?? '-',
+                'hp_ibu' => $santri->hp_ibu ?? '-',
+                'pekerjaan_ibu' => $santri->pekerjaan_ibu ?? '-',
+            ]
+        ]);
+    }
+
+    /**
+     * Submit data correction request
+     */
+    public function submitDataCorrection(Request $request, $santri_id)
+    {
+        $request->validate([
+            'field_name' => 'required|string',
+            'old_value' => 'required|string',
+            'new_value' => 'required|string',
+            'note' => 'nullable|string',
+        ]);
+
+        $santri = Santri::where('id', $santri_id)
+            ->where('status', 'aktif')
+            ->first();
+
+        if (!$santri) {
+            return response()->json([
+                'success' => false,
+                'message' => 'Data santri tidak ditemukan'
+            ], 404);
+        }
+
+        // Create correction request
+        $correction = DataCorrection::create([
+            'santri_id' => $santri_id,
+            'field_name' => $request->field_name,
+            'old_value' => $request->old_value,
+            'new_value' => $request->new_value,
+            'note' => $request->note,
+            'status' => 'pending',
+            'requested_by' => 'wali',
+        ]);
+
+        return response()->json([
+            'success' => true,
+            'message' => 'Permintaan koreksi berhasil dikirim. Menunggu persetujuan admin.',
+            'data' => $correction
+        ], 201);
     }
 }

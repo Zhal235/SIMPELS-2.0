@@ -27,15 +27,13 @@ class TunggakanModel {
       jenisTagihan: json['jenis_tagihan'] ?? '',
       bulan: json['bulan'] ?? '',
       tahun: json['tahun'] ?? DateTime.now().year,
-      jumlah: json['jumlah'] != null 
-          ? double.parse(json['jumlah'].toString()) 
+      jumlah: json['jumlah'] != null
+          ? double.parse(json['jumlah'].toString())
           : 0.0,
-      sudahDibayar: json['sudah_dibayar'] != null 
-          ? double.parse(json['sudah_dibayar'].toString()) 
+      sudahDibayar: json['sudah_dibayar'] != null
+          ? double.parse(json['sudah_dibayar'].toString())
           : null,
-      sisa: json['sisa'] != null 
-          ? double.parse(json['sisa'].toString()) 
-          : 0.0,
+      sisa: json['sisa'] != null ? double.parse(json['sisa'].toString()) : 0.0,
       status: json['status'] ?? 'belum_lunas',
       jatuhTempo: json['jatuh_tempo'],
     );

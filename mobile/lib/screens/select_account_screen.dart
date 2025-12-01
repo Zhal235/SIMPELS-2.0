@@ -84,7 +84,8 @@ class SelectAccountScreen extends StatelessWidget {
     );
   }
 
-  Widget _buildSantriCard(BuildContext context, SantriModel santri, AuthProvider authProvider) {
+  Widget _buildSantriCard(
+      BuildContext context, SantriModel santri, AuthProvider authProvider) {
     return Card(
       margin: const EdgeInsets.only(bottom: 16),
       elevation: 2,
@@ -96,7 +97,8 @@ class SelectAccountScreen extends StatelessWidget {
           authProvider.switchSantri(santri.id);
           Navigator.pushReplacement(
             context,
-            MaterialPageRoute(builder: (_) => HomeScreen(key: HomeScreen.homeKey)),
+            MaterialPageRoute(
+                builder: (_) => HomeScreen(key: HomeScreen.homeKey)),
           );
         },
         borderRadius: BorderRadius.circular(16),
@@ -107,8 +109,9 @@ class SelectAccountScreen extends StatelessWidget {
               // Avatar
               CircleAvatar(
                 radius: 32,
-                backgroundColor: Theme.of(context).colorScheme.primary.withAlpha(26),
-                backgroundImage: santri.fotoUrl != null 
+                backgroundColor:
+                    Theme.of(context).colorScheme.primary.withAlpha(26),
+                backgroundImage: santri.fotoUrl != null
                     ? NetworkImage(santri.fotoUrl!)
                     : null,
                 child: santri.fotoUrl == null
@@ -120,7 +123,7 @@ class SelectAccountScreen extends StatelessWidget {
                     : null,
               ),
               const SizedBox(width: 16),
-              
+
               // Info
               Expanded(
                 child: Column(
@@ -193,7 +196,7 @@ class SelectAccountScreen extends StatelessWidget {
                   ],
                 ),
               ),
-              
+
               // Arrow
               Icon(
                 Icons.arrow_forward_ios,
@@ -209,8 +212,8 @@ class SelectAccountScreen extends StatelessWidget {
 
   String _formatCurrency(double amount) {
     return amount.toStringAsFixed(0).replaceAllMapped(
-      RegExp(r'(\d{1,3})(?=(\d{3})+(?!\d))'),
-      (Match m) => '${m[1]}.',
-    );
+          RegExp(r'(\d{1,3})(?=(\d{3})+(?!\d))'),
+          (Match m) => '${m[1]}.',
+        );
   }
 }

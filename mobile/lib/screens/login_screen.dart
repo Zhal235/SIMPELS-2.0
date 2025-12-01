@@ -27,7 +27,7 @@ class _LoginScreenState extends State<LoginScreen> {
   Future<void> _handleLogin() async {
     if (_formKey.currentState!.validate()) {
       final authProvider = Provider.of<AuthProvider>(context, listen: false);
-      
+
       final result = await authProvider.login(
         _emailController.text.trim(),
         _passwordController.text,
@@ -44,10 +44,11 @@ class _LoginScreenState extends State<LoginScreen> {
             );
           } else {
             // Jika hanya 1 santri, langsung ke Home
-              Navigator.pushReplacement(
-                context,
-                MaterialPageRoute(builder: (_) => HomeScreen(key: HomeScreen.homeKey)),
-              );
+            Navigator.pushReplacement(
+              context,
+              MaterialPageRoute(
+                  builder: (_) => HomeScreen(key: HomeScreen.homeKey)),
+            );
           }
         } else {
           ScaffoldMessenger.of(context).showSnackBar(
@@ -126,7 +127,9 @@ class _LoginScreenState extends State<LoginScreen> {
                     prefixIcon: const Icon(Icons.lock),
                     suffixIcon: IconButton(
                       icon: Icon(
-                        _obscurePassword ? Icons.visibility : Icons.visibility_off,
+                        _obscurePassword
+                            ? Icons.visibility
+                            : Icons.visibility_off,
                       ),
                       onPressed: () {
                         setState(() {
@@ -159,7 +162,8 @@ class _LoginScreenState extends State<LoginScreen> {
                               width: 20,
                               child: CircularProgressIndicator(
                                 strokeWidth: 2,
-                                valueColor: AlwaysStoppedAnimation<Color>(Colors.white),
+                                valueColor:
+                                    AlwaysStoppedAnimation<Color>(Colors.white),
                               ),
                             )
                           : const Text('Login', style: TextStyle(fontSize: 16)),
@@ -171,7 +175,9 @@ class _LoginScreenState extends State<LoginScreen> {
                   onPressed: () {
                     // TODO: Implement forgot password
                     ScaffoldMessenger.of(context).showSnackBar(
-                      const SnackBar(content: Text('Fitur lupa password dalam pengembangan')),
+                      const SnackBar(
+                          content:
+                              Text('Fitur lupa password dalam pengembangan')),
                     );
                   },
                   child: const Text('Lupa Password?'),

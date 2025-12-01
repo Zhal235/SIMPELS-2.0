@@ -65,23 +65,24 @@ class _BuktiHistoryScreenState extends State<BuktiHistoryScreen>
     setState(() => _loading = true);
     try {
       final response = await _api.getBuktiHistory(widget.santriId);
-      
+
       if (response.statusCode == 200) {
         final data = response.data;
         if (data['success'] == true) {
           final List<dynamic> buktiList = data['data'] ?? [];
-          
+
           // Parse dengan error handling per item
           final List<BuktiTransfer> parsedList = [];
           for (var i = 0; i < buktiList.length; i++) {
             try {
-              final bukti = BuktiTransfer.fromJson(buktiList[i] as Map<String, dynamic>);
+              final bukti =
+                  BuktiTransfer.fromJson(buktiList[i] as Map<String, dynamic>);
               parsedList.add(bukti);
             } catch (e) {
               // Silent fail for individual items
             }
           }
-          
+
           setState(() {
             _allBukti = parsedList;
             _applyFilter();
@@ -107,7 +108,8 @@ class _BuktiHistoryScreenState extends State<BuktiHistoryScreen>
     if (_selectedFilter == 'all') {
       _filteredBukti = List.from(_allBukti);
     } else {
-      _filteredBukti = _allBukti.where((b) => b.status == _selectedFilter).toList();
+      _filteredBukti =
+          _allBukti.where((b) => b.status == _selectedFilter).toList();
     }
     // Sort by upload date descending (newest first)
     _filteredBukti.sort((a, b) => b.uploadedAt.compareTo(a.uploadedAt));
@@ -123,8 +125,18 @@ class _BuktiHistoryScreenState extends State<BuktiHistoryScreen>
 
   String _formatDate(DateTime date) {
     final months = [
-      'Jan', 'Feb', 'Mar', 'Apr', 'Mei', 'Jun',
-      'Jul', 'Agu', 'Sep', 'Okt', 'Nov', 'Des'
+      'Jan',
+      'Feb',
+      'Mar',
+      'Apr',
+      'Mei',
+      'Jun',
+      'Jul',
+      'Agu',
+      'Sep',
+      'Okt',
+      'Nov',
+      'Des'
     ];
     return '${date.day} ${months[date.month - 1]} ${date.year}, ${date.hour.toString().padLeft(2, '0')}:${date.minute.toString().padLeft(2, '0')}';
   }
@@ -181,7 +193,7 @@ class _BuktiHistoryScreenState extends State<BuktiHistoryScreen>
                   borderRadius: BorderRadius.circular(2),
                 ),
               ),
-              
+
               Expanded(
                 child: ListView(
                   controller: scrollController,
@@ -190,7 +202,8 @@ class _BuktiHistoryScreenState extends State<BuktiHistoryScreen>
                     // Status Badge
                     Center(
                       child: Container(
-                        padding: const EdgeInsets.symmetric(horizontal: 20, vertical: 10),
+                        padding: const EdgeInsets.symmetric(
+                            horizontal: 20, vertical: 10),
                         decoration: BoxDecoration(
                           color: _getStatusColor(bukti.status).withOpacity(0.1),
                           borderRadius: BorderRadius.circular(20),
@@ -272,7 +285,8 @@ class _BuktiHistoryScreenState extends State<BuktiHistoryScreen>
                     ],
 
                     // Catatan Wali
-                    if (bukti.catatanWali != null && bukti.catatanWali!.isNotEmpty) ...[
+                    if (bukti.catatanWali != null &&
+                        bukti.catatanWali!.isNotEmpty) ...[
                       _buildNoteCard(
                         title: 'Catatan Anda',
                         content: bukti.catatanWali!,
@@ -283,17 +297,18 @@ class _BuktiHistoryScreenState extends State<BuktiHistoryScreen>
                     ],
 
                     // Catatan Admin (especially important for rejected)
-                    if (bukti.catatanAdmin != null && bukti.catatanAdmin!.isNotEmpty) ...[
+                    if (bukti.catatanAdmin != null &&
+                        bukti.catatanAdmin!.isNotEmpty) ...[
                       _buildNoteCard(
-                        title: bukti.status == 'rejected' 
-                            ? 'Alasan Penolakan' 
+                        title: bukti.status == 'rejected'
+                            ? 'Alasan Penolakan'
                             : 'Catatan Admin',
                         content: bukti.catatanAdmin!,
-                        icon: bukti.status == 'rejected' 
-                            ? Icons.warning 
+                        icon: bukti.status == 'rejected'
+                            ? Icons.warning
                             : Icons.admin_panel_settings,
-                        color: bukti.status == 'rejected' 
-                            ? Colors.red 
+                        color: bukti.status == 'rejected'
+                            ? Colors.red
                             : Colors.orange,
                       ),
                       const SizedBox(height: 12),
@@ -312,56 +327,57 @@ class _BuktiHistoryScreenState extends State<BuktiHistoryScreen>
                       ),
                       const SizedBox(height: 12),
                       ...bukti.tagihan!.map((t) => Container(
-                        margin: const EdgeInsets.only(bottom: 8),
-                        padding: const EdgeInsets.all(12),
-                        decoration: BoxDecoration(
-                          color: Colors.grey[50],
-                          borderRadius: BorderRadius.circular(12),
-                          border: Border.all(color: Colors.grey[300]!),
-                        ),
-                        child: Column(
-                          crossAxisAlignment: CrossAxisAlignment.start,
-                          children: [
-                            Text(
-                              t.jenis,
-                              style: const TextStyle(
-                                fontWeight: FontWeight.bold,
-                                fontSize: 14,
-                              ),
+                            margin: const EdgeInsets.only(bottom: 8),
+                            padding: const EdgeInsets.all(12),
+                            decoration: BoxDecoration(
+                              color: Colors.grey[50],
+                              borderRadius: BorderRadius.circular(12),
+                              border: Border.all(color: Colors.grey[300]!),
                             ),
-                            if (t.bulan != null) ...[
-                              const SizedBox(height: 4),
-                              Text(
-                                '${t.bulan} ${t.tahun}',
-                                style: TextStyle(
-                                  fontSize: 12,
-                                  color: Colors.grey[600],
-                                ),
-                              ),
-                            ],
-                            const SizedBox(height: 8),
-                            Row(
-                              mainAxisAlignment: MainAxisAlignment.spaceBetween,
+                            child: Column(
+                              crossAxisAlignment: CrossAxisAlignment.start,
                               children: [
                                 Text(
-                                  'Nominal:',
-                                  style: TextStyle(
-                                    fontSize: 12,
-                                    color: Colors.grey[600],
+                                  t.jenis,
+                                  style: const TextStyle(
+                                    fontWeight: FontWeight.bold,
+                                    fontSize: 14,
                                   ),
                                 ),
-                                Text(
-                                  _formatCurrency(t.nominal),
-                                  style: const TextStyle(
-                                    fontSize: 12,
-                                    fontWeight: FontWeight.w600,
+                                if (t.bulan != null) ...[
+                                  const SizedBox(height: 4),
+                                  Text(
+                                    '${t.bulan} ${t.tahun}',
+                                    style: TextStyle(
+                                      fontSize: 12,
+                                      color: Colors.grey[600],
+                                    ),
                                   ),
+                                ],
+                                const SizedBox(height: 8),
+                                Row(
+                                  mainAxisAlignment:
+                                      MainAxisAlignment.spaceBetween,
+                                  children: [
+                                    Text(
+                                      'Nominal:',
+                                      style: TextStyle(
+                                        fontSize: 12,
+                                        color: Colors.grey[600],
+                                      ),
+                                    ),
+                                    Text(
+                                      _formatCurrency(t.nominal),
+                                      style: const TextStyle(
+                                        fontSize: 12,
+                                        fontWeight: FontWeight.w600,
+                                      ),
+                                    ),
+                                  ],
                                 ),
                               ],
                             ),
-                          ],
-                        ),
-                      )),
+                          )),
                     ],
 
                     const SizedBox(height: 20),
@@ -372,17 +388,20 @@ class _BuktiHistoryScreenState extends State<BuktiHistoryScreen>
                         // Convert URL using ApiService helper
                         final originalUrl = bukti.buktiUrl;
                         final fullUrl = ApiService.getFullImageUrl(originalUrl);
-                        
-                        debugPrint('[BuktiHistory] ========== IMAGE DEBUG ==========');
+
+                        debugPrint(
+                            '[BuktiHistory] ========== IMAGE DEBUG ==========');
                         debugPrint('[BuktiHistory] Original URL: $originalUrl');
                         debugPrint('[BuktiHistory] Converted URL: $fullUrl');
                         try {
-                          debugPrint('[BuktiHistory] Platform: ${Platform.isAndroid ? "Android" : Platform.isIOS ? "iOS" : "Web"}');
+                          debugPrint(
+                              '[BuktiHistory] Platform: ${Platform.isAndroid ? "Android" : Platform.isIOS ? "iOS" : "Web"}');
                         } catch (e) {
                           debugPrint('[BuktiHistory] Platform: Web/Unknown');
                         }
-                        debugPrint('[BuktiHistory] ====================================');
-                        
+                        debugPrint(
+                            '[BuktiHistory] ====================================');
+
                         return Container(
                           decoration: BoxDecoration(
                             borderRadius: BorderRadius.circular(12),
@@ -410,24 +429,29 @@ class _BuktiHistoryScreenState extends State<BuktiHistoryScreen>
                                   color: Colors.grey[200],
                                   child: Center(
                                     child: Column(
-                                      mainAxisAlignment: MainAxisAlignment.center,
+                                      mainAxisAlignment:
+                                          MainAxisAlignment.center,
                                       children: [
-                                        const Icon(Icons.broken_image, size: 50, color: Colors.grey),
+                                        const Icon(Icons.broken_image,
+                                            size: 50, color: Colors.grey),
                                         const SizedBox(height: 8),
                                         const Text(
                                           'Gagal memuat gambar',
-                                          style: TextStyle(fontWeight: FontWeight.bold),
+                                          style: TextStyle(
+                                              fontWeight: FontWeight.bold),
                                         ),
                                         const SizedBox(height: 8),
                                         Text(
                                           'URL: $fullUrl',
-                                          style: const TextStyle(fontSize: 9, color: Colors.grey),
+                                          style: const TextStyle(
+                                              fontSize: 9, color: Colors.grey),
                                           textAlign: TextAlign.center,
                                         ),
                                         const SizedBox(height: 4),
                                         Text(
                                           'Error: ${error.toString()}',
-                                          style: const TextStyle(fontSize: 8, color: Colors.red),
+                                          style: const TextStyle(
+                                              fontSize: 8, color: Colors.red),
                                           textAlign: TextAlign.center,
                                           maxLines: 2,
                                           overflow: TextOverflow.ellipsis,
@@ -437,26 +461,38 @@ class _BuktiHistoryScreenState extends State<BuktiHistoryScreen>
                                   ),
                                 );
                               },
-                              loadingBuilder: (context, child, loadingProgress) {
+                              loadingBuilder:
+                                  (context, child, loadingProgress) {
                                 if (loadingProgress == null) {
-                                  debugPrint('[BuktiHistory] ✅ Image loaded successfully: $fullUrl');
+                                  debugPrint(
+                                      '[BuktiHistory] ✅ Image loaded successfully: $fullUrl');
                                   return child;
                                 }
-                                final percent = loadingProgress.expectedTotalBytes != null
-                                    ? (loadingProgress.cumulativeBytesLoaded / loadingProgress.expectedTotalBytes! * 100).toInt()
-                                    : 0;
-                                debugPrint('[BuktiHistory] ⏳ Loading image... $percent%');
-                                
+                                final percent =
+                                    loadingProgress.expectedTotalBytes != null
+                                        ? (loadingProgress
+                                                    .cumulativeBytesLoaded /
+                                                loadingProgress
+                                                    .expectedTotalBytes! *
+                                                100)
+                                            .toInt()
+                                        : 0;
+                                debugPrint(
+                                    '[BuktiHistory] ⏳ Loading image... $percent%');
+
                                 return Container(
                                   height: 200,
                                   color: Colors.grey[200],
                                   child: Center(
                                     child: Column(
-                                      mainAxisAlignment: MainAxisAlignment.center,
+                                      mainAxisAlignment:
+                                          MainAxisAlignment.center,
                                       children: [
                                         const CircularProgressIndicator(),
                                         const SizedBox(height: 8),
-                                        Text('$percent%', style: const TextStyle(fontSize: 12)),
+                                        Text('$percent%',
+                                            style:
+                                                const TextStyle(fontSize: 12)),
                                       ],
                                     ),
                                   ),
@@ -587,7 +623,8 @@ class _BuktiHistoryScreenState extends State<BuktiHistoryScreen>
             ),
             Text(
               widget.santriName,
-              style: const TextStyle(fontSize: 12, fontWeight: FontWeight.normal),
+              style:
+                  const TextStyle(fontSize: 12, fontWeight: FontWeight.normal),
             ),
           ],
         ),
@@ -607,14 +644,16 @@ class _BuktiHistoryScreenState extends State<BuktiHistoryScreen>
                   if (_allBukti.isNotEmpty) ...[
                     const SizedBox(width: 6),
                     Container(
-                      padding: const EdgeInsets.symmetric(horizontal: 8, vertical: 2),
+                      padding: const EdgeInsets.symmetric(
+                          horizontal: 8, vertical: 2),
                       decoration: BoxDecoration(
                         color: Colors.white.withOpacity(0.2),
                         borderRadius: BorderRadius.circular(10),
                       ),
                       child: Text(
                         '${_allBukti.length}',
-                        style: const TextStyle(fontSize: 12, fontWeight: FontWeight.bold),
+                        style: const TextStyle(
+                            fontSize: 12, fontWeight: FontWeight.bold),
                       ),
                     ),
                   ],
@@ -629,7 +668,8 @@ class _BuktiHistoryScreenState extends State<BuktiHistoryScreen>
                   if (pendingCount > 0) ...[
                     const SizedBox(width: 6),
                     Container(
-                      padding: const EdgeInsets.symmetric(horizontal: 8, vertical: 2),
+                      padding: const EdgeInsets.symmetric(
+                          horizontal: 8, vertical: 2),
                       decoration: BoxDecoration(
                         color: Colors.orange.withOpacity(0.9),
                         borderRadius: BorderRadius.circular(10),
@@ -655,7 +695,8 @@ class _BuktiHistoryScreenState extends State<BuktiHistoryScreen>
                   if (approvedCount > 0) ...[
                     const SizedBox(width: 6),
                     Container(
-                      padding: const EdgeInsets.symmetric(horizontal: 8, vertical: 2),
+                      padding: const EdgeInsets.symmetric(
+                          horizontal: 8, vertical: 2),
                       decoration: BoxDecoration(
                         color: Colors.green.withOpacity(0.9),
                         borderRadius: BorderRadius.circular(10),
@@ -771,7 +812,8 @@ class _BuktiHistoryScreenState extends State<BuktiHistoryScreen>
                   children: [
                     // Status Badge
                     Container(
-                      padding: const EdgeInsets.symmetric(horizontal: 12, vertical: 6),
+                      padding: const EdgeInsets.symmetric(
+                          horizontal: 12, vertical: 6),
                       decoration: BoxDecoration(
                         color: _getStatusColor(bukti.status).withOpacity(0.1),
                         borderRadius: BorderRadius.circular(20),
@@ -855,8 +897,8 @@ class _BuktiHistoryScreenState extends State<BuktiHistoryScreen>
                 ),
 
                 // Admin Note for rejected
-                if (bukti.status == 'rejected' && 
-                    bukti.catatanAdmin != null && 
+                if (bukti.status == 'rejected' &&
+                    bukti.catatanAdmin != null &&
                     bukti.catatanAdmin!.isNotEmpty) ...[
                   const SizedBox(height: 12),
                   Container(
@@ -893,7 +935,8 @@ class _BuktiHistoryScreenState extends State<BuktiHistoryScreen>
                 ],
 
                 // Processed info for approved
-                if (bukti.status == 'approved' && bukti.processedBy != null) ...[
+                if (bukti.status == 'approved' &&
+                    bukti.processedBy != null) ...[
                   const SizedBox(height: 8),
                   Row(
                     children: [

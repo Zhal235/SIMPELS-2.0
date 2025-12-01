@@ -107,7 +107,8 @@ class AnnouncementService {
       if (response.data['success'] == true) {
         return {
           'success': true,
-          'message': response.data['message'] ?? 'Pengumuman ditandai sebagai dibaca',
+          'message':
+              response.data['message'] ?? 'Pengumuman ditandai sebagai dibaca',
         };
       }
 

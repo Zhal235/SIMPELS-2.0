@@ -20,6 +20,8 @@ use App\Http\Controllers\BankAccountController;
 
 // Authentication routes (public)
 Route::post('/login', [AuthController::class, 'login']);
+Route::post('/forgot-password', [AuthController::class, 'forgotPassword']);
+Route::post('/reset-password', [AuthController::class, 'resetPassword']);
 
 // Wali Santri Mobile App routes
 Route::prefix('auth')->group(function () {
@@ -27,7 +29,10 @@ Route::prefix('auth')->group(function () {
 });
 
 Route::middleware('auth:sanctum')->prefix('wali')->group(function () {
+    Route::post('change-password', [WaliController::class, 'changePassword']);
     Route::get('santri', [WaliController::class, 'getSantri']);
+    Route::get('santri/{santri_id}/detail', [WaliController::class, 'getSantriDetail']);
+    Route::post('santri/{santri_id}/correction', [WaliController::class, 'submitDataCorrection']);
     Route::get('wallet/{santri_id}', [WaliController::class, 'getWallet']);
     // allow wali (parent) to update per-santri wallet daily limit
     Route::put('wallet/{santri_id}/limit', [WaliController::class, 'setSantriDailyLimit']);
@@ -64,10 +69,24 @@ Route::middleware('auth:sanctum')->prefix('admin/bukti-transfer')->group(functio
     Route::post('/{id}/reject', [\App\Http\Controllers\Api\AdminBuktiTransferController::class, 'reject']);
 });
 
+// Admin Wali Password Reset routes
+Route::middleware('auth:sanctum')->prefix('admin/wali')->group(function () {
+    Route::get('check-password/{noHp}', [\App\Http\Controllers\Admin\WaliPasswordController::class, 'checkPassword']);
+    Route::post('reset-password', [\App\Http\Controllers\Admin\WaliPasswordController::class, 'resetPassword']);
+});
+
+// Admin Data Corrections routes
+Route::middleware('auth:sanctum')->prefix('admin/data-corrections')->group(function () {
+    Route::get('/', [\App\Http\Controllers\Admin\DataCorrectionController::class, 'index']);
+    Route::post('{id}/approve', [\App\Http\Controllers\Admin\DataCorrectionController::class, 'approve']);
+    Route::post('{id}/reject', [\App\Http\Controllers\Admin\DataCorrectionController::class, 'reject']);
+});
+
 // Protected routes
 Route::middleware('auth:sanctum')->group(function () {
     Route::post('/logout', [AuthController::class, 'logout']);
     Route::get('/user', [AuthController::class, 'user']);
+    Route::post('/change-password', [AuthController::class, 'changePassword']);
     // Admin: manage users
     Route::get('/v1/users', [\App\Http\Controllers\UserController::class, 'index']);
     Route::post('/v1/users', [\App\Http\Controllers\UserController::class, 'store']);

@@ -3,7 +3,7 @@ import { useUIStore } from '../stores/useUIStore'
 import { 
   LayoutDashboard, Users, Wallet, UserCog, Settings, Building2, Home, 
   ArrowDownUp, LogIn, LogOut, GraduationCap, CreditCard, Receipt, 
-  BookOpen, FileText, AlertCircle, ListChecks, DollarSign, Calendar
+  BookOpen, FileText, AlertCircle, ListChecks, DollarSign, Calendar, CheckCircle
 } from 'lucide-react'
 import { motion, AnimatePresence } from 'framer-motion'
 import { useAuthStore } from '../stores/useAuthStore'
@@ -133,6 +133,18 @@ export default function Sidebar() {
                     >
                       <Home className="w-5 h-5" />
                       {sidebarOpen && <span>Asrama</span>}
+                    </NavLink>)}
+                  </li>
+                  <li>
+                    {hasAccess('kesantrian.koreksi_data') && (
+                    <NavLink
+                      to="/kesantrian/koreksi-data"
+                      className={({ isActive }) =>
+                        `flex items-center gap-3 rounded-md px-3 py-2 text-sm ${isActive ? 'bg-white text-brand shadow-sm' : 'text-gray-700 hover:bg-white'}`
+                      }
+                    >
+                      <CheckCircle className="w-5 h-5" />
+                      {sidebarOpen && <span>Koreksi Data</span>}
                     </NavLink>)}
                   </li>
                   {/* Mutasi parent dengan submenu */}

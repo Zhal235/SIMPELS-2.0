@@ -10,6 +10,7 @@ import 'wallet_history_screen.dart';
 import 'notification_screen.dart';
 import 'unified_payment_screen.dart';
 import 'bukti_history_screen.dart';
+import 'data_santri_screen.dart';
 import '../widgets/announcement_badge.dart';
 
 class HomeScreen extends StatefulWidget {
@@ -149,13 +150,15 @@ class DashboardTab extends StatelessWidget {
               itemBuilder: (context, index) {
                 final santri = authProvider.santriList[index];
                 final isActive = santri.id == authProvider.activeSantri?.id;
-                
+
                 return ListTile(
                   leading: CircleAvatar(
-                    backgroundColor: Theme.of(context).colorScheme.primary.withAlpha(51),
-                    backgroundImage: santri.fotoUrl != null && santri.fotoUrl!.isNotEmpty
-                        ? NetworkImage(santri.fotoUrl!)
-                        : null,
+                    backgroundColor:
+                        Theme.of(context).colorScheme.primary.withAlpha(51),
+                    backgroundImage:
+                        santri.fotoUrl != null && santri.fotoUrl!.isNotEmpty
+                            ? NetworkImage(santri.fotoUrl!)
+                            : null,
                     child: santri.fotoUrl == null || santri.fotoUrl!.isEmpty
                         ? Icon(
                             santri.jenisKelamin == 'L' ? Icons.boy : Icons.girl,
@@ -166,21 +169,24 @@ class DashboardTab extends StatelessWidget {
                   title: Text(
                     santri.nama,
                     style: TextStyle(
-                      fontWeight: isActive ? FontWeight.bold : FontWeight.normal,
+                      fontWeight:
+                          isActive ? FontWeight.bold : FontWeight.normal,
                     ),
                   ),
-                  subtitle: Text('NIS: ${santri.nis} • ${santri.kelas ?? 'Belum ada kelas'}'),
+                  subtitle: Text(
+                      'NIS: ${santri.nis} • ${santri.kelas ?? 'Belum ada kelas'}'),
                   trailing: isActive
-                      ? Icon(Icons.check_circle, color: Theme.of(context).colorScheme.primary)
+                      ? Icon(Icons.check_circle,
+                          color: Theme.of(context).colorScheme.primary)
                       : const Icon(Icons.chevron_right),
                   onTap: isActive
                       ? null
                       : () async {
                           Navigator.pop(context);
-                          
+
                           // Switch santri (instant, no loading needed)
                           await authProvider.switchSantri(santri.id);
-                          
+
                           if (context.mounted) {
                             ScaffoldMessenger.of(context).showSnackBar(
                               SnackBar(
@@ -260,15 +266,17 @@ class DashboardTab extends StatelessWidget {
                     Builder(
                       builder: (context) {
                         final currentSantri = santri;
-                        final hasFoto = currentSantri?.fotoUrl != null && 
-                                       currentSantri!.fotoUrl!.isNotEmpty;
-                        
+                        final hasFoto = currentSantri?.fotoUrl != null &&
+                            currentSantri!.fotoUrl!.isNotEmpty;
+
                         if (hasFoto) {
-                          debugPrint('[HomeScreen] Loading foto from: ${currentSantri.fotoUrl}');
+                          debugPrint(
+                              '[HomeScreen] Loading foto from: ${currentSantri.fotoUrl}');
                         } else {
-                          debugPrint('[HomeScreen] No foto URL available for ${currentSantri?.nama}');
+                          debugPrint(
+                              '[HomeScreen] No foto URL available for ${currentSantri?.nama}');
                         }
-                        
+
                         return CircleAvatar(
                           radius: 50,
                           backgroundColor: Colors.white,
@@ -277,9 +285,11 @@ class DashboardTab extends StatelessWidget {
                               : null,
                           onBackgroundImageError: hasFoto
                               ? (exception, stackTrace) {
-                                  debugPrint('[HomeScreen] Error loading foto from ${currentSantri.fotoUrl}');
+                                  debugPrint(
+                                      '[HomeScreen] Error loading foto from ${currentSantri.fotoUrl}');
                                   debugPrint('[HomeScreen] Error: $exception');
-                                  debugPrint('[HomeScreen] StackTrace: $stackTrace');
+                                  debugPrint(
+                                      '[HomeScreen] StackTrace: $stackTrace');
                                 }
                               : null,
                           child: !hasFoto
@@ -298,9 +308,11 @@ class DashboardTab extends StatelessWidget {
                     // Nama Santri with Dropdown (if multiple santri)
                     authProvider.santriList.length > 1
                         ? InkWell(
-                            onTap: () => _showSantriSelector(context, authProvider),
+                            onTap: () =>
+                                _showSantriSelector(context, authProvider),
                             child: Container(
-                              padding: const EdgeInsets.symmetric(horizontal: 16, vertical: 8),
+                              padding: const EdgeInsets.symmetric(
+                                  horizontal: 16, vertical: 8),
                               decoration: BoxDecoration(
                                 color: Colors.white.withAlpha(26),
                                 borderRadius: BorderRadius.circular(20),
@@ -317,7 +329,8 @@ class DashboardTab extends StatelessWidget {
                                     ),
                                   ),
                                   const SizedBox(width: 8),
-                                  const Icon(Icons.keyboard_arrow_down, color: Colors.white, size: 28),
+                                  const Icon(Icons.keyboard_arrow_down,
+                                      color: Colors.white, size: 28),
                                 ],
                               ),
                             ),
@@ -482,11 +495,27 @@ class DashboardTab extends StatelessWidget {
                   children: [
                     _buildQuickMenu(
                       context,
+                      icon: Icons.school,
+                      title: 'Data Santri',
+                      color: Colors.teal,
+                      onTap: () {
+                        Navigator.push(
+                          context,
+                          MaterialPageRoute(
+                            builder: (_) => const DataSantriScreen(),
+                          ),
+                        );
+                      },
+                    ),
+                    _buildQuickMenu(
+                      context,
                       icon: Icons.receipt_long,
                       title: 'Bukti TF',
                       color: Colors.orange,
                       onTap: () {
-                        final santri = Provider.of<AuthProvider>(context, listen: false).activeSantri;
+                        final santri =
+                            Provider.of<AuthProvider>(context, listen: false)
+                                .activeSantri;
                         if (santri != null) {
                           Navigator.push(
                             context,
@@ -535,7 +564,9 @@ class DashboardTab extends StatelessWidget {
                       title: 'Dompet',
                       color: Colors.blue,
                       onTap: () {
-                        final santri = Provider.of<AuthProvider>(context, listen: false).activeSantri;
+                        final santri =
+                            Provider.of<AuthProvider>(context, listen: false)
+                                .activeSantri;
                         if (santri != null) {
                           Navigator.push(
                             context,
@@ -824,90 +855,90 @@ class _PembayaranTabState extends State<PembayaranTab>
                     padding: const EdgeInsets.all(16),
                     child: SafeArea(
                       child: Row(
-                            children: [
-                              Expanded(
-                                child: Column(
-                                  crossAxisAlignment: CrossAxisAlignment.start,
-                                  mainAxisSize: MainAxisSize.min,
-                                  children: [
-                                    Text(
-                                      '${_selectedTagihanIds.length} tagihan dipilih',
-                                      style: const TextStyle(
-                                        fontSize: 12,
-                                        color: Colors.grey,
-                                      ),
-                                    ),
-                                    const SizedBox(height: 4),
-                                    Text(
-                                      'Rp ${totalSelected.toStringAsFixed(0).replaceAllMapped(RegExp(r'(\d{1,3})(?=(\d{3})+(?!\d))'), (Match m) => '${m[1]}.')}',
-                                      style: const TextStyle(
-                                        fontSize: 20,
-                                        fontWeight: FontWeight.bold,
-                                        color: Color(0xFF1976D2),
-                                      ),
-                                    ),
-                                  ],
-                                ),
-                              ),
-                              const SizedBox(width: 16),
-                              ElevatedButton(
-                                onPressed: _selectedTagihanIds.isEmpty
-                                    ? null
-                                    : () {
-                                        try {
-                                          final selectedTagihan =
-                                              _getSelectedTagihan();
-                                          debugPrint(
-                                              '[Bayar Button] Selected tagihan count: ${selectedTagihan.length}');
-                                          debugPrint(
-                                              '[Bayar Button] Total: $totalSelected');
-
-                                          // Navigate to upload bukti screen
-                                          // Pass flag to include topup, nominal akan diisi di screen berikutnya
-                                          Navigator.pushNamed(
-                                            context,
-                                            '/upload-bukti',
-                                            arguments: {
-                                              'selectedTagihan': selectedTagihan,
-                                              'totalNominal': totalSelected,
-                                            },
-                                          ).then((result) {
-                                            if (result == true) {
-                                              setState(() {
-                                                _selectedTagihanIds.clear();
-                                              });
-                                              _loadTagihan();
-                                            }
-                                          });
-                                        } catch (e) {
-                                          debugPrint('[Bayar Button ERROR] $e');
-                                          ScaffoldMessenger.of(context)
-                                              .showSnackBar(
-                                            SnackBar(content: Text('Error: $e')),
-                                          );
-                                        }
-                                      },
-                                style: ElevatedButton.styleFrom(
-                                  backgroundColor: const Color(0xFF1976D2),
-                                  padding: const EdgeInsets.symmetric(
-                                    horizontal: 32,
-                                    vertical: 16,
-                                  ),
-                                  shape: RoundedRectangleBorder(
-                                    borderRadius: BorderRadius.circular(8),
+                        children: [
+                          Expanded(
+                            child: Column(
+                              crossAxisAlignment: CrossAxisAlignment.start,
+                              mainAxisSize: MainAxisSize.min,
+                              children: [
+                                Text(
+                                  '${_selectedTagihanIds.length} tagihan dipilih',
+                                  style: const TextStyle(
+                                    fontSize: 12,
+                                    color: Colors.grey,
                                   ),
                                 ),
-                                child: const Text(
-                                  'Bayar',
-                                  style: TextStyle(
-                                    fontSize: 16,
+                                const SizedBox(height: 4),
+                                Text(
+                                  'Rp ${totalSelected.toStringAsFixed(0).replaceAllMapped(RegExp(r'(\d{1,3})(?=(\d{3})+(?!\d))'), (Match m) => '${m[1]}.')}',
+                                  style: const TextStyle(
+                                    fontSize: 20,
                                     fontWeight: FontWeight.bold,
-                                    color: Colors.white,
+                                    color: Color(0xFF1976D2),
                                   ),
                                 ),
-                              ),
-                            ],
+                              ],
+                            ),
                           ),
+                          const SizedBox(width: 16),
+                          ElevatedButton(
+                            onPressed: _selectedTagihanIds.isEmpty
+                                ? null
+                                : () {
+                                    try {
+                                      final selectedTagihan =
+                                          _getSelectedTagihan();
+                                      debugPrint(
+                                          '[Bayar Button] Selected tagihan count: ${selectedTagihan.length}');
+                                      debugPrint(
+                                          '[Bayar Button] Total: $totalSelected');
+
+                                      // Navigate to upload bukti screen
+                                      // Pass flag to include topup, nominal akan diisi di screen berikutnya
+                                      Navigator.pushNamed(
+                                        context,
+                                        '/upload-bukti',
+                                        arguments: {
+                                          'selectedTagihan': selectedTagihan,
+                                          'totalNominal': totalSelected,
+                                        },
+                                      ).then((result) {
+                                        if (result == true) {
+                                          setState(() {
+                                            _selectedTagihanIds.clear();
+                                          });
+                                          _loadTagihan();
+                                        }
+                                      });
+                                    } catch (e) {
+                                      debugPrint('[Bayar Button ERROR] $e');
+                                      ScaffoldMessenger.of(context)
+                                          .showSnackBar(
+                                        SnackBar(content: Text('Error: $e')),
+                                      );
+                                    }
+                                  },
+                            style: ElevatedButton.styleFrom(
+                              backgroundColor: const Color(0xFF1976D2),
+                              padding: const EdgeInsets.symmetric(
+                                horizontal: 32,
+                                vertical: 16,
+                              ),
+                              shape: RoundedRectangleBorder(
+                                borderRadius: BorderRadius.circular(8),
+                              ),
+                            ),
+                            child: const Text(
+                              'Bayar',
+                              style: TextStyle(
+                                fontSize: 16,
+                                fontWeight: FontWeight.bold,
+                                color: Colors.white,
+                              ),
+                            ),
+                          ),
+                        ],
+                      ),
                     ),
                   ),
               ],
@@ -964,22 +995,23 @@ class _PembayaranTabState extends State<PembayaranTab>
       future: _checkIfInDraft(tagihanId),
       builder: (context, snapshot) {
         final isInDraft = snapshot.data ?? false;
-        
+
         // Disable selection for paid, pending, or draft tagihan
         final canSelect = status != 'lunas' && !hasPendingBukti && !isInDraft;
-        
-        return _buildTagihanCardContent(tagihan, isSelected, canSelect, hasPendingBukti, isInDraft);
+
+        return _buildTagihanCardContent(
+            tagihan, isSelected, canSelect, hasPendingBukti, isInDraft);
       },
     );
   }
 
   Future<bool> _checkIfInDraft(int? tagihanId) async {
     if (tagihanId == null) return false;
-    
+
     final authProvider = Provider.of<AuthProvider>(context, listen: false);
     final santriId = authProvider.activeSantri?.id;
     if (santriId == null) return false;
-    
+
     final prefs = await SharedPreferences.getInstance();
     final draftKey = 'payment_draft_${santriId}_$tagihanId';
     return prefs.containsKey(draftKey);
@@ -1228,7 +1260,8 @@ class RiwayatTab extends StatefulWidget {
   State<RiwayatTab> createState() => _RiwayatTabState();
 }
 
-class _RiwayatTabState extends State<RiwayatTab> with SingleTickerProviderStateMixin {
+class _RiwayatTabState extends State<RiwayatTab>
+    with SingleTickerProviderStateMixin {
   late TabController _tabController;
   List<dynamic> _walletTransactions = [];
   List<dynamic> _pembayaranList = [];
@@ -1268,11 +1301,11 @@ class _RiwayatTabState extends State<RiwayatTab> with SingleTickerProviderStateM
       }
 
       final apiService = ApiService();
-      
+
       // Get wallet transactions
       final walletResponse = await apiService.getWalletTransactions(santri.id);
       final walletData = walletResponse.data['data'] ?? [];
-      
+
       // Get bukti transfer history
       final buktiResponse = await apiService.getBuktiHistory(santri.id);
       final buktiData = buktiResponse.data['data'] ?? [];
@@ -1280,7 +1313,7 @@ class _RiwayatTabState extends State<RiwayatTab> with SingleTickerProviderStateM
       // Separate data into 3 categories
       final walletList = <Map<String, dynamic>>[];
       final buktiList = <Map<String, dynamic>>[];
-      
+
       // Process wallet transactions
       for (var item in walletData) {
         walletList.add({
@@ -1292,7 +1325,7 @@ class _RiwayatTabState extends State<RiwayatTab> with SingleTickerProviderStateM
           'balance_after': item['balance_after'] ?? 0,
         });
       }
-      
+
       // Process bukti transfer
       for (var item in buktiData) {
         final status = item['status'] ?? 'pending';
@@ -1316,7 +1349,7 @@ class _RiwayatTabState extends State<RiwayatTab> with SingleTickerProviderStateM
         final dateB = DateTime.tryParse(b['date'] ?? '') ?? DateTime(2000);
         return dateB.compareTo(dateA);
       });
-      
+
       buktiList.sort((a, b) {
         final dateA = DateTime.tryParse(a['date'] ?? '') ?? DateTime(2000);
         final dateB = DateTime.tryParse(b['date'] ?? '') ?? DateTime(2000);
@@ -1328,7 +1361,8 @@ class _RiwayatTabState extends State<RiwayatTab> with SingleTickerProviderStateM
           _walletTransactions = walletList;
           _buktiTransferList = buktiList;
           // Pembayaran will be fetched separately or extracted from bukti
-          _pembayaranList = buktiList.where((b) => b['status'] == 'approved').toList();
+          _pembayaranList =
+              buktiList.where((b) => b['status'] == 'approved').toList();
           _isLoading = false;
         });
       }
@@ -1452,12 +1486,13 @@ class _RiwayatTabState extends State<RiwayatTab> with SingleTickerProviderStateM
     final transactionType = item['transaction_type'];
     final amount = (item['amount'] as num).toDouble();
     final isCredit = transactionType == 'credit';
-    
+
     return Card(
       margin: const EdgeInsets.only(bottom: 12),
       child: ListTile(
         leading: CircleAvatar(
-          backgroundColor: isCredit ? Colors.green.shade100 : Colors.red.shade100,
+          backgroundColor:
+              isCredit ? Colors.green.shade100 : Colors.red.shade100,
           child: Icon(
             isCredit ? Icons.add : Icons.remove,
             color: isCredit ? Colors.green : Colors.red,
@@ -1492,11 +1527,11 @@ class _RiwayatTabState extends State<RiwayatTab> with SingleTickerProviderStateM
   Widget _buildBuktiTransferCard(Map<String, dynamic> item) {
     final status = item['status'] ?? 'pending';
     final jenisTransaksi = item['jenis_transaksi'] ?? 'pembayaran';
-    
+
     Color statusColor;
     IconData statusIcon;
     String statusText;
-    
+
     switch (status) {
       case 'approved':
         statusColor = Colors.green;
@@ -1513,7 +1548,7 @@ class _RiwayatTabState extends State<RiwayatTab> with SingleTickerProviderStateM
         statusIcon = Icons.pending;
         statusText = 'Menunggu';
     }
-    
+
     return Card(
       margin: const EdgeInsets.only(bottom: 12),
       child: ExpansionTile(
@@ -1533,14 +1568,18 @@ class _RiwayatTabState extends State<RiwayatTab> with SingleTickerProviderStateM
             Row(
               children: [
                 Container(
-                  padding: const EdgeInsets.symmetric(horizontal: 8, vertical: 2),
+                  padding:
+                      const EdgeInsets.symmetric(horizontal: 8, vertical: 2),
                   decoration: BoxDecoration(
                     color: statusColor.withOpacity(0.2),
                     borderRadius: BorderRadius.circular(12),
                   ),
                   child: Text(
                     statusText,
-                    style: TextStyle(fontSize: 11, color: statusColor, fontWeight: FontWeight.bold),
+                    style: TextStyle(
+                        fontSize: 11,
+                        color: statusColor,
+                        fontWeight: FontWeight.bold),
                   ),
                 ),
               ],
@@ -1560,16 +1599,21 @@ class _RiwayatTabState extends State<RiwayatTab> with SingleTickerProviderStateM
             child: Column(
               crossAxisAlignment: CrossAxisAlignment.start,
               children: [
-                if (item['catatan_wali'] != null && item['catatan_wali'].toString().isNotEmpty) ...[
-                  const Text('Catatan Wali:', style: TextStyle(fontWeight: FontWeight.bold)),
+                if (item['catatan_wali'] != null &&
+                    item['catatan_wali'].toString().isNotEmpty) ...[
+                  const Text('Catatan Wali:',
+                      style: TextStyle(fontWeight: FontWeight.bold)),
                   const SizedBox(height: 4),
                   Text(item['catatan_wali']),
                   const SizedBox(height: 12),
                 ],
                 if (status == 'rejected' && item['catatan_admin'] != null) ...[
-                  const Text('Alasan Ditolak:', style: TextStyle(fontWeight: FontWeight.bold, color: Colors.red)),
+                  const Text('Alasan Ditolak:',
+                      style: TextStyle(
+                          fontWeight: FontWeight.bold, color: Colors.red)),
                   const SizedBox(height: 4),
-                  Text(item['catatan_admin'], style: const TextStyle(color: Colors.red)),
+                  Text(item['catatan_admin'],
+                      style: const TextStyle(color: Colors.red)),
                   const SizedBox(height: 12),
                 ],
                 if (status == 'approved' && item['processed_at'] != null) ...[
@@ -1578,13 +1622,15 @@ class _RiwayatTabState extends State<RiwayatTab> with SingleTickerProviderStateM
                   const SizedBox(height: 12),
                 ],
                 if ((item['tagihan'] as List).isNotEmpty) ...[
-                  const Text('Tagihan yang dibayar:', style: TextStyle(fontWeight: FontWeight.bold)),
+                  const Text('Tagihan yang dibayar:',
+                      style: TextStyle(fontWeight: FontWeight.bold)),
                   const SizedBox(height: 8),
                   ...(item['tagihan'] as List).map((t) => Padding(
                         padding: const EdgeInsets.only(left: 8, bottom: 4),
                         child: Row(
                           children: [
-                            const Icon(Icons.check_circle, size: 16, color: Colors.green),
+                            const Icon(Icons.check_circle,
+                                size: 16, color: Colors.green),
                             const SizedBox(width: 8),
                             Expanded(
                               child: Text(
@@ -1594,7 +1640,8 @@ class _RiwayatTabState extends State<RiwayatTab> with SingleTickerProviderStateM
                             ),
                             Text(
                               'Rp ${_formatNumber(t['nominal'])}',
-                              style: const TextStyle(fontSize: 13, fontWeight: FontWeight.bold),
+                              style: const TextStyle(
+                                  fontSize: 13, fontWeight: FontWeight.bold),
                             ),
                           ],
                         ),
@@ -1624,7 +1671,20 @@ class _RiwayatTabState extends State<RiwayatTab> with SingleTickerProviderStateM
   String _formatDate(String dateStr) {
     try {
       final date = DateTime.parse(dateStr);
-      final months = ['Jan', 'Feb', 'Mar', 'Apr', 'Mei', 'Jun', 'Jul', 'Agu', 'Sep', 'Okt', 'Nov', 'Des'];
+      final months = [
+        'Jan',
+        'Feb',
+        'Mar',
+        'Apr',
+        'Mei',
+        'Jun',
+        'Jul',
+        'Agu',
+        'Sep',
+        'Okt',
+        'Nov',
+        'Des'
+      ];
       return '${date.day} ${months[date.month - 1]} ${date.year} ${date.hour.toString().padLeft(2, '0')}:${date.minute.toString().padLeft(2, '0')}';
     } catch (e) {
       return dateStr;
@@ -1660,117 +1720,117 @@ class ProfileTab extends StatelessWidget {
           padding: const EdgeInsets.all(16),
           physics: const AlwaysScrollableScrollPhysics(),
           children: [
-          Card(
-            child: Padding(
-              padding: const EdgeInsets.all(16),
-              child: Column(
-                children: [
-                  CircleAvatar(
-                    radius: 50,
-                    backgroundColor: Theme.of(context).colorScheme.primary,
-                    child:
-                        const Icon(Icons.person, size: 50, color: Colors.white),
-                  ),
-                  const SizedBox(height: 16),
-                  Text(
-                    authProvider.currentUser?.nama ?? 'Wali Santri',
-                    style: const TextStyle(
-                      fontSize: 20,
-                      fontWeight: FontWeight.bold,
+            Card(
+              child: Padding(
+                padding: const EdgeInsets.all(16),
+                child: Column(
+                  children: [
+                    CircleAvatar(
+                      radius: 50,
+                      backgroundColor: Theme.of(context).colorScheme.primary,
+                      child: const Icon(Icons.person,
+                          size: 50, color: Colors.white),
                     ),
-                  ),
-                  const SizedBox(height: 4),
-                  Text(
-                    authProvider.currentUser?.noHp ?? '',
-                    style: TextStyle(
-                      fontSize: 14,
-                      color: Colors.grey[600],
+                    const SizedBox(height: 16),
+                    Text(
+                      authProvider.currentUser?.nama ?? 'Wali Santri',
+                      style: const TextStyle(
+                        fontSize: 20,
+                        fontWeight: FontWeight.bold,
+                      ),
                     ),
-                  ),
-                  if (authProvider.currentUser?.label != null) ...[
                     const SizedBox(height: 4),
                     Text(
-                      authProvider.currentUser!.label!,
+                      authProvider.currentUser?.noHp ?? '',
                       style: TextStyle(
-                        fontSize: 12,
-                        color: Colors.grey[500],
+                        fontSize: 14,
+                        color: Colors.grey[600],
                       ),
                     ),
-                  ],
-                ],
-              ),
-            ),
-          ),
-          const SizedBox(height: 16),
-          ListTile(
-            leading: const Icon(Icons.edit),
-            title: const Text('Edit Profile'),
-            trailing: const Icon(Icons.chevron_right),
-            onTap: () {
-              // TODO: Navigate to edit profile
-            },
-          ),
-          ListTile(
-            leading: const Icon(Icons.lock),
-            title: const Text('Ubah Password'),
-            trailing: const Icon(Icons.chevron_right),
-            onTap: () {
-              // TODO: Navigate to change password
-            },
-          ),
-          ListTile(
-            leading: const Icon(Icons.info),
-            title: const Text('Tentang Aplikasi'),
-            trailing: const Icon(Icons.chevron_right),
-            onTap: () {
-              // TODO: Show about dialog
-            },
-          ),
-          const SizedBox(height: 24),
-          ElevatedButton.icon(
-            onPressed: () async {
-              final confirm = await showDialog<bool>(
-                context: context,
-                builder: (context) => AlertDialog(
-                  title: const Text('Konfirmasi'),
-                  content: const Text('Apakah Anda yakin ingin logout?'),
-                  actions: [
-                    TextButton(
-                      onPressed: () => Navigator.pop(context, false),
-                      child: const Text('Batal'),
-                    ),
-                    ElevatedButton(
-                      onPressed: () => Navigator.pop(context, true),
-                      style: ElevatedButton.styleFrom(
-                        backgroundColor: Colors.red,
+                    if (authProvider.currentUser?.label != null) ...[
+                      const SizedBox(height: 4),
+                      Text(
+                        authProvider.currentUser!.label!,
+                        style: TextStyle(
+                          fontSize: 12,
+                          color: Colors.grey[500],
+                        ),
                       ),
-                      child: const Text('Logout'),
-                    ),
+                    ],
                   ],
                 ),
-              );
-
-              if (confirm != true) return;
-              if (!context.mounted) return;
-
-              await authProvider.logout();
-              if (!context.mounted) return;
-
-              Navigator.pushAndRemoveUntil(
-                context,
-                MaterialPageRoute(builder: (_) => const LoginScreen()),
-                (route) => false,
-              );
-            },
-            icon: const Icon(Icons.logout),
-            label: const Text('Logout'),
-            style: ElevatedButton.styleFrom(
-              backgroundColor: Colors.red,
-              padding: const EdgeInsets.symmetric(vertical: 12),
+              ),
             ),
-          ),
-        ],
-      ),
+            const SizedBox(height: 16),
+            ListTile(
+              leading: const Icon(Icons.edit),
+              title: const Text('Edit Profile'),
+              trailing: const Icon(Icons.chevron_right),
+              onTap: () {
+                // TODO: Navigate to edit profile
+              },
+            ),
+            ListTile(
+              leading: const Icon(Icons.lock),
+              title: const Text('Ubah Password'),
+              trailing: const Icon(Icons.chevron_right),
+              onTap: () {
+                Navigator.pushNamed(context, '/change-password');
+              },
+            ),
+            ListTile(
+              leading: const Icon(Icons.info),
+              title: const Text('Tentang Aplikasi'),
+              trailing: const Icon(Icons.chevron_right),
+              onTap: () {
+                // TODO: Show about dialog
+              },
+            ),
+            const SizedBox(height: 24),
+            ElevatedButton.icon(
+              onPressed: () async {
+                final confirm = await showDialog<bool>(
+                  context: context,
+                  builder: (context) => AlertDialog(
+                    title: const Text('Konfirmasi'),
+                    content: const Text('Apakah Anda yakin ingin logout?'),
+                    actions: [
+                      TextButton(
+                        onPressed: () => Navigator.pop(context, false),
+                        child: const Text('Batal'),
+                      ),
+                      ElevatedButton(
+                        onPressed: () => Navigator.pop(context, true),
+                        style: ElevatedButton.styleFrom(
+                          backgroundColor: Colors.red,
+                        ),
+                        child: const Text('Logout'),
+                      ),
+                    ],
+                  ),
+                );
+
+                if (confirm != true) return;
+                if (!context.mounted) return;
+
+                await authProvider.logout();
+                if (!context.mounted) return;
+
+                Navigator.pushAndRemoveUntil(
+                  context,
+                  MaterialPageRoute(builder: (_) => const LoginScreen()),
+                  (route) => false,
+                );
+              },
+              icon: const Icon(Icons.logout),
+              label: const Text('Logout'),
+              style: ElevatedButton.styleFrom(
+                backgroundColor: Colors.red,
+                padding: const EdgeInsets.symmetric(vertical: 12),
+              ),
+            ),
+          ],
+        ),
       ),
     );
   }
@@ -1795,8 +1855,11 @@ class _DraftPembayaranListState extends State<_DraftPembayaranList> {
 
   Future<void> _loadDrafts() async {
     final prefs = await SharedPreferences.getInstance();
-    final keys = prefs.getKeys().where((key) => key.startsWith('payment_draft_')).toList();
-    
+    final keys = prefs
+        .getKeys()
+        .where((key) => key.startsWith('payment_draft_'))
+        .toList();
+
     final List<Map<String, dynamic>> drafts = [];
     for (final key in keys) {
       final draftJson = prefs.getString(key);
@@ -1810,14 +1873,14 @@ class _DraftPembayaranListState extends State<_DraftPembayaranList> {
         }
       }
     }
-    
+
     // Sort by timestamp, newest first
     drafts.sort((a, b) {
       final aTime = DateTime.tryParse(a['timestamp'] ?? '') ?? DateTime.now();
       final bTime = DateTime.tryParse(b['timestamp'] ?? '') ?? DateTime.now();
       return bTime.compareTo(aTime);
     });
-    
+
     if (mounted) {
       setState(() => _drafts = drafts);
     }
@@ -1831,15 +1894,15 @@ class _DraftPembayaranListState extends State<_DraftPembayaranList> {
 
   String _formatCurrency(double amount) {
     return amount.toStringAsFixed(0).replaceAllMapped(
-      RegExp(r'(\d{1,3})(?=(\d{3})+(?!\d))'),
-      (Match m) => '${m[1]}.',
-    );
+          RegExp(r'(\d{1,3})(?=(\d{3})+(?!\d))'),
+          (Match m) => '${m[1]}.',
+        );
   }
 
   String _timeAgo(String timestamp) {
     final date = DateTime.tryParse(timestamp);
     if (date == null) return 'Baru saja';
-    
+
     final diff = DateTime.now().difference(date);
     if (diff.inDays > 0) return '${diff.inDays} hari lalu';
     if (diff.inHours > 0) return '${diff.inHours} jam lalu';
@@ -1861,7 +1924,8 @@ class _DraftPembayaranListState extends State<_DraftPembayaranList> {
                 child: Column(
                   mainAxisAlignment: MainAxisAlignment.center,
                   children: [
-                    Icon(Icons.drafts_outlined, size: 80, color: Colors.grey[400]),
+                    Icon(Icons.drafts_outlined,
+                        size: 80, color: Colors.grey[400]),
                     const SizedBox(height: 16),
                     Text(
                       'Tidak ada draft pembayaran',
@@ -1889,328 +1953,359 @@ class _DraftPembayaranListState extends State<_DraftPembayaranList> {
         physics: const AlwaysScrollableScrollPhysics(),
         itemCount: _drafts.length,
         itemBuilder: (context, index) {
-        final draft = _drafts[index];
-        final paymentAmount = draft['paymentAmount'] ?? 0.0;
-        final topupAmount = draft['topupAmount'] ?? 0.0;
-        final total = paymentAmount + topupAmount;
-        final catatan = draft['catatan'] ?? '';
-        final timestamp = draft['timestamp'] ?? '';
-        final jenisTagihan = draft['jenisTagihan'] ?? 'Tagihan';
-        final bulan = draft['bulan'];
-        final tahun = draft['tahun'];
-        final totalTagihan = draft['totalTagihan'] ?? 0.0;
-        final sudahDibayar = draft['sudahDibayar'] ?? 0.0;
-        
-        return Card(
-          margin: const EdgeInsets.only(bottom: 12),
-          child: InkWell(
-            onTap: () {
-              // TODO: Navigate to upload screen with this draft data
-              ScaffoldMessenger.of(context).showSnackBar(
-                const SnackBar(
-                  content: Text('Fitur lanjutkan draft akan segera hadir'),
-                ),
-              );
-            },
-            borderRadius: BorderRadius.circular(12),
-            child: Padding(
-              padding: const EdgeInsets.all(16),
-              child: Column(
-                crossAxisAlignment: CrossAxisAlignment.start,
-                children: [
-                  Row(
-                    children: [
-                      Container(
-                        padding: const EdgeInsets.all(8),
-                        decoration: BoxDecoration(
-                          color: Colors.orange.shade50,
-                          borderRadius: BorderRadius.circular(8),
+          final draft = _drafts[index];
+          final paymentAmount = draft['paymentAmount'] ?? 0.0;
+          final topupAmount = draft['topupAmount'] ?? 0.0;
+          final total = paymentAmount + topupAmount;
+          final catatan = draft['catatan'] ?? '';
+          final timestamp = draft['timestamp'] ?? '';
+          final jenisTagihan = draft['jenisTagihan'] ?? 'Tagihan';
+          final bulan = draft['bulan'];
+          final tahun = draft['tahun'];
+          final totalTagihan = draft['totalTagihan'] ?? 0.0;
+          final sudahDibayar = draft['sudahDibayar'] ?? 0.0;
+
+          return Card(
+            margin: const EdgeInsets.only(bottom: 12),
+            child: InkWell(
+              onTap: () {
+                // TODO: Navigate to upload screen with this draft data
+                ScaffoldMessenger.of(context).showSnackBar(
+                  const SnackBar(
+                    content: Text('Fitur lanjutkan draft akan segera hadir'),
+                  ),
+                );
+              },
+              borderRadius: BorderRadius.circular(12),
+              child: Padding(
+                padding: const EdgeInsets.all(16),
+                child: Column(
+                  crossAxisAlignment: CrossAxisAlignment.start,
+                  children: [
+                    Row(
+                      children: [
+                        Container(
+                          padding: const EdgeInsets.all(8),
+                          decoration: BoxDecoration(
+                            color: Colors.orange.shade50,
+                            borderRadius: BorderRadius.circular(8),
+                          ),
+                          child: Icon(
+                            Icons.pending_actions,
+                            color: Colors.orange.shade700,
+                            size: 20,
+                          ),
                         ),
-                        child: Icon(
-                          Icons.pending_actions,
-                          color: Colors.orange.shade700,
-                          size: 20,
-                        ),
-                      ),
-                      const SizedBox(width: 12),
-                      Expanded(
-                        child: Column(
-                          crossAxisAlignment: CrossAxisAlignment.start,
-                          children: [
-                            Text(
-                              jenisTagihan,
-                              style: const TextStyle(
-                                fontWeight: FontWeight.bold,
-                                fontSize: 14,
+                        const SizedBox(width: 12),
+                        Expanded(
+                          child: Column(
+                            crossAxisAlignment: CrossAxisAlignment.start,
+                            children: [
+                              Text(
+                                jenisTagihan,
+                                style: const TextStyle(
+                                  fontWeight: FontWeight.bold,
+                                  fontSize: 14,
+                                ),
                               ),
-                            ),
-                            if (bulan != null && tahun != null) ...[
+                              if (bulan != null && tahun != null) ...[
+                                const SizedBox(height: 2),
+                                Text(
+                                  '$bulan $tahun',
+                                  style: TextStyle(
+                                    fontSize: 11,
+                                    color: Colors.grey[600],
+                                  ),
+                                ),
+                              ],
                               const SizedBox(height: 2),
                               Text(
-                                '$bulan $tahun',
+                                _timeAgo(timestamp),
                                 style: TextStyle(
                                   fontSize: 11,
-                                  color: Colors.grey[600],
+                                  color: Colors.grey[500],
                                 ),
                               ),
                             ],
-                            const SizedBox(height: 2),
-                            Text(
-                              _timeAgo(timestamp),
-                              style: TextStyle(
-                                fontSize: 11,
-                                color: Colors.grey[500],
-                              ),
-                            ),
-                          ],
-                        ),
-                      ),
-                      IconButton(
-                        icon: const Icon(Icons.delete_outline, color: Colors.red),
-                        onPressed: () {
-                          showDialog(
-                            context: context,
-                            builder: (context) => AlertDialog(
-                              title: const Text('Hapus Draft'),
-                              content: const Text('Yakin ingin menghapus draft ini?'),
-                              actions: [
-                                TextButton(
-                                  onPressed: () => Navigator.pop(context),
-                                  child: const Text('Batal'),
-                                ),
-                                ElevatedButton(
-                                  onPressed: () {
-                                    _deleteDraft(draft['key']);
-                                    Navigator.pop(context);
-                                  },
-                                  style: ElevatedButton.styleFrom(
-                                    backgroundColor: Colors.red,
-                                  ),
-                                  child: const Text('Hapus'),
-                                ),
-                              ],
-                            ),
-                          );
-                        },
-                      ),
-                    ],
-                  ),
-                  const Divider(height: 24),
-                  // Info Tagihan
-                  if (totalTagihan > 0) ...[
-                    Row(
-                      mainAxisAlignment: MainAxisAlignment.spaceBetween,
-                      children: [
-                        Text(
-                          'Total Tagihan',
-                          style: TextStyle(color: Colors.grey[600], fontSize: 13),
-                        ),
-                        Text(
-                          'Rp ${_formatCurrency(totalTagihan)}',
-                          style: const TextStyle(fontWeight: FontWeight.w500, fontSize: 13),
-                        ),
-                      ],
-                    ),
-                    const SizedBox(height: 4),
-                    Row(
-                      mainAxisAlignment: MainAxisAlignment.spaceBetween,
-                      children: [
-                        Text(
-                          'Sudah Dibayar',
-                          style: TextStyle(color: Colors.grey[600], fontSize: 13),
-                        ),
-                        Text(
-                          'Rp ${_formatCurrency(sudahDibayar)}',
-                          style: const TextStyle(fontWeight: FontWeight.w500, fontSize: 13),
-                        ),
-                      ],
-                    ),
-                    const SizedBox(height: 8),
-                    const Divider(height: 16),
-                  ],
-                  if (paymentAmount > 0) ...[
-                    Row(
-                      mainAxisAlignment: MainAxisAlignment.spaceBetween,
-                      children: [
-                        Text(
-                          'Pembayaran Tagihan',
-                          style: TextStyle(color: Colors.grey[700]),
-                        ),
-                        Text(
-                          'Rp ${_formatCurrency(paymentAmount)}',
-                          style: const TextStyle(fontWeight: FontWeight.w600),
-                        ),
-                      ],
-                    ),
-                    const SizedBox(height: 8),
-                  ],
-                  if (topupAmount > 0) ...[
-                    Row(
-                      mainAxisAlignment: MainAxisAlignment.spaceBetween,
-                      children: [
-                        Text(
-                          'Top-up Dompet',
-                          style: TextStyle(color: Colors.grey[700]),
-                        ),
-                        Text(
-                          'Rp ${_formatCurrency(topupAmount)}',
-                          style: const TextStyle(fontWeight: FontWeight.w600),
-                        ),
-                      ],
-                    ),
-                    const SizedBox(height: 8),
-                  ],
-                  const Divider(height: 16),
-                  Row(
-                    mainAxisAlignment: MainAxisAlignment.spaceBetween,
-                    children: [
-                      const Text(
-                        'Total Transfer',
-                        style: TextStyle(
-                          fontWeight: FontWeight.bold,
-                          fontSize: 15,
-                        ),
-                      ),
-                      Text(
-                        'Rp ${_formatCurrency(total)}',
-                        style: const TextStyle(
-                          fontWeight: FontWeight.bold,
-                          fontSize: 15,
-                          color: Color(0xFF1976D2),
-                        ),
-                      ),
-                    ],
-                  ),
-                  if (catatan.isNotEmpty) ...[
-                    const SizedBox(height: 12),
-                    Container(
-                      padding: const EdgeInsets.all(8),
-                      decoration: BoxDecoration(
-                        color: Colors.grey[100],
-                        borderRadius: BorderRadius.circular(6),
-                      ),
-                      child: Row(
-                        crossAxisAlignment: CrossAxisAlignment.start,
-                        children: [
-                          Icon(Icons.note, size: 16, color: Colors.grey[600]),
-                          const SizedBox(width: 8),
-                          Expanded(
-                            child: Text(
-                              catatan,
-                              style: TextStyle(
-                                fontSize: 12,
-                                color: Colors.grey[700],
-                              ),
-                            ),
                           ),
-                        ],
-                      ),
-                    ),
-                  ],
-                  const SizedBox(height: 12),
-                  Row(
-                    children: [
-                      Expanded(
-                        child: OutlinedButton.icon(
+                        ),
+                        IconButton(
+                          icon: const Icon(Icons.delete_outline,
+                              color: Colors.red),
                           onPressed: () {
                             showDialog(
                               context: context,
                               builder: (context) => AlertDialog(
-                                title: const Text('Batalkan Pembayaran'),
-                                content: const Text('Yakin ingin membatalkan draft pembayaran ini? Tagihan akan bisa dipilih kembali.'),
+                                title: const Text('Hapus Draft'),
+                                content: const Text(
+                                    'Yakin ingin menghapus draft ini?'),
                                 actions: [
                                   TextButton(
                                     onPressed: () => Navigator.pop(context),
-                                    child: const Text('Tidak'),
+                                    child: const Text('Batal'),
                                   ),
                                   ElevatedButton(
                                     onPressed: () {
                                       _deleteDraft(draft['key']);
                                       Navigator.pop(context);
-                                      ScaffoldMessenger.of(context).showSnackBar(
-                                        const SnackBar(content: Text('Draft pembayaran dibatalkan')),
-                                      );
                                     },
                                     style: ElevatedButton.styleFrom(
                                       backgroundColor: Colors.red,
                                     ),
-                                    child: const Text('Ya, Batalkan'),
+                                    child: const Text('Hapus'),
                                   ),
                                 ],
                               ),
                             );
                           },
-                          icon: const Icon(Icons.cancel_outlined),
-                          label: const Text('Batalkan'),
-                          style: OutlinedButton.styleFrom(
-                            foregroundColor: Colors.red,
-                            side: const BorderSide(color: Colors.red),
+                        ),
+                      ],
+                    ),
+                    const Divider(height: 24),
+                    // Info Tagihan
+                    if (totalTagihan > 0) ...[
+                      Row(
+                        mainAxisAlignment: MainAxisAlignment.spaceBetween,
+                        children: [
+                          Text(
+                            'Total Tagihan',
+                            style: TextStyle(
+                                color: Colors.grey[600], fontSize: 13),
+                          ),
+                          Text(
+                            'Rp ${_formatCurrency(totalTagihan)}',
+                            style: const TextStyle(
+                                fontWeight: FontWeight.w500, fontSize: 13),
+                          ),
+                        ],
+                      ),
+                      const SizedBox(height: 4),
+                      Row(
+                        mainAxisAlignment: MainAxisAlignment.spaceBetween,
+                        children: [
+                          Text(
+                            'Sudah Dibayar',
+                            style: TextStyle(
+                                color: Colors.grey[600], fontSize: 13),
+                          ),
+                          Text(
+                            'Rp ${_formatCurrency(sudahDibayar)}',
+                            style: const TextStyle(
+                                fontWeight: FontWeight.w500, fontSize: 13),
+                          ),
+                        ],
+                      ),
+                      const SizedBox(height: 8),
+                      const Divider(height: 16),
+                    ],
+                    if (paymentAmount > 0) ...[
+                      Row(
+                        mainAxisAlignment: MainAxisAlignment.spaceBetween,
+                        children: [
+                          Text(
+                            'Pembayaran Tagihan',
+                            style: TextStyle(color: Colors.grey[700]),
+                          ),
+                          Text(
+                            'Rp ${_formatCurrency(paymentAmount)}',
+                            style: const TextStyle(fontWeight: FontWeight.w600),
+                          ),
+                        ],
+                      ),
+                      const SizedBox(height: 8),
+                    ],
+                    if (topupAmount > 0) ...[
+                      Row(
+                        mainAxisAlignment: MainAxisAlignment.spaceBetween,
+                        children: [
+                          Text(
+                            'Top-up Dompet',
+                            style: TextStyle(color: Colors.grey[700]),
+                          ),
+                          Text(
+                            'Rp ${_formatCurrency(topupAmount)}',
+                            style: const TextStyle(fontWeight: FontWeight.w600),
+                          ),
+                        ],
+                      ),
+                      const SizedBox(height: 8),
+                    ],
+                    const Divider(height: 16),
+                    Row(
+                      mainAxisAlignment: MainAxisAlignment.spaceBetween,
+                      children: [
+                        const Text(
+                          'Total Transfer',
+                          style: TextStyle(
+                            fontWeight: FontWeight.bold,
+                            fontSize: 15,
                           ),
                         ),
-                      ),
-                      const SizedBox(width: 8),
-                      Expanded(
-                        flex: 2,
-                        child: ElevatedButton.icon(
-                          onPressed: () async {
-                            final authProvider = Provider.of<AuthProvider>(context, listen: false);
-                            final santriId = authProvider.activeSantri?.id;
-                            
-                            if (santriId == null) return;
-                            
-                            // Navigate to UnifiedPaymentScreen dengan data draft LENGKAP
-                            final result = await Navigator.push(
-                              context,
-                              MaterialPageRoute(
-                                builder: (_) => UnifiedPaymentScreen(
-                                  tagihan: draft['tagihanId'] != null ? {
-                                    'id': draft['tagihanId'],
-                                    'jenis_tagihan': draft['jenisTagihan'] ?? 'Tagihan',
-                                    'bulan': draft['bulan'],
-                                    'tahun': draft['tahun'],
-                                    'sisa': draft['paymentAmount'].toString(),
-                                    // Tambahkan data lengkap dari draft
-                                    'nominal': draft['totalTagihan']?.toString() ?? '0',
-                                    'jumlah': draft['totalTagihan']?.toString() ?? '0',
-                                    'dibayar': draft['sudahDibayar']?.toString() ?? '0',
-                                    'sudah_dibayar': draft['sudahDibayar']?.toString() ?? '0',
-                                  } : null,
-                                  isTopupOnly: draft['tagihanId'] == null,
-                                  topupNominal: draft['topupAmount'] > 0 ? draft['topupAmount'] : null,
-                                  shouldIncludeTopup: draft['topupAmount'] > 0,
-                                  selectedBankId: draft['selectedBankId'],
+                        Text(
+                          'Rp ${_formatCurrency(total)}',
+                          style: const TextStyle(
+                            fontWeight: FontWeight.bold,
+                            fontSize: 15,
+                            color: Color(0xFF1976D2),
+                          ),
+                        ),
+                      ],
+                    ),
+                    if (catatan.isNotEmpty) ...[
+                      const SizedBox(height: 12),
+                      Container(
+                        padding: const EdgeInsets.all(8),
+                        decoration: BoxDecoration(
+                          color: Colors.grey[100],
+                          borderRadius: BorderRadius.circular(6),
+                        ),
+                        child: Row(
+                          crossAxisAlignment: CrossAxisAlignment.start,
+                          children: [
+                            Icon(Icons.note, size: 16, color: Colors.grey[600]),
+                            const SizedBox(width: 8),
+                            Expanded(
+                              child: Text(
+                                catatan,
+                                style: TextStyle(
+                                  fontSize: 12,
+                                  color: Colors.grey[700],
                                 ),
                               ),
-                            );
-                            
-                            if (result == true) {
-                              // Reload draft list
-                              _loadDrafts();
-                              
-                              // Trigger refresh di PembayaranTab parent
-                              if (context.mounted) {
-                                // Find PembayaranTab and reload
-                                final pembayaranState = context.findAncestorStateOfType<_PembayaranTabState>();
-                                pembayaranState?._loadTagihan();
-                              }
-                            }
-                          },
-                          icon: const Icon(Icons.upload_file),
-                          label: const Text('Upload Bukti'),
-                          style: ElevatedButton.styleFrom(
-                            backgroundColor: Colors.green,
-                            foregroundColor: Colors.white,
-                          ),
+                            ),
+                          ],
                         ),
                       ),
                     ],
-                  ),
-                ],
+                    const SizedBox(height: 12),
+                    Row(
+                      children: [
+                        Expanded(
+                          child: OutlinedButton.icon(
+                            onPressed: () {
+                              showDialog(
+                                context: context,
+                                builder: (context) => AlertDialog(
+                                  title: const Text('Batalkan Pembayaran'),
+                                  content: const Text(
+                                      'Yakin ingin membatalkan draft pembayaran ini? Tagihan akan bisa dipilih kembali.'),
+                                  actions: [
+                                    TextButton(
+                                      onPressed: () => Navigator.pop(context),
+                                      child: const Text('Tidak'),
+                                    ),
+                                    ElevatedButton(
+                                      onPressed: () {
+                                        _deleteDraft(draft['key']);
+                                        Navigator.pop(context);
+                                        ScaffoldMessenger.of(context)
+                                            .showSnackBar(
+                                          const SnackBar(
+                                              content: Text(
+                                                  'Draft pembayaran dibatalkan')),
+                                        );
+                                      },
+                                      style: ElevatedButton.styleFrom(
+                                        backgroundColor: Colors.red,
+                                      ),
+                                      child: const Text('Ya, Batalkan'),
+                                    ),
+                                  ],
+                                ),
+                              );
+                            },
+                            icon: const Icon(Icons.cancel_outlined),
+                            label: const Text('Batalkan'),
+                            style: OutlinedButton.styleFrom(
+                              foregroundColor: Colors.red,
+                              side: const BorderSide(color: Colors.red),
+                            ),
+                          ),
+                        ),
+                        const SizedBox(width: 8),
+                        Expanded(
+                          flex: 2,
+                          child: ElevatedButton.icon(
+                            onPressed: () async {
+                              final authProvider = Provider.of<AuthProvider>(
+                                  context,
+                                  listen: false);
+                              final santriId = authProvider.activeSantri?.id;
+
+                              if (santriId == null) return;
+
+                              // Navigate to UnifiedPaymentScreen dengan data draft LENGKAP
+                              final result = await Navigator.push(
+                                context,
+                                MaterialPageRoute(
+                                  builder: (_) => UnifiedPaymentScreen(
+                                    tagihan: draft['tagihanId'] != null
+                                        ? {
+                                            'id': draft['tagihanId'],
+                                            'jenis_tagihan':
+                                                draft['jenisTagihan'] ??
+                                                    'Tagihan',
+                                            'bulan': draft['bulan'],
+                                            'tahun': draft['tahun'],
+                                            'sisa': draft['paymentAmount']
+                                                .toString(),
+                                            // Tambahkan data lengkap dari draft
+                                            'nominal': draft['totalTagihan']
+                                                    ?.toString() ??
+                                                '0',
+                                            'jumlah': draft['totalTagihan']
+                                                    ?.toString() ??
+                                                '0',
+                                            'dibayar': draft['sudahDibayar']
+                                                    ?.toString() ??
+                                                '0',
+                                            'sudah_dibayar':
+                                                draft['sudahDibayar']
+                                                        ?.toString() ??
+                                                    '0',
+                                          }
+                                        : null,
+                                    isTopupOnly: draft['tagihanId'] == null,
+                                    topupNominal: draft['topupAmount'] > 0
+                                        ? draft['topupAmount']
+                                        : null,
+                                    shouldIncludeTopup:
+                                        draft['topupAmount'] > 0,
+                                    selectedBankId: draft['selectedBankId'],
+                                  ),
+                                ),
+                              );
+
+                              if (result == true) {
+                                // Reload draft list
+                                _loadDrafts();
+
+                                // Trigger refresh di PembayaranTab parent
+                                if (context.mounted) {
+                                  // Find PembayaranTab and reload
+                                  final pembayaranState =
+                                      context.findAncestorStateOfType<
+                                          _PembayaranTabState>();
+                                  pembayaranState?._loadTagihan();
+                                }
+                              }
+                            },
+                            icon: const Icon(Icons.upload_file),
+                            label: const Text('Upload Bukti'),
+                            style: ElevatedButton.styleFrom(
+                              backgroundColor: Colors.green,
+                              foregroundColor: Colors.white,
+                            ),
+                          ),
+                        ),
+                      ],
+                    ),
+                  ],
+                ),
               ),
             ),
-          ),
-        );
-      },
+          );
+        },
       ),
     );
   }
@@ -2223,7 +2318,8 @@ class _NotificationBellWidget extends StatefulWidget {
   const _NotificationBellWidget({required this.santriId});
 
   @override
-  State<_NotificationBellWidget> createState() => _NotificationBellWidgetState();
+  State<_NotificationBellWidget> createState() =>
+      _NotificationBellWidgetState();
 }
 
 class _NotificationBellWidgetState extends State<_NotificationBellWidget> {
@@ -2234,13 +2330,8 @@ class _NotificationBellWidgetState extends State<_NotificationBellWidget> {
   void initState() {
     super.initState();
     _loadUnreadCount();
-    // Poll every 30 seconds
-    Future.doWhile(() async {
-      if (!mounted) return false;
-      await Future.delayed(const Duration(seconds: 30));
-      if (mounted) _loadUnreadCount();
-      return mounted;
-    });
+    // Auto-refresh disabled to reduce server load
+    // Badge will only update when user manually opens notifications
   }
 
   Future<void> _loadUnreadCount() async {
@@ -2282,7 +2373,7 @@ class _NotificationBellWidgetState extends State<_NotificationBellWidget> {
             top: 8,
             child: Container(
               padding: const EdgeInsets.all(4),
-              decoration: BoxDecoration(
+              decoration: const BoxDecoration(
                 color: Colors.red,
                 shape: BoxShape.circle,
               ),
