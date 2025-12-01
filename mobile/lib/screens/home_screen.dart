@@ -8,6 +8,7 @@ import '../services/api_service.dart';
 import 'login_screen.dart';
 import 'wallet_history_screen.dart';
 import 'notification_screen.dart';
+import 'unified_payment_screen.dart';
 
 class HomeScreen extends StatefulWidget {
   final int initialIndex;
@@ -809,14 +810,50 @@ class _PembayaranTabState extends State<PembayaranTab>
     final isSelected =
         tagihanId != null && _selectedTagihanIds.contains(tagihanId);
 
-    // Disable selection for paid or pending tagihan
-    final canSelect = status != 'lunas' && !hasPendingBukti;
+    // Check if this tagihan is in draft
+    return FutureBuilder<bool>(
+      future: _checkIfInDraft(tagihanId),
+      builder: (context, snapshot) {
+        final isInDraft = snapshot.data ?? false;
+        
+        // Disable selection for paid, pending, or draft tagihan
+        final canSelect = status != 'lunas' && !hasPendingBukti && !isInDraft;
+        
+        return _buildTagihanCardContent(tagihan, isSelected, canSelect, hasPendingBukti, isInDraft);
+      },
+    );
+  }
+
+  Future<bool> _checkIfInDraft(int? tagihanId) async {
+    if (tagihanId == null) return false;
+    
+    final authProvider = Provider.of<AuthProvider>(context, listen: false);
+    final santriId = authProvider.activeSantri?.id;
+    if (santriId == null) return false;
+    
+    final prefs = await SharedPreferences.getInstance();
+    final draftKey = 'payment_draft_${santriId}_$tagihanId';
+    return prefs.containsKey(draftKey);
+  }
+
+  Widget _buildTagihanCardContent(
+    Map<String, dynamic> tagihan,
+    bool isSelected,
+    bool canSelect,
+    bool hasPendingBukti,
+    bool isInDraft,
+  ) {
+    final status = tagihan['status'] ?? '';
+    final tagihanId = tagihan['id'] as int?;
 
     final Color statusColor;
     final String statusText;
 
-    // Priority: pending bukti > status lunas > other statuses
-    if (hasPendingBukti) {
+    // Priority: draft > pending bukti > status lunas > other statuses
+    if (isInDraft) {
+      statusColor = Colors.blue;
+      statusText = 'DRAFT';
+    } else if (hasPendingBukti) {
       statusColor = Colors.orange;
       statusText = 'PENDING';
     } else {
@@ -850,7 +887,7 @@ class _PembayaranTabState extends State<PembayaranTab>
         }
       },
       child: Opacity(
-        opacity: hasPendingBukti ? 0.6 : 1.0,
+        opacity: (hasPendingBukti || isInDraft) ? 0.6 : 1.0,
         child: Card(
           margin: const EdgeInsets.only(bottom: 12),
           shape:
@@ -1613,6 +1650,11 @@ class _DraftPembayaranListState extends State<_DraftPembayaranList> {
         final total = paymentAmount + topupAmount;
         final catatan = draft['catatan'] ?? '';
         final timestamp = draft['timestamp'] ?? '';
+        final jenisTagihan = draft['jenisTagihan'] ?? 'Tagihan';
+        final bulan = draft['bulan'];
+        final tahun = draft['tahun'];
+        final totalTagihan = draft['totalTagihan'] ?? 0.0;
+        final sudahDibayar = draft['sudahDibayar'] ?? 0.0;
         
         return Card(
           margin: const EdgeInsets.only(bottom: 12),
@@ -1650,19 +1692,29 @@ class _DraftPembayaranListState extends State<_DraftPembayaranList> {
                         child: Column(
                           crossAxisAlignment: CrossAxisAlignment.start,
                           children: [
-                            const Text(
-                              'Draft Pembayaran',
-                              style: TextStyle(
+                            Text(
+                              jenisTagihan,
+                              style: const TextStyle(
                                 fontWeight: FontWeight.bold,
                                 fontSize: 14,
                               ),
                             ),
+                            if (bulan != null && tahun != null) ...[
+                              const SizedBox(height: 2),
+                              Text(
+                                '$bulan $tahun',
+                                style: TextStyle(
+                                  fontSize: 11,
+                                  color: Colors.grey[600],
+                                ),
+                              ),
+                            ],
                             const SizedBox(height: 2),
                             Text(
                               _timeAgo(timestamp),
                               style: TextStyle(
-                                fontSize: 12,
-                                color: Colors.grey[600],
+                                fontSize: 11,
+                                color: Colors.grey[500],
                               ),
                             ),
                           ],
@@ -1699,6 +1751,38 @@ class _DraftPembayaranListState extends State<_DraftPembayaranList> {
                     ],
                   ),
                   const Divider(height: 24),
+                  // Info Tagihan
+                  if (totalTagihan > 0) ...[
+                    Row(
+                      mainAxisAlignment: MainAxisAlignment.spaceBetween,
+                      children: [
+                        Text(
+                          'Total Tagihan',
+                          style: TextStyle(color: Colors.grey[600], fontSize: 13),
+                        ),
+                        Text(
+                          'Rp ${_formatCurrency(totalTagihan)}',
+                          style: const TextStyle(fontWeight: FontWeight.w500, fontSize: 13),
+                        ),
+                      ],
+                    ),
+                    const SizedBox(height: 4),
+                    Row(
+                      mainAxisAlignment: MainAxisAlignment.spaceBetween,
+                      children: [
+                        Text(
+                          'Sudah Dibayar',
+                          style: TextStyle(color: Colors.grey[600], fontSize: 13),
+                        ),
+                        Text(
+                          'Rp ${_formatCurrency(sudahDibayar)}',
+                          style: const TextStyle(fontWeight: FontWeight.w500, fontSize: 13),
+                        ),
+                      ],
+                    ),
+                    const SizedBox(height: 8),
+                    const Divider(height: 16),
+                  ],
                   if (paymentAmount > 0) ...[
                     Row(
                       mainAxisAlignment: MainAxisAlignment.spaceBetween,
@@ -1779,24 +1863,102 @@ class _DraftPembayaranListState extends State<_DraftPembayaranList> {
                     ),
                   ],
                   const SizedBox(height: 12),
-                  SizedBox(
-                    width: double.infinity,
-                    child: ElevatedButton.icon(
-                      onPressed: () {
-                        // TODO: Navigate to upload screen
-                        ScaffoldMessenger.of(context).showSnackBar(
-                          const SnackBar(
-                            content: Text('Fitur lanjutkan pembayaran akan segera hadir'),
+                  Row(
+                    children: [
+                      Expanded(
+                        child: OutlinedButton.icon(
+                          onPressed: () {
+                            showDialog(
+                              context: context,
+                              builder: (context) => AlertDialog(
+                                title: const Text('Batalkan Pembayaran'),
+                                content: const Text('Yakin ingin membatalkan draft pembayaran ini? Tagihan akan bisa dipilih kembali.'),
+                                actions: [
+                                  TextButton(
+                                    onPressed: () => Navigator.pop(context),
+                                    child: const Text('Tidak'),
+                                  ),
+                                  ElevatedButton(
+                                    onPressed: () {
+                                      _deleteDraft(draft['key']);
+                                      Navigator.pop(context);
+                                      ScaffoldMessenger.of(context).showSnackBar(
+                                        const SnackBar(content: Text('Draft pembayaran dibatalkan')),
+                                      );
+                                    },
+                                    style: ElevatedButton.styleFrom(
+                                      backgroundColor: Colors.red,
+                                    ),
+                                    child: const Text('Ya, Batalkan'),
+                                  ),
+                                ],
+                              ),
+                            );
+                          },
+                          icon: const Icon(Icons.cancel_outlined),
+                          label: const Text('Batalkan'),
+                          style: OutlinedButton.styleFrom(
+                            foregroundColor: Colors.red,
+                            side: const BorderSide(color: Colors.red),
                           ),
-                        );
-                      },
-                      icon: const Icon(Icons.upload_file),
-                      label: const Text('Upload Bukti Transfer'),
-                      style: ElevatedButton.styleFrom(
-                        backgroundColor: Colors.green,
-                        foregroundColor: Colors.white,
+                        ),
                       ),
-                    ),
+                      const SizedBox(width: 8),
+                      Expanded(
+                        flex: 2,
+                        child: ElevatedButton.icon(
+                          onPressed: () async {
+                            final authProvider = Provider.of<AuthProvider>(context, listen: false);
+                            final santriId = authProvider.activeSantri?.id;
+                            
+                            if (santriId == null) return;
+                            
+                            // Navigate to UnifiedPaymentScreen dengan data draft LENGKAP
+                            final result = await Navigator.push(
+                              context,
+                              MaterialPageRoute(
+                                builder: (_) => UnifiedPaymentScreen(
+                                  tagihan: draft['tagihanId'] != null ? {
+                                    'id': draft['tagihanId'],
+                                    'jenis_tagihan': draft['jenisTagihan'] ?? 'Tagihan',
+                                    'bulan': draft['bulan'],
+                                    'tahun': draft['tahun'],
+                                    'sisa': draft['paymentAmount'].toString(),
+                                    // Tambahkan data lengkap dari draft
+                                    'nominal': draft['totalTagihan']?.toString() ?? '0',
+                                    'jumlah': draft['totalTagihan']?.toString() ?? '0',
+                                    'dibayar': draft['sudahDibayar']?.toString() ?? '0',
+                                    'sudah_dibayar': draft['sudahDibayar']?.toString() ?? '0',
+                                  } : null,
+                                  isTopupOnly: draft['tagihanId'] == null,
+                                  topupNominal: draft['topupAmount'] > 0 ? draft['topupAmount'] : null,
+                                  shouldIncludeTopup: draft['topupAmount'] > 0,
+                                  selectedBankId: draft['selectedBankId'],
+                                ),
+                              ),
+                            );
+                            
+                            if (result == true) {
+                              // Reload draft list
+                              _loadDrafts();
+                              
+                              // Trigger refresh di PembayaranTab parent
+                              if (context.mounted) {
+                                // Find PembayaranTab and reload
+                                final pembayaranState = context.findAncestorStateOfType<_PembayaranTabState>();
+                                pembayaranState?._loadTagihan();
+                              }
+                            }
+                          },
+                          icon: const Icon(Icons.upload_file),
+                          label: const Text('Upload Bukti'),
+                          style: ElevatedButton.styleFrom(
+                            backgroundColor: Colors.green,
+                            foregroundColor: Colors.white,
+                          ),
+                        ),
+                      ),
+                    ],
                   ),
                 ],
               ),

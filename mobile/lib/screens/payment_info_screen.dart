@@ -106,7 +106,7 @@ class _PaymentInfoScreenState extends State<PaymentInfoScreen> {
     );
   }
 
-  void _proceedToUploadBukti() {
+  Future<void> _navigateToUpload() async {
     if (_selectedBank == null) {
       ScaffoldMessenger.of(context).showSnackBar(
         const SnackBar(content: Text('Pilih rekening bank terlebih dahulu')),
@@ -114,7 +114,7 @@ class _PaymentInfoScreenState extends State<PaymentInfoScreen> {
       return;
     }
 
-    Navigator.pushReplacement(
+    final result = await Navigator.push(
       context,
       MaterialPageRoute(
         builder: (_) => UnifiedPaymentScreen(
@@ -127,6 +127,11 @@ class _PaymentInfoScreenState extends State<PaymentInfoScreen> {
         ),
       ),
     );
+    
+    // Return result to previous screen (PembayaranTab) untuk trigger refresh
+    if (mounted && result == true) {
+      Navigator.pop(context, true);
+    }
   }
 
   @override
@@ -416,7 +421,7 @@ class _PaymentInfoScreenState extends State<PaymentInfoScreen> {
                         width: double.infinity,
                         height: 50,
                         child: ElevatedButton(
-                          onPressed: _proceedToUploadBukti,
+                          onPressed: _navigateToUpload,
                           style: ElevatedButton.styleFrom(
                             backgroundColor: Colors.green,
                             shape: RoundedRectangleBorder(

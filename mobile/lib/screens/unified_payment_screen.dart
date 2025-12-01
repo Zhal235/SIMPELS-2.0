@@ -41,6 +41,7 @@ class _UnifiedPaymentScreenState extends State<UnifiedPaymentScreen> {
   final ImagePicker _picker = ImagePicker();
   final TextEditingController _catatanController = TextEditingController();
   bool _isSubmitting = false;
+  bool _submitSuccess = false; // Track if payment was successfully submitted
   
   double _paymentAmount = 0;
   double _topupAmount = 0;
@@ -56,32 +57,7 @@ class _UnifiedPaymentScreenState extends State<UnifiedPaymentScreen> {
     final authProvider = Provider.of<AuthProvider>(context, listen: false);
     final santriId = authProvider.activeSantri?.id;
     
-    if (santriId != null) {
-      // Generate unique draft key
-      _draftKey = 'payment_draft_${santriId}_${widget.tagihan?['id'] ?? 'topup'}';
-      
-      // Try load draft
-      final prefs = await SharedPreferences.getInstance();
-      final draftJson = prefs.getString(_draftKey!);
-      
-      if (draftJson != null) {
-        // Ada draft tersimpan
-        final draft = json.decode(draftJson);
-        setState(() {
-          _paymentAmount = draft['paymentAmount'] ?? 0.0;
-          _topupAmount = draft['topupAmount'] ?? 0.0;
-          _catatanController.text = draft['catatan'] ?? '';
-        });
-        
-        // Show dialog to continue or reset
-        if (mounted) {
-          _showDraftDialog();
-        }
-        return;
-      }
-    }
-    
-    // No draft, use parameters
+    // First, set values from parameters (might be from draft list navigation)
     setState(() {
       if (widget.isTopupOnly && widget.topupNominal != null) {
         _topupAmount = widget.topupNominal!;
@@ -92,12 +68,59 @@ class _UnifiedPaymentScreenState extends State<UnifiedPaymentScreen> {
         }
       }
     });
+    
+    if (santriId != null) {
+      // Generate unique draft key
+      _draftKey = 'payment_draft_${santriId}_${widget.tagihan?['id'] ?? 'topup'}';
+      
+      // Try load draft from storage (only if not coming from draft navigation)
+      final prefs = await SharedPreferences.getInstance();
+      final draftJson = prefs.getString(_draftKey!);
+      
+      if (draftJson != null) {
+        // Ada draft tersimpan
+        final draft = json.decode(draftJson);
+        
+        // Only show dialog if values don't match (means user came from normal flow, not draft)
+        final draftPayment = draft['paymentAmount'] ?? 0.0;
+        final draftTopup = draft['topupAmount'] ?? 0.0;
+        
+        if (_paymentAmount == draftPayment && _topupAmount == draftTopup) {
+          // Coming from draft navigation, just use the values, no dialog
+          setState(() {
+            _catatanController.text = draft['catatan'] ?? '';
+          });
+        } else {
+          // Coming from normal flow, show dialog to continue or reset
+          setState(() {
+            _paymentAmount = draftPayment;
+            _topupAmount = draftTopup;
+            _catatanController.text = draft['catatan'] ?? '';
+          });
+          
+          if (mounted) {
+            _showDraftDialog();
+          }
+        }
+      }
+    }
   }
   
   Future<void> _saveDraft() async {
     if (_draftKey == null) return;
     
     final prefs = await SharedPreferences.getInstance();
+    
+    // Get tagihan details
+    final jumlah = widget.tagihan != null 
+        ? (double.tryParse(widget.tagihan!['nominal']?.toString() ?? 
+            widget.tagihan!['jumlah']?.toString() ?? '0') ?? 0.0)
+        : 0.0;
+    final sudahDibayar = widget.tagihan != null
+        ? (double.tryParse(widget.tagihan!['dibayar']?.toString() ?? 
+            widget.tagihan!['sudah_dibayar']?.toString() ?? '0') ?? 0.0)
+        : 0.0;
+    
     final draft = {
       'paymentAmount': _paymentAmount,
       'topupAmount': _topupAmount,
@@ -108,6 +131,8 @@ class _UnifiedPaymentScreenState extends State<UnifiedPaymentScreen> {
       'bulan': widget.tagihan?['bulan'],
       'tahun': widget.tagihan?['tahun'],
       'selectedBankId': widget.selectedBankId,
+      'totalTagihan': jumlah,
+      'sudahDibayar': sudahDibayar,
     };
     
     await prefs.setString(_draftKey!, json.encode(draft));
@@ -159,7 +184,10 @@ class _UnifiedPaymentScreenState extends State<UnifiedPaymentScreen> {
   @override
   void dispose() {
     _catatanController.dispose();
-    _saveDraft(); // Auto-save saat keluar
+    // Only save draft if payment was NOT successfully submitted
+    if (!_submitSuccess) {
+      _saveDraft(); // Auto-save saat keluar
+    }
     super.dispose();
   }
 
@@ -295,6 +323,9 @@ class _UnifiedPaymentScreenState extends State<UnifiedPaymentScreen> {
       );
 
       if (response.statusCode == 200 || response.statusCode == 201) {
+        // Mark as successfully submitted
+        _submitSuccess = true;
+        
         // Clear draft setelah berhasil submit
         await _clearDraft();
         
