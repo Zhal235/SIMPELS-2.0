@@ -184,9 +184,57 @@ class _UnifiedPaymentScreenState extends State<UnifiedPaymentScreen> {
   }
 
   Future<void> _clearDraft() async {
-    if (_draftKey == null) return;
     final prefs = await SharedPreferences.getInstance();
-    await prefs.remove(_draftKey!);
+    
+    // Clear single payment draft
+    if (_draftKey != null) {
+      await prefs.remove(_draftKey!);
+      debugPrint('[Clear Draft] Removed single payment draft: $_draftKey');
+    }
+    
+    // Clear multiple payment draft if this is from draft
+    if (widget.isMultiplePayment && widget.fromDraft && widget.multipleTagihan != null) {
+      final authProvider = Provider.of<AuthProvider>(context, listen: false);
+      final santriId = authProvider.activeSantri?.id;
+      
+      if (santriId != null) {
+        // Get tagihan IDs from submitted payment
+        final submittedIds = widget.multipleTagihan!
+            .map((t) => t is Map ? t['id'] as int? : null)
+            .where((id) => id != null)
+            .toSet();
+        
+        // Find and remove matching multiple payment draft
+        final keys = prefs.getKeys().where((key) => 
+          key.startsWith('payment_draft_multiple_$santriId')
+        ).toList();
+        
+        for (final key in keys) {
+          final draftJson = prefs.getString(key);
+          if (draftJson != null) {
+            try {
+              final draft = json.decode(draftJson);
+              if (draft['tagihan'] is List) {
+                final draftIds = (draft['tagihan'] as List)
+                    .map((t) => t is Map ? t['id'] as int? : null)
+                    .where((id) => id != null)
+                    .toSet();
+                
+                // Check if this draft matches the submitted tagihan
+                if (draftIds.length == submittedIds.length && 
+                    draftIds.containsAll(submittedIds)) {
+                  await prefs.remove(key);
+                  debugPrint('[Clear Draft] Removed matching multiple payment draft: $key');
+                  break; // Only remove the matching draft
+                }
+              }
+            } catch (e) {
+              debugPrint('[Clear Draft] Error checking draft: $e');
+            }
+          }
+        }
+      }
+    }
   }
 
   void _showDraftDialog() {

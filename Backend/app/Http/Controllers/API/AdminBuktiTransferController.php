@@ -144,11 +144,11 @@ class AdminBuktiTransferController extends Controller
             if (!$isTopupOnly && $bukti->tagihan_ids && count($bukti->tagihan_ids) > 0) {
                 $tagihans = TagihanSantri::whereIn('id', $bukti->tagihan_ids)->get();
 
-                // Process each tagihan
+                // Process each tagihan - pay full sisa for each
                 foreach ($tagihans as $tagihan) {
-                    // Calculate how much to pay for this tagihan
+                    // Pay the full remaining amount (sisa) for this tagihan
                     $sisaTagihan = $tagihan->nominal - $tagihan->dibayar;
-                    $nominalBayar = min($sisaTagihan, $nominalPembayaran / count($tagihans));
+                    $nominalBayar = $sisaTagihan; // Pay full sisa, not divided
 
                 // Capture sisa before applying payment
                 $sisaSebelum = $sisaTagihan;

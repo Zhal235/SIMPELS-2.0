@@ -1,7 +1,11 @@
 import 'package:flutter/material.dart';
 import 'package:flutter/services.dart';
+import 'package:provider/provider.dart';
+import 'package:shared_preferences/shared_preferences.dart';
+import 'dart:convert';
 import '../models/bank_account.dart';
 import '../services/api_service.dart';
+import '../providers/auth_provider.dart';
 import 'unified_payment_screen.dart';
 
 /// Screen untuk menampilkan informasi pembayaran sebelum transfer
@@ -99,6 +103,73 @@ class _PaymentInfoScreenState extends State<PaymentInfoScreen> {
     }
 
     return total;
+  }
+
+  Future<void> _saveToDraft() async {
+    try {
+      final authProvider = Provider.of<AuthProvider>(context, listen: false);
+      final santriId = authProvider.activeSantri?.id;
+      
+      if (santriId == null) {
+        ScaffoldMessenger.of(context).showSnackBar(
+          const SnackBar(content: Text('Santri tidak ditemukan')),
+        );
+        return;
+      }
+
+      final prefs = await SharedPreferences.getInstance();
+      
+      // Save single payment draft
+      final tagihanId = widget.tagihan?['id'];
+      final draftKey = 'payment_draft_${santriId}_${tagihanId ?? 'topup'}';
+      
+      final paymentAmount = widget.isTopupOnly
+          ? 0.0
+          : (double.tryParse(widget.tagihan!['sisa']?.toString() ?? '0') ?? 0);
+      
+      final topupAmount = _includeTopup
+          ? (double.tryParse(_topupController.text
+                  .replaceAll('.', '')
+                  .replaceAll(',', '')) ??
+              0.0)
+          : 0.0;
+      
+      final draft = {
+        'paymentAmount': paymentAmount,
+        'topupAmount': topupAmount,
+        'catatan': '',
+        'timestamp': DateTime.now().toIso8601String(),
+        'tagihanId': tagihanId,
+        'jenisTagihan': widget.tagihan?['jenis_tagihan'],
+        'bulan': widget.tagihan?['bulan'],
+        'tahun': widget.tagihan?['tahun'],
+        'selectedBankId': _selectedBank?.id,
+        'totalTagihan': double.tryParse(widget.tagihan?['nominal']?.toString() ?? '0') ?? 0,
+        'sudahDibayar': double.tryParse(widget.tagihan?['dibayar']?.toString() ?? '0') ?? 0,
+      };
+      
+      await prefs.setString(draftKey, json.encode(draft));
+      
+      if (mounted) {
+        ScaffoldMessenger.of(context).showSnackBar(
+          SnackBar(
+            content: Text(
+              topupAmount > 0
+                  ? 'Tagihan + top-up disimpan ke draft'
+                  : 'Tagihan disimpan ke draft'
+            ),
+            backgroundColor: Colors.green,
+          ),
+        );
+        Navigator.pop(context, true); // Return true to refresh
+      }
+    } catch (e) {
+      if (mounted) {
+        ScaffoldMessenger.of(context).showSnackBar(
+          SnackBar(content: Text('Error menyimpan draft: $e')),
+        );
+      }
+    }
   }
 
   void _copyToClipboard(String text) {
@@ -466,10 +537,9 @@ class _PaymentInfoScreenState extends State<PaymentInfoScreen> {
           children: [
             Expanded(
               child: OutlinedButton.icon(
-                onPressed: () {
-                  // Save to draft and go back
-                  Navigator.pop(context);
-                },
+                onPressed: _selectedBank == null
+                    ? null
+                    : _saveToDraft,
                 icon: const Icon(Icons.save_outlined),
                 label: const Text('Simpan Draft'),
                 style: OutlinedButton.styleFrom(

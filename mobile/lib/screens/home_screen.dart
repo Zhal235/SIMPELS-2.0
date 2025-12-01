@@ -782,10 +782,12 @@ class _PembayaranTabState extends State<PembayaranTab>
         debugPrint('[_loadTagihan] Response: ${responseBody.runtimeType}');
 
         if (responseBody is Map && responseBody['success'] == true) {
-          setState(() {
-            _tagihanData = Map<String, dynamic>.from(responseBody);
-            _isLoading = false;
-          });
+          if (mounted) {
+            setState(() {
+              _tagihanData = Map<String, dynamic>.from(responseBody);
+              _isLoading = false;
+            });
+          }
           debugPrint('[_loadTagihan] Data loaded successfully');
         } else {
           throw Exception('Invalid response format');
@@ -795,8 +797,8 @@ class _PembayaranTabState extends State<PembayaranTab>
       }
     } catch (e) {
       debugPrint('Error loading tagihan: $e');
-      setState(() => _isLoading = false);
       if (mounted) {
+        setState(() => _isLoading = false);
         ScaffoldMessenger.of(context).showSnackBar(
           SnackBar(content: Text('Error: $e')),
         );
