@@ -15,6 +15,8 @@ const Pengguna = lazy(() => import('./pages/Pengguna'))
 const Pengaturan = lazy(() => import('./pages/Pengaturan'))
 const Pengumuman = lazy(() => import('./pages/Pengumuman'))
 const Login = lazy(() => import('./pages/Login'))
+const ChangePassword = lazy(() => import('./pages/ChangePassword'))
+const ResetPasswordWali = lazy(() => import('./pages/ResetPasswordWali'))
 // Kesantrian subpages
 const KesantrianSantri = lazy(() => import('./pages/kesantrian/Santri'))
 const KesantrianKelas = lazy(() => import('./pages/kesantrian/Kelas'))
@@ -109,7 +111,7 @@ export default function App() {
       <ErrorBoundary>
         <Suspense fallback={<div className="p-6 text-center text-gray-500">Memuat halaman...</div>}>
           <Routes>
-            {/* Public Route */}
+            {/* Public Routes */}
             <Route path="/login" element={<Login />} />
             
             {/* Protected Routes */}
@@ -376,6 +378,20 @@ export default function App() {
               <ProtectedRoute>
                 <AppLayout>
                   <Pengaturan />
+                </AppLayout>
+              </ProtectedRoute>
+            } />
+            <Route path="/pengaturan/ubah-password" element={
+              <ProtectedRoute>
+                <AppLayout>
+                  <ChangePassword />
+                </AppLayout>
+              </ProtectedRoute>
+            } />
+            <Route path="/pengaturan/reset-password-wali" element={
+              <ProtectedRoute>
+                <AppLayout>
+                  <ResetPasswordWali />
                 </AppLayout>
               </ProtectedRoute>
             } />

@@ -29,11 +29,23 @@ class WaliController extends Controller
         // Normalize nomor HP (hapus spasi, +, 0 di depan, dll)
         $normalizedHp = $this->normalizePhoneNumber($request->no_hp);
 
-        // Password default adalah 123456
-        if ($request->password !== '123456') {
-            throw ValidationException::withMessages([
-                'password' => ['Password salah.'],
-            ]);
+        // Check if wali has custom password
+        $passwordWali = \App\Models\PasswordWali::where('no_hp', $request->no_hp)->first();
+        
+        if ($passwordWali) {
+            // Wali has custom password
+            if (!Hash::check($request->password, $passwordWali->password)) {
+                throw ValidationException::withMessages([
+                    'password' => ['Password salah.'],
+                ]);
+            }
+        } else {
+            // Use default password 123456
+            if ($request->password !== '123456') {
+                throw ValidationException::withMessages([
+                    'password' => ['Password salah.'],
+                ]);
+            }
         }
 
         // Cari santri berdasarkan hp_ayah atau hp_ibu
@@ -753,5 +765,69 @@ class WaliController extends Controller
     {
         $wallet = Wallet::where('santri_id', $santriId)->first();
         return $wallet ? ($wallet->balance ?? $wallet->saldo ?? 0) : 0;
+    }
+
+    /**
+     * Change password for wali (mobile app)
+     */
+    public function changePassword(Request $request)
+    {
+        $request->validate([
+            'no_hp' => 'required|string',
+            'current_password' => 'required|string',
+            'new_password' => 'required|string|min:6|confirmed',
+        ]);
+
+        $normalizedHp = $this->normalizePhoneNumber($request->no_hp);
+        
+        // Check if wali has santri
+        $santri = Santri::where(function($query) use ($normalizedHp, $request) {
+            $query->where('hp_ayah', 'LIKE', '%' . $normalizedHp . '%')
+                  ->orWhere('hp_ayah', 'LIKE', '%' . $request->no_hp . '%')
+                  ->orWhere('hp_ibu', 'LIKE', '%' . $normalizedHp . '%')
+                  ->orWhere('hp_ibu', 'LIKE', '%' . $request->no_hp . '%');
+        })->where('status', 'aktif')->first();
+
+        if (!$santri) {
+            return response()->json([
+                'success' => false,
+                'message' => 'Nomor HP tidak terdaftar',
+            ], 404);
+        }
+
+        // Check existing custom password or default
+        $passwordWali = \App\Models\PasswordWali::where('no_hp', $request->no_hp)->first();
+        
+        if ($passwordWali) {
+            // User has custom password
+            if (!Hash::check($request->current_password, $passwordWali->password)) {
+                return response()->json([
+                    'success' => false,
+                    'message' => 'Password lama tidak sesuai',
+                ], 422);
+            }
+        } else {
+            // Check default password
+            if ($request->current_password !== '123456') {
+                return response()->json([
+                    'success' => false,
+                    'message' => 'Password lama tidak sesuai',
+                ], 422);
+            }
+        }
+
+        // Store/update custom password in database
+        \App\Models\PasswordWali::updateOrCreate(
+            ['no_hp' => $request->no_hp],
+            [
+                'password' => Hash::make($request->new_password),
+                'updated_at' => now(),
+            ]
+        );
+
+        return response()->json([
+            'success' => true,
+            'message' => 'Password berhasil diubah',
+        ], 200);
     }
 }

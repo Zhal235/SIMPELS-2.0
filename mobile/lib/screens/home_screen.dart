@@ -1715,7 +1715,7 @@ class ProfileTab extends StatelessWidget {
             title: const Text('Ubah Password'),
             trailing: const Icon(Icons.chevron_right),
             onTap: () {
-              // TODO: Navigate to change password
+              Navigator.pushNamed(context, '/change-password');
             },
           ),
           ListTile(

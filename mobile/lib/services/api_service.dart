@@ -308,4 +308,19 @@ class ApiService {
   Future<Response> getBankAccounts() async {
     return await _dio.get('/wali/bank-accounts');
   }
+
+  /// Change password for wali (mobile app)
+  Future<Response> changePassword({
+    required String noHp,
+    required String currentPassword,
+    required String newPassword,
+    required String newPasswordConfirmation,
+  }) async {
+    return await _dio.post('/wali/change-password', data: {
+      'no_hp': noHp,
+      'current_password': currentPassword,
+      'new_password': newPassword,
+      'new_password_confirmation': newPasswordConfirmation,
+    });
+  }
 }

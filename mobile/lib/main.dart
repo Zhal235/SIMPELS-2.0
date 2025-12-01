@@ -3,6 +3,7 @@ import 'package:provider/provider.dart';
 import 'screens/splash_screen.dart';
 import 'screens/payment_info_screen.dart';
 import 'screens/wallet_full_history_screen.dart';
+import 'screens/change_password_screen.dart';
 import 'providers/auth_provider.dart';
 import 'config/app_theme.dart';
 
@@ -71,6 +72,11 @@ class SimpleMobileApp extends StatelessWidget {
                 ),
               );
             }
+          }
+          if (settings.name == '/change-password') {
+            return MaterialPageRoute(
+              builder: (context) => const ChangePasswordScreen(),
+            );
           }
           return null;
         },

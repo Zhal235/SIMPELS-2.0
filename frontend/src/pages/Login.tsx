@@ -113,8 +113,8 @@ export default function Login() {
               </div>
             </div>
 
-            {/* Remember Me & Forgot Password */}
-            <div className="flex items-center justify-between">
+            {/* Remember Me */}
+            <div className="flex items-center">
               <label className="flex items-center">
                 <input
                   type="checkbox"
@@ -122,9 +122,6 @@ export default function Login() {
                 />
                 <span className="ml-2 text-sm text-gray-600">Ingat saya</span>
               </label>
-              <a href="#" className="text-sm text-blue-600 hover:text-blue-700 font-medium">
-                Lupa password?
-              </a>
             </div>
 
             {/* Submit Button */}
