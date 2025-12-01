@@ -136,6 +136,10 @@ class AdminBuktiTransferController extends Controller
                 $nominalPembayaran = 0;
             }
 
+            // Get santri name for keterangan
+            $santri = \App\Models\Santri::find($bukti->santri_id);
+            $namaSantri = $santri ? $santri->nama_lengkap : 'Santri';
+
             // Process tagihan if not topup-only
             if (!$isTopupOnly && $bukti->tagihan_ids && count($bukti->tagihan_ids) > 0) {
                 $tagihans = TagihanSantri::whereIn('id', $bukti->tagihan_ids)->get();
@@ -192,7 +196,7 @@ class AdminBuktiTransferController extends Controller
                     'status_pembayaran' => $statusPembayaran,
                     'sisa_sebelum' => $sisaSebelum,
                     'sisa_sesudah' => $sisaSesudah,
-                    'keterangan' => 'Pembayaran via verifikasi bukti transfer (admin ' . (Auth::user()?->name ?? Auth::id()) . ')',
+                    'keterangan' => 'Pembayaran via SIMPELS Mobile - Disetujui oleh ' . (Auth::user()?->name ?? 'Admin'),
                     'bukti_pembayaran' => $bukti->bukti_path,
                 ]);
 
@@ -217,7 +221,7 @@ class AdminBuktiTransferController extends Controller
                             'metode' => 'transfer',
                             'kategori' => 'Pembayaran Tagihan',
                             'nominal' => $nominalBayar,
-                            'keterangan' => 'Pembayaran ' . $tagihan->jenisTagihan->nama_tagihan . ' - ' . $tagihan->bulan . ' ' . $tagihan->tahun . ' (via bukti transfer)',
+                            'keterangan' => 'Pembayaran ' . $tagihan->jenisTagihan->nama_tagihan . ' - ' . $tagihan->bulan . ' ' . $tagihan->tahun . ' a.n. ' . $namaSantri . ' (via SIMPELS Mobile)',
                             'pembayaran_id' => $pembayaran->id,
                         ]);
                         
@@ -260,7 +264,7 @@ class AdminBuktiTransferController extends Controller
                     'wallet_id' => (int)$wallet->id,
                     'amount' => (float)$nominalTopup,
                     'type' => 'credit',
-                    'description' => 'Top-up via bukti transfer (admin ' . (Auth::user()?->name ?? Auth::id()) . ')',
+                    'description' => 'Top-up via SIMPELS Mobile - Disetujui oleh ' . (Auth::user()?->name ?? 'Admin'),
                     'balance_after' => (float)$wallet->balance,
                     'created_by' => Auth::id(),
                     'created_at' => now(),

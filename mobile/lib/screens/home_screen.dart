@@ -777,24 +777,33 @@ class _PembayaranTabState extends State<PembayaranTab>
 
   Widget _buildTagihanList(List<dynamic> tagihan) {
     if (tagihan.isEmpty) {
-      return Center(
-        child: Column(
-          mainAxisAlignment: MainAxisAlignment.center,
-          children: [
-            Icon(Icons.receipt_long_outlined,
-                size: 64, color: Colors.grey[400]),
-            const SizedBox(height: 16),
-            Text(
-              'Tidak ada data',
-              style: TextStyle(color: Colors.grey[600]),
+      return ListView(
+        physics: const AlwaysScrollableScrollPhysics(),
+        children: [
+          SizedBox(
+            height: MediaQuery.of(context).size.height - 300,
+            child: Center(
+              child: Column(
+                mainAxisAlignment: MainAxisAlignment.center,
+                children: [
+                  Icon(Icons.receipt_long_outlined,
+                      size: 64, color: Colors.grey[400]),
+                  const SizedBox(height: 16),
+                  Text(
+                    'Tidak ada data',
+                    style: TextStyle(color: Colors.grey[600]),
+                  ),
+                ],
+              ),
             ),
-          ],
-        ),
+          ),
+        ],
       );
     }
 
     return ListView.builder(
       padding: const EdgeInsets.all(16),
+      physics: const AlwaysScrollableScrollPhysics(),
       itemCount: tagihan.length,
       itemBuilder: (context, index) {
         final item = tagihan[index];
@@ -1157,15 +1166,19 @@ class _RiwayatTabState extends State<RiwayatTab> {
         return dateB.compareTo(dateA);
       });
 
-      setState(() {
-        _riwayatList = combined;
-        _isLoading = false;
-      });
+      if (mounted) {
+        setState(() {
+          _riwayatList = combined;
+          _isLoading = false;
+        });
+      }
     } catch (e) {
-      setState(() {
-        _errorMessage = 'Gagal memuat riwayat: $e';
-        _isLoading = false;
-      });
+      if (mounted) {
+        setState(() {
+          _errorMessage = 'Gagal memuat riwayat: $e';
+          _isLoading = false;
+        });
+      }
     }
   }
 
@@ -1427,9 +1440,14 @@ class ProfileTab extends StatelessWidget {
       appBar: AppBar(
         title: const Text('Profile'),
       ),
-      body: ListView(
-        padding: const EdgeInsets.all(16),
-        children: [
+      body: RefreshIndicator(
+        onRefresh: () async {
+          await authProvider.refreshData();
+        },
+        child: ListView(
+          padding: const EdgeInsets.all(16),
+          physics: const AlwaysScrollableScrollPhysics(),
+          children: [
           Card(
             child: Padding(
               padding: const EdgeInsets.all(16),
@@ -1541,6 +1559,7 @@ class ProfileTab extends StatelessWidget {
           ),
         ],
       ),
+      ),
     );
   }
 }
@@ -1619,31 +1638,45 @@ class _DraftPembayaranListState extends State<_DraftPembayaranList> {
   @override
   Widget build(BuildContext context) {
     if (_drafts.isEmpty) {
-      return Center(
-        child: Column(
-          mainAxisAlignment: MainAxisAlignment.center,
+      return RefreshIndicator(
+        onRefresh: _loadDrafts,
+        child: ListView(
+          physics: const AlwaysScrollableScrollPhysics(),
           children: [
-            Icon(Icons.drafts_outlined, size: 80, color: Colors.grey[400]),
-            const SizedBox(height: 16),
-            Text(
-              'Tidak ada draft pembayaran',
-              style: TextStyle(fontSize: 16, color: Colors.grey[600]),
-            ),
-            const SizedBox(height: 8),
-            Text(
-              'Draft akan tersimpan otomatis saat Anda keluar\ndari halaman pembayaran sebelum upload bukti',
-              textAlign: TextAlign.center,
-              style: TextStyle(fontSize: 12, color: Colors.grey[500]),
+            SizedBox(
+              height: MediaQuery.of(context).size.height - 200,
+              child: Center(
+                child: Column(
+                  mainAxisAlignment: MainAxisAlignment.center,
+                  children: [
+                    Icon(Icons.drafts_outlined, size: 80, color: Colors.grey[400]),
+                    const SizedBox(height: 16),
+                    Text(
+                      'Tidak ada draft pembayaran',
+                      style: TextStyle(fontSize: 16, color: Colors.grey[600]),
+                    ),
+                    const SizedBox(height: 8),
+                    Text(
+                      'Draft akan tersimpan otomatis saat Anda keluar\ndari halaman pembayaran sebelum upload bukti',
+                      textAlign: TextAlign.center,
+                      style: TextStyle(fontSize: 12, color: Colors.grey[500]),
+                    ),
+                  ],
+                ),
+              ),
             ),
           ],
         ),
       );
     }
 
-    return ListView.builder(
-      padding: const EdgeInsets.all(16),
-      itemCount: _drafts.length,
-      itemBuilder: (context, index) {
+    return RefreshIndicator(
+      onRefresh: _loadDrafts,
+      child: ListView.builder(
+        padding: const EdgeInsets.all(16),
+        physics: const AlwaysScrollableScrollPhysics(),
+        itemCount: _drafts.length,
+        itemBuilder: (context, index) {
         final draft = _drafts[index];
         final paymentAmount = draft['paymentAmount'] ?? 0.0;
         final topupAmount = draft['topupAmount'] ?? 0.0;
@@ -1966,6 +1999,7 @@ class _DraftPembayaranListState extends State<_DraftPembayaranList> {
           ),
         );
       },
+      ),
     );
   }
 }
