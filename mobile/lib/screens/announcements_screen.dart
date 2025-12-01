@@ -98,8 +98,25 @@ class _AnnouncementsScreenState extends State<AnnouncementsScreen>
         });
       }
     } catch (e) {
+      // Check if it's a 401 error (unauthorized)
+      final errorString = e.toString();
+      if (errorString.contains('401') || errorString.contains('Unauthorized')) {
+        // Token expired, need to re-login
+        if (mounted) {
+          ScaffoldMessenger.of(context).showSnackBar(
+            const SnackBar(
+              content: Text('Sesi Anda telah berakhir. Silakan login kembali.'),
+              backgroundColor: Colors.orange,
+              duration: Duration(seconds: 3),
+            ),
+          );
+        }
+      }
+      
       setState(() {
-        _errorMessage = 'Terjadi kesalahan: $e';
+        _errorMessage = errorString.contains('401') 
+            ? 'Sesi berakhir. Silakan logout dan login kembali.'
+            : 'Terjadi kesalahan: $e';
         _isLoading = false;
       });
     }

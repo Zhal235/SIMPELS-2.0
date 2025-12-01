@@ -68,15 +68,20 @@ class ApiService {
     _dio.interceptors.add(InterceptorsWrapper(
       onRequest: (options, handler) async {
         final token = await StorageHelper.getToken();
-        if (token != null) {
+        if (token != null && token.isNotEmpty) {
           options.headers['Authorization'] = 'Bearer $token';
+          debugPrint('[API] Request to: ${options.path} with token');
+        } else {
+          debugPrint('[API] WARNING: Request to ${options.path} without token!');
         }
         return handler.next(options);
       },
-      onError: (error, handler) {
+      onError: (error, handler) async {
         // Handle 401 Unauthorized
         if (error.response?.statusCode == 401) {
-          StorageHelper.clearAll();
+          debugPrint('[API] 401 Unauthorized - Clearing session');
+          // Clear all storage to force re-login
+          await StorageHelper.clearAll();
         }
         return handler.next(error);
       },
@@ -321,6 +326,27 @@ class ApiService {
       'current_password': currentPassword,
       'new_password': newPassword,
       'new_password_confirmation': newPasswordConfirmation,
+    });
+  }
+
+  /// Get detailed santri data
+  Future<Response> getSantriDetail(String santriId) async {
+    return await _dio.get('/wali/santri/$santriId/detail');
+  }
+
+  /// Submit data correction request
+  Future<Response> submitDataCorrection({
+    required String santriId,
+    required String fieldName,
+    required String oldValue,
+    required String newValue,
+    required String note,
+  }) async {
+    return await _dio.post('/wali/santri/$santriId/correction', data: {
+      'field_name': fieldName,
+      'old_value': oldValue,
+      'new_value': newValue,
+      'note': note,
     });
   }
 }

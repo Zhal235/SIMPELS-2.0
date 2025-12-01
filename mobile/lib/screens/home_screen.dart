@@ -10,6 +10,7 @@ import 'wallet_history_screen.dart';
 import 'notification_screen.dart';
 import 'unified_payment_screen.dart';
 import 'bukti_history_screen.dart';
+import 'data_santri_screen.dart';
 import '../widgets/announcement_badge.dart';
 
 class HomeScreen extends StatefulWidget {
@@ -480,6 +481,20 @@ class DashboardTab extends StatelessWidget {
                 child: Row(
                   mainAxisAlignment: MainAxisAlignment.spaceAround,
                   children: [
+                    _buildQuickMenu(
+                      context,
+                      icon: Icons.school,
+                      title: 'Data Santri',
+                      color: Colors.teal,
+                      onTap: () {
+                        Navigator.push(
+                          context,
+                          MaterialPageRoute(
+                            builder: (_) => const DataSantriScreen(),
+                          ),
+                        );
+                      },
+                    ),
                     _buildQuickMenu(
                       context,
                       icon: Icons.receipt_long,
@@ -2234,13 +2249,8 @@ class _NotificationBellWidgetState extends State<_NotificationBellWidget> {
   void initState() {
     super.initState();
     _loadUnreadCount();
-    // Poll every 30 seconds
-    Future.doWhile(() async {
-      if (!mounted) return false;
-      await Future.delayed(const Duration(seconds: 30));
-      if (mounted) _loadUnreadCount();
-      return mounted;
-    });
+    // Auto-refresh disabled to reduce server load
+    // Badge will only update when user manually opens notifications
   }
 
   Future<void> _loadUnreadCount() async {

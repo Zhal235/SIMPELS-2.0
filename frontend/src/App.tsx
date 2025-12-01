@@ -20,6 +20,7 @@ const ResetPasswordWali = lazy(() => import('./pages/ResetPasswordWali'))
 // Kesantrian subpages
 const KesantrianSantri = lazy(() => import('./pages/kesantrian/Santri'))
 const KesantrianKelas = lazy(() => import('./pages/kesantrian/Kelas'))
+const KoreksiDataSantri = lazy(() => import('./pages/kesantrian/KoreksiDataSantri'))
 const KesantrianAsrama = lazy(() => import('./pages/kesantrian/Asrama'))
 const MutasiMasuk = lazy(() => import('./pages/kesantrian/MutasiMasuk'))
 const MutasiKeluar = lazy(() => import('./pages/kesantrian/MutasiKeluar'))
@@ -154,6 +155,13 @@ export default function App() {
               <ProtectedRoute>
                 <AppLayout>
                   <KesantrianAsrama />
+                </AppLayout>
+              </ProtectedRoute>
+            } />
+            <Route path="/kesantrian/koreksi-data" element={
+              <ProtectedRoute>
+                <AppLayout>
+                  <KoreksiDataSantri />
                 </AppLayout>
               </ProtectedRoute>
             } />

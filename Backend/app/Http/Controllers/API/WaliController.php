@@ -9,6 +9,7 @@ use App\Models\Pembayaran;
 use App\Models\TagihanSantri;
 use App\Models\Wallet;
 use App\Models\SantriTransactionLimit;
+use App\Models\DataCorrection;
 use Illuminate\Http\Request;
 use Illuminate\Support\Facades\Auth;
 use Illuminate\Support\Facades\Hash;
@@ -829,5 +830,89 @@ class WaliController extends Controller
             'success' => true,
             'message' => 'Password berhasil diubah',
         ], 200);
+    }
+
+    /**
+     * Get detailed santri data
+     */
+    public function getSantriDetail($santri_id)
+    {
+        $santri = Santri::with(['kelas', 'asrama'])
+            ->where('id', $santri_id)
+            ->where('status', 'aktif')
+            ->first();
+
+        if (!$santri) {
+            return response()->json([
+                'success' => false,
+                'message' => 'Data santri tidak ditemukan'
+            ], 404);
+        }
+
+        return response()->json([
+            'success' => true,
+            'data' => [
+                'nis' => $santri->nis ?? '-',
+                'nama_santri' => $santri->nama_santri ?? '-',
+                'jenis_kelamin' => $santri->jenis_kelamin ?? '-',
+                'tempat_lahir' => $santri->tempat_lahir ?? '-',
+                'tanggal_lahir' => $santri->tanggal_lahir ?? '-',
+                'nik' => $santri->nik ?? '-',
+                'no_kk' => $santri->no_kk ?? '-',
+                'alamat' => $santri->alamat ?? '-',
+                'kelas_nama' => $santri->kelas ? $santri->kelas->nama_kelas : '-',
+                'asrama_nama' => $santri->asrama ? $santri->asrama->nama_asrama : '-',
+                'status' => $santri->status ? ucfirst($santri->status) : '-',
+                'nama_ayah' => $santri->nama_ayah ?? '-',
+                'nik_ayah' => $santri->nik_ayah ?? '-',
+                'hp_ayah' => $santri->hp_ayah ?? '-',
+                'pekerjaan_ayah' => $santri->pekerjaan_ayah ?? '-',
+                'nama_ibu' => $santri->nama_ibu ?? '-',
+                'nik_ibu' => $santri->nik_ibu ?? '-',
+                'hp_ibu' => $santri->hp_ibu ?? '-',
+                'pekerjaan_ibu' => $santri->pekerjaan_ibu ?? '-',
+            ]
+        ]);
+    }
+
+    /**
+     * Submit data correction request
+     */
+    public function submitDataCorrection(Request $request, $santri_id)
+    {
+        $request->validate([
+            'field_name' => 'required|string',
+            'old_value' => 'required|string',
+            'new_value' => 'required|string',
+            'note' => 'nullable|string',
+        ]);
+
+        $santri = Santri::where('id', $santri_id)
+            ->where('status', 'aktif')
+            ->first();
+
+        if (!$santri) {
+            return response()->json([
+                'success' => false,
+                'message' => 'Data santri tidak ditemukan'
+            ], 404);
+        }
+
+        // Create correction request
+        $correction = DataCorrection::create([
+            'santri_id' => $santri_id,
+            'field_name' => $request->field_name,
+            'old_value' => $request->old_value,
+            'new_value' => $request->new_value,
+            'note' => $request->note,
+            'status' => 'pending',
+            'requested_by' => 'wali',
+        ]);
+
+        return response()->json([
+            'success' => true,
+            'message' => 'Permintaan koreksi berhasil dikirim. Menunggu persetujuan admin.',
+            'data' => $correction
+        ], 201);
     }
 }

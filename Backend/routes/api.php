@@ -31,6 +31,8 @@ Route::prefix('auth')->group(function () {
 Route::middleware('auth:sanctum')->prefix('wali')->group(function () {
     Route::post('change-password', [WaliController::class, 'changePassword']);
     Route::get('santri', [WaliController::class, 'getSantri']);
+    Route::get('santri/{santri_id}/detail', [WaliController::class, 'getSantriDetail']);
+    Route::post('santri/{santri_id}/correction', [WaliController::class, 'submitDataCorrection']);
     Route::get('wallet/{santri_id}', [WaliController::class, 'getWallet']);
     // allow wali (parent) to update per-santri wallet daily limit
     Route::put('wallet/{santri_id}/limit', [WaliController::class, 'setSantriDailyLimit']);
@@ -71,6 +73,13 @@ Route::middleware('auth:sanctum')->prefix('admin/bukti-transfer')->group(functio
 Route::middleware('auth:sanctum')->prefix('admin/wali')->group(function () {
     Route::get('check-password/{noHp}', [\App\Http\Controllers\Admin\WaliPasswordController::class, 'checkPassword']);
     Route::post('reset-password', [\App\Http\Controllers\Admin\WaliPasswordController::class, 'resetPassword']);
+});
+
+// Admin Data Corrections routes
+Route::middleware('auth:sanctum')->prefix('admin/data-corrections')->group(function () {
+    Route::get('/', [\App\Http\Controllers\Admin\DataCorrectionController::class, 'index']);
+    Route::post('{id}/approve', [\App\Http\Controllers\Admin\DataCorrectionController::class, 'approve']);
+    Route::post('{id}/reject', [\App\Http\Controllers\Admin\DataCorrectionController::class, 'reject']);
 });
 
 // Protected routes
