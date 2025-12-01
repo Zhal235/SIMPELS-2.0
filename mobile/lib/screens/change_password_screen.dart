@@ -15,7 +15,7 @@ class _ChangePasswordScreenState extends State<ChangePasswordScreen> {
   final _currentPasswordController = TextEditingController();
   final _newPasswordController = TextEditingController();
   final _confirmPasswordController = TextEditingController();
-  
+
   bool _isLoading = false;
   bool _obscureCurrentPassword = true;
   bool _obscureNewPassword = true;
@@ -124,7 +124,7 @@ class _ChangePasswordScreenState extends State<ChangePasswordScreen> {
                 textAlign: TextAlign.center,
               ),
               const SizedBox(height: 30),
-              
+
               // Current Password
               TextFormField(
                 controller: _currentPasswordController,
@@ -157,7 +157,7 @@ class _ChangePasswordScreenState extends State<ChangePasswordScreen> {
                 },
               ),
               const SizedBox(height: 20),
-              
+
               // New Password
               TextFormField(
                 controller: _newPasswordController,
@@ -193,7 +193,7 @@ class _ChangePasswordScreenState extends State<ChangePasswordScreen> {
                 },
               ),
               const SizedBox(height: 20),
-              
+
               // Confirm Password
               TextFormField(
                 controller: _confirmPasswordController,
@@ -229,7 +229,7 @@ class _ChangePasswordScreenState extends State<ChangePasswordScreen> {
                 },
               ),
               const SizedBox(height: 30),
-              
+
               // Submit Button
               ElevatedButton(
                 onPressed: _isLoading ? null : _changePassword,
@@ -259,7 +259,7 @@ class _ChangePasswordScreenState extends State<ChangePasswordScreen> {
                       ),
               ),
               const SizedBox(height: 20),
-              
+
               // Info Card
               Container(
                 padding: const EdgeInsets.all(15),

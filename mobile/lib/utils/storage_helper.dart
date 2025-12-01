@@ -37,7 +37,8 @@ class StorageHelper {
     return token != null && token.isNotEmpty;
   }
 
-  static Future<void> saveSantriList(List<Map<String, dynamic>> santriList) async {
+  static Future<void> saveSantriList(
+      List<Map<String, dynamic>> santriList) async {
     final prefs = await SharedPreferences.getInstance();
     await prefs.setString('santri_list', jsonEncode(santriList));
   }

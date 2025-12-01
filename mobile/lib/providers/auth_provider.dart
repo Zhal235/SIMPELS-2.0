@@ -6,7 +6,7 @@ import '../utils/storage_helper.dart';
 
 class AuthProvider with ChangeNotifier {
   final ApiService _apiService = ApiService();
-  
+
   WaliModel? _currentUser;
   List<SantriModel> _santriList = [];
   SantriModel? _activeSantri;
@@ -29,43 +29,43 @@ class AuthProvider with ChangeNotifier {
 
     try {
       final response = await _apiService.login(noHp, password);
-      
+
       if (response.statusCode == 200) {
         final data = response.data;
-        
+
         // Save token
         await StorageHelper.saveToken(data['token']);
-        
+
         // Save wali data
         await StorageHelper.saveUser(data['wali']);
-        
+
         // Set current user
         _currentUser = WaliModel.fromJson(data['wali']);
-        
+
         // Parse santri list
         final List<dynamic> santriJson = data['santri'] ?? [];
         _santriList = santriJson.map((s) => SantriModel.fromJson(s)).toList();
-        
+
         // Save santri list to storage
         await StorageHelper.saveSantriList(
           _santriList.map((s) => s.toJson()).toList(),
         );
-        
+
         // Set active santri (default pertama atau dari storage)
         final activeSantriId = data['active_santri_id'];
         _activeSantri = _santriList.firstWhere(
           (s) => s.id == activeSantriId,
           orElse: () => _santriList.first,
         );
-        
+
         // Save active santri ID
         await StorageHelper.saveActiveSantriId(_activeSantri!.id);
-        
+
         _isLoading = false;
         notifyListeners();
         return data; // Return data untuk cek jumlah santri
       }
-      
+
       _errorMessage = 'Login gagal';
       _isLoading = false;
       notifyListeners();
@@ -90,7 +90,7 @@ class AuthProvider with ChangeNotifier {
   // Refresh data from API
   Future<void> refreshData() async {
     if (_currentUser == null) return;
-    
+
     _isLoading = true;
     notifyListeners();
 
@@ -100,19 +100,19 @@ class AuthProvider with ChangeNotifier {
         _currentUser!.noHp,
         '123456', // default password
       );
-      
+
       if (response.statusCode == 200) {
         final data = response.data;
-        
+
         // Update santri list
         final List<dynamic> santriJson = data['santri'] ?? [];
         _santriList = santriJson.map((s) => SantriModel.fromJson(s)).toList();
-        
+
         // Save to storage
         await StorageHelper.saveSantriList(
           _santriList.map((s) => s.toJson()).toList(),
         );
-        
+
         // Update active santri with fresh data
         final currentActiveSantriId = _activeSantri?.id;
         if (currentActiveSantriId != null) {
@@ -122,7 +122,7 @@ class AuthProvider with ChangeNotifier {
           );
         }
       }
-      
+
       _isLoading = false;
       notifyListeners();
     } catch (e) {
@@ -147,12 +147,12 @@ class AuthProvider with ChangeNotifier {
       final userData = await StorageHelper.getUser();
       if (userData != null) {
         _currentUser = WaliModel.fromJson(userData);
-        
+
         // Restore santri list
         final santriData = await StorageHelper.getSantriList();
         if (santriData != null) {
           _santriList = santriData.map((s) => SantriModel.fromJson(s)).toList();
-          
+
           // Restore active santri
           final activeSantriId = await StorageHelper.getActiveSantriId();
           if (activeSantriId != null) {
@@ -162,7 +162,7 @@ class AuthProvider with ChangeNotifier {
             );
           }
         }
-        
+
         notifyListeners();
       }
     }

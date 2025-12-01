@@ -31,7 +31,7 @@ class SimpleMobileApp extends StatelessWidget {
             if (args != null) {
               final selectedTagihan = args['selectedTagihan'] as List<dynamic>?;
               final nominalTopup = args['nominalTopup'] as double?;
-              
+
               // If only topup, use PaymentInfoScreen in topup mode
               if (selectedTagihan == null || selectedTagihan.isEmpty) {
                 return MaterialPageRoute(
@@ -41,7 +41,7 @@ class SimpleMobileApp extends StatelessWidget {
                   ),
                 );
               }
-              
+
               // If single tagihan, use PaymentInfoScreen to show bank info first
               if (selectedTagihan.length == 1) {
                 return MaterialPageRoute(
@@ -51,7 +51,7 @@ class SimpleMobileApp extends StatelessWidget {
                   ),
                 );
               }
-              
+
               // Multiple tagihan: use first one for now - show PaymentInfoScreen
               // TODO: Handle multiple tagihan properly
               return MaterialPageRoute(

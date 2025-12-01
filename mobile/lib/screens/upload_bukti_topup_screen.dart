@@ -1,5 +1,4 @@
 import 'dart:io';
-import 'dart:typed_data';
 import 'package:flutter/material.dart';
 import 'package:flutter/foundation.dart';
 import 'package:image_picker/image_picker.dart';
@@ -28,7 +27,8 @@ class _UploadBuktiTopupScreenState extends State<UploadBuktiTopupScreen> {
   final ApiService _api = ApiService();
   final TextEditingController _catatanController = TextEditingController();
   File? _imageFile;
-  Uint8List? _webImage;
+  // ignore: unused_field
+  Uint8List? _webImage; // Used for web platform support
   bool _isUploading = false;
 
   Future<void> _pickImage(ImageSource source) async {
@@ -95,7 +95,8 @@ class _UploadBuktiTopupScreenState extends State<UploadBuktiTopupScreen> {
   Future<void> _submitBukti() async {
     if (_imageFile == null) {
       ScaffoldMessenger.of(context).showSnackBar(
-        const SnackBar(content: Text('Silakan pilih bukti transfer terlebih dahulu')),
+        const SnackBar(
+            content: Text('Silakan pilih bukti transfer terlebih dahulu')),
       );
       return;
     }
@@ -114,7 +115,8 @@ class _UploadBuktiTopupScreenState extends State<UploadBuktiTopupScreen> {
         if (mounted) {
           ScaffoldMessenger.of(context).showSnackBar(
             const SnackBar(
-              content: Text('Bukti top-up berhasil dikirim. Tunggu konfirmasi admin.'),
+              content: Text(
+                  'Bukti top-up berhasil dikirim. Tunggu konfirmasi admin.'),
               backgroundColor: Colors.green,
             ),
           );
@@ -138,9 +140,9 @@ class _UploadBuktiTopupScreenState extends State<UploadBuktiTopupScreen> {
 
   String _formatCurrency(double amount) {
     return amount.toStringAsFixed(0).replaceAllMapped(
-      RegExp(r'(\d{1,3})(?=(\d{3})+(?!\d))'),
-      (Match m) => '${m[1]}.',
-    );
+          RegExp(r'(\d{1,3})(?=(\d{3})+(?!\d))'),
+          (Match m) => '${m[1]}.',
+        );
   }
 
   @override
@@ -187,7 +189,8 @@ class _UploadBuktiTopupScreenState extends State<UploadBuktiTopupScreen> {
                     const SizedBox(height: 12),
                     _buildInfoRow('Santri', widget.santriName),
                     const SizedBox(height: 8),
-                    _buildInfoRow('Nominal Top-up', 'Rp ${_formatCurrency(widget.nominal)}'),
+                    _buildInfoRow('Nominal Top-up',
+                        'Rp ${_formatCurrency(widget.nominal)}'),
                   ],
                 ),
               ),
@@ -252,14 +255,18 @@ class _UploadBuktiTopupScreenState extends State<UploadBuktiTopupScreen> {
                   width: double.infinity,
                   height: 150,
                   decoration: BoxDecoration(
-                    border: Border.all(color: Colors.grey.shade300, width: 2, style: BorderStyle.solid),
+                    border: Border.all(
+                        color: Colors.grey.shade300,
+                        width: 2,
+                        style: BorderStyle.solid),
                     borderRadius: BorderRadius.circular(8),
                     color: Colors.grey.shade50,
                   ),
                   child: Column(
                     mainAxisAlignment: MainAxisAlignment.center,
                     children: [
-                      Icon(Icons.cloud_upload, size: 48, color: Colors.grey.shade400),
+                      Icon(Icons.cloud_upload,
+                          size: 48, color: Colors.grey.shade400),
                       const SizedBox(height: 8),
                       Text(
                         'Tap untuk upload bukti transfer',
@@ -312,7 +319,8 @@ class _UploadBuktiTopupScreenState extends State<UploadBuktiTopupScreen> {
                         height: 20,
                         child: CircularProgressIndicator(
                           strokeWidth: 2,
-                          valueColor: AlwaysStoppedAnimation<Color>(Colors.white),
+                          valueColor:
+                              AlwaysStoppedAnimation<Color>(Colors.white),
                         ),
                       )
                     : const Text(

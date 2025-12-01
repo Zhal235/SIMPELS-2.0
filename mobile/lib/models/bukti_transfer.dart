@@ -39,7 +39,9 @@ class BuktiTransfer {
         processedAt: _parseDateTime(json['processed_at']),
         processedBy: json['processed_by'] as String?,
         tagihan: json['tagihan'] != null && json['tagihan'] is List
-            ? (json['tagihan'] as List).map((t) => TagihanItem.fromJson(t as Map<String, dynamic>)).toList()
+            ? (json['tagihan'] as List)
+                .map((t) => TagihanItem.fromJson(t as Map<String, dynamic>))
+                .toList()
             : null,
       );
     } catch (e) {

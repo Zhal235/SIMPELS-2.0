@@ -14,12 +14,12 @@ class ApiService {
     if (kIsWeb) {
       return 'http://localhost:8001';
     }
-    
+
     // For Android emulator
     if (Platform.isAndroid) {
       return 'http://10.0.2.2:8001';
     }
-    
+
     // For iOS simulator or other platforms
     return 'http://localhost:8001';
   }
@@ -27,27 +27,30 @@ class ApiService {
   /// Convert relative storage URL to full URL
   static String getFullImageUrl(String? relativePath) {
     if (relativePath == null || relativePath.isEmpty) return '';
-    
+
     // If already full URL with localhost, convert to platform-specific URL
-    if (relativePath.startsWith('http://localhost:') || relativePath.startsWith('http://127.0.0.1:')) {
+    if (relativePath.startsWith('http://localhost:') ||
+        relativePath.startsWith('http://127.0.0.1:')) {
       final baseUrl = getBaseUrl();
       // Extract path after domain:port
       final uri = Uri.parse(relativePath);
       final path = uri.path.startsWith('/') ? uri.path.substring(1) : uri.path;
       return '$baseUrl/$path';
     }
-    
+
     // If already full URL with correct domain, return as is
-    if (relativePath.startsWith('http://') || relativePath.startsWith('https://')) {
+    if (relativePath.startsWith('http://') ||
+        relativePath.startsWith('https://')) {
       return relativePath;
     }
-    
+
     // Get base URL without /api suffix
     final baseUrl = getBaseUrl();
-    
+
     // Remove leading slash if present to avoid double slashes
-    final cleanPath = relativePath.startsWith('/') ? relativePath.substring(1) : relativePath;
-    
+    final cleanPath =
+        relativePath.startsWith('/') ? relativePath.substring(1) : relativePath;
+
     return '$baseUrl/$cleanPath';
   }
 
@@ -72,7 +75,8 @@ class ApiService {
           options.headers['Authorization'] = 'Bearer $token';
           debugPrint('[API] Request to: ${options.path} with token');
         } else {
-          debugPrint('[API] WARNING: Request to ${options.path} without token!');
+          debugPrint(
+              '[API] WARNING: Request to ${options.path} without token!');
         }
         return handler.next(options);
       },
@@ -106,8 +110,10 @@ class ApiService {
   }
 
   /// Get wallet transactions (full history) using admin-style endpoint
-  Future<Response> getWalletTransactions(String santriId, {int page = 1, int limit = 50}) async {
-    return await _dio.get('/v1/wallets/$santriId/transactions', queryParameters: {
+  Future<Response> getWalletTransactions(String santriId,
+      {int page = 1, int limit = 50}) async {
+    return await _dio
+        .get('/v1/wallets/$santriId/transactions', queryParameters: {
       'page': page,
       'limit': limit,
     });
@@ -123,7 +129,8 @@ class ApiService {
 
   Future<Response> getAllTagihan(String santriId) async {
     try {
-      final response = await _dio.get('${AppConfig.waliTagihanEndpoint}/$santriId');
+      final response =
+          await _dio.get('${AppConfig.waliTagihanEndpoint}/$santriId');
       debugPrint('getAllTagihan raw response: ${response.data.runtimeType}');
       return response;
     } catch (e) {
@@ -166,7 +173,7 @@ class ApiService {
     int? selectedBankId,
   }) async {
     MultipartFile multipartFile;
-    
+
     if (buktiBytes != null) {
       // For web platform
       multipartFile = MultipartFile.fromBytes(
@@ -189,22 +196,22 @@ class ApiService {
       'catatan': catatan ?? '',
       'bukti': multipartFile,
     };
-    
+
     // Add selected bank ID if provided
     if (selectedBankId != null) {
       formFields['selected_bank_id'] = selectedBankId.toString();
     }
-    
+
     // Add topup nominal if provided
     if (nominalTopup != null && nominalTopup > 0) {
       formFields['nominal_topup'] = nominalTopup.toString();
     }
-    
+
     // Add array items individually with [] notation for Laravel
     for (int i = 0; i < tagihanIds.length; i++) {
       formFields['tagihan_ids[$i]'] = tagihanIds[i].toString();
     }
-    
+
     final formData = FormData.fromMap(formFields);
 
     debugPrint('[API] Uploading bukti to: /wali/upload-bukti/$santriId');
@@ -243,7 +250,8 @@ class ApiService {
   }
 
   /// Topup wallet (admin or authorized user) via v1 wallets endpoint
-  Future<Response> topupWallet(String santriId, double amount, {String? method, String? description}) async {
+  Future<Response> topupWallet(String santriId, double amount,
+      {String? method, String? description}) async {
     final payload = {
       'amount': amount,
       if (method != null) 'method': method,
@@ -254,8 +262,10 @@ class ApiService {
   }
 
   /// Allow wali to set per-santri daily limit (calling /wali route added)
-  Future<Response> setSantriDailyLimit(String santriId, double dailyLimit) async {
-    return await _dio.put('${AppConfig.waliWalletEndpoint}/$santriId/limit', data: {
+  Future<Response> setSantriDailyLimit(
+      String santriId, double dailyLimit) async {
+    return await _dio
+        .put('${AppConfig.waliWalletEndpoint}/$santriId/limit', data: {
       'daily_limit': dailyLimit,
     });
   }
@@ -270,7 +280,7 @@ class ApiService {
     int? selectedBankId,
   }) async {
     MultipartFile multipartFile;
-    
+
     if (buktiBytes != null) {
       // For web platform
       multipartFile = MultipartFile.fromBytes(
@@ -300,7 +310,8 @@ class ApiService {
 
     final formData = FormData.fromMap(formFields);
 
-    debugPrint('[API] Uploading bukti topup to: /wali/upload-bukti-topup/$santriId');
+    debugPrint(
+        '[API] Uploading bukti topup to: /wali/upload-bukti-topup/$santriId');
     debugPrint('[API] Nominal: $nominal');
 
     return await _dio.post(

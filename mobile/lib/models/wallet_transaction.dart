@@ -19,14 +19,14 @@ class WalletTransaction {
     // Parse tanggal - handle various formats
     DateTime parsedDate;
     final tanggalRaw = json['tanggal'] ?? json['created_at'];
-    
+
     if (tanggalRaw != null) {
       // Try parsing as ISO8601 or various common formats
       parsedDate = DateTime.tryParse(tanggalRaw.toString()) ?? DateTime.now();
     } else {
       parsedDate = DateTime.now();
     }
-    
+
     // Safe parsing for numeric values
     double parseDouble(dynamic value) {
       if (value == null) return 0.0;
@@ -37,11 +37,13 @@ class WalletTransaction {
       }
       return 0.0;
     }
-    
+
     return WalletTransaction(
       id: json['id']?.toString() ?? '',
       tanggal: parsedDate,
-      keterangan: json['keterangan']?.toString() ?? json['description']?.toString() ?? '',
+      keterangan: json['keterangan']?.toString() ??
+          json['description']?.toString() ??
+          '',
       jumlah: parseDouble(json['jumlah'] ?? json['amount']),
       tipe: json['tipe']?.toString() ?? json['type']?.toString() ?? 'credit',
       saldoAkhir: parseDouble(json['saldo_akhir'] ?? json['balance_after']),

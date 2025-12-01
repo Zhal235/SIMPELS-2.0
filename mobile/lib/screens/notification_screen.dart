@@ -145,9 +145,8 @@ class _NotificationScreenState extends State<NotificationScreen> {
                     itemBuilder: (context, index) {
                       final notif = _notifications[index];
                       return Card(
-                        color: notif.isRead
-                            ? Colors.white
-                            : Colors.blue.shade50,
+                        color:
+                            notif.isRead ? Colors.white : Colors.blue.shade50,
                         elevation: notif.isRead ? 1 : 3,
                         child: InkWell(
                           onTap: () {
@@ -164,8 +163,8 @@ class _NotificationScreenState extends State<NotificationScreen> {
                                 Container(
                                   padding: const EdgeInsets.all(8),
                                   decoration: BoxDecoration(
-                                    color: _getColor(notif.type)
-                                        .withOpacity(0.1),
+                                    color:
+                                        _getColor(notif.type).withOpacity(0.1),
                                     borderRadius: BorderRadius.circular(8),
                                   ),
                                   child: Icon(
@@ -197,7 +196,7 @@ class _NotificationScreenState extends State<NotificationScreen> {
                                             Container(
                                               width: 8,
                                               height: 8,
-                                              decoration: BoxDecoration(
+                                              decoration: const BoxDecoration(
                                                 color: Colors.blue,
                                                 shape: BoxShape.circle,
                                               ),

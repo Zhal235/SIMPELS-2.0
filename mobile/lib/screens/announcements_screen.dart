@@ -16,7 +16,7 @@ class _AnnouncementsScreenState extends State<AnnouncementsScreen>
     with SingleTickerProviderStateMixin {
   late TabController _tabController;
   late AnnouncementService _announcementService;
-  
+
   List<Announcement> _allAnnouncements = [];
   List<Announcement> _unreadAnnouncements = [];
   bool _isLoading = false;
@@ -25,15 +25,43 @@ class _AnnouncementsScreenState extends State<AnnouncementsScreen>
 
   // Helper function untuk format tanggal
   String _formatDateTime(DateTime dateTime, {bool shortFormat = false}) {
-    final months = ['Jan', 'Feb', 'Mar', 'Apr', 'Mei', 'Jun', 'Jul', 'Agu', 'Sep', 'Okt', 'Nov', 'Des'];
-    final monthsFull = ['Januari', 'Februari', 'Maret', 'April', 'Mei', 'Juni', 'Juli', 'Agustus', 'September', 'Oktober', 'November', 'Desember'];
-    
+    final months = [
+      'Jan',
+      'Feb',
+      'Mar',
+      'Apr',
+      'Mei',
+      'Jun',
+      'Jul',
+      'Agu',
+      'Sep',
+      'Okt',
+      'Nov',
+      'Des'
+    ];
+    final monthsFull = [
+      'Januari',
+      'Februari',
+      'Maret',
+      'April',
+      'Mei',
+      'Juni',
+      'Juli',
+      'Agustus',
+      'September',
+      'Oktober',
+      'November',
+      'Desember'
+    ];
+
     final day = dateTime.day.toString().padLeft(2, '0');
-    final month = shortFormat ? months[dateTime.month - 1] : monthsFull[dateTime.month - 1];
+    final month = shortFormat
+        ? months[dateTime.month - 1]
+        : monthsFull[dateTime.month - 1];
     final year = dateTime.year;
     final hour = dateTime.hour.toString().padLeft(2, '0');
     final minute = dateTime.minute.toString().padLeft(2, '0');
-    
+
     return '$day $month $year, $hour:$minute';
   }
 
@@ -52,7 +80,7 @@ class _AnnouncementsScreenState extends State<AnnouncementsScreen>
   Future<void> _initService() async {
     final baseUrl = ApiService.getBaseUrl();
     final token = await StorageHelper.getToken();
-    
+
     final dio = Dio(BaseOptions(
       baseUrl: '$baseUrl/api',
       headers: {
@@ -112,9 +140,9 @@ class _AnnouncementsScreenState extends State<AnnouncementsScreen>
           );
         }
       }
-      
+
       setState(() {
-        _errorMessage = errorString.contains('401') 
+        _errorMessage = errorString.contains('401')
             ? 'Sesi berakhir. Silakan logout dan login kembali.'
             : 'Terjadi kesalahan: $e';
         _isLoading = false;
@@ -127,7 +155,7 @@ class _AnnouncementsScreenState extends State<AnnouncementsScreen>
 
     try {
       final result = await _announcementService.markAsRead(announcement.id);
-      
+
       if (result['success'] == true) {
         // Reload announcements to update read status
         await _loadAnnouncements();
@@ -190,19 +218,20 @@ class _AnnouncementsScreenState extends State<AnnouncementsScreen>
                           begin: Alignment.topLeft,
                           end: Alignment.bottomRight,
                           colors: announcement.priority == 'urgent'
-                            ? [Colors.red[50]!, Colors.red[100]!]
-                            : announcement.priority == 'important'
-                              ? [Colors.orange[50]!, Colors.orange[100]!]
-                              : [Colors.blue[50]!, Colors.blue[100]!],
+                              ? [Colors.red[50]!, Colors.red[100]!]
+                              : announcement.priority == 'important'
+                                  ? [Colors.orange[50]!, Colors.orange[100]!]
+                                  : [Colors.blue[50]!, Colors.blue[100]!],
                         ),
                         borderRadius: BorderRadius.circular(16),
                         boxShadow: [
                           BoxShadow(
                             color: (announcement.priority == 'urgent'
-                              ? Colors.red
-                              : announcement.priority == 'important'
-                                ? Colors.orange
-                                : Colors.blue).withOpacity(0.15),
+                                    ? Colors.red
+                                    : announcement.priority == 'important'
+                                        ? Colors.orange
+                                        : Colors.blue)
+                                .withOpacity(0.15),
                             blurRadius: 12,
                             offset: const Offset(0, 4),
                           ),
@@ -249,15 +278,21 @@ class _AnnouncementsScreenState extends State<AnnouncementsScreen>
                                     _buildPriorityChip(announcement.priority),
                                     if (announcement.pushNotification)
                                       Container(
-                                        padding: const EdgeInsets.symmetric(horizontal: 10, vertical: 6),
+                                        padding: const EdgeInsets.symmetric(
+                                            horizontal: 10, vertical: 6),
                                         decoration: BoxDecoration(
                                           gradient: const LinearGradient(
-                                            colors: [Color(0xFF10B981), Color(0xFF059669)],
+                                            colors: [
+                                              Color(0xFF10B981),
+                                              Color(0xFF059669)
+                                            ],
                                           ),
-                                          borderRadius: BorderRadius.circular(12),
+                                          borderRadius:
+                                              BorderRadius.circular(12),
                                           boxShadow: [
                                             BoxShadow(
-                                              color: Colors.green.withOpacity(0.3),
+                                              color:
+                                                  Colors.green.withOpacity(0.3),
                                               blurRadius: 4,
                                               offset: const Offset(0, 2),
                                             ),
@@ -266,7 +301,8 @@ class _AnnouncementsScreenState extends State<AnnouncementsScreen>
                                         child: const Row(
                                           mainAxisSize: MainAxisSize.min,
                                           children: [
-                                            Icon(Icons.notifications_active, size: 14, color: Colors.white),
+                                            Icon(Icons.notifications_active,
+                                                size: 14, color: Colors.white),
                                             SizedBox(width: 4),
                                             Text(
                                               'Push',
@@ -288,7 +324,7 @@ class _AnnouncementsScreenState extends State<AnnouncementsScreen>
                       ),
                     ),
                     const SizedBox(height: 20),
-                    
+
                     // Metadata with icons
                     Container(
                       padding: const EdgeInsets.all(16),
@@ -301,7 +337,8 @@ class _AnnouncementsScreenState extends State<AnnouncementsScreen>
                         children: [
                           Row(
                             children: [
-                              Icon(Icons.calendar_today, size: 18, color: Colors.grey[600]),
+                              Icon(Icons.calendar_today,
+                                  size: 18, color: Colors.grey[600]),
                               const SizedBox(width: 8),
                               Expanded(
                                 child: Text(
@@ -319,7 +356,8 @@ class _AnnouncementsScreenState extends State<AnnouncementsScreen>
                             const SizedBox(height: 12),
                             Row(
                               children: [
-                                Icon(Icons.person_outline, size: 18, color: Colors.grey[600]),
+                                Icon(Icons.person_outline,
+                                    size: 18, color: Colors.grey[600]),
                                 const SizedBox(width: 8),
                                 Expanded(
                                   child: Text(
@@ -338,7 +376,7 @@ class _AnnouncementsScreenState extends State<AnnouncementsScreen>
                       ),
                     ),
                     const SizedBox(height: 24),
-                    
+
                     // Content with nice styling
                     Container(
                       padding: const EdgeInsets.all(20),
@@ -352,7 +390,8 @@ class _AnnouncementsScreenState extends State<AnnouncementsScreen>
                         children: [
                           Row(
                             children: [
-                              Icon(Icons.article_outlined, size: 20, color: Colors.grey[700]),
+                              Icon(Icons.article_outlined,
+                                  size: 20, color: Colors.grey[700]),
                               const SizedBox(width: 8),
                               Text(
                                 'Isi Pengumuman',
@@ -509,21 +548,21 @@ class _AnnouncementsScreenState extends State<AnnouncementsScreen>
             margin: const EdgeInsets.only(bottom: 12),
             decoration: BoxDecoration(
               borderRadius: BorderRadius.circular(16),
-              gradient: announcement.isRead 
-                ? null 
-                : LinearGradient(
-                    begin: Alignment.topLeft,
-                    end: Alignment.bottomRight,
-                    colors: [
-                      const Color(0xFFEFF6FF),
-                      Colors.blue[50]!,
-                    ],
-                  ),
+              gradient: announcement.isRead
+                  ? null
+                  : LinearGradient(
+                      begin: Alignment.topLeft,
+                      end: Alignment.bottomRight,
+                      colors: [
+                        const Color(0xFFEFF6FF),
+                        Colors.blue[50]!,
+                      ],
+                    ),
               boxShadow: [
                 BoxShadow(
-                  color: announcement.isRead 
-                    ? Colors.black.withOpacity(0.05)
-                    : Colors.blue.withOpacity(0.1),
+                  color: announcement.isRead
+                      ? Colors.black.withOpacity(0.05)
+                      : Colors.blue.withOpacity(0.1),
                   blurRadius: 8,
                   offset: const Offset(0, 2),
                 ),
@@ -540,9 +579,9 @@ class _AnnouncementsScreenState extends State<AnnouncementsScreen>
                   decoration: BoxDecoration(
                     borderRadius: BorderRadius.circular(16),
                     border: Border.all(
-                      color: announcement.isRead 
-                        ? Colors.grey[200]! 
-                        : const Color(0xFF3B82F6),
+                      color: announcement.isRead
+                          ? Colors.grey[200]!
+                          : const Color(0xFF3B82F6),
                       width: announcement.isRead ? 1 : 2,
                     ),
                   ),
@@ -557,19 +596,20 @@ class _AnnouncementsScreenState extends State<AnnouncementsScreen>
                             begin: Alignment.topLeft,
                             end: Alignment.bottomRight,
                             colors: announcement.priority == 'urgent'
-                              ? [Colors.red[100]!, Colors.red[50]!]
-                              : announcement.priority == 'important'
-                                ? [Colors.orange[100]!, Colors.orange[50]!]
-                                : [Colors.blue[100]!, Colors.blue[50]!],
+                                ? [Colors.red[100]!, Colors.red[50]!]
+                                : announcement.priority == 'important'
+                                    ? [Colors.orange[100]!, Colors.orange[50]!]
+                                    : [Colors.blue[100]!, Colors.blue[50]!],
                           ),
                           borderRadius: BorderRadius.circular(12),
                           boxShadow: [
                             BoxShadow(
                               color: (announcement.priority == 'urgent'
-                                ? Colors.red
-                                : announcement.priority == 'important'
-                                  ? Colors.orange
-                                  : Colors.blue).withOpacity(0.2),
+                                      ? Colors.red
+                                      : announcement.priority == 'important'
+                                          ? Colors.orange
+                                          : Colors.blue)
+                                  .withOpacity(0.2),
                               blurRadius: 4,
                               offset: const Offset(0, 2),
                             ),
@@ -581,7 +621,7 @@ class _AnnouncementsScreenState extends State<AnnouncementsScreen>
                         ),
                       ),
                       const SizedBox(width: 16),
-                      
+
                       // Content
                       Expanded(
                         child: Column(
@@ -610,7 +650,10 @@ class _AnnouncementsScreenState extends State<AnnouncementsScreen>
                                     padding: const EdgeInsets.all(6),
                                     decoration: BoxDecoration(
                                       gradient: const LinearGradient(
-                                        colors: [Color(0xFF3B82F6), Color(0xFF2563EB)],
+                                        colors: [
+                                          Color(0xFF3B82F6),
+                                          Color(0xFF2563EB)
+                                        ],
                                       ),
                                       shape: BoxShape.circle,
                                       boxShadow: [
@@ -640,7 +683,8 @@ class _AnnouncementsScreenState extends State<AnnouncementsScreen>
                             Row(
                               children: [
                                 Container(
-                                  padding: const EdgeInsets.symmetric(horizontal: 8, vertical: 4),
+                                  padding: const EdgeInsets.symmetric(
+                                      horizontal: 8, vertical: 4),
                                   decoration: BoxDecoration(
                                     color: Colors.grey[100],
                                     borderRadius: BorderRadius.circular(8),
@@ -648,10 +692,12 @@ class _AnnouncementsScreenState extends State<AnnouncementsScreen>
                                   child: Row(
                                     mainAxisSize: MainAxisSize.min,
                                     children: [
-                                      Icon(Icons.access_time, size: 14, color: Colors.grey[600]),
+                                      Icon(Icons.access_time,
+                                          size: 14, color: Colors.grey[600]),
                                       const SizedBox(width: 4),
                                       Text(
-                                        _formatDateTime(announcement.createdAt, shortFormat: true),
+                                        _formatDateTime(announcement.createdAt,
+                                            shortFormat: true),
                                         style: TextStyle(
                                           fontSize: 11,
                                           color: Colors.grey[600],
@@ -694,7 +740,8 @@ class _AnnouncementsScreenState extends State<AnnouncementsScreen>
     return Scaffold(
       backgroundColor: Colors.grey[100],
       appBar: AppBar(
-        title: const Text('Pengumuman', style: TextStyle(fontWeight: FontWeight.bold)),
+        title: const Text('Pengumuman',
+            style: TextStyle(fontWeight: FontWeight.bold)),
         elevation: 0,
         flexibleSpace: Container(
           decoration: BoxDecoration(
@@ -723,7 +770,8 @@ class _AnnouncementsScreenState extends State<AnnouncementsScreen>
                   child: Row(
                     mainAxisAlignment: MainAxisAlignment.center,
                     children: [
-                      const Text('Semua', style: TextStyle(fontWeight: FontWeight.w600)),
+                      const Text('Semua',
+                          style: TextStyle(fontWeight: FontWeight.w600)),
                       if (_allAnnouncements.isNotEmpty)
                         Container(
                           margin: const EdgeInsets.only(left: 8),
@@ -737,7 +785,8 @@ class _AnnouncementsScreenState extends State<AnnouncementsScreen>
                           ),
                           child: Text(
                             '${_allAnnouncements.length}',
-                            style: const TextStyle(fontSize: 11, fontWeight: FontWeight.bold),
+                            style: const TextStyle(
+                                fontSize: 11, fontWeight: FontWeight.bold),
                           ),
                         ),
                     ],
@@ -747,7 +796,8 @@ class _AnnouncementsScreenState extends State<AnnouncementsScreen>
                   child: Row(
                     mainAxisAlignment: MainAxisAlignment.center,
                     children: [
-                      const Text('Belum Dibaca', style: TextStyle(fontWeight: FontWeight.w600)),
+                      const Text('Belum Dibaca',
+                          style: TextStyle(fontWeight: FontWeight.w600)),
                       if (_unreadCount > 0)
                         Container(
                           margin: const EdgeInsets.only(left: 8),

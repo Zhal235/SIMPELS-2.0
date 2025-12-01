@@ -52,7 +52,8 @@ class _PaymentInfoScreenState extends State<PaymentInfoScreen> {
       if (response.statusCode == 200 && response.data['success'] == true) {
         final List<dynamic> data = response.data['data'] ?? [];
         setState(() {
-          _bankAccounts = data.map((json) => BankAccount.fromJson(json)).toList();
+          _bankAccounts =
+              data.map((json) => BankAccount.fromJson(json)).toList();
           if (_bankAccounts.isNotEmpty) {
             _selectedBank = _bankAccounts.first;
           }
@@ -73,9 +74,9 @@ class _PaymentInfoScreenState extends State<PaymentInfoScreen> {
 
   String _formatCurrency(double amount) {
     return amount.toStringAsFixed(0).replaceAllMapped(
-      RegExp(r'(\d{1,3})(?=(\d{3})+(?!\d))'),
-      (Match m) => '${m[1]}.',
-    );
+          RegExp(r'(\d{1,3})(?=(\d{3})+(?!\d))'),
+          (Match m) => '${m[1]}.',
+        );
   }
 
   double _calculateTotal() {
@@ -84,11 +85,15 @@ class _PaymentInfoScreenState extends State<PaymentInfoScreen> {
     if (widget.isTopupOnly) {
       total = widget.topupNominal ?? 0;
     } else if (widget.tagihan != null) {
-      final sisa = double.tryParse(widget.tagihan!['sisa']?.toString() ?? '0') ?? 0;
+      final sisa =
+          double.tryParse(widget.tagihan!['sisa']?.toString() ?? '0') ?? 0;
       total = sisa;
 
       if (_includeTopup) {
-        final topupAmount = double.tryParse(_topupController.text.replaceAll('.', '').replaceAll(',', '')) ?? 0;
+        final topupAmount = double.tryParse(_topupController.text
+                .replaceAll('.', '')
+                .replaceAll(',', '')) ??
+            0;
         total += topupAmount;
       }
     }
@@ -120,14 +125,20 @@ class _PaymentInfoScreenState extends State<PaymentInfoScreen> {
         builder: (_) => UnifiedPaymentScreen(
           tagihan: widget.tagihan,
           isTopupOnly: widget.isTopupOnly,
-          topupNominal: widget.isTopupOnly ? widget.topupNominal : (_includeTopup ? double.tryParse(_topupController.text.replaceAll('.', '').replaceAll(',', '')) : null),
+          topupNominal: widget.isTopupOnly
+              ? widget.topupNominal
+              : (_includeTopup
+                  ? double.tryParse(_topupController.text
+                      .replaceAll('.', '')
+                      .replaceAll(',', ''))
+                  : null),
           santriName: widget.santriName,
           shouldIncludeTopup: _includeTopup,
           selectedBankId: _selectedBank!.id,
         ),
       ),
     );
-    
+
     // Return result to previous screen (PembayaranTab) untuk trigger refresh
     if (mounted && result == true) {
       Navigator.pop(context, true);
@@ -153,7 +164,8 @@ class _PaymentInfoScreenState extends State<PaymentInfoScreen> {
                   child: Column(
                     mainAxisAlignment: MainAxisAlignment.center,
                     children: [
-                      Icon(Icons.error_outline, size: 64, color: Colors.grey[400]),
+                      Icon(Icons.error_outline,
+                          size: 64, color: Colors.grey[400]),
                       const SizedBox(height: 16),
                       Text(
                         'Belum ada rekening bank yang tersedia',
@@ -183,7 +195,8 @@ class _PaymentInfoScreenState extends State<PaymentInfoScreen> {
                               children: [
                                 Row(
                                   children: [
-                                    Icon(Icons.account_balance_wallet, color: Colors.blue.shade700),
+                                    Icon(Icons.account_balance_wallet,
+                                        color: Colors.blue.shade700),
                                     const SizedBox(width: 8),
                                     Text(
                                       'Top-up Dompet',
@@ -221,14 +234,17 @@ class _PaymentInfoScreenState extends State<PaymentInfoScreen> {
                                   const SizedBox(height: 8),
                                   Text(
                                     '${widget.tagihan!['bulan']} ${widget.tagihan!['tahun']}',
-                                    style: TextStyle(fontSize: 14, color: Colors.grey[600]),
+                                    style: TextStyle(
+                                        fontSize: 14, color: Colors.grey[600]),
                                   ),
                                 ],
                                 const Divider(height: 24),
-                                _buildInfoRow('Sisa Tagihan', 'Rp ${_formatCurrency(double.tryParse(widget.tagihan?['sisa']?.toString() ?? '0') ?? 0)}'),
+                                _buildInfoRow('Sisa Tagihan',
+                                    'Rp ${_formatCurrency(double.tryParse(widget.tagihan?['sisa']?.toString() ?? '0') ?? 0)}'),
                                 if (_includeTopup) ...[
                                   const SizedBox(height: 8),
-                                  _buildInfoRow('Top-up Dompet', 'Rp ${_formatCurrency(double.tryParse(_topupController.text.replaceAll('.', '').replaceAll(',', '')) ?? 0)}'),
+                                  _buildInfoRow('Top-up Dompet',
+                                      'Rp ${_formatCurrency(double.tryParse(_topupController.text.replaceAll('.', '').replaceAll(',', '')) ?? 0)}'),
                                 ],
                               ],
                             ),
@@ -240,9 +256,11 @@ class _PaymentInfoScreenState extends State<PaymentInfoScreen> {
                         const SizedBox(height: 16),
                         CheckboxListTile(
                           value: _includeTopup,
-                          onChanged: (val) => setState(() => _includeTopup = val ?? false),
+                          onChanged: (val) =>
+                              setState(() => _includeTopup = val ?? false),
                           title: const Text('Sekaligus top-up dompet'),
-                          subtitle: const Text('Tambahkan saldo ke dompet santri'),
+                          subtitle:
+                              const Text('Tambahkan saldo ke dompet santri'),
                           controlAffinity: ListTileControlAffinity.leading,
                           contentPadding: EdgeInsets.zero,
                         ),
@@ -261,7 +279,8 @@ class _PaymentInfoScreenState extends State<PaymentInfoScreen> {
                               filled: true,
                               fillColor: Colors.white,
                             ),
-                            onChanged: (_) => setState(() {}), // Rebuild untuk update total
+                            onChanged: (_) =>
+                                setState(() {}), // Rebuild untuk update total
                           ),
                         ],
                       ],
@@ -274,7 +293,10 @@ class _PaymentInfoScreenState extends State<PaymentInfoScreen> {
                         padding: const EdgeInsets.all(20),
                         decoration: BoxDecoration(
                           gradient: LinearGradient(
-                            colors: [Colors.blue.shade700, Colors.blue.shade900],
+                            colors: [
+                              Colors.blue.shade700,
+                              Colors.blue.shade900
+                            ],
                           ),
                           borderRadius: BorderRadius.circular(12),
                         ),
@@ -305,7 +327,8 @@ class _PaymentInfoScreenState extends State<PaymentInfoScreen> {
                       // Bank selection
                       const Text(
                         'Transfer ke Rekening',
-                        style: TextStyle(fontSize: 16, fontWeight: FontWeight.bold),
+                        style: TextStyle(
+                            fontSize: 16, fontWeight: FontWeight.bold),
                       ),
                       const SizedBox(height: 12),
 
@@ -318,24 +341,30 @@ class _PaymentInfoScreenState extends State<PaymentInfoScreen> {
                             padding: const EdgeInsets.all(16),
                             decoration: BoxDecoration(
                               border: Border.all(
-                                color: isSelected ? Colors.blue : Colors.grey.shade300,
+                                color: isSelected
+                                    ? Colors.blue
+                                    : Colors.grey.shade300,
                                 width: isSelected ? 2 : 1,
                               ),
                               borderRadius: BorderRadius.circular(12),
-                              color: isSelected ? Colors.blue.shade50 : Colors.white,
+                              color: isSelected
+                                  ? Colors.blue.shade50
+                                  : Colors.white,
                             ),
                             child: Row(
                               children: [
                                 Radio<int>(
                                   value: bank.id,
                                   groupValue: _selectedBank?.id,
-                                  onChanged: (val) => setState(() => _selectedBank = bank),
+                                  onChanged: (val) =>
+                                      setState(() => _selectedBank = bank),
                                   activeColor: Colors.blue,
                                 ),
                                 const SizedBox(width: 12),
                                 Expanded(
                                   child: Column(
-                                    crossAxisAlignment: CrossAxisAlignment.start,
+                                    crossAxisAlignment:
+                                        CrossAxisAlignment.start,
                                     children: [
                                       Text(
                                         bank.bankName,
@@ -366,7 +395,8 @@ class _PaymentInfoScreenState extends State<PaymentInfoScreen> {
                                 ),
                                 IconButton(
                                   icon: const Icon(Icons.copy, size: 20),
-                                  onPressed: () => _copyToClipboard(bank.accountNumber),
+                                  onPressed: () =>
+                                      _copyToClipboard(bank.accountNumber),
                                   tooltip: 'Salin nomor rekening',
                                   color: Colors.blue,
                                 ),
@@ -374,7 +404,7 @@ class _PaymentInfoScreenState extends State<PaymentInfoScreen> {
                             ),
                           ),
                         );
-                      }).toList(),
+                      }),
 
                       const SizedBox(height: 24),
 
@@ -391,7 +421,8 @@ class _PaymentInfoScreenState extends State<PaymentInfoScreen> {
                           children: [
                             Row(
                               children: [
-                                Icon(Icons.warning_amber, color: Colors.amber.shade700),
+                                Icon(Icons.warning_amber,
+                                    color: Colors.amber.shade700),
                                 const SizedBox(width: 8),
                                 Text(
                                   'PENTING',
@@ -408,7 +439,8 @@ class _PaymentInfoScreenState extends State<PaymentInfoScreen> {
                               '• Simpan bukti transfer (screenshot/foto struk)\n'
                               '• Upload bukti setelah transfer berhasil\n'
                               '• Tunggu konfirmasi dari admin',
-                              style: TextStyle(fontSize: 13, color: Colors.grey[800]),
+                              style: TextStyle(
+                                  fontSize: 13, color: Colors.grey[800]),
                             ),
                           ],
                         ),

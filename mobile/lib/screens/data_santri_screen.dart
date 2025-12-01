@@ -35,7 +35,7 @@ class _DataSantriScreenState extends State<DataSantriScreen> {
 
     try {
       final response = await _apiService.getSantriDetail(santriId);
-      
+
       if (response.data['success'] == true) {
         setState(() {
           _santriDetail = response.data['data'];
@@ -68,9 +68,9 @@ class _DataSantriScreenState extends State<DataSantriScreen> {
           children: [
             TextField(
               controller: controller,
-              decoration: InputDecoration(
+              decoration: const InputDecoration(
                 labelText: 'Nilai yang benar',
-                border: const OutlineInputBorder(),
+                border: OutlineInputBorder(),
               ),
             ),
             const SizedBox(height: 16),
@@ -93,7 +93,8 @@ class _DataSantriScreenState extends State<DataSantriScreen> {
           ElevatedButton(
             onPressed: () {
               Navigator.pop(context);
-              _submitCorrection(fieldName, currentValue, controller.text, noteController.text);
+              _submitCorrection(fieldName, currentValue, controller.text,
+                  noteController.text);
             },
             child: const Text('Kirim Koreksi'),
           ),
@@ -133,14 +134,16 @@ class _DataSantriScreenState extends State<DataSantriScreen> {
         if (response.data['success'] == true) {
           ScaffoldMessenger.of(context).showSnackBar(
             const SnackBar(
-              content: Text('Permintaan koreksi berhasil dikirim. Menunggu persetujuan admin.'),
+              content: Text(
+                  'Permintaan koreksi berhasil dikirim. Menunggu persetujuan admin.'),
               backgroundColor: Colors.green,
             ),
           );
         } else {
           ScaffoldMessenger.of(context).showSnackBar(
             SnackBar(
-              content: Text(response.data['message'] ?? 'Gagal mengirim koreksi'),
+              content:
+                  Text(response.data['message'] ?? 'Gagal mengirim koreksi'),
               backgroundColor: Colors.red,
             ),
           );
@@ -176,7 +179,8 @@ class _DataSantriScreenState extends State<DataSantriScreen> {
                   child: Column(
                     mainAxisAlignment: MainAxisAlignment.center,
                     children: [
-                      const Icon(Icons.error_outline, size: 64, color: Colors.red),
+                      const Icon(Icons.error_outline,
+                          size: 64, color: Colors.red),
                       const SizedBox(height: 16),
                       Text(_errorMessage!),
                       const SizedBox(height: 16),
@@ -205,14 +209,23 @@ class _DataSantriScreenState extends State<DataSantriScreen> {
                                 'Biodata Santri',
                                 Icons.person,
                                 [
-                                  _buildDataRow('NIS', _santriDetail!['nis'] ?? '-', editable: false),
-                                  _buildDataRow('Nama Lengkap', _santriDetail!['nama_santri'] ?? '-'),
-                                  _buildDataRow('Jenis Kelamin', _santriDetail!['jenis_kelamin'] ?? '-'),
-                                  _buildDataRow('Tempat Lahir', _santriDetail!['tempat_lahir'] ?? '-'),
-                                  _buildDataRow('Tanggal Lahir', _santriDetail!['tanggal_lahir'] ?? '-'),
-                                  _buildDataRow('NIK', _santriDetail!['nik'] ?? '-'),
-                                  _buildDataRow('No KK', _santriDetail!['no_kk'] ?? '-'),
-                                  _buildDataRow('Alamat', _santriDetail!['alamat'] ?? '-'),
+                                  _buildDataRow(
+                                      'NIS', _santriDetail!['nis'] ?? '-',
+                                      editable: false),
+                                  _buildDataRow('Nama Lengkap',
+                                      _santriDetail!['nama_santri'] ?? '-'),
+                                  _buildDataRow('Jenis Kelamin',
+                                      _santriDetail!['jenis_kelamin'] ?? '-'),
+                                  _buildDataRow('Tempat Lahir',
+                                      _santriDetail!['tempat_lahir'] ?? '-'),
+                                  _buildDataRow('Tanggal Lahir',
+                                      _santriDetail!['tanggal_lahir'] ?? '-'),
+                                  _buildDataRow(
+                                      'NIK', _santriDetail!['nik'] ?? '-'),
+                                  _buildDataRow(
+                                      'No KK', _santriDetail!['no_kk'] ?? '-'),
+                                  _buildDataRow('Alamat',
+                                      _santriDetail!['alamat'] ?? '-'),
                                 ],
                               ),
                               const SizedBox(height: 16),
@@ -222,9 +235,15 @@ class _DataSantriScreenState extends State<DataSantriScreen> {
                                 'Data Akademik',
                                 Icons.school,
                                 [
-                                  _buildDataRow('Kelas', _santriDetail!['kelas_nama'] ?? '-', editable: false),
-                                  _buildDataRow('Asrama', _santriDetail!['asrama_nama'] ?? '-', editable: false),
-                                  _buildDataRow('Status', _santriDetail!['status'] ?? '-', editable: false),
+                                  _buildDataRow('Kelas',
+                                      _santriDetail!['kelas_nama'] ?? '-',
+                                      editable: false),
+                                  _buildDataRow('Asrama',
+                                      _santriDetail!['asrama_nama'] ?? '-',
+                                      editable: false),
+                                  _buildDataRow(
+                                      'Status', _santriDetail!['status'] ?? '-',
+                                      editable: false),
                                 ],
                               ),
                               const SizedBox(height: 16),
@@ -234,10 +253,14 @@ class _DataSantriScreenState extends State<DataSantriScreen> {
                                 'Data Ayah',
                                 Icons.person_outline,
                                 [
-                                  _buildDataRow('Nama Ayah', _santriDetail!['nama_ayah'] ?? '-'),
-                                  _buildDataRow('NIK Ayah', _santriDetail!['nik_ayah'] ?? '-'),
-                                  _buildDataRow('HP Ayah', _santriDetail!['hp_ayah'] ?? '-'),
-                                  _buildDataRow('Pekerjaan Ayah', _santriDetail!['pekerjaan_ayah'] ?? '-'),
+                                  _buildDataRow('Nama Ayah',
+                                      _santriDetail!['nama_ayah'] ?? '-'),
+                                  _buildDataRow('NIK Ayah',
+                                      _santriDetail!['nik_ayah'] ?? '-'),
+                                  _buildDataRow('HP Ayah',
+                                      _santriDetail!['hp_ayah'] ?? '-'),
+                                  _buildDataRow('Pekerjaan Ayah',
+                                      _santriDetail!['pekerjaan_ayah'] ?? '-'),
                                 ],
                               ),
                               const SizedBox(height: 16),
@@ -247,10 +270,14 @@ class _DataSantriScreenState extends State<DataSantriScreen> {
                                 'Data Ibu',
                                 Icons.person_outline,
                                 [
-                                  _buildDataRow('Nama Ibu', _santriDetail!['nama_ibu'] ?? '-'),
-                                  _buildDataRow('NIK Ibu', _santriDetail!['nik_ibu'] ?? '-'),
-                                  _buildDataRow('HP Ibu', _santriDetail!['hp_ibu'] ?? '-'),
-                                  _buildDataRow('Pekerjaan Ibu', _santriDetail!['pekerjaan_ibu'] ?? '-'),
+                                  _buildDataRow('Nama Ibu',
+                                      _santriDetail!['nama_ibu'] ?? '-'),
+                                  _buildDataRow('NIK Ibu',
+                                      _santriDetail!['nik_ibu'] ?? '-'),
+                                  _buildDataRow('HP Ibu',
+                                      _santriDetail!['hp_ibu'] ?? '-'),
+                                  _buildDataRow('Pekerjaan Ibu',
+                                      _santriDetail!['pekerjaan_ibu'] ?? '-'),
                                 ],
                               ),
                               const SizedBox(height: 16),
@@ -261,11 +288,13 @@ class _DataSantriScreenState extends State<DataSantriScreen> {
                                 decoration: BoxDecoration(
                                   color: Colors.blue.shade50,
                                   borderRadius: BorderRadius.circular(12),
-                                  border: Border.all(color: Colors.blue.shade200),
+                                  border:
+                                      Border.all(color: Colors.blue.shade200),
                                 ),
                                 child: Row(
                                   children: [
-                                    Icon(Icons.info_outline, color: Colors.blue.shade700),
+                                    Icon(Icons.info_outline,
+                                        color: Colors.blue.shade700),
                                     const SizedBox(width: 12),
                                     Expanded(
                                       child: Text(
@@ -336,7 +365,8 @@ class _DataSantriScreenState extends State<DataSantriScreen> {
                   ),
                   const SizedBox(height: 4),
                   Container(
-                    padding: const EdgeInsets.symmetric(horizontal: 8, vertical: 4),
+                    padding:
+                        const EdgeInsets.symmetric(horizontal: 8, vertical: 4),
                     decoration: BoxDecoration(
                       color: Colors.green.shade100,
                       borderRadius: BorderRadius.circular(8),

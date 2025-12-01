@@ -3,7 +3,6 @@ import 'package:flutter/foundation.dart';
 import 'package:provider/provider.dart';
 import 'package:image_picker/image_picker.dart';
 import 'dart:io';
-import 'dart:typed_data';
 import 'dart:convert';
 import 'package:shared_preferences/shared_preferences.dart';
 import '../providers/auth_provider.dart';
@@ -13,7 +12,7 @@ import 'bukti_history_screen.dart';
 
 /// Unified screen untuk:
 /// 1. Pembayaran tagihan saja
-/// 2. Top-up dompet saja  
+/// 2. Top-up dompet saja
 /// 3. Pembayaran tagihan + Top-up dompet sekaligus
 class UnifiedPaymentScreen extends StatefulWidget {
   final Map<String, dynamic>? tagihan;
@@ -44,7 +43,7 @@ class _UnifiedPaymentScreenState extends State<UnifiedPaymentScreen> {
   final TextEditingController _catatanController = TextEditingController();
   bool _isSubmitting = false;
   bool _submitSuccess = false; // Track if payment was successfully submitted
-  
+
   double _paymentAmount = 0;
   double _topupAmount = 0;
   String? _draftKey;
@@ -54,39 +53,41 @@ class _UnifiedPaymentScreenState extends State<UnifiedPaymentScreen> {
     super.initState();
     _loadDraftOrParams();
   }
-  
+
   Future<void> _loadDraftOrParams() async {
     final authProvider = Provider.of<AuthProvider>(context, listen: false);
     final santriId = authProvider.activeSantri?.id;
-    
+
     // First, set values from parameters (might be from draft list navigation)
     setState(() {
       if (widget.isTopupOnly && widget.topupNominal != null) {
         _topupAmount = widget.topupNominal!;
       } else if (widget.tagihan != null) {
-        _paymentAmount = double.tryParse(widget.tagihan!['sisa']?.toString() ?? '0') ?? 0;
+        _paymentAmount =
+            double.tryParse(widget.tagihan!['sisa']?.toString() ?? '0') ?? 0;
         if (widget.topupNominal != null && widget.topupNominal! > 0) {
           _topupAmount = widget.topupNominal!;
         }
       }
     });
-    
+
     if (santriId != null) {
       // Generate unique draft key
-      _draftKey = 'payment_draft_${santriId}_${widget.tagihan?['id'] ?? 'topup'}';
-      
+      _draftKey =
+          'payment_draft_${santriId}_${widget.tagihan?['id'] ?? 'topup'}';
+
       // Try load draft from storage (only if not coming from draft navigation)
       final prefs = await SharedPreferences.getInstance();
       final draftJson = prefs.getString(_draftKey!);
-      
+
       if (draftJson != null) {
         // Ada draft tersimpan
         final draft = json.decode(draftJson);
-        
+
         // Only show dialog if values don't match (means user came from normal flow, not draft)
         final draftPayment = draft['paymentAmount'] ?? 0.0;
         final draftTopup = draft['topupAmount'] ?? 0.0;
-        
+
         if (_paymentAmount == draftPayment && _topupAmount == draftTopup) {
           // Coming from draft navigation, just use the values, no dialog
           setState(() {
@@ -99,7 +100,7 @@ class _UnifiedPaymentScreenState extends State<UnifiedPaymentScreen> {
             _topupAmount = draftTopup;
             _catatanController.text = draft['catatan'] ?? '';
           });
-          
+
           if (mounted) {
             _showDraftDialog();
           }
@@ -107,22 +108,26 @@ class _UnifiedPaymentScreenState extends State<UnifiedPaymentScreen> {
       }
     }
   }
-  
+
   Future<void> _saveDraft() async {
     if (_draftKey == null) return;
-    
+
     final prefs = await SharedPreferences.getInstance();
-    
+
     // Get tagihan details
-    final jumlah = widget.tagihan != null 
-        ? (double.tryParse(widget.tagihan!['nominal']?.toString() ?? 
-            widget.tagihan!['jumlah']?.toString() ?? '0') ?? 0.0)
+    final jumlah = widget.tagihan != null
+        ? (double.tryParse(widget.tagihan!['nominal']?.toString() ??
+                widget.tagihan!['jumlah']?.toString() ??
+                '0') ??
+            0.0)
         : 0.0;
     final sudahDibayar = widget.tagihan != null
-        ? (double.tryParse(widget.tagihan!['dibayar']?.toString() ?? 
-            widget.tagihan!['sudah_dibayar']?.toString() ?? '0') ?? 0.0)
+        ? (double.tryParse(widget.tagihan!['dibayar']?.toString() ??
+                widget.tagihan!['sudah_dibayar']?.toString() ??
+                '0') ??
+            0.0)
         : 0.0;
-    
+
     final draft = {
       'paymentAmount': _paymentAmount,
       'topupAmount': _topupAmount,
@@ -136,16 +141,16 @@ class _UnifiedPaymentScreenState extends State<UnifiedPaymentScreen> {
       'totalTagihan': jumlah,
       'sudahDibayar': sudahDibayar,
     };
-    
+
     await prefs.setString(_draftKey!, json.encode(draft));
   }
-  
+
   Future<void> _clearDraft() async {
     if (_draftKey == null) return;
     final prefs = await SharedPreferences.getInstance();
     await prefs.remove(_draftKey!);
   }
-  
+
   void _showDraftDialog() {
     showDialog(
       context: context,
@@ -165,7 +170,9 @@ class _UnifiedPaymentScreenState extends State<UnifiedPaymentScreen> {
                 if (widget.isTopupOnly && widget.topupNominal != null) {
                   _topupAmount = widget.topupNominal!;
                 } else if (widget.tagihan != null) {
-                  _paymentAmount = double.tryParse(widget.tagihan!['sisa']?.toString() ?? '0') ?? 0;
+                  _paymentAmount = double.tryParse(
+                          widget.tagihan!['sisa']?.toString() ?? '0') ??
+                      0;
                   if (widget.topupNominal != null) {
                     _topupAmount = widget.topupNominal!;
                   }
@@ -264,7 +271,7 @@ class _UnifiedPaymentScreenState extends State<UnifiedPaymentScreen> {
 
     final authProvider = Provider.of<AuthProvider>(context, listen: false);
     final santriId = authProvider.activeSantri?.id;
-    
+
     if (santriId == null) {
       ScaffoldMessenger.of(context).showSnackBar(
         const SnackBar(content: Text('Data santri tidak valid')),
@@ -293,7 +300,7 @@ class _UnifiedPaymentScreenState extends State<UnifiedPaymentScreen> {
         );
         return;
       }
-      
+
       final tagihanId = widget.tagihan?['id'];
       if (tagihanId == null) {
         ScaffoldMessenger.of(context).showSnackBar(
@@ -308,7 +315,7 @@ class _UnifiedPaymentScreenState extends State<UnifiedPaymentScreen> {
 
     try {
       final apiService = ApiService();
-      
+
       // Calculate total nominal
       final totalNominal = (paymentAmount ?? 0) + (topupAmount ?? 0);
 
@@ -327,23 +334,24 @@ class _UnifiedPaymentScreenState extends State<UnifiedPaymentScreen> {
       if (response.statusCode == 200 || response.statusCode == 201) {
         // Mark as successfully submitted
         _submitSuccess = true;
-        
+
         // Clear draft setelah berhasil submit
         await _clearDraft();
-        
+
         if (mounted) {
           final message = widget.isTopupOnly
               ? 'Top-up berhasil dikirim! Tunggu konfirmasi admin.'
               : topupAmount != null && topupAmount > 0
                   ? 'Pembayaran dan top-up berhasil dikirim! Tunggu konfirmasi admin.'
                   : 'Pembayaran berhasil dikirim! Tunggu konfirmasi admin.';
-          
+
           // Show success dialog with option to view status
           await showDialog(
             context: context,
             barrierDismissible: false,
             builder: (context) => AlertDialog(
-              icon: const Icon(Icons.check_circle, color: Colors.green, size: 60),
+              icon:
+                  const Icon(Icons.check_circle, color: Colors.green, size: 60),
               title: const Text('Upload Berhasil!'),
               content: Column(
                 mainAxisSize: MainAxisSize.min,
@@ -372,7 +380,9 @@ class _UnifiedPaymentScreenState extends State<UnifiedPaymentScreen> {
                 ElevatedButton.icon(
                   onPressed: () {
                     Navigator.pop(context); // Close dialog
-                    final santri = Provider.of<AuthProvider>(context, listen: false).activeSantri;
+                    final santri =
+                        Provider.of<AuthProvider>(context, listen: false)
+                            .activeSantri;
                     if (santri != null) {
                       Navigator.pushReplacement(
                         context,
@@ -399,7 +409,8 @@ class _UnifiedPaymentScreenState extends State<UnifiedPaymentScreen> {
           );
         }
       } else {
-        throw Exception(response.data['error'] ?? 'Gagal submit bukti transfer');
+        throw Exception(
+            response.data['error'] ?? 'Gagal submit bukti transfer');
       }
     } catch (e) {
       if (mounted) {
@@ -420,7 +431,7 @@ class _UnifiedPaymentScreenState extends State<UnifiedPaymentScreen> {
   String _buildCatatan(double? paymentAmount, double? topupAmount) {
     String catatan = _catatanController.text.trim();
     if (widget.isTopupOnly) {
-      return catatan.isEmpty 
+      return catatan.isEmpty
           ? 'Top-up dompet sebesar Rp ${_formatCurrency(topupAmount ?? 0)}'
           : 'Top-up: Rp ${_formatCurrency(topupAmount ?? 0)}. $catatan';
     } else if (topupAmount != null && topupAmount > 0) {
@@ -436,24 +447,28 @@ class _UnifiedPaymentScreenState extends State<UnifiedPaymentScreen> {
 
   String _formatCurrency(double amount) {
     return amount.toStringAsFixed(0).replaceAllMapped(
-      RegExp(r'(\d{1,3})(?=(\d{3})+(?!\d))'),
-      (Match m) => '${m[1]}.',
-    );
+          RegExp(r'(\d{1,3})(?=(\d{3})+(?!\d))'),
+          (Match m) => '${m[1]}.',
+        );
   }
 
   @override
   Widget build(BuildContext context) {
     final isTopup = widget.isTopupOnly;
-    
+
     // For payment mode, get tagihan details
     // Support both 'nominal' and 'jumlah' field names
-    final jumlah = widget.tagihan != null 
-        ? (double.tryParse(widget.tagihan!['nominal']?.toString() ?? 
-            widget.tagihan!['jumlah']?.toString() ?? '0') ?? 0.0)
+    final jumlah = widget.tagihan != null
+        ? (double.tryParse(widget.tagihan!['nominal']?.toString() ??
+                widget.tagihan!['jumlah']?.toString() ??
+                '0') ??
+            0.0)
         : 0.0;
     final sudahDibayar = widget.tagihan != null
-        ? (double.tryParse(widget.tagihan!['dibayar']?.toString() ?? 
-            widget.tagihan!['sudah_dibayar']?.toString() ?? '0') ?? 0.0)
+        ? (double.tryParse(widget.tagihan!['dibayar']?.toString() ??
+                widget.tagihan!['sudah_dibayar']?.toString() ??
+                '0') ??
+            0.0)
         : 0.0;
     final sisa = widget.tagihan != null
         ? (double.tryParse(widget.tagihan!['sisa']?.toString() ?? '0') ?? 0.0)
@@ -486,7 +501,8 @@ class _UnifiedPaymentScreenState extends State<UnifiedPaymentScreen> {
                     children: [
                       Row(
                         children: [
-                          Icon(Icons.account_balance_wallet, color: Colors.blue.shade700),
+                          Icon(Icons.account_balance_wallet,
+                              color: Colors.blue.shade700),
                           const SizedBox(width: 8),
                           Text(
                             'Informasi Top-up',
@@ -524,15 +540,20 @@ class _UnifiedPaymentScreenState extends State<UnifiedPaymentScreen> {
                         const SizedBox(height: 8),
                         Text(
                           '${widget.tagihan!['bulan']} ${widget.tagihan!['tahun']}',
-                          style: TextStyle(fontSize: 14, color: Colors.grey[600]),
+                          style:
+                              TextStyle(fontSize: 14, color: Colors.grey[600]),
                         ),
                       ],
                       const Divider(height: 24),
-                      _buildInfoRow('Total Tagihan', 'Rp ${_formatCurrency(jumlah)}'),
+                      _buildInfoRow(
+                          'Total Tagihan', 'Rp ${_formatCurrency(jumlah)}'),
                       const SizedBox(height: 8),
-                      _buildInfoRow('Sudah Dibayar', 'Rp ${_formatCurrency(sudahDibayar)}'),
+                      _buildInfoRow('Sudah Dibayar',
+                          'Rp ${_formatCurrency(sudahDibayar)}'),
                       const Divider(height: 24),
-                      _buildInfoRow('Sisa Tagihan', 'Rp ${_formatCurrency(sisa)}', isBold: true),
+                      _buildInfoRow(
+                          'Sisa Tagihan', 'Rp ${_formatCurrency(sisa)}',
+                          isBold: true),
                     ],
                   ),
                 ),
@@ -558,11 +579,13 @@ class _UnifiedPaymentScreenState extends State<UnifiedPaymentScreen> {
                     ),
                     const SizedBox(height: 16),
                     if (_paymentAmount > 0) ...[
-                      _buildInfoRow('Pembayaran Tagihan', 'Rp ${_formatCurrency(_paymentAmount)}'),
+                      _buildInfoRow('Pembayaran Tagihan',
+                          'Rp ${_formatCurrency(_paymentAmount)}'),
                       const SizedBox(height: 8),
                     ],
                     if (_topupAmount > 0) ...[
-                      _buildInfoRow('Top-up Dompet', 'Rp ${_formatCurrency(_topupAmount)}'),
+                      _buildInfoRow('Top-up Dompet',
+                          'Rp ${_formatCurrency(_topupAmount)}'),
                       const SizedBox(height: 8),
                     ],
                     const Divider(),
@@ -651,7 +674,8 @@ class _UnifiedPaymentScreenState extends State<UnifiedPaymentScreen> {
                   child: Column(
                     mainAxisAlignment: MainAxisAlignment.center,
                     children: [
-                      Icon(Icons.cloud_upload, size: 48, color: Colors.grey.shade400),
+                      Icon(Icons.cloud_upload,
+                          size: 48, color: Colors.grey.shade400),
                       const SizedBox(height: 8),
                       Text(
                         'Tap untuk upload bukti transfer',
@@ -662,7 +686,8 @@ class _UnifiedPaymentScreenState extends State<UnifiedPaymentScreen> {
                           padding: const EdgeInsets.only(top: 4),
                           child: Text(
                             '(Pilih gambar dari galeri)',
-                            style: TextStyle(fontSize: 12, color: Colors.grey.shade500),
+                            style: TextStyle(
+                                fontSize: 12, color: Colors.grey.shade500),
                           ),
                         ),
                     ],
@@ -712,7 +737,8 @@ class _UnifiedPaymentScreenState extends State<UnifiedPaymentScreen> {
                         height: 20,
                         child: CircularProgressIndicator(
                           strokeWidth: 2,
-                          valueColor: AlwaysStoppedAnimation<Color>(Colors.white),
+                          valueColor:
+                              AlwaysStoppedAnimation<Color>(Colors.white),
                         ),
                       )
                     : Text(

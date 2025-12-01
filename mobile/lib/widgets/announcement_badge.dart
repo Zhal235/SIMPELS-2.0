@@ -22,7 +22,7 @@ class _AnnouncementBadgeState extends State<AnnouncementBadge> {
     super.initState();
     _initService();
     _loadUnreadCount();
-    
+
     // Auto-refresh disabled to reduce server load
     // Badge will only update when user manually refreshes or opens announcements
   }
@@ -30,7 +30,7 @@ class _AnnouncementBadgeState extends State<AnnouncementBadge> {
   Future<void> _initService() async {
     final baseUrl = ApiService.getBaseUrl();
     final token = await StorageHelper.getToken();
-    
+
     final dio = Dio(BaseOptions(
       baseUrl: '$baseUrl/api',
       headers: {
@@ -45,14 +45,14 @@ class _AnnouncementBadgeState extends State<AnnouncementBadge> {
 
   Future<void> _loadUnreadCount() async {
     if (_isLoading) return;
-    
+
     setState(() {
       _isLoading = true;
     });
 
     try {
       final result = await _announcementService.getUnreadCount();
-      
+
       if (result['success'] == true && mounted) {
         setState(() {
           _unreadCount = result['count'] as int? ?? 0;
@@ -80,7 +80,7 @@ class _AnnouncementBadgeState extends State<AnnouncementBadge> {
         builder: (context) => const AnnouncementsScreen(),
       ),
     );
-    
+
     // Refresh count after returning
     _loadUnreadCount();
   }

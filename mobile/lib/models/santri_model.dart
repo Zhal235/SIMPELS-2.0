@@ -32,11 +32,11 @@ class SantriModel {
     final limitHarianValue = json['limit_harian'] != null
         ? double.tryParse(json['limit_harian'].toString()) ?? 15000.0
         : 15000.0;
-    
+
     // Convert relative foto_url to full URL
     final relativeFotoUrl = json['foto_url'];
     String? fullFotoUrl;
-    
+
     if (relativeFotoUrl != null && relativeFotoUrl.toString().isNotEmpty) {
       final fotoStr = relativeFotoUrl.toString();
       // If already a full URL, use it directly
@@ -46,10 +46,9 @@ class SantriModel {
         // Convert relative path to full URL
         fullFotoUrl = ApiService.getFullImageUrl(fotoStr);
       }
-      print('[SantriModel] Original foto_url: $relativeFotoUrl');
-      print('[SantriModel] Full foto URL: $fullFotoUrl');
+      // Debug logging removed for production
     }
-    
+
     return SantriModel(
       id: json['id']?.toString() ?? '',
       nis: json['nis'] ?? '',
@@ -58,8 +57,8 @@ class SantriModel {
       kelas: json['kelas'],
       asrama: json['asrama'],
       fotoUrl: fullFotoUrl,
-      saldoDompet: json['saldo_dompet'] != null 
-          ? double.parse(json['saldo_dompet'].toString()) 
+      saldoDompet: json['saldo_dompet'] != null
+          ? double.parse(json['saldo_dompet'].toString())
           : 0,
       limitHarian: limitHarianValue,
       hubungan: json['hubungan'],
