@@ -7,7 +7,7 @@ import { useNavigate } from 'react-router-dom'
 import { Button } from '@/components/ui/button'
 import SantriForm from './components/SantriForm'
 import type { Santri } from './components/SantriForm'
-import { listSantri, deleteSantri, updateSantri, getSantri, exportSantri, importSantri, downloadTemplate } from '@/api/santri'
+import { listSantri, deleteSantri, updateSantri, getSantri, exportSantri, importSantri, downloadTemplate, validateImportSantri } from '@/api/santri'
 import { getTagihanBySantri } from '@/api/pembayaran'
 import { deleteTagihanSantri } from '@/api/tagihanSantri'
 import { createMutasiKeluar } from '@/api/mutasiKeluar'
@@ -21,6 +21,13 @@ export default function KesantrianSantri() {
   const [loading, setLoading] = useState<boolean>(false)
   const [searchQuery, setSearchQuery] = useState<string>('')
   const fileInputRef = useRef<HTMLInputElement>(null)
+  
+  // Import validation modal state
+  const [validationModalOpen, setValidationModalOpen] = useState(false)
+  const [validationResult, setValidationResult] = useState<any>(null)
+  const [selectedFile, setSelectedFile] = useState<File | null>(null)
+  const [validating, setValidating] = useState(false)
+  const [importing, setImporting] = useState(false)
 
   const [modalOpen, setModalOpen] = useState(false)
   const [mode, setMode] = useState<'create' | 'edit' | 'preview'>('create')
@@ -310,8 +317,8 @@ export default function KesantrianSantri() {
     }
   }
 
-  // Handle import
-  async function handleImport(event: React.ChangeEvent<HTMLInputElement>) {
+  // Handle file selection and validation
+  async function handleFileSelect(event: React.ChangeEvent<HTMLInputElement>) {
     const file = event.target.files?.[0]
     if (!file) return
 
@@ -325,9 +332,42 @@ export default function KesantrianSantri() {
       return
     }
 
+    setSelectedFile(file)
+    setValidating(true)
+    
     try {
-      toast.info('Mengupload file...')
-      const result = await importSantri(file)
+      toast.info('Menganalisis file...')
+      const result = await validateImportSantri(file)
+      
+      setValidationResult(result)
+      setValidationModalOpen(true)
+      
+      if (result.can_import) {
+        toast.success(`✅ File valid: ${result.summary.valid_rows} data siap diimport`)
+      } else {
+        toast.warning(`⚠️ Ditemukan ${result.summary.invalid_rows} baris dengan error`)
+      }
+    } catch (error: any) {
+      console.error('Validation error:', error)
+      const msg = error?.response?.data?.message || 'Gagal memvalidasi file'
+      toast.error('❌ ' + msg)
+      if (fileInputRef.current) {
+        fileInputRef.current.value = ''
+      }
+    } finally {
+      setValidating(false)
+    }
+  }
+
+  // Handle actual import after validation
+  async function handleConfirmImport() {
+    if (!selectedFile) return
+
+    setImporting(true)
+    
+    try {
+      toast.info('Mengimport data...')
+      const result = await importSantri(selectedFile)
       
       const total = (result.imported || 0) + (result.updated || 0)
       
@@ -342,7 +382,10 @@ export default function KesantrianSantri() {
         toast.success(msg)
       }
       
-      // Refresh data
+      // Close modal and refresh data
+      setValidationModalOpen(false)
+      setValidationResult(null)
+      setSelectedFile(null)
       await fetchData()
       
       // Reset file input
@@ -353,9 +396,18 @@ export default function KesantrianSantri() {
       console.error('Import error:', error)
       const msg = error?.response?.data?.message || 'Gagal import data santri'
       toast.error('❌ ' + msg)
-      if (fileInputRef.current) {
-        fileInputRef.current.value = ''
-      }
+    } finally {
+      setImporting(false)
+    }
+  }
+
+  // Handle cancel import
+  function handleCancelImport() {
+    setValidationModalOpen(false)
+    setValidationResult(null)
+    setSelectedFile(null)
+    if (fileInputRef.current) {
+      fileInputRef.current.value = ''
     }
   }
 
@@ -368,7 +420,7 @@ export default function KesantrianSantri() {
             ref={fileInputRef}
             type="file"
             accept=".xlsx,.xls"
-            onChange={handleImport}
+            onChange={handleFileSelect}
             className="hidden"
           />
           <Button
@@ -624,6 +676,148 @@ export default function KesantrianSantri() {
                   }
                 }
               }}>Konfirmasi Mutasi</button>
+            </div>
+          </div>
+        </div>
+      )}
+
+      {/* Validation Modal */}
+      {validationModalOpen && validationResult && (
+        <div className="fixed inset-0 z-50 bg-black/50 flex items-center justify-center p-4">
+          <div className="bg-white rounded-lg shadow-xl w-full max-w-4xl max-h-[85vh] overflow-hidden flex flex-col">
+            <div className="p-4 border-b bg-gray-50">
+              <h2 className="text-lg font-semibold">Preview & Validasi Import Data</h2>
+              <p className="text-sm text-gray-600 mt-1">
+                {selectedFile?.name} • {validationResult.summary.total_rows} baris data
+              </p>
+            </div>
+            
+            <div className="p-6 space-y-4 overflow-y-auto flex-1">
+              {/* Summary */}
+              <div className="grid grid-cols-3 gap-4">
+                <div className="bg-green-50 border border-green-200 rounded-lg p-4">
+                  <div className="text-2xl font-bold text-green-700">{validationResult.summary.valid_rows}</div>
+                  <div className="text-sm text-green-600">Data Valid</div>
+                </div>
+                <div className="bg-red-50 border border-red-200 rounded-lg p-4">
+                  <div className="text-2xl font-bold text-red-700">{validationResult.summary.invalid_rows}</div>
+                  <div className="text-sm text-red-600">Data Error</div>
+                </div>
+                <div className="bg-yellow-50 border border-yellow-200 rounded-lg p-4">
+                  <div className="text-2xl font-bold text-yellow-700">{validationResult.summary.warnings_count}</div>
+                  <div className="text-sm text-yellow-600">Peringatan</div>
+                </div>
+              </div>
+
+              {/* Status Message */}
+              <div className={`p-4 rounded-lg ${validationResult.can_import ? 'bg-green-50 border border-green-200' : 'bg-red-50 border border-red-200'}`}>
+                <p className={`font-medium ${validationResult.can_import ? 'text-green-800' : 'text-red-800'}`}>
+                  {validationResult.message}
+                </p>
+              </div>
+
+              {/* Invalid Rows */}
+              {validationResult.invalid_rows && validationResult.invalid_rows.length > 0 && (
+                <div className="space-y-2">
+                  <h3 className="font-semibold text-red-700 flex items-center gap-2">
+                    <span className="bg-red-100 px-2 py-1 rounded text-sm">{validationResult.invalid_rows.length}</span>
+                    Baris dengan Error (Wajib Diperbaiki)
+                  </h3>
+                  <div className="border rounded-lg divide-y max-h-60 overflow-y-auto">
+                    {validationResult.invalid_rows.map((row: any, idx: number) => (
+                      <div key={idx} className="p-3 hover:bg-red-50">
+                        <div className="flex items-start justify-between mb-2">
+                          <div className="font-medium text-gray-900">
+                            Baris {row.row}: {row.nama || 'Nama tidak tersedia'}
+                          </div>
+                          <span className="text-xs bg-red-100 text-red-700 px-2 py-1 rounded">
+                            NIS: {row.nis || 'Kosong'}
+                          </span>
+                        </div>
+                        <ul className="list-disc list-inside space-y-1">
+                          {row.errors.map((error: string, i: number) => (
+                            <li key={i} className="text-sm text-red-600">❌ {error}</li>
+                          ))}
+                        </ul>
+                      </div>
+                    ))}
+                  </div>
+                </div>
+              )}
+
+              {/* Warnings */}
+              {validationResult.warnings && validationResult.warnings.length > 0 && (
+                <div className="space-y-2">
+                  <h3 className="font-semibold text-yellow-700 flex items-center gap-2">
+                    <span className="bg-yellow-100 px-2 py-1 rounded text-sm">{validationResult.warnings.length}</span>
+                    Peringatan (Opsional, tetap bisa diimport)
+                  </h3>
+                  <div className="border rounded-lg p-3 bg-yellow-50 max-h-40 overflow-y-auto">
+                    <ul className="space-y-1">
+                      {validationResult.warnings.map((warning: string, idx: number) => (
+                        <li key={idx} className="text-sm text-yellow-700">⚠️ {warning}</li>
+                      ))}
+                    </ul>
+                  </div>
+                </div>
+              )}
+
+              {/* Valid Rows Preview */}
+              {validationResult.valid_rows && validationResult.valid_rows.length > 0 && (
+                <div className="space-y-2">
+                  <h3 className="font-semibold text-green-700 flex items-center gap-2">
+                    <span className="bg-green-100 px-2 py-1 rounded text-sm">{validationResult.summary.valid_rows}</span>
+                    Data Valid (Preview 10 baris pertama)
+                  </h3>
+                  <div className="border rounded-lg divide-y max-h-60 overflow-y-auto">
+                    {validationResult.valid_rows.slice(0, 10).map((row: any, idx: number) => (
+                      <div key={idx} className="p-3 hover:bg-green-50">
+                        <div className="flex items-center justify-between">
+                          <div>
+                            <div className="font-medium text-gray-900">{row.nama}</div>
+                            <div className="text-sm text-gray-600">
+                              NIS: {row.nis} • {row.jenis_kelamin} • {row.tempat_lahir}, {row.tanggal_lahir}
+                            </div>
+                          </div>
+                          {row.warnings && row.warnings.length > 0 && (
+                            <span className="text-xs bg-yellow-100 text-yellow-700 px-2 py-1 rounded">
+                              {row.warnings.length} warning
+                            </span>
+                          )}
+                        </div>
+                      </div>
+                    ))}
+                  </div>
+                </div>
+              )}
+            </div>
+
+            <div className="p-4 border-t bg-gray-50 flex justify-between items-center">
+              <div className="text-sm text-gray-600">
+                {validationResult.can_import ? (
+                  <span className="text-green-700 font-medium">✓ File siap diimport</span>
+                ) : (
+                  <span className="text-red-700 font-medium">✗ Perbaiki error sebelum import</span>
+                )}
+              </div>
+              <div className="flex gap-2">
+                <button 
+                  className="px-4 py-2 rounded border border-gray-300 hover:bg-gray-100"
+                  onClick={handleCancelImport}
+                  disabled={importing}
+                >
+                  Batal
+                </button>
+                {validationResult.can_import && (
+                  <button 
+                    className="px-4 py-2 rounded bg-blue-600 text-white hover:bg-blue-700 disabled:opacity-50 disabled:cursor-not-allowed"
+                    onClick={handleConfirmImport}
+                    disabled={importing}
+                  >
+                    {importing ? 'Mengimport...' : `Import ${validationResult.summary.valid_rows} Data`}
+                  </button>
+                )}
+              </div>
             </div>
           </div>
         </div>

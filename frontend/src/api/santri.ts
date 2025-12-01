@@ -42,6 +42,15 @@ export async function exportSantri() {
   return res.data
 }
 
+export async function validateImportSantri(file: File) {
+  const formData = new FormData()
+  formData.append('file', file)
+  const res = await api.post('/v1/kesantrian/santri/validate-import', formData, {
+    headers: { 'Content-Type': 'multipart/form-data' }
+  })
+  return res.data
+}
+
 export async function importSantri(file: File) {
   const formData = new FormData()
   formData.append('file', file)

@@ -460,7 +460,7 @@ function ModalTambahTunggakan({
     fetchData()
   }, [])
 
-  // Helper: bulan yang tersedia = bulan di jenis tagihan MINUS bulan yang sudah dimiliki santri untuk jenis tersebut
+  // Helper: bulan yang tersedia = SEMUA bulan di tahun ajaran MINUS bulan yang sudah ada tagihannya
   const getAvailableBulan = (santri_id: string, jenistagihanId: number) => {
     if (!santri_id || !jenistagihanId || !tahunAjaranAktif) {
       console.log('Missing data:', { santri_id, jenistagihanId, tahunAjaranAktif })
@@ -477,23 +477,15 @@ function ModalTambahTunggakan({
     // Nama jenis untuk membandingkan dengan detail_tagihan (detail menyimpan nama, bukan ID)
     const jenisNama = jenisTerpilih?.nama_tagihan || jenisTerpilih?.namaTagihan || ''
 
-    // Bulan yang dicentang saat membuat jenis tagihan
-    const bulanRaw: any = jenisTerpilih?.bulan
-    let bulanDiCeklist: string[] = []
-    if (Array.isArray(bulanRaw)) {
-      bulanDiCeklist = bulanRaw as string[]
-    } else if (typeof bulanRaw === 'string') {
-      try {
-        const parsed = JSON.parse(bulanRaw)
-        bulanDiCeklist = Array.isArray(parsed) ? parsed : bulanRaw.split(',').map((b: string) => b.trim())
-      } catch {
-        bulanDiCeklist = bulanRaw.split(',').map((b: string) => b.trim())
-      }
-    }
-
     // Tahun ajaran aktif
     const tahunMulai = tahunAjaranAktif.tahun_mulai || 2025
     const tahunSelesai = tahunAjaranAktif.tahun_akhir || 2026
+
+    // SEMUA bulan dalam tahun ajaran (berurutan dari Juli ke Juni)
+    const semuaBulan = [
+      'Juli', 'Agustus', 'September', 'Oktober', 'November', 'Desember',
+      'Januari', 'Februari', 'Maret', 'April', 'Mei', 'Juni'
+    ]
 
     // Peta bulan -> tahun sesuai tahun ajaran
     const bulanToYear = (bulan: string) => {
@@ -525,8 +517,8 @@ function ModalTambahTunggakan({
         })
     }
 
-    // Bulan yang tersedia = semua bulan yang di-ceklist, dikonversi ke pasangan bulan-tahun, lalu eksklusi yang sudah ada
-    const available = bulanDiCeklist
+    // Bulan yang tersedia = SEMUA bulan dalam tahun ajaran, dikonversi ke pasangan bulan-tahun, lalu eksklusi yang sudah ada
+    const available = semuaBulan
       .map(b => ({ bulan: b, tahun: bulanToYear(b) }))
       .filter(pair => !existingPairs.has(`${pair.bulan}-${pair.tahun}`))
 

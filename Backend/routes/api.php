@@ -110,6 +110,7 @@ Route::middleware('auth:sanctum')->group(function () {
         // Template, Export & Import routes (before apiResource)
         Route::get('santri/template', [SantriController::class, 'template']);
         Route::get('santri/export', [SantriController::class, 'export']);
+        Route::post('santri/validate-import', [SantriController::class, 'validateImport']);
         Route::post('santri/import', [SantriController::class, 'import']);
         
         Route::apiResource('santri', SantriController::class);
@@ -123,6 +124,8 @@ Route::middleware('auth:sanctum')->group(function () {
         // Tagihan Santri
         Route::post('tagihan-santri/generate', [TagihanSantriController::class, 'generate']);
         Route::post('tagihan-santri/tunggakan', [TagihanSantriController::class, 'createTunggakan']);
+        Route::post('tagihan-santri/bulk-delete', [TagihanSantriController::class, 'bulkDelete']);
+        Route::post('tagihan-santri/bulk-update-nominal', [TagihanSantriController::class, 'bulkUpdateNominal']);
         Route::apiResource('tagihan-santri', TagihanSantriController::class);
         Route::get('tagihan-santri/santri/{santriId}', [TagihanSantriController::class, 'getBySantri']);
         

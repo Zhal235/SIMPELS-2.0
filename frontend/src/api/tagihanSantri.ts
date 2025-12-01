@@ -54,3 +54,24 @@ export async function deleteTagihanSantri(id: string | number) {
   const res = await api.delete(`/v1/keuangan/tagihan-santri/${id}`)
   return res.data
 }
+
+export async function bulkDeleteTagihan(data: {
+  jenis_tagihan_id: number
+  tahun?: number
+  bulan?: string
+  santri_ids?: number[]
+}) {
+  const res = await api.post('/v1/keuangan/tagihan-santri/bulk-delete', data)
+  return res.data
+}
+
+export async function bulkUpdateNominalTagihan(data: {
+  jenis_tagihan_id: number
+  nominal_baru: number
+  tahun?: number
+  bulan?: string
+  santri_ids?: number[]
+}) {
+  const res = await api.post('/v1/keuangan/tagihan-santri/bulk-update-nominal', data)
+  return res.data
+}

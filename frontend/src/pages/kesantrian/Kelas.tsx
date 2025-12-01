@@ -38,9 +38,25 @@ export default function KesantrianKelas() {
   const [santriList, setSantriList] = useState<SantriItem[]>([])
   const [santriLoading, setSantriLoading] = useState(false)
   const [selectedSantriId, setSelectedSantriId] = useState<string>('')
+  const [selectedSantriIds, setSelectedSantriIds] = useState<string[]>([])
+  const [searchTerm, setSearchTerm] = useState<string>('')
+  const [showAddForm, setShowAddForm] = useState(false)
 
-  const santriInKelas = useMemo(() => santriList.filter(s => s.kelas_id === memberKelas?.id), [santriList, memberKelas])
-  const santriTanpaKelas = useMemo(() => santriList.filter(s => !s.kelas_id), [santriList])
+  const santriInKelas = useMemo(() => {
+    // Pastikan kedua ID dibandingkan dalam tipe yang sama (number)
+    const filtered = santriList.filter(s => {
+      const santriKelasId = s.kelas_id ? Number(s.kelas_id) : null
+      const currentKelasId = memberKelas?.id ? Number(memberKelas.id) : null
+      return santriKelasId === currentKelasId && currentKelasId !== null
+    })
+    return filtered
+  }, [santriList, memberKelas])
+  
+  const santriTanpaKelas = useMemo(() => {
+    const filtered = santriList.filter(s => !s.kelas_id)
+    if (!searchTerm) return filtered
+    return filtered.filter(s => s.nama_santri.toLowerCase().includes(searchTerm.toLowerCase()))
+  }, [santriList, searchTerm])
 
   useEffect(() => {
     fetchData()
@@ -121,8 +137,12 @@ export default function KesantrianKelas() {
     setMemberKelas(item)
     setMemberOpen(true)
     setSantriLoading(true)
+    setSelectedSantriIds([])
+    setSearchTerm('')
+    setShowAddForm(false)
+    setSelectedSantriId('')
     try {
-      // Ambil santri (gunakan perPage besar agar cukup)
+      // Ambil semua santri termasuk yang sudah punya kelas untuk refresh tampilan
       const res = await api.get('/v1/kesantrian/santri', { params: { page: 1, perPage: 1000 } })
       const raw = res?.data
       const dataArr: any[] = Array.isArray(raw)
@@ -137,7 +157,14 @@ export default function KesantrianKelas() {
         return !['mutasi', 'keluar', 'mutasi_keluar', 'alumni', 'lulus'].includes(status)
       })
       
-      setSantriList(santriAktif as SantriItem[])
+      // Map dengan benar, pastikan kelas_id ada
+      const mapped = santriAktif.map((s: any) => ({
+        id: s.id,
+        nama_santri: s.nama_santri,
+        kelas_id: s.kelas_id || null
+      }))
+      
+      setSantriList(mapped as SantriItem[])
     } catch (err) {
       handleError(err)
     } finally {
@@ -161,6 +188,51 @@ export default function KesantrianKelas() {
       await fetchData()
     } catch (err) {
       handleError(err)
+    }
+  }
+
+  async function addMultipleMembers() {
+    if (!memberKelas || selectedSantriIds.length === 0) {
+      toast.error('Pilih minimal satu santri')
+      return
+    }
+    
+    try {
+      const res = await api.post(`/v1/kesantrian/kelas/${memberKelas.id}/anggota`, { 
+        santri_ids: selectedSantriIds 
+      })
+      
+      if (res.data.success) {
+        toast.success(res.data.message)
+        setSelectedSantriIds([])
+        setShowAddForm(false)
+        // Refresh santri list & kelas table
+        await openMembers(memberKelas)
+        await fetchData()
+      } else {
+        toast.error(res.data.message)
+      }
+    } catch (err: any) {
+      const message = err?.response?.data?.message || 'Gagal menambahkan anggota'
+      toast.error(message)
+    }
+  }
+
+  function toggleSantriSelection(santriId: string) {
+    setSelectedSantriIds(prev => {
+      if (prev.includes(santriId)) {
+        return prev.filter(id => id !== santriId)
+      } else {
+        return [...prev, santriId]
+      }
+    })
+  }
+
+  function toggleSelectAll() {
+    if (selectedSantriIds.length === santriTanpaKelas.length) {
+      setSelectedSantriIds([])
+    } else {
+      setSelectedSantriIds(santriTanpaKelas.map(s => s.id))
     }
   }
 
@@ -307,22 +379,97 @@ export default function KesantrianKelas() {
           <div className="p-4 text-gray-600">Memuat data santri...</div>
         ) : (
           <div className="space-y-4">
-            <div className="flex items-end gap-2">
-              <div className="flex-1">
-                <label className="block text-sm font-medium text-gray-700">Tambah Anggota</label>
-                <select
-                  className="mt-1 w-full rounded-md border px-3 py-2"
-                  value={selectedSantriId}
-                  onChange={(e) => setSelectedSantriId(e.target.value)}
-                >
-                  <option value="">Pilih santri tanpa kelas</option>
-                  {santriTanpaKelas.map((s) => (
-                    <option key={s.id} value={s.id}>{s.nama_santri}</option>
-                  ))}
-                </select>
+            {/* Tombol Tambah Anggota */}
+            {!showAddForm && (
+              <button 
+                className="btn btn-primary w-full" 
+                onClick={() => setShowAddForm(true)}
+              >
+                + Tambah Anggota
+              </button>
+            )}
+
+            {/* Form Tambah Anggota - Hanya tampil jika showAddForm true */}
+            {showAddForm && (
+              <div className="border rounded-lg p-4 bg-gray-50">
+                <div className="flex items-center justify-between mb-3">
+                  <h3 className="font-medium text-gray-900">Tambah Anggota Baru</h3>
+                  <button 
+                    className="text-gray-500 hover:text-gray-700"
+                    onClick={() => {
+                      setShowAddForm(false)
+                      setSelectedSantriIds([])
+                      setSearchTerm('')
+                    }}
+                  >
+                    ✕
+                  </button>
+                </div>
+
+                {/* Search Box */}
+                <div className="mb-3">
+                  <label className="block text-sm font-medium text-gray-700 mb-2">Cari Santri</label>
+                  <input
+                    type="text"
+                    className="w-full rounded-md border px-3 py-2"
+                    placeholder="Ketik nama santri..."
+                    value={searchTerm}
+                    onChange={(e) => setSearchTerm(e.target.value)}
+                  />
+                </div>
+
+                {/* Checkbox Multi-Select */}
+                <div>
+                  <div className="flex items-center justify-between mb-3">
+                    <label className="text-sm font-medium text-gray-700">
+                      Pilih Santri ({selectedSantriIds.length} dipilih)
+                    </label>
+                    {santriTanpaKelas.length > 0 && (
+                      <button 
+                        className="text-sm text-brand hover:underline"
+                        onClick={toggleSelectAll}
+                      >
+                        {selectedSantriIds.length === santriTanpaKelas.length ? 'Batal Pilih Semua' : 'Pilih Semua'}
+                      </button>
+                    )}
+                  </div>
+
+                  <div className="max-h-64 overflow-y-auto space-y-2">
+                    {santriTanpaKelas.length === 0 ? (
+                      <p className="text-sm text-gray-500 text-center py-4">
+                        {searchTerm ? 'Tidak ada santri yang sesuai pencarian' : 'Semua santri sudah memiliki kelas'}
+                      </p>
+                    ) : (
+                      santriTanpaKelas.map((s) => (
+                        <label
+                          key={s.id}
+                          className="flex items-center gap-2 p-2 hover:bg-gray-50 rounded cursor-pointer"
+                        >
+                          <input
+                            type="checkbox"
+                            checked={selectedSantriIds.includes(s.id)}
+                            onChange={() => toggleSantriSelection(s.id)}
+                            className="w-4 h-4 text-brand border-gray-300 rounded focus:ring-brand"
+                          />
+                          <span className="text-sm text-gray-700">{s.nama_santri}</span>
+                        </label>
+                      ))
+                    )}
+                  </div>
+
+                  {selectedSantriIds.length > 0 && (
+                    <div className="mt-3 pt-3 border-t">
+                      <button 
+                        className="btn btn-primary w-full" 
+                        onClick={addMultipleMembers}
+                      >
+                        Tambahkan {selectedSantriIds.length} Santri ke Kelas
+                      </button>
+                    </div>
+                  )}
+                </div>
               </div>
-              <button className="btn btn-primary" onClick={addMember} disabled={!selectedSantriId}>Tambah Anggota</button>
-            </div>
+            )}
 
             <Card title="Daftar Anggota">
               <Table<SantriItem>

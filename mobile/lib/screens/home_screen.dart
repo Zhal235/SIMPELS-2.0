@@ -677,6 +677,7 @@ class _PembayaranTabState extends State<PembayaranTab>
   bool _isLoading = true;
   Map<String, dynamic>? _tagihanData;
   final Set<int> _selectedTagihanIds = {};
+  bool _showFutureTagihan = false; // Toggle untuk menampilkan tagihan bulan depan
   // Selection mode is active when any tagihan is selected
   bool get _isSelectionMode => _selectedTagihanIds.isNotEmpty;
 
@@ -722,16 +723,37 @@ class _PembayaranTabState extends State<PembayaranTab>
     if (_tagihanData == null) return [];
 
     try {
-      final allTagihan = _tagihanData!['data']?['semua'] as List?;
-      if (allTagihan == null) return [];
+      // Gabungkan semua tagihan dari semua kategori
+      final List<dynamic> allTagihan = [];
+      
+      final data = _tagihanData!['data'];
+      if (data != null && data is Map) {
+        // Ambil dari semua kategori: semua, lunas, belum_bayar
+        if (data['semua'] is List) {
+          allTagihan.addAll(data['semua']);
+        }
+        if (data['lunas'] is List) {
+          allTagihan.addAll(data['lunas']);
+        }
+        if (data['belum_bayar'] is List) {
+          allTagihan.addAll(data['belum_bayar']);
+        }
+      }
+      
+      // Remove duplicates by ID
+      final Map<int, Map<String, dynamic>> uniqueTagihan = {};
+      for (var item in allTagihan) {
+        if (item is Map) {
+          final id = item['id'];
+          if (id != null && !uniqueTagihan.containsKey(id)) {
+            uniqueTagihan[id] = Map<String, dynamic>.from(item);
+          }
+        }
+      }
 
-      return allTagihan
-          .whereType<Map>()
-          .where((t) {
-            final id = t['id'];
-            return id != null && _selectedTagihanIds.contains(id);
-          })
-          .map((t) => Map<String, dynamic>.from(t))
+      // Filter selected tagihan
+      return uniqueTagihan.values
+          .where((t) => _selectedTagihanIds.contains(t['id']))
           .toList();
     } catch (e) {
       debugPrint('Error in _getSelectedTagihan: $e');
@@ -805,6 +827,23 @@ class _PembayaranTabState extends State<PembayaranTab>
                 },
               )
             : null,
+        actions: _isSelectionMode
+            ? null
+            : [
+                IconButton(
+                  icon: Icon(_showFutureTagihan
+                      ? Icons.visibility_off
+                      : Icons.visibility),
+                  onPressed: () {
+                    setState(() {
+                      _showFutureTagihan = !_showFutureTagihan;
+                    });
+                  },
+                  tooltip: _showFutureTagihan
+                      ? 'Sembunyikan tagihan bulan depan'
+                      : 'Tampilkan tagihan bulan depan',
+                ),
+              ],
         bottom: TabBar(
           controller: _tabController,
           indicatorColor: Colors.white,
@@ -822,6 +861,7 @@ class _PembayaranTabState extends State<PembayaranTab>
       body: _isLoading
           ? const Center(child: CircularProgressIndicator())
           : Column(
+              key: ValueKey('tagihan_view_$_showFutureTagihan'),
               children: [
                 Expanded(
                   child: RefreshIndicator(
@@ -972,14 +1012,281 @@ class _PembayaranTabState extends State<PembayaranTab>
       );
     }
 
-    return ListView.builder(
+    // Get current month and year
+    final now = DateTime.now();
+    final currentMonth = now.month;
+    final currentYear = now.year;
+
+    // Group tagihan by month-year and separate current/past from future
+    Map<String, List<dynamic>> currentAndPastTagihan = {};
+    Map<String, List<dynamic>> futureTagihan = {};
+    
+    for (var item in tagihan) {
+      final bulan = item['bulan'];
+      final tahun = item['tahun'];
+      
+      // Create key for grouping
+      String key;
+      if (bulan != null && bulan.toString().isNotEmpty) {
+        if (tahun != null && tahun.toString().isNotEmpty) {
+          key = '${bulan.toString()} ${tahun.toString()}';
+        } else {
+          key = bulan.toString();
+        }
+      } else {
+        key = 'Tanpa Bulan';
+      }
+      
+      // Determine if this is a future month
+      bool isFuture = false;
+      if (bulan != null && tahun != null) {
+        final bulanStr = bulan.toString();
+        final monthIndex = _getMonthIndex(bulanStr);
+        if (monthIndex != -1) {
+          final itemYear = int.tryParse(tahun.toString()) ?? currentYear;
+          final itemMonth = monthIndex + 1;
+          
+          // Compare dates
+          if (itemYear > currentYear || 
+              (itemYear == currentYear && itemMonth > currentMonth)) {
+            isFuture = true;
+          }
+        }
+      }
+      
+      final targetMap = isFuture ? futureTagihan : currentAndPastTagihan;
+      if (!targetMap.containsKey(key)) {
+        targetMap[key] = [];
+      }
+      targetMap[key]!.add(item);
+    }
+
+    // Sort keys by month order (Juli -> Juni)
+    final sortedCurrentKeys = _sortMonthKeys(currentAndPastTagihan.keys.toList());
+    final sortedFutureKeys = _sortMonthKeys(futureTagihan.keys.toList());
+
+    return ListView(
       padding: const EdgeInsets.all(16),
       physics: const AlwaysScrollableScrollPhysics(),
-      itemCount: tagihan.length,
-      itemBuilder: (context, index) {
-        final item = tagihan[index];
-        return _buildTagihanCard(item);
-      },
+      children: [
+        // Current and past months
+        ...sortedCurrentKeys.map((monthKey) {
+          final items = currentAndPastTagihan[monthKey]!;
+          return _buildMonthGroup(monthKey, items, isFuture: false);
+        }),
+        
+        // Future months section
+        if (futureTagihan.isNotEmpty) ...[
+          // Toggle button
+          GestureDetector(
+            onTap: () {
+              debugPrint('[Toggle] Current state: $_showFutureTagihan');
+              setState(() {
+                _showFutureTagihan = !_showFutureTagihan;
+              });
+              debugPrint('[Toggle] New state: $_showFutureTagihan');
+            },
+            child: Container(
+              padding: const EdgeInsets.symmetric(horizontal: 12, vertical: 12),
+              margin: const EdgeInsets.only(top: 8, bottom: 8),
+              decoration: BoxDecoration(
+                color: Colors.blue.shade50,
+                borderRadius: BorderRadius.circular(8),
+                border: Border.all(color: Colors.blue.shade200),
+              ),
+              child: Row(
+                mainAxisAlignment: MainAxisAlignment.spaceBetween,
+                children: [
+                  Expanded(
+                    child: Row(
+                      children: [
+                        Icon(
+                          _showFutureTagihan
+                              ? Icons.keyboard_arrow_up
+                              : Icons.keyboard_arrow_down,
+                          color: Colors.blue.shade700,
+                        ),
+                        const SizedBox(width: 8),
+                        Expanded(
+                          child: Text(
+                            _showFutureTagihan
+                                ? 'Sembunyikan Tagihan Bulan Depan'
+                                : 'Tampilkan Tagihan Bulan Depan',
+                            style: TextStyle(
+                              fontSize: 14,
+                              fontWeight: FontWeight.w600,
+                              color: Colors.blue.shade700,
+                            ),
+                          ),
+                        ),
+                      ],
+                    ),
+                  ),
+                  Container(
+                    padding: const EdgeInsets.symmetric(horizontal: 8, vertical: 4),
+                    decoration: BoxDecoration(
+                      color: Colors.blue.shade700,
+                      borderRadius: BorderRadius.circular(12),
+                    ),
+                    child: Text(
+                      '${sortedFutureKeys.length}',
+                      style: const TextStyle(
+                        fontSize: 12,
+                        fontWeight: FontWeight.bold,
+                        color: Colors.white,
+                      ),
+                    ),
+                  ),
+                ],
+              ),
+            ),
+          ),
+          
+          // Future months (shown if toggle is on)
+          if (_showFutureTagihan) ...[
+            ...sortedFutureKeys.map((monthKey) {
+              final items = futureTagihan[monthKey]!;
+              return _buildMonthGroup(monthKey, items, isFuture: true);
+            }),
+          ],
+        ],
+      ],
+    );
+  }
+
+  int _getMonthIndex(String monthName) {
+    const months = [
+      'Januari', 'Februari', 'Maret', 'April', 'Mei', 'Juni',
+      'Juli', 'Agustus', 'September', 'Oktober', 'November', 'Desember'
+    ];
+    return months.indexOf(monthName);
+  }
+
+  List<String> _sortMonthKeys(List<String> keys) {
+    final monthOrder = [
+      'Juli', 'Agustus', 'September', 'Oktober', 'November', 'Desember',
+      'Januari', 'Februari', 'Maret', 'April', 'Mei', 'Juni', 'Tanpa Bulan'
+    ];
+    
+    return keys..sort((a, b) {
+      final monthA = a.split(' ')[0];
+      final monthB = b.split(' ')[0];
+      final indexA = monthOrder.indexOf(monthA);
+      final indexB = monthOrder.indexOf(monthB);
+      
+      if (indexA == -1 && indexB == -1) return a.compareTo(b);
+      if (indexA == -1) return 1;
+      if (indexB == -1) return -1;
+      
+      // If same month, sort by year
+      if (indexA == indexB) {
+        final yearA = a.split(' ').length > 1 ? int.tryParse(a.split(' ')[1]) ?? 0 : 0;
+        final yearB = b.split(' ').length > 1 ? int.tryParse(b.split(' ')[1]) ?? 0 : 0;
+        return yearB.compareTo(yearA); // Descending year
+      }
+      
+      return indexA.compareTo(indexB);
+    });
+  }
+
+  Widget _buildMonthGroup(String monthKey, List<dynamic> items, {required bool isFuture}) {
+    // Calculate totals for this month
+    double totalSisa = 0;
+    int countBelumBayar = 0;
+    
+    for (var item in items) {
+      final sisa = double.tryParse(item['sisa']?.toString() ?? '0') ?? 0;
+      totalSisa += sisa;
+      if (item['status'] == 'belum_bayar' || item['status'] == 'sebagian') {
+        countBelumBayar++;
+      }
+    }
+    
+    return Column(
+      crossAxisAlignment: CrossAxisAlignment.start,
+      children: [
+        // Month Header
+        Container(
+          padding: const EdgeInsets.symmetric(horizontal: 12, vertical: 8),
+          margin: const EdgeInsets.only(bottom: 8),
+          decoration: BoxDecoration(
+            color: isFuture
+                ? Colors.blue.shade50
+                : Theme.of(context).colorScheme.primary.withAlpha(26),
+            borderRadius: BorderRadius.circular(8),
+            border: isFuture ? Border.all(color: Colors.blue.shade200) : null,
+          ),
+          child: Row(
+            mainAxisAlignment: MainAxisAlignment.spaceBetween,
+            children: [
+              Expanded(
+                child: Row(
+                  children: [
+                    if (isFuture)
+                      Padding(
+                        padding: const EdgeInsets.only(right: 8),
+                        child: Icon(
+                          Icons.schedule,
+                          size: 18,
+                          color: Colors.blue.shade700,
+                        ),
+                      ),
+                    Expanded(
+                      child: Column(
+                        crossAxisAlignment: CrossAxisAlignment.start,
+                        children: [
+                          Text(
+                            monthKey,
+                            style: TextStyle(
+                              fontSize: 16,
+                              fontWeight: FontWeight.bold,
+                              color: isFuture
+                                  ? Colors.blue.shade700
+                                  : Theme.of(context).colorScheme.primary,
+                            ),
+                          ),
+                          Text(
+                            '${items.length} tagihan${isFuture ? ' (Bulan Depan)' : ''}',
+                            style: TextStyle(
+                              fontSize: 12,
+                              color: Colors.grey[600],
+                            ),
+                          ),
+                        ],
+                      ),
+                    ),
+                  ],
+                ),
+              ),
+              Column(
+                crossAxisAlignment: CrossAxisAlignment.end,
+                children: [
+                  if (totalSisa > 0)
+                    Text(
+                      'Sisa: Rp ${_formatCurrency(totalSisa)}',
+                      style: TextStyle(
+                        fontSize: 12,
+                        fontWeight: FontWeight.w600,
+                        color: countBelumBayar > 0 ? Colors.red : Colors.orange,
+                      ),
+                    ),
+                  if (countBelumBayar > 0)
+                    Text(
+                      '$countBelumBayar belum lunas',
+                      style: const TextStyle(
+                        fontSize: 10,
+                        color: Colors.red,
+                      ),
+                    ),
+                ],
+              ),
+            ],
+          ),
+        ),
+        // Tagihan items for this month
+        ...items.map((item) => _buildTagihanCard(item)),
+        const SizedBox(height: 16),
+      ],
     );
   }
 
@@ -1013,8 +1320,36 @@ class _PembayaranTabState extends State<PembayaranTab>
     if (santriId == null) return false;
 
     final prefs = await SharedPreferences.getInstance();
+    
+    // Check single payment draft
     final draftKey = 'payment_draft_${santriId}_$tagihanId';
-    return prefs.containsKey(draftKey);
+    if (prefs.containsKey(draftKey)) return true;
+    
+    // Check multiple payment drafts
+    final keys = prefs.getKeys().where((key) => 
+      key.startsWith('payment_draft_multiple_$santriId')
+    );
+    
+    for (final key in keys) {
+      final draftJson = prefs.getString(key);
+      if (draftJson != null) {
+        try {
+          final draft = json.decode(draftJson);
+          if (draft['isMultiple'] == true && draft['tagihan'] is List) {
+            final tagihan = draft['tagihan'] as List;
+            for (var t in tagihan) {
+              if (t is Map && t['id'] == tagihanId) {
+                return true;
+              }
+            }
+          }
+        } catch (e) {
+          debugPrint('Error checking draft: $e');
+        }
+      }
+    }
+    
+    return false;
   }
 
   Widget _buildTagihanCardContent(
@@ -1867,6 +2202,14 @@ class _DraftPembayaranListState extends State<_DraftPembayaranList> {
         try {
           final draft = json.decode(draftJson);
           draft['key'] = key; // Store key for deletion
+          
+          // Debug info
+          if (draft['isMultiple'] == true) {
+            debugPrint('[Load Draft] Multiple payment draft found');
+            debugPrint('[Load Draft] Tagihan count: ${draft['tagihan']?.length ?? 0}');
+            debugPrint('[Load Draft] Topup: ${draft['topupAmount']}');
+          }
+          
           drafts.add(draft);
         } catch (e) {
           debugPrint('Error parsing draft: $e');
@@ -1954,14 +2297,51 @@ class _DraftPembayaranListState extends State<_DraftPembayaranList> {
         itemCount: _drafts.length,
         itemBuilder: (context, index) {
           final draft = _drafts[index];
+          final isMultiple = draft['isMultiple'] == true;
+          
+          // For multiple payment
+          final List<dynamic>? multipleTagihan = isMultiple ? draft['tagihan'] : null;
+          
+          // For single payment
           final paymentAmount = draft['paymentAmount'] ?? 0.0;
           final topupAmount = draft['topupAmount'] ?? 0.0;
-          final total = paymentAmount + topupAmount;
+          
+          double total;
+          String title;
+          String subtitle = '';
+          
+          if (isMultiple && multipleTagihan != null) {
+            // Multiple payment draft
+            double tagihanTotal = 0;
+            for (var t in multipleTagihan) {
+              if (t is Map) {
+                tagihanTotal += double.tryParse(t['sisa']?.toString() ?? '0') ?? 0;
+              }
+            }
+            final topup = draft['topupAmount'] ?? 0.0;
+            total = tagihanTotal + topup;
+            
+            title = '${multipleTagihan.length} Tagihan';
+            if (topup > 0) {
+              subtitle = '+ Top-up Dompet';
+            }
+          } else {
+            // Single payment draft
+            total = paymentAmount + topupAmount;
+            title = draft['jenisTagihan'] ?? 'Tagihan';
+            
+            final bulan = draft['bulan'];
+            final tahun = draft['tahun'];
+            if (bulan != null && tahun != null) {
+              subtitle = '$bulan $tahun';
+            }
+            if (topupAmount > 0) {
+              subtitle += subtitle.isEmpty ? 'Top-up Dompet' : ' + Top-up';
+            }
+          }
+          
           final catatan = draft['catatan'] ?? '';
           final timestamp = draft['timestamp'] ?? '';
-          final jenisTagihan = draft['jenisTagihan'] ?? 'Tagihan';
-          final bulan = draft['bulan'];
-          final tahun = draft['tahun'];
           final totalTagihan = draft['totalTagihan'] ?? 0.0;
           final sudahDibayar = draft['sudahDibayar'] ?? 0.0;
 
@@ -1969,12 +2349,85 @@ class _DraftPembayaranListState extends State<_DraftPembayaranList> {
             margin: const EdgeInsets.only(bottom: 12),
             child: InkWell(
               onTap: () {
-                // TODO: Navigate to upload screen with this draft data
-                ScaffoldMessenger.of(context).showSnackBar(
-                  const SnackBar(
-                    content: Text('Fitur lanjutkan draft akan segera hadir'),
-                  ),
-                );
+                // Navigate to upload screen with draft data
+                debugPrint('[Draft Tap] ===== START =====');
+                debugPrint('[Draft Tap] Draft data: ${draft.toString()}');
+                debugPrint('[Draft Tap] isMultiple from draft: ${draft['isMultiple']}');
+                debugPrint('[Draft Tap] tagihan from draft: ${draft['tagihan']}');
+                
+                final isMultipleTap = draft['isMultiple'] == true;
+                final multipleTagihanTap = isMultipleTap ? draft['tagihan'] as List<dynamic>? : null;
+                
+                debugPrint('[Draft Tap] isMultiple: $isMultipleTap');
+                debugPrint('[Draft Tap] multipleTagihan: ${multipleTagihanTap?.length}');
+                debugPrint('[Draft Tap] topupAmount: ${draft['topupAmount']}');
+                
+                if (isMultipleTap && multipleTagihanTap != null) {
+                  // Multiple payment draft
+                  final tagihanIds = multipleTagihanTap
+                      .map((t) => t is Map ? t['id'] as int? : null)
+                      .where((id) => id != null)
+                      .cast<int>()
+                      .toList();
+                  
+                  debugPrint('[Draft Tap] Navigating to multiple payment with ${tagihanIds.length} tagihan');
+                  debugPrint('[Draft Tap] Arguments: isMultiplePayment=true, fromDraft=true');
+                  
+                  // Convert multipleTagihan to proper List<Map<String, dynamic>>
+                  final selectedTagihan = multipleTagihanTap
+                      .map((t) => t is Map ? Map<String, dynamic>.from(t) : null)
+                      .where((t) => t != null)
+                      .cast<Map<String, dynamic>>()
+                      .toList();
+                  
+                  debugPrint('[Draft Tap] selectedTagihan prepared: ${selectedTagihan.length} items');
+                  
+                  Navigator.push(
+                    context,
+                    MaterialPageRoute(
+                      builder: (_) => UnifiedPaymentScreen(
+                        isMultiplePayment: true,
+                        multipleTagihan: selectedTagihan,
+                        selectedBankId: draft['selectedBankId'] as int?,
+                        shouldIncludeTopup: (draft['topupAmount'] ?? 0.0) > 0,
+                        topupNominal: (draft['topupAmount'] ?? 0.0) as double?,
+                        fromDraft: true,
+                      ),
+                    ),
+                  ).then((result) {
+                    if (result == true) {
+                      _loadDrafts(); // Refresh draft list
+                    }
+                  });
+                } else {
+                  // Single payment draft - navigate to UnifiedPaymentScreen
+                  final tagihan = {
+                    'id': draft['tagihanId'],
+                    'jenis_tagihan': draft['jenisTagihan'],
+                    'bulan': draft['bulan'],
+                    'tahun': draft['tahun'],
+                    'sisa': paymentAmount,
+                    'nominal': totalTagihan,
+                    'dibayar': sudahDibayar,
+                  };
+                  
+                  Navigator.push(
+                    context,
+                    MaterialPageRoute(
+                      builder: (_) => UnifiedPaymentScreen(
+                        tagihan: tagihan,
+                        topupNominal: topupAmount,
+                        shouldIncludeTopup: topupAmount > 0,
+                        selectedBankId: draft['selectedBankId'],
+                        fromDraft: true, // Prevent creating new draft
+                      ),
+                    ),
+                  ).then((result) {
+                    if (result == true) {
+                      _loadDrafts(); // Refresh draft list
+                    }
+                  });
+                }
               },
               borderRadius: BorderRadius.circular(12),
               child: Padding(
@@ -1991,7 +2444,7 @@ class _DraftPembayaranListState extends State<_DraftPembayaranList> {
                             borderRadius: BorderRadius.circular(8),
                           ),
                           child: Icon(
-                            Icons.pending_actions,
+                            isMultiple ? Icons.receipt_long : Icons.pending_actions,
                             color: Colors.orange.shade700,
                             size: 20,
                           ),
@@ -2002,16 +2455,16 @@ class _DraftPembayaranListState extends State<_DraftPembayaranList> {
                             crossAxisAlignment: CrossAxisAlignment.start,
                             children: [
                               Text(
-                                jenisTagihan,
+                                title,
                                 style: const TextStyle(
                                   fontWeight: FontWeight.bold,
                                   fontSize: 14,
                                 ),
                               ),
-                              if (bulan != null && tahun != null) ...[
+                              if (subtitle.isNotEmpty) ...[
                                 const SizedBox(height: 2),
                                 Text(
-                                  '$bulan $tahun',
+                                  subtitle,
                                   style: TextStyle(
                                     fontSize: 11,
                                     color: Colors.grey[600],
@@ -2234,59 +2687,97 @@ class _DraftPembayaranListState extends State<_DraftPembayaranList> {
 
                               if (santriId == null) return;
 
-                              // Navigate to UnifiedPaymentScreen dengan data draft LENGKAP
-                              final result = await Navigator.push(
-                                context,
-                                MaterialPageRoute(
-                                  builder: (_) => UnifiedPaymentScreen(
-                                    tagihan: draft['tagihanId'] != null
-                                        ? {
-                                            'id': draft['tagihanId'],
-                                            'jenis_tagihan':
-                                                draft['jenisTagihan'] ??
-                                                    'Tagihan',
-                                            'bulan': draft['bulan'],
-                                            'tahun': draft['tahun'],
-                                            'sisa': draft['paymentAmount']
-                                                .toString(),
-                                            // Tambahkan data lengkap dari draft
-                                            'nominal': draft['totalTagihan']
-                                                    ?.toString() ??
-                                                '0',
-                                            'jumlah': draft['totalTagihan']
-                                                    ?.toString() ??
-                                                '0',
-                                            'dibayar': draft['sudahDibayar']
-                                                    ?.toString() ??
-                                                '0',
-                                            'sudah_dibayar':
-                                                draft['sudahDibayar']
-                                                        ?.toString() ??
-                                                    '0',
-                                          }
-                                        : null,
-                                    isTopupOnly: draft['tagihanId'] == null,
-                                    topupNominal: draft['topupAmount'] > 0
-                                        ? draft['topupAmount']
-                                        : null,
-                                    shouldIncludeTopup:
-                                        draft['topupAmount'] > 0,
-                                    selectedBankId: draft['selectedBankId'],
+                              // Check if this is a multiple payment draft
+                              final isMultipleDraft = draft['isMultiple'] == true;
+                              
+                              if (isMultipleDraft) {
+                                // Multiple payment draft
+                                final multipleTagihanDraft = draft['tagihan'] as List<dynamic>?;
+                                
+                                if (multipleTagihanDraft != null) {
+                                  final selectedTagihan = multipleTagihanDraft
+                                      .map((t) => t is Map ? Map<String, dynamic>.from(t) : null)
+                                      .where((t) => t != null)
+                                      .cast<Map<String, dynamic>>()
+                                      .toList();
+                                  
+                                  debugPrint('[Upload Bukti Button] Multiple payment - ${selectedTagihan.length} tagihan');
+                                  
+                                  final result = await Navigator.push(
+                                    context,
+                                    MaterialPageRoute(
+                                      builder: (_) => UnifiedPaymentScreen(
+                                        isMultiplePayment: true,
+                                        multipleTagihan: selectedTagihan,
+                                        selectedBankId: draft['selectedBankId'] as int?,
+                                        shouldIncludeTopup: (draft['topupAmount'] ?? 0.0) > 0,
+                                        topupNominal: (draft['topupAmount'] ?? 0.0) as double?,
+                                        fromDraft: true,
+                                      ),
+                                    ),
+                                  );
+                                  
+                                  if (result == true) {
+                                    _loadDrafts();
+                                    if (context.mounted) {
+                                      final pembayaranState =
+                                          context.findAncestorStateOfType<
+                                              _PembayaranTabState>();
+                                      pembayaranState?._loadTagihan();
+                                    }
+                                  }
+                                }
+                              } else {
+                                // Single payment draft - original code
+                                final result = await Navigator.push(
+                                  context,
+                                  MaterialPageRoute(
+                                    builder: (_) => UnifiedPaymentScreen(
+                                      tagihan: draft['tagihanId'] != null
+                                          ? {
+                                              'id': draft['tagihanId'],
+                                              'jenis_tagihan':
+                                                  draft['jenisTagihan'] ??
+                                                      'Tagihan',
+                                              'bulan': draft['bulan'],
+                                              'tahun': draft['tahun'],
+                                              'sisa': draft['paymentAmount']
+                                                  .toString(),
+                                              'nominal': draft['totalTagihan']
+                                                      ?.toString() ??
+                                                  '0',
+                                              'jumlah': draft['totalTagihan']
+                                                      ?.toString() ??
+                                                  '0',
+                                              'dibayar': draft['sudahDibayar']
+                                                      ?.toString() ??
+                                                  '0',
+                                              'sudah_dibayar':
+                                                  draft['sudahDibayar']
+                                                          ?.toString() ??
+                                                      '0',
+                                            }
+                                          : null,
+                                      isTopupOnly: draft['tagihanId'] == null,
+                                      topupNominal: draft['topupAmount'] > 0
+                                          ? draft['topupAmount']
+                                          : null,
+                                      shouldIncludeTopup:
+                                          draft['topupAmount'] > 0,
+                                      selectedBankId: draft['selectedBankId'],
+                                      fromDraft: true,
+                                    ),
                                   ),
-                                ),
-                              );
+                                );
 
-                              if (result == true) {
-                                // Reload draft list
-                                _loadDrafts();
-
-                                // Trigger refresh di PembayaranTab parent
-                                if (context.mounted) {
-                                  // Find PembayaranTab and reload
-                                  final pembayaranState =
-                                      context.findAncestorStateOfType<
-                                          _PembayaranTabState>();
-                                  pembayaranState?._loadTagihan();
+                                if (result == true) {
+                                  _loadDrafts();
+                                  if (context.mounted) {
+                                    final pembayaranState =
+                                        context.findAncestorStateOfType<
+                                            _PembayaranTabState>();
+                                    pembayaranState?._loadTagihan();
+                                  }
                                 }
                               }
                             },

@@ -85,12 +85,59 @@ Berikut kolom yang **HARUS** diisi (ditandai dengan tanda * dan background merah
    - Pastikan kolom wajib terisi semua
    - Simpan file Excel
 
-2. **Upload File**
+2. **Upload dan Validasi File**
    - Klik tombol **"Import Excel"** di halaman Data Santri
    - Pilih file Excel yang sudah diisi (.xlsx atau .xls)
-   - Klik "Open" untuk mengupload
+   - Sistem akan **otomatis menganalisis dan memvalidasi** file
+   - Modal preview akan muncul menampilkan hasil validasi
 
-3. **Proses Import**
+3. **Review Hasil Validasi**
+   
+   Modal validasi menampilkan:
+   
+   **📊 Ringkasan:**
+   - 🟢 **Data Valid**: Jumlah baris yang siap diimport
+   - 🔴 **Data Error**: Jumlah baris yang bermasalah (WAJIB diperbaiki)
+   - 🟡 **Peringatan**: Warning untuk data opsional yang kosong
+   
+   **❌ Daftar Error (Jika Ada):**
+   - Menampilkan baris mana yang error
+   - Detail error apa saja (NIS kosong, format tanggal salah, dll)
+   - **TIDAK BISA** import jika ada error
+   
+   **⚠️ Daftar Warning:**
+   - Data opsional yang kosong (NISN, HP, dll)
+   - NIS yang sudah terdaftar (akan diupdate)
+   - TETAP BISA import meski ada warning
+   
+   **✅ Preview Data Valid:**
+   - Menampilkan 10 data pertama yang valid
+   - Untuk memastikan data sudah benar
+
+4. **Perbaiki Error (Jika Ada)**
+   
+   Jika ada error:
+   - Klik tombol **"Batal"**
+   - Buka file Excel
+   - Perbaiki baris yang bermasalah sesuai keterangan error
+   - Simpan dan upload ulang
+   
+   Contoh error yang sering terjadi:
+   - ❌ "NIS tidak boleh kosong" → Isi kolom NIS
+   - ❌ "Format Tanggal Lahir tidak valid" → Gunakan format YYYY-MM-DD
+   - ❌ "Jenis Kelamin harus L/P" → Isi dengan L atau P
+   - ❌ "NIS duplikat dengan baris X" → Setiap NIS harus unik
+
+5. **Konfirmasi Import**
+   
+   Jika semua data valid:
+   - Tombol **"Import X Data"** akan aktif (warna biru)
+   - Klik tombol tersebut untuk konfirmasi
+   - Sistem akan mengimport data ke database
+   - Progress akan ditampilkan
+   - Selesai! Data langsung muncul di tabel
+
+6. **Hasil Import**
    Sistem akan:
    - ✅ Membaca data dari file Excel
    - ✅ Validasi setiap baris data
@@ -98,15 +145,56 @@ Berikut kolom yang **HARUS** diisi (ditandai dengan tanda * dan background merah
    - ✅ **Update data existing** jika NIS sudah ada
    - ✅ Menampilkan notifikasi hasil import
 
-4. **Hasil Import**
-   - Notifikasi sukses: "Berhasil import X data baru dan update Y data"
-   - Jika ada error: Sistem akan menampilkan baris mana yang bermasalah
-   - Data akan langsung muncul di tabel setelah refresh
-
 ### Contoh Notifikasi:
-- ✅ **Sukses**: "Berhasil import 50 data baru dan update 10 data"
-- ⚠️ **Warning**: "Import selesai dengan 3 peringatan. Sukses: 47 data"
-- ❌ **Error**: "File harus berformat Excel (.xlsx atau .xls)"
+- ✅ **Sukses Validasi**: "File valid: 50 data siap diimport"
+- ⚠️ **Ada Warning**: "Ditemukan 5 baris dengan peringatan (tetap bisa diimport)"
+- ❌ **Ada Error**: "Ditemukan 3 baris dengan error (perbaiki dulu sebelum import)"
+- ✅ **Sukses Import**: "Berhasil import 50 data baru dan update 10 data"
+- ❌ **Error File**: "File harus berformat Excel (.xlsx atau .xls)"
+
+---
+
+## 🔍 Fitur Validasi & Preview Import
+
+### Validasi Otomatis
+
+Setiap kali Anda upload file Excel, sistem akan **otomatis menganalisis** file dan menampilkan:
+
+1. **Analisis Data**
+   - Total baris yang akan diproses
+   - Jumlah data yang valid
+   - Jumlah data yang error
+   - Jumlah warning/peringatan
+
+2. **Deteksi Error**
+   
+   Sistem mengecek:
+   - ✓ Kolom wajib terisi semua
+   - ✓ Format tanggal benar (YYYY-MM-DD)
+   - ✓ Jenis kelamin valid (L/P)
+   - ✓ NIS tidak duplikat dalam file
+   - ✓ Format data sesuai
+   
+3. **Deteksi Warning**
+   
+   Sistem memberi peringatan jika:
+   - ⚠️ NISN kosong (opsional)
+   - ⚠️ HP Ayah dan HP Ibu kosong (disarankan diisi)
+   - ⚠️ NIS sudah terdaftar (akan diupdate)
+   - ⚠️ Data opsional lainnya kosong
+
+4. **Preview Data**
+   - Menampilkan 10 data valid pertama
+   - Untuk memastikan format sudah benar
+   - Cek nama, NIS, jenis kelamin, dll
+
+### Keuntungan Fitur Validasi:
+
+✅ **Mencegah Error**: Deteksi masalah sebelum import
+✅ **Hemat Waktu**: Tidak perlu upload berulang kali
+✅ **Lebih Aman**: Tahu persis data apa yang akan masuk
+✅ **Transparan**: Lihat semua error dan warning sebelum confirm
+✅ **User Friendly**: Modal yang jelas dan mudah dipahami
 
 ---
 

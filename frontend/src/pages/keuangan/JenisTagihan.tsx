@@ -4,7 +4,7 @@ import { listSantri } from '../../api/santri'
 import { listKelas } from '../../api/kelas'
 import { listJenisTagihan, createJenisTagihan, updateJenisTagihan, deleteJenisTagihan } from '../../api/jenisTagihan'
 import { listTahunAjaran } from '../../api/tahunAjaran'
-import { generateTagihanSantri } from '../../api/tagihanSantri'
+import { generateTagihanSantri, bulkDeleteTagihan, bulkUpdateNominalTagihan } from '../../api/tagihanSantri'
 import { listBukuKas } from '../../api/bukuKas'
 import toast from 'react-hot-toast'
 
@@ -26,6 +26,8 @@ export default function JenisTagihan() {
   const [showModal, setShowModal] = useState(false)
   const [showPreviewModal, setShowPreviewModal] = useState(false)
   const [showConfirmModal, setShowConfirmModal] = useState(false)
+  const [showBulkActionModal, setShowBulkActionModal] = useState(false)
+  const [bulkActionType, setBulkActionType] = useState<'delete' | 'update' | null>(null)
   const [selectedTagihan, setSelectedTagihan] = useState<JenisTagihan | null>(null)
   const [searchTerm, setSearchTerm] = useState('')
   const [kelasList, setKelasList] = useState<any[]>([])
@@ -287,6 +289,16 @@ export default function JenisTagihan() {
                         >
                           <Trash2 className="w-4 h-4" />
                         </button>
+                        <button
+                          onClick={() => {
+                            setSelectedTagihan(item)
+                            setShowBulkActionModal(true)
+                          }}
+                          className="text-purple-600 hover:text-purple-900 px-2 py-1 hover:bg-purple-50 rounded text-xs font-medium"
+                          title="Perbaiki Tagihan"
+                        >
+                          Perbaiki
+                        </button>
                       </div>
                     </td>
                   </tr>
@@ -334,6 +346,20 @@ export default function JenisTagihan() {
           onCancel={() => {
             setShowConfirmModal(false)
             setSelectedTagihan(null)
+          }}
+        />
+      )}
+
+      {/* Modal Bulk Actions - Perbaiki Tagihan */}
+      {showBulkActionModal && selectedTagihan && (
+        <ModalBulkActions
+          tagihan={selectedTagihan}
+          onClose={() => {
+            setShowBulkActionModal(false)
+            setSelectedTagihan(null)
+          }}
+          onSuccess={() => {
+            fetchAllData()
           }}
         />
       )}
@@ -1474,3 +1500,174 @@ function ModalPreviewGenerate({
     </div>
   )
 }
+
+// Modal Bulk Actions - Perbaiki Tagihan
+function ModalBulkActions({
+  tagihan,
+  onClose,
+  onSuccess
+}: {
+  tagihan: JenisTagihan
+  onClose: () => void
+  onSuccess: () => void
+}) {
+  const [actionType, setActionType] = useState<'delete' | 'update'>('delete')
+  const [newNominal, setNewNominal] = useState<number>(tagihan.nominalSama || 0)
+  const [isProcessing, setIsProcessing] = useState(false)
+
+  const handleBulkDelete = async () => {
+    if (!confirm(`Apakah Anda yakin ingin menghapus SEMUA tagihan "${tagihan.namaTagihan}" yang BELUM DIBAYAR?\n\nPeringatan: Ini akan menghapus semua tagihan santri dari jenis tagihan ini!`)) {
+      return
+    }
+
+    setIsProcessing(true)
+    try {
+      const response = await bulkDeleteTagihan({
+        jenis_tagihan_id: tagihan.id
+      })
+      toast.success(response.message || `${response.deleted_count} tagihan berhasil dihapus`)
+      onSuccess()
+      onClose()
+    } catch (error: any) {
+      console.error('Error bulk delete:', error)
+      const errorMessage = error.response?.data?.message || 'Gagal menghapus tagihan'
+      toast.error(errorMessage)
+    } finally {
+      setIsProcessing(false)
+    }
+  }
+
+  const handleBulkUpdate = async () => {
+    if (!newNominal || newNominal < 0) {
+      toast.error('Nominal harus lebih dari 0')
+      return
+    }
+
+    if (!confirm(`Apakah Anda yakin ingin mengubah nominal SEMUA tagihan "${tagihan.namaTagihan}" yang BELUM DIBAYAR menjadi Rp ${newNominal.toLocaleString('id-ID')}?`)) {
+      return
+    }
+
+    setIsProcessing(true)
+    try {
+      const response = await bulkUpdateNominalTagihan({
+        jenis_tagihan_id: tagihan.id,
+        nominal_baru: newNominal
+      })
+      toast.success(response.message || `${response.updated_count} tagihan berhasil diperbarui`)
+      onSuccess()
+      onClose()
+    } catch (error: any) {
+      console.error('Error bulk update:', error)
+      const errorMessage = error.response?.data?.message || 'Gagal memperbarui tagihan'
+      toast.error(errorMessage)
+    } finally {
+      setIsProcessing(false)
+    }
+  }
+
+  return (
+    <div className="fixed inset-0 z-[60] flex items-center justify-center p-4 bg-black/50">
+      <div className="bg-white rounded-lg shadow-xl max-w-md w-full">
+        <div className="p-6 border-b">
+          <div className="flex items-center justify-between">
+            <h3 className="font-bold text-gray-900 text-lg">
+              Perbaiki Tagihan: {tagihan.namaTagihan}
+            </h3>
+            <button onClick={onClose} className="text-gray-400 hover:text-gray-600">
+              <X className="w-5 h-5" />
+            </button>
+          </div>
+        </div>
+
+        <div className="p-6 space-y-4">
+          <div className="bg-yellow-50 border border-yellow-200 rounded-lg p-3">
+            <p className="text-sm text-yellow-800">
+              <strong>Perhatian:</strong> Fitur ini hanya berlaku untuk tagihan yang <strong>BELUM DIBAYAR</strong>.
+            </p>
+          </div>
+
+          {/* Pilihan Aksi */}
+          <div className="space-y-2">
+            <label className="block text-sm font-medium text-gray-700">Pilih Aksi</label>
+            <div className="space-y-2">
+              <label className="flex items-center p-3 border rounded-lg cursor-pointer hover:bg-gray-50">
+                <input
+                  type="radio"
+                  name="actionType"
+                  value="delete"
+                  checked={actionType === 'delete'}
+                  onChange={() => setActionType('delete')}
+                  className="mr-3"
+                />
+                <div>
+                  <div className="font-medium text-gray-900">Hapus Semua Tagihan</div>
+                  <div className="text-sm text-gray-500">Menghapus semua tagihan yang belum dibayar</div>
+                </div>
+              </label>
+
+              <label className="flex items-center p-3 border rounded-lg cursor-pointer hover:bg-gray-50">
+                <input
+                  type="radio"
+                  name="actionType"
+                  value="update"
+                  checked={actionType === 'update'}
+                  onChange={() => setActionType('update')}
+                  className="mr-3"
+                />
+                <div>
+                  <div className="font-medium text-gray-900">Ubah Nominal</div>
+                  <div className="text-sm text-gray-500">Memperbarui nominal semua tagihan yang belum dibayar</div>
+                </div>
+              </label>
+            </div>
+          </div>
+
+          {/* Input Nominal Baru (hanya muncul jika pilih update) */}
+          {actionType === 'update' && (
+            <div>
+              <label className="block text-sm font-medium text-gray-700 mb-2">
+                Nominal Baru
+              </label>
+              <input
+                type="number"
+                value={newNominal}
+                onChange={(e) => setNewNominal(Number(e.target.value))}
+                className="w-full px-3 py-2 border border-gray-300 rounded-lg focus:ring-2 focus:ring-purple-500 focus:border-transparent"
+                placeholder="Masukkan nominal baru"
+              />
+              <p className="text-sm text-gray-500 mt-1">
+                Rp {newNominal.toLocaleString('id-ID')}
+              </p>
+            </div>
+          )}
+        </div>
+
+        <div className="p-6 border-t bg-gray-50 flex justify-end gap-3">
+          <button
+            onClick={onClose}
+            disabled={isProcessing}
+            className="px-6 py-2 border border-gray-300 rounded-lg hover:bg-gray-100"
+          >
+            Batal
+          </button>
+          <button
+            onClick={actionType === 'delete' ? handleBulkDelete : handleBulkUpdate}
+            disabled={isProcessing || (actionType === 'update' && (!newNominal || newNominal < 0))}
+            className={`px-6 py-2 rounded-lg text-white ${
+              actionType === 'delete' 
+                ? 'bg-red-600 hover:bg-red-700' 
+                : 'bg-purple-600 hover:bg-purple-700'
+            } ${isProcessing ? 'opacity-50 cursor-not-allowed' : ''}`}
+          >
+            {isProcessing 
+              ? 'Memproses...' 
+              : actionType === 'delete' 
+                ? 'Hapus Tagihan' 
+                : 'Ubah Nominal'}
+          </button>
+        </div>
+      </div>
+    </div>
+  )
+}
+
