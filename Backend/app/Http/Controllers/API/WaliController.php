@@ -536,6 +536,7 @@ class WaliController extends Controller
             'tagihan_ids.*' => 'required|integer|exists:tagihan_santri,id',
             'total_nominal' => 'required|numeric|min:1',
             'nominal_topup' => 'nullable|numeric|min:0',
+            'selected_bank_id' => 'nullable|integer|exists:bank_accounts,id',
             'bukti' => 'required|file|mimes:jpeg,jpg,png|max:5120',
             'catatan' => 'nullable|string|max:500',
         ]);
@@ -577,6 +578,7 @@ class WaliController extends Controller
             // Create bukti transfer record
             $buktiTransfer = \App\Models\BuktiTransfer::create([
                 'santri_id' => $santriId,
+                'selected_bank_id' => $request->input('selected_bank_id'),
                 'jenis_transaksi' => $jenisTransaksi,
                 'tagihan_ids' => $tagihanIds,
                 'total_nominal' => $totalNominal,
@@ -619,7 +621,7 @@ class WaliController extends Controller
     {
         try {
             $buktiList = \App\Models\BuktiTransfer::where('santri_id', $santriId)
-                ->with(['santri', 'processedBy'])
+                ->with(['santri', 'processedBy', 'selectedBank'])
                 ->orderBy('uploaded_at', 'desc')
                 ->get()
                 ->map(function ($bukti) {
@@ -632,6 +634,12 @@ class WaliController extends Controller
                     return [
                         'id' => $bukti->id,
                         'jenis_transaksi' => $bukti->jenis_transaksi ?? 'pembayaran',
+                        'selected_bank' => $bukti->selectedBank ? [
+                            'id' => $bukti->selectedBank->id,
+                            'bank_name' => $bukti->selectedBank->bank_name,
+                            'account_number' => $bukti->selectedBank->account_number,
+                            'account_name' => $bukti->selectedBank->account_name,
+                        ] : null,
                         'total_nominal' => $bukti->total_nominal,
                         'status' => $bukti->status,
                         'catatan_wali' => $bukti->catatan_wali,
@@ -669,6 +677,7 @@ class WaliController extends Controller
     {
         $request->validate([
             'nominal' => 'required|numeric|min:1',
+            'selected_bank_id' => 'nullable|integer|exists:bank_accounts,id',
             'bukti' => 'required|file|mimes:jpeg,jpg,png|max:5120',
             'catatan' => 'nullable|string|max:500',
         ]);
@@ -686,6 +695,7 @@ class WaliController extends Controller
             // Create bukti transfer record for topup
             $buktiTransfer = \App\Models\BuktiTransfer::create([
                 'santri_id' => $santriId,
+                'selected_bank_id' => $request->input('selected_bank_id'),
                 'jenis_transaksi' => 'topup',
                 'tagihan_ids' => null, // No tagihan for topup
                 'total_nominal' => $request->nominal,
@@ -701,6 +711,29 @@ class WaliController extends Controller
                 'data' => $buktiTransfer,
             ], 201);
 
+        } catch (\Exception $e) {
+            return response()->json([
+                'success' => false,
+                'error' => $e->getMessage(),
+            ], 500);
+        }
+    }
+
+    /**
+     * Get list of active bank accounts for payment (Mobile App)
+     */
+    public function getBankAccounts()
+    {
+        try {
+            $accounts = \App\Models\BankAccount::where('is_active', true)
+                ->orderBy('sort_order')
+                ->orderBy('bank_name')
+                ->get(['id', 'bank_name', 'account_number', 'account_name']);
+
+            return response()->json([
+                'success' => true,
+                'data' => $accounts,
+            ]);
         } catch (\Exception $e) {
             return response()->json([
                 'success' => false,

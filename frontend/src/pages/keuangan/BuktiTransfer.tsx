@@ -6,15 +6,19 @@ import toast from 'react-hot-toast';
 
 interface BuktiTransfer {
   id: number;
+  jenis_transaksi?: 'pembayaran' | 'topup' | 'pembayaran_topup';
   santri: {
     id: string;
     nis: string;
     nama: string;
     kelas: string | null;
   };
-  
-  
-
+  selected_bank?: {
+    id: number;
+    bank_name: string;
+    account_number: string;
+    account_name: string;
+  } | null;
   total_nominal: number;
   status: 'pending' | 'approved' | 'rejected';
   catatan_wali: string | null;
@@ -315,16 +319,39 @@ export default function BuktiTransfer() {
                 </div>
 
                 <div className="border-t pt-4 mt-4">
-                  <h4 className="font-semibold text-sm mb-3">Tagihan yang dibayar:</h4>
-                  <div className="space-y-2">
-                    {bukti.tagihan.map((t, idx) => (
-                      <div key={idx} className="flex justify-between text-sm">
-                        <span className="text-gray-700">
-                          {t.jenis} {t.bulan && `- ${t.bulan} ${t.tahun}`}
-                        </span>
-                        <span className="font-medium">{formatCurrency(t.sisa)}</span>
+                  {bukti.selected_bank && (
+                    <div className="mb-4 p-3 bg-blue-50 rounded-lg">
+                      <h4 className="font-semibold text-sm mb-2 text-blue-900">Transfer ke:</h4>
+                      <div className="text-sm text-blue-800">
+                        <div className="font-bold">{bukti.selected_bank.bank_name}</div>
+                        <div className="font-mono">{bukti.selected_bank.account_number}</div>
+                        <div className="text-xs">{bukti.selected_bank.account_name}</div>
                       </div>
-                    ))}
+                    </div>
+                  )}
+                  
+                  <h4 className="font-semibold text-sm mb-3">
+                    {bukti.jenis_transaksi === 'topup' 
+                      ? 'Top-up Dompet' 
+                      : bukti.jenis_transaksi === 'pembayaran_topup'
+                        ? 'Pembayaran Tagihan + Top-up'
+                        : 'Tagihan yang dibayar:'}
+                  </h4>
+                  <div className="space-y-2">
+                    {bukti.tagihan.length > 0 ? (
+                      bukti.tagihan.map((t, idx) => (
+                        <div key={idx} className="flex justify-between text-sm">
+                          <span className="text-gray-700">
+                            {t.jenis} {t.bulan && `- ${t.bulan} ${t.tahun}`}
+                          </span>
+                          <span className="font-medium">{formatCurrency(t.sisa)}</span>
+                        </div>
+                      ))
+                    ) : (
+                      <div className="text-sm text-gray-500 italic">
+                        {bukti.jenis_transaksi === 'topup' ? 'Top-up dompet santri' : 'Tidak ada detail tagihan'}
+                      </div>
+                    )}
                   </div>
                 </div>
 

@@ -3,7 +3,7 @@ import 'package:provider/provider.dart';
 import '../providers/auth_provider.dart';
 import '../services/api_service.dart';
 import '../models/wallet_transaction.dart';
-import 'unified_payment_screen.dart';
+import 'payment_info_screen.dart';
 
 class WalletHistoryScreen extends StatefulWidget {
   final String santriId;
@@ -98,11 +98,11 @@ class _WalletHistoryScreenState extends State<WalletHistoryScreen> {
               if (amount == null) return;
               Navigator.pop(context);
               
-              // Navigate to unified payment screen for topup
+              // Navigate to payment info screen first untuk melihat rekening bank
               final result = await Navigator.push(
                 context,
                 MaterialPageRoute(
-                  builder: (_) => UnifiedPaymentScreen(
+                  builder: (_) => PaymentInfoScreen(
                     isTopupOnly: true,
                     topupNominal: amount!,
                     santriName: widget.santriName,

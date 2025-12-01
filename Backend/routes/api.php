@@ -16,6 +16,7 @@ use App\Http\Controllers\RfidTagController;
 use App\Http\Controllers\EposController;
 use App\Http\Controllers\WalletSettingsController;
 use App\Http\Controllers\Api\WaliController;
+use App\Http\Controllers\BankAccountController;
 
 // Authentication routes (public)
 Route::post('/login', [AuthController::class, 'login']);
@@ -35,10 +36,19 @@ Route::middleware('auth:sanctum')->prefix('wali')->group(function () {
     Route::get('tunggakan/{santri_id}', [WaliController::class, 'getTunggakan']);
     Route::post('bayar/{santri_id}', [WaliController::class, 'submitPayment']);
     
+    // Bank Accounts (for payment info screen)
+    Route::get('bank-accounts', [WaliController::class, 'getBankAccounts']);
+    
     // Bukti Transfer
     Route::post('upload-bukti/{santri_id}', [WaliController::class, 'uploadBukti']);
     Route::post('upload-bukti-topup/{santri_id}', [WaliController::class, 'uploadBuktiTopup']);
     Route::get('bukti-history/{santri_id}', [WaliController::class, 'getBuktiHistory']);
+
+    // Notifications
+    Route::get('notifications/{santri_id}', [\App\Http\Controllers\Api\NotificationController::class, 'getWaliNotifications']);
+    Route::post('notifications/{id}/read', [\App\Http\Controllers\Api\NotificationController::class, 'markAsRead']);
+    Route::post('notifications/{santri_id}/read-all', [\App\Http\Controllers\Api\NotificationController::class, 'markAllAsRead']);
+    Route::get('notifications/{santri_id}/unread-count', [\App\Http\Controllers\Api\NotificationController::class, 'getUnreadCount']);
 });
 
 // Admin Bukti Transfer routes
@@ -91,6 +101,10 @@ Route::middleware('auth:sanctum')->group(function () {
         Route::get('reports/expenses-by-category', [\App\Http\Controllers\Keuangan\ReportsController::class, 'expensesByCategory']);
         // Kategori Pengeluaran (CRUD + search)
         Route::apiResource('kategori-pengeluaran', \App\Http\Controllers\KategoriPengeluaranController::class)->except(['show']);
+        
+        // Bank Accounts (CRUD for admin)
+        Route::apiResource('bank-accounts', BankAccountController::class);
+        Route::post('bank-accounts/{id}/toggle-active', [BankAccountController::class, 'toggleActive']);
     });
 
     // API v1 endpoints untuk Dompet Digital / Wallets (protected)

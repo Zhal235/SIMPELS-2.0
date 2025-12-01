@@ -1,7 +1,7 @@
 import 'package:flutter/material.dart';
 import 'package:provider/provider.dart';
 import 'screens/splash_screen.dart';
-import 'screens/unified_payment_screen.dart';
+import 'screens/payment_info_screen.dart';
 import 'screens/wallet_full_history_screen.dart';
 import 'providers/auth_provider.dart';
 import 'config/app_theme.dart';
@@ -31,30 +31,30 @@ class SimpleMobileApp extends StatelessWidget {
               final selectedTagihan = args['selectedTagihan'] as List<dynamic>?;
               final nominalTopup = args['nominalTopup'] as double?;
               
-              // If only topup, use topup mode
+              // If only topup, use PaymentInfoScreen in topup mode
               if (selectedTagihan == null || selectedTagihan.isEmpty) {
                 return MaterialPageRoute(
-                  builder: (context) => UnifiedPaymentScreen(
+                  builder: (context) => PaymentInfoScreen(
                     isTopupOnly: true,
                     topupNominal: nominalTopup ?? 0,
                   ),
                 );
               }
               
-              // If single tagihan, pass tagihan object
+              // If single tagihan, use PaymentInfoScreen to show bank info first
               if (selectedTagihan.length == 1) {
                 return MaterialPageRoute(
-                  builder: (context) => UnifiedPaymentScreen(
+                  builder: (context) => PaymentInfoScreen(
                     tagihan: selectedTagihan[0] as Map<String, dynamic>,
                     isTopupOnly: false,
                   ),
                 );
               }
               
-              // Multiple tagihan: use first one for now
+              // Multiple tagihan: use first one for now - show PaymentInfoScreen
               // TODO: Handle multiple tagihan properly
               return MaterialPageRoute(
-                builder: (context) => UnifiedPaymentScreen(
+                builder: (context) => PaymentInfoScreen(
                   tagihan: selectedTagihan[0] as Map<String, dynamic>,
                   isTopupOnly: false,
                 ),

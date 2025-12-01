@@ -14,6 +14,7 @@ class BuktiTransfer extends Model
 
     protected $fillable = [
         'santri_id',
+        'selected_bank_id',
         'jenis_transaksi',
         'tagihan_ids',
         'total_nominal',
@@ -44,6 +45,11 @@ class BuktiTransfer extends Model
     public function processedBy()
     {
         return $this->belongsTo(User::class, 'processed_by');
+    }
+
+    public function selectedBank()
+    {
+        return $this->belongsTo(BankAccount::class, 'selected_bank_id');
     }
 
     // Accessor untuk URL bukti transfer

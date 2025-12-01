@@ -4,6 +4,8 @@ import 'package:provider/provider.dart';
 import 'package:image_picker/image_picker.dart';
 import 'dart:io';
 import 'dart:typed_data';
+import 'dart:convert';
+import 'package:shared_preferences/shared_preferences.dart';
 import '../providers/auth_provider.dart';
 import '../services/api_service.dart';
 
@@ -16,6 +18,8 @@ class UnifiedPaymentScreen extends StatefulWidget {
   final bool isTopupOnly;
   final double? topupNominal;
   final String? santriName;
+  final bool shouldIncludeTopup;
+  final int? selectedBankId;
 
   const UnifiedPaymentScreen({
     super.key,
@@ -23,6 +27,8 @@ class UnifiedPaymentScreen extends StatefulWidget {
     this.isTopupOnly = false,
     this.topupNominal,
     this.santriName,
+    this.shouldIncludeTopup = false,
+    this.selectedBankId,
   });
 
   @override
@@ -33,28 +39,127 @@ class _UnifiedPaymentScreenState extends State<UnifiedPaymentScreen> {
   File? _selectedFile;
   Uint8List? _webImage;
   final ImagePicker _picker = ImagePicker();
-  final TextEditingController _paymentController = TextEditingController();
-  final TextEditingController _topupController = TextEditingController();
   final TextEditingController _catatanController = TextEditingController();
   bool _isSubmitting = false;
-  bool _includeTopup = false;
+  
+  double _paymentAmount = 0;
+  double _topupAmount = 0;
+  String? _draftKey;
 
   @override
   void initState() {
     super.initState();
-    if (widget.isTopupOnly && widget.topupNominal != null) {
-      _topupController.text = widget.topupNominal!.toStringAsFixed(0);
-    } else if (widget.tagihan != null) {
-      final sisa = double.tryParse(widget.tagihan!['sisa']?.toString() ?? '0') ?? 0;
-      _paymentController.text = sisa.toStringAsFixed(0);
+    _loadDraftOrParams();
+  }
+  
+  Future<void> _loadDraftOrParams() async {
+    final authProvider = Provider.of<AuthProvider>(context, listen: false);
+    final santriId = authProvider.activeSantri?.id;
+    
+    if (santriId != null) {
+      // Generate unique draft key
+      _draftKey = 'payment_draft_${santriId}_${widget.tagihan?['id'] ?? 'topup'}';
+      
+      // Try load draft
+      final prefs = await SharedPreferences.getInstance();
+      final draftJson = prefs.getString(_draftKey!);
+      
+      if (draftJson != null) {
+        // Ada draft tersimpan
+        final draft = json.decode(draftJson);
+        setState(() {
+          _paymentAmount = draft['paymentAmount'] ?? 0.0;
+          _topupAmount = draft['topupAmount'] ?? 0.0;
+          _catatanController.text = draft['catatan'] ?? '';
+        });
+        
+        // Show dialog to continue or reset
+        if (mounted) {
+          _showDraftDialog();
+        }
+        return;
+      }
     }
+    
+    // No draft, use parameters
+    setState(() {
+      if (widget.isTopupOnly && widget.topupNominal != null) {
+        _topupAmount = widget.topupNominal!;
+      } else if (widget.tagihan != null) {
+        _paymentAmount = double.tryParse(widget.tagihan!['sisa']?.toString() ?? '0') ?? 0;
+        if (widget.topupNominal != null && widget.topupNominal! > 0) {
+          _topupAmount = widget.topupNominal!;
+        }
+      }
+    });
+  }
+  
+  Future<void> _saveDraft() async {
+    if (_draftKey == null) return;
+    
+    final prefs = await SharedPreferences.getInstance();
+    final draft = {
+      'paymentAmount': _paymentAmount,
+      'topupAmount': _topupAmount,
+      'catatan': _catatanController.text,
+      'timestamp': DateTime.now().toIso8601String(),
+      'tagihanId': widget.tagihan?['id'],
+      'jenisTagihan': widget.tagihan?['jenis_tagihan'],
+      'bulan': widget.tagihan?['bulan'],
+      'tahun': widget.tagihan?['tahun'],
+      'selectedBankId': widget.selectedBankId,
+    };
+    
+    await prefs.setString(_draftKey!, json.encode(draft));
+  }
+  
+  Future<void> _clearDraft() async {
+    if (_draftKey == null) return;
+    final prefs = await SharedPreferences.getInstance();
+    await prefs.remove(_draftKey!);
+  }
+  
+  void _showDraftDialog() {
+    showDialog(
+      context: context,
+      barrierDismissible: false,
+      builder: (context) => AlertDialog(
+        title: const Text('Pembayaran Tersimpan'),
+        content: const Text(
+          'Anda memiliki draft pembayaran yang belum selesai. Lanjutkan pembayaran atau mulai dari awal?',
+        ),
+        actions: [
+          TextButton(
+            onPressed: () {
+              _clearDraft();
+              Navigator.pop(context);
+              // Reset to params
+              setState(() {
+                if (widget.isTopupOnly && widget.topupNominal != null) {
+                  _topupAmount = widget.topupNominal!;
+                } else if (widget.tagihan != null) {
+                  _paymentAmount = double.tryParse(widget.tagihan!['sisa']?.toString() ?? '0') ?? 0;
+                  if (widget.topupNominal != null) {
+                    _topupAmount = widget.topupNominal!;
+                  }
+                }
+              });
+            },
+            child: const Text('Mulai Baru'),
+          ),
+          ElevatedButton(
+            onPressed: () => Navigator.pop(context),
+            child: const Text('Lanjutkan'),
+          ),
+        ],
+      ),
+    );
   }
 
   @override
   void dispose() {
-    _paymentController.dispose();
-    _topupController.dispose();
     _catatanController.dispose();
+    _saveDraft(); // Auto-save saat keluar
     super.dispose();
   }
 
@@ -137,32 +242,24 @@ class _UnifiedPaymentScreenState extends State<UnifiedPaymentScreen> {
       return;
     }
 
-    // Validasi berdasarkan mode
-    double? paymentAmount;
-    double? topupAmount;
+    // Use amounts from state (already set from params or draft)
+    double? paymentAmount = _paymentAmount > 0 ? _paymentAmount : null;
+    double? topupAmount = _topupAmount > 0 ? _topupAmount : null;
     List<int>? tagihanIds;
 
     if (widget.isTopupOnly) {
       // Mode top-up saja
-      topupAmount = double.tryParse(_topupController.text.replaceAll('.', '').replaceAll(',', ''));
       if (topupAmount == null || topupAmount <= 0) {
         ScaffoldMessenger.of(context).showSnackBar(
-          const SnackBar(content: Text('Masukkan jumlah top-up yang valid')),
-        );
-        return;
-      }
-      if (topupAmount < 10000) {
-        ScaffoldMessenger.of(context).showSnackBar(
-          const SnackBar(content: Text('Minimal top-up Rp 10.000')),
+          const SnackBar(content: Text('Nominal top-up tidak valid')),
         );
         return;
       }
     } else {
       // Mode pembayaran tagihan
-      paymentAmount = double.tryParse(_paymentController.text.replaceAll('.', '').replaceAll(',', ''));
       if (paymentAmount == null || paymentAmount <= 0) {
         ScaffoldMessenger.of(context).showSnackBar(
-          const SnackBar(content: Text('Masukkan jumlah pembayaran yang valid')),
+          const SnackBar(content: Text('Nominal pembayaran tidak valid')),
         );
         return;
       }
@@ -175,21 +272,6 @@ class _UnifiedPaymentScreenState extends State<UnifiedPaymentScreen> {
         return;
       }
       tagihanIds = [tagihanId as int];
-
-      // Cek apakah ada top-up tambahan
-      if (_includeTopup) {
-        topupAmount = double.tryParse(_topupController.text.replaceAll('.', '').replaceAll(',', ''));
-        if (topupAmount != null && topupAmount > 0) {
-          if (topupAmount < 10000) {
-            ScaffoldMessenger.of(context).showSnackBar(
-              const SnackBar(content: Text('Minimal top-up Rp 10.000')),
-            );
-            return;
-          }
-        } else {
-          topupAmount = null; // Reset if invalid
-        }
-      }
     }
 
     setState(() => _isSubmitting = true);
@@ -209,9 +291,13 @@ class _UnifiedPaymentScreenState extends State<UnifiedPaymentScreen> {
         buktiBytes: _webImage,
         catatan: _buildCatatan(paymentAmount, topupAmount),
         nominalTopup: topupAmount,
+        selectedBankId: widget.selectedBankId,
       );
 
       if (response.statusCode == 200 || response.statusCode == 201) {
+        // Clear draft setelah berhasil submit
+        await _clearDraft();
+        
         if (mounted) {
           final message = widget.isTopupOnly
               ? 'Top-up berhasil dikirim! Tunggu konfirmasi admin.'
@@ -275,11 +361,14 @@ class _UnifiedPaymentScreenState extends State<UnifiedPaymentScreen> {
     final isTopup = widget.isTopupOnly;
     
     // For payment mode, get tagihan details
+    // Support both 'nominal' and 'jumlah' field names
     final jumlah = widget.tagihan != null 
-        ? (double.tryParse(widget.tagihan!['jumlah']?.toString() ?? '0') ?? 0.0)
+        ? (double.tryParse(widget.tagihan!['nominal']?.toString() ?? 
+            widget.tagihan!['jumlah']?.toString() ?? '0') ?? 0.0)
         : 0.0;
     final sudahDibayar = widget.tagihan != null
-        ? (double.tryParse(widget.tagihan!['sudah_dibayar']?.toString() ?? '0') ?? 0.0)
+        ? (double.tryParse(widget.tagihan!['dibayar']?.toString() ?? 
+            widget.tagihan!['sudah_dibayar']?.toString() ?? '0') ?? 0.0)
         : 0.0;
     final sisa = widget.tagihan != null
         ? (double.tryParse(widget.tagihan!['sisa']?.toString() ?? '0') ?? 0.0)
@@ -363,85 +452,42 @@ class _UnifiedPaymentScreenState extends State<UnifiedPaymentScreen> {
 
             const SizedBox(height: 24),
 
-            // Amount Input
-            if (isTopup)
-              Column(
-                crossAxisAlignment: CrossAxisAlignment.start,
-                children: [
-                  const Text(
-                    'Nominal Top-up',
-                    style: TextStyle(fontSize: 16, fontWeight: FontWeight.bold),
-                  ),
-                  const SizedBox(height: 8),
-                  TextField(
-                    controller: _topupController,
-                    keyboardType: TextInputType.number,
-                    decoration: InputDecoration(
-                      labelText: 'Jumlah Top-up (Rp)',
-                      hintText: 'Minimal Rp 10.000',
-                      border: OutlineInputBorder(
-                        borderRadius: BorderRadius.circular(8),
+            // Nominal Pembayaran Card
+            Card(
+              color: Colors.blue.shade50,
+              child: Padding(
+                padding: const EdgeInsets.all(16),
+                child: Column(
+                  crossAxisAlignment: CrossAxisAlignment.start,
+                  children: [
+                    Text(
+                      'Nominal Pembayaran',
+                      style: TextStyle(
+                        fontWeight: FontWeight.bold,
+                        fontSize: 16,
+                        color: Colors.blue.shade900,
                       ),
-                      prefixText: 'Rp ',
-                      filled: true,
-                      fillColor: Colors.white,
                     ),
-                  ),
-                ],
-              )
-            else
-              Column(
-                crossAxisAlignment: CrossAxisAlignment.start,
-                children: [
-                  const Text(
-                    'Nominal Pembayaran',
-                    style: TextStyle(fontSize: 16, fontWeight: FontWeight.bold),
-                  ),
-                  const SizedBox(height: 8),
-                  TextField(
-                    controller: _paymentController,
-                    keyboardType: TextInputType.number,
-                    decoration: InputDecoration(
-                      labelText: 'Jumlah Pembayaran (Rp)',
-                      border: OutlineInputBorder(
-                        borderRadius: BorderRadius.circular(8),
-                      ),
-                      prefixText: 'Rp ',
-                      filled: true,
-                      fillColor: Colors.white,
-                    ),
-                  ),
-                  const SizedBox(height: 16),
-                  
-                  // Option to add topup
-                  CheckboxListTile(
-                    value: _includeTopup,
-                    onChanged: (val) => setState(() => _includeTopup = val ?? false),
-                    title: const Text('Sekaligus top-up dompet'),
-                    subtitle: const Text('Tambahkan saldo ke dompet santri'),
-                    controlAffinity: ListTileControlAffinity.leading,
-                    contentPadding: EdgeInsets.zero,
-                  ),
-                  
-                  if (_includeTopup) ...[
+                    const SizedBox(height: 16),
+                    if (_paymentAmount > 0) ...[
+                      _buildInfoRow('Pembayaran Tagihan', 'Rp ${_formatCurrency(_paymentAmount)}'),
+                      const SizedBox(height: 8),
+                    ],
+                    if (_topupAmount > 0) ...[
+                      _buildInfoRow('Top-up Dompet', 'Rp ${_formatCurrency(_topupAmount)}'),
+                      const SizedBox(height: 8),
+                    ],
+                    const Divider(),
                     const SizedBox(height: 8),
-                    TextField(
-                      controller: _topupController,
-                      keyboardType: TextInputType.number,
-                      decoration: InputDecoration(
-                        labelText: 'Jumlah Top-up (Rp)',
-                        hintText: 'Minimal Rp 10.000',
-                        border: OutlineInputBorder(
-                          borderRadius: BorderRadius.circular(8),
-                        ),
-                        prefixText: 'Rp ',
-                        filled: true,
-                        fillColor: Colors.white,
-                      ),
+                    _buildInfoRow(
+                      'TOTAL TRANSFER',
+                      'Rp ${_formatCurrency(_paymentAmount + _topupAmount)}',
+                      isBold: true,
                     ),
                   ],
-                ],
+                ),
               ),
+            ),
 
             const SizedBox(height: 24),
 

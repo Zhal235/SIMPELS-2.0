@@ -21,7 +21,7 @@ class AdminBuktiTransferController extends Controller
     public function index(Request $request)
     {
         try {
-            $query = BuktiTransfer::with(['santri', 'processedBy']);
+            $query = BuktiTransfer::with(['santri', 'processedBy', 'selectedBank']);
 
             // Filter by status
             if ($request->has('status')) {
@@ -50,6 +50,12 @@ class AdminBuktiTransferController extends Controller
                             'nis' => $bukti->santri->nis,
                             'nama' => $bukti->santri->nama_santri ?? $bukti->santri->nama,
                             'kelas' => optional($bukti->santri->kelas)->nama_kelas ?? optional($bukti->santri->kelas)->nama ?? null,
+                        ] : null,
+                        'selected_bank' => $bukti->selectedBank ? [
+                            'id' => $bukti->selectedBank->id,
+                            'bank_name' => $bukti->selectedBank->bank_name,
+                            'account_number' => $bukti->selectedBank->account_number,
+                            'account_name' => $bukti->selectedBank->account_name,
                         ] : null,
                         'total_nominal' => $bukti->total_nominal,
                         'status' => $bukti->status,
@@ -285,6 +291,13 @@ class AdminBuktiTransferController extends Controller
 
             DB::commit();
 
+            // Send notification to wali
+            \App\Services\NotificationService::paymentApproved(
+                $bukti->santri_id,
+                $nominalPembayaran > 0 && $nominalTopup > 0 ? 'Pembayaran + Top-up' : ($nominalTopup > 0 ? 'Top-up' : 'Pembayaran'),
+                $bukti->total_nominal
+            );
+
             return response()->json([
                 'success' => true,
                 'message' => 'Bukti transfer berhasil disetujui dan pembayaran diproses',
@@ -326,6 +339,12 @@ class AdminBuktiTransferController extends Controller
                 'processed_at' => now(),
                 'processed_by' => Auth::id(),
             ]);
+
+            // Send notification to wali
+            \App\Services\NotificationService::paymentRejected(
+                $bukti->santri_id,
+                $request->catatan
+            );
 
             return response()->json([
                 'success' => true,

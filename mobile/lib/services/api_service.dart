@@ -149,6 +149,7 @@ class ApiService {
     Uint8List? buktiBytes,
     String? catatan,
     double? nominalTopup,
+    int? selectedBankId,
   }) async {
     MultipartFile multipartFile;
     
@@ -174,6 +175,11 @@ class ApiService {
       'catatan': catatan ?? '',
       'bukti': multipartFile,
     };
+    
+    // Add selected bank ID if provided
+    if (selectedBankId != null) {
+      formFields['selected_bank_id'] = selectedBankId.toString();
+    }
     
     // Add topup nominal if provided
     if (nominalTopup != null && nominalTopup > 0) {
@@ -202,6 +208,26 @@ class ApiService {
     return await _dio.get('/wali/bukti-history/$santriId');
   }
 
+  /// Get notifications for santri
+  Future<Response> getNotifications(String santriId) async {
+    return await _dio.get('/wali/notifications/$santriId');
+  }
+
+  /// Get unread notification count
+  Future<Response> getUnreadNotificationCount(String santriId) async {
+    return await _dio.get('/wali/notifications/$santriId/unread-count');
+  }
+
+  /// Mark notification as read
+  Future<Response> markNotificationAsRead(int notificationId) async {
+    return await _dio.post('/wali/notifications/$notificationId/read');
+  }
+
+  /// Mark all notifications as read
+  Future<Response> markAllNotificationsAsRead(String santriId) async {
+    return await _dio.post('/wali/notifications/$santriId/read-all');
+  }
+
   /// Topup wallet (admin or authorized user) via v1 wallets endpoint
   Future<Response> topupWallet(String santriId, double amount, {String? method, String? description}) async {
     final payload = {
@@ -227,6 +253,7 @@ class ApiService {
     File? buktiFile,
     Uint8List? buktiBytes,
     String? catatan,
+    int? selectedBankId,
   }) async {
     MultipartFile multipartFile;
     
@@ -246,11 +273,18 @@ class ApiService {
       throw Exception('No file provided');
     }
 
-    final formData = FormData.fromMap({
+    final Map<String, dynamic> formFields = {
       'nominal': nominal.toString(),
       'catatan': catatan ?? '',
       'bukti': multipartFile,
-    });
+    };
+
+    // Add selected bank ID if provided
+    if (selectedBankId != null) {
+      formFields['selected_bank_id'] = selectedBankId.toString();
+    }
+
+    final formData = FormData.fromMap(formFields);
 
     debugPrint('[API] Uploading bukti topup to: /wali/upload-bukti-topup/$santriId');
     debugPrint('[API] Nominal: $nominal');
@@ -259,5 +293,10 @@ class ApiService {
       '/wali/upload-bukti-topup/$santriId',
       data: formData,
     );
+  }
+
+  /// Get list of active bank accounts for payment
+  Future<Response> getBankAccounts() async {
+    return await _dio.get('/wali/bank-accounts');
   }
 }

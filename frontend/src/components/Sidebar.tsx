@@ -298,6 +298,20 @@ export default function Sidebar() {
                     </NavLink>)}
                   </li>
                   
+                  {/* Rekening Bank */}
+                  <li>
+                    {hasAccess('keuangan.rekening-bank') && (
+                    <NavLink
+                      to="/keuangan/rekening-bank"
+                      className={({ isActive }) =>
+                        `flex items-center gap-3 rounded-md px-3 py-2 text-sm ${isActive ? 'bg-white text-brand shadow-sm' : 'text-gray-700 hover:bg-white'}`
+                      }
+                    >
+                      <CreditCard className="w-5 h-5" />
+                      {sidebarOpen && <span>Rekening Bank</span>}
+                    </NavLink>)}
+                  </li>
+                  
                   {/* Tunggakan Santri dengan submenu */}
                   <li>
                     <button
