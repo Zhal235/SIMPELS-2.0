@@ -40,6 +40,37 @@ class AdminBuktiTransferController extends Controller
                         $tagihans = TagihanSantri::whereIn('id', $bukti->tagihan_ids)
                             ->with('jenisTagihan')
                             ->get();
+                        
+                        // For approved/rejected bukti, get actual payment amounts from pembayaran table
+                        if (in_array($bukti->status, ['approved', 'rejected'])) {
+                            $pembayaranData = Pembayaran::where('bukti_pembayaran', $bukti->bukti_path)
+                                ->whereIn('tagihan_santri_id', $bukti->tagihan_ids)
+                                ->get()
+                                ->keyBy('tagihan_santri_id');
+                            
+                            // Map payment amounts to tagihan
+                            $tagihans = $tagihans->map(function ($t) use ($pembayaranData) {
+                                $pembayaran = $pembayaranData->get($t->id);
+                                // Add nominal_bayar field for actual payment amount
+                                $t->nominal_bayar = $pembayaran ? $pembayaran->nominal_bayar : 0;
+                                return $t;
+                            });
+                        }
+                    }
+                    
+                    // Calculate topup amount
+                    $nominalTopup = 0;
+                    if ($bukti->jenis_transaksi === 'topup') {
+                        $nominalTopup = $bukti->total_nominal;
+                    } else if ($bukti->jenis_transaksi === 'pembayaran_topup') {
+                        // Extract from catatan_admin or calculate from total - tagihan
+                        if ($bukti->catatan_admin && preg_match('/Top-up dompet[:\s]+Rp\s*([\d.,]+)/', $bukti->catatan_admin, $matches)) {
+                            $nominalTopup = (float) str_replace(['.', ','], ['', '.'], $matches[1]);
+                        } else {
+                            // Fallback: calculate from total - sum of payments
+                            $totalPembayaran = $tagihans->sum('nominal_bayar');
+                            $nominalTopup = $bukti->total_nominal - $totalPembayaran;
+                        }
                     }
                     
                     return [
@@ -58,6 +89,7 @@ class AdminBuktiTransferController extends Controller
                             'account_name' => $bukti->selectedBank->account_name,
                         ] : null,
                         'total_nominal' => $bukti->total_nominal,
+                        'nominal_topup' => $nominalTopup,
                         'status' => $bukti->status,
                         'catatan_wali' => $bukti->catatan_wali,
                         'catatan_admin' => $bukti->catatan_admin,
@@ -65,7 +97,7 @@ class AdminBuktiTransferController extends Controller
                         'uploaded_at' => $bukti->uploaded_at->format('Y-m-d H:i:s'),
                         'processed_at' => $bukti->processed_at ? $bukti->processed_at->format('Y-m-d H:i:s') : null,
                         'processed_by' => $bukti->processedBy ? $bukti->processedBy->name : null,
-                        'tagihan' => $tagihans->map(function ($t) {
+                        'tagihan' => $tagihans->map(function ($t) use ($bukti) {
                             return [
                                 'id' => $t->id,
                                 'jenis' => $t->jenisTagihan->nama_tagihan ?? 'Biaya',
@@ -75,6 +107,8 @@ class AdminBuktiTransferController extends Controller
                                 'dibayar' => $t->dibayar,
                                 'sisa' => $t->sisa,
                                 'status' => $t->status,
+                                // Add actual payment amount for this transaction
+                                'nominal_bayar' => $bukti->status === 'pending' ? $t->sisa : ($t->nominal_bayar ?? 0),
                             ];
                         }),
                     ];

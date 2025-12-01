@@ -789,6 +789,9 @@ class _PembayaranTabState extends State<PembayaranTab>
             });
           }
           debugPrint('[_loadTagihan] Data loaded successfully');
+          
+          // Clean up drafts for approved/rejected payments
+          _cleanupApprovedDrafts(santriId);
         } else {
           throw Exception('Invalid response format');
         }
@@ -803,6 +806,81 @@ class _PembayaranTabState extends State<PembayaranTab>
           SnackBar(content: Text('Error: $e')),
         );
       }
+    }
+  }
+
+  Future<void> _cleanupApprovedDrafts(String santriId) async {
+    try {
+      final prefs = await SharedPreferences.getInstance();
+      final apiService = ApiService();
+      
+      // Get bukti history to check approved payments
+      final response = await apiService.getBuktiHistory(santriId);
+      
+      if (response.statusCode == 200) {
+        final responseData = response.data;
+        if (responseData['success'] == true) {
+          final buktiList = responseData['data'] as List;
+          
+          // Get all approved/rejected bukti
+          final processedBukti = buktiList.where((b) => 
+            b['status'] == 'approved' || b['status'] == 'rejected'
+          ).toList();
+          
+          for (final bukti in processedBukti) {
+            final tagihanIds = (bukti['tagihan'] as List?)
+                ?.map((t) => t['id'] as int?)
+                .where((id) => id != null)
+                .toSet();
+            
+            if (tagihanIds == null || tagihanIds.isEmpty) continue;
+            
+            // Find and remove matching drafts
+            final draftKeys = prefs.getKeys().where((key) => 
+              key.startsWith('payment_draft_') && key.contains('_$santriId')
+            ).toList();
+            
+            for (final key in draftKeys) {
+              if (key.contains('payment_draft_multiple_')) {
+                // Check multiple payment draft
+                final draftJson = prefs.getString(key);
+                if (draftJson != null) {
+                  try {
+                    final draft = json.decode(draftJson);
+                    if (draft['tagihan'] is List) {
+                      final draftTagihanIds = (draft['tagihan'] as List)
+                          .map((t) => t is Map ? t['id'] as int? : null)
+                          .where((id) => id != null)
+                          .toSet();
+                      
+                      // If draft matches approved payment, remove it
+                      if (draftTagihanIds.length == tagihanIds.length && 
+                          draftTagihanIds.containsAll(tagihanIds)) {
+                        await prefs.remove(key);
+                        debugPrint('[Cleanup] Removed approved draft: $key');
+                      }
+                    }
+                  } catch (e) {
+                    debugPrint('[Cleanup] Error parsing draft: $e');
+                  }
+                }
+              } else {
+                // Check single payment draft
+                final match = RegExp(r'payment_draft_\d+_(\d+)').firstMatch(key);
+                if (match != null) {
+                  final tagihanId = int.tryParse(match.group(1)!);
+                  if (tagihanId != null && tagihanIds.contains(tagihanId)) {
+                    await prefs.remove(key);
+                    debugPrint('[Cleanup] Removed approved single draft: $key');
+                  }
+                }
+              }
+            }
+          }
+        }
+      }
+    } catch (e) {
+      debugPrint('[Cleanup] Error cleaning up drafts: $e');
     }
   }
 
