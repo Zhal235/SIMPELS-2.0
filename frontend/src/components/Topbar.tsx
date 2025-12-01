@@ -1,5 +1,6 @@
 import { Link, useLocation } from 'react-router-dom'
 import { useUIStore } from '../stores/useUIStore'
+import AnnouncementBadge from './AnnouncementBadge'
 
 export default function Topbar() {
   const location = useLocation()
@@ -52,6 +53,7 @@ export default function Topbar() {
         </nav>
       </div>
       <div className="flex items-center gap-3">
+        <AnnouncementBadge />
         <div className="text-right">
           <div className="text-sm font-medium">Admin</div>
           <div className="text-xs text-gray-500">admin@example.com</div>

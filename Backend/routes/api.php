@@ -49,6 +49,12 @@ Route::middleware('auth:sanctum')->prefix('wali')->group(function () {
     Route::post('notifications/{id}/read', [\App\Http\Controllers\Api\NotificationController::class, 'markAsRead']);
     Route::post('notifications/{santri_id}/read-all', [\App\Http\Controllers\Api\NotificationController::class, 'markAllAsRead']);
     Route::get('notifications/{santri_id}/unread-count', [\App\Http\Controllers\Api\NotificationController::class, 'getUnreadCount']);
+
+    // Announcements (Pengumuman)
+    Route::get('announcements', [\App\Http\Controllers\Api\AnnouncementController::class, 'index']);
+    Route::get('announcements/unread-count', [\App\Http\Controllers\Api\AnnouncementController::class, 'unreadCount']);
+    Route::get('announcements/{id}', [\App\Http\Controllers\Api\AnnouncementController::class, 'show']);
+    Route::post('announcements/{id}/mark-read', [\App\Http\Controllers\Api\AnnouncementController::class, 'markAsRead']);
 });
 
 // Admin Bukti Transfer routes
@@ -72,6 +78,13 @@ Route::middleware('auth:sanctum')->group(function () {
     Route::post('/v1/roles', [\App\Http\Controllers\RoleController::class, 'store']);
     Route::put('/v1/roles/{id}', [\App\Http\Controllers\RoleController::class, 'update']);
     Route::delete('/v1/roles/{id}', [\App\Http\Controllers\RoleController::class, 'destroy']);
+
+    // Announcements Admin Routes (create, update, delete)
+    Route::post('/v1/announcements', [\App\Http\Controllers\Api\AnnouncementController::class, 'store']);
+    Route::put('/v1/announcements/{id}', [\App\Http\Controllers\Api\AnnouncementController::class, 'update']);
+    Route::delete('/v1/announcements/{id}', [\App\Http\Controllers\Api\AnnouncementController::class, 'destroy']);
+    Route::get('/v1/announcements/options/kelas', [\App\Http\Controllers\Api\AnnouncementController::class, 'getKelasOptions']);
+    Route::get('/v1/announcements/options/santri', [\App\Http\Controllers\Api\AnnouncementController::class, 'getSantriOptions']);
 
     // API v1 endpoints untuk modul Kesantrian (Santri)
     Route::prefix('v1/kesantrian')->group(function () {

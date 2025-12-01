@@ -13,6 +13,7 @@ const Dashboard = lazy(() => import('./pages/Dashboard'))
 const SantriLegacy = lazy(() => import('./pages/Santri'))
 const Pengguna = lazy(() => import('./pages/Pengguna'))
 const Pengaturan = lazy(() => import('./pages/Pengaturan'))
+const Pengumuman = lazy(() => import('./pages/Pengumuman'))
 const Login = lazy(() => import('./pages/Login'))
 // Kesantrian subpages
 const KesantrianSantri = lazy(() => import('./pages/kesantrian/Santri'))
@@ -361,6 +362,13 @@ export default function App() {
               <ProtectedRoute>
                 <AppLayout>
                   <Pengguna />
+                </AppLayout>
+              </ProtectedRoute>
+            } />
+            <Route path="/pengumuman" element={
+              <ProtectedRoute>
+                <AppLayout>
+                  <Pengumuman />
                 </AppLayout>
               </ProtectedRoute>
             } />

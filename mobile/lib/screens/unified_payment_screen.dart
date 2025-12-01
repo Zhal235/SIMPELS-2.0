@@ -8,6 +8,7 @@ import 'dart:convert';
 import 'package:shared_preferences/shared_preferences.dart';
 import '../providers/auth_provider.dart';
 import '../services/api_service.dart';
+import '../widgets/announcement_badge.dart';
 
 /// Unified screen untuk:
 /// 1. Pembayaran tagihan saja
@@ -412,6 +413,9 @@ class _UnifiedPaymentScreenState extends State<UnifiedPaymentScreen> {
         elevation: 0,
         backgroundColor: Theme.of(context).colorScheme.primary,
         foregroundColor: Colors.white,
+        actions: const [
+          AnnouncementBadge(),
+        ],
       ),
       body: SingleChildScrollView(
         padding: const EdgeInsets.all(16),

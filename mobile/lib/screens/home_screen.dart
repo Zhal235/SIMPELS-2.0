@@ -9,6 +9,7 @@ import 'login_screen.dart';
 import 'wallet_history_screen.dart';
 import 'notification_screen.dart';
 import 'unified_payment_screen.dart';
+import '../widgets/announcement_badge.dart';
 
 class HomeScreen extends StatefulWidget {
   final int initialIndex;
@@ -211,6 +212,8 @@ class DashboardTab extends StatelessWidget {
         backgroundColor: Theme.of(context).colorScheme.primary,
         foregroundColor: Colors.white,
         actions: [
+          // Announcement Badge
+          const AnnouncementBadge(),
           // Notification Bell dengan Badge
           _NotificationBellWidget(santriId: santri?.id ?? ''),
           IconButton(
