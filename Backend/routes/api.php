@@ -220,3 +220,14 @@ Route::prefix('v1/kesantrian')->group(function () {
     Route::get('mutasi-keluar', [\App\Http\Controllers\Kesantrian\MutasiKeluarController::class, 'index']);
     Route::post('mutasi-keluar', [\App\Http\Controllers\Kesantrian\MutasiKeluarController::class, 'store']);
 });
+// Public storage file serving with CORS (no auth required)
+Route::get('/storage/{path}', function ($path) {
+    $filePath = storage_path('app/public/' . $path);
+    if (!file_exists($filePath)) abort(404);
+    return response()->file($filePath, [
+        'Content-Type' => mime_content_type($filePath),
+        'Access-Control-Allow-Origin' => '*',
+        'Access-Control-Allow-Methods' => 'GET',
+        'Access-Control-Allow-Headers' => '*',
+    ]);
+})->where('path', '.*');

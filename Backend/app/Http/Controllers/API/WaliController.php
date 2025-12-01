@@ -640,19 +640,23 @@ class WaliController extends Controller
                             'account_number' => $bukti->selectedBank->account_number,
                             'account_name' => $bukti->selectedBank->account_name,
                         ] : null,
-                        'total_nominal' => $bukti->total_nominal,
+                        'total_nominal' => (float) $bukti->total_nominal,
                         'status' => $bukti->status,
                         'catatan_wali' => $bukti->catatan_wali,
                         'catatan_admin' => $bukti->catatan_admin,
                         'bukti_url' => $bukti->bukti_url,
                         'uploaded_at' => $bukti->uploaded_at->format('Y-m-d H:i:s'),
                         'processed_at' => $bukti->processed_at ? $bukti->processed_at->format('Y-m-d H:i:s') : null,
+                        'processed_by' => $bukti->processedBy ? $bukti->processedBy->name : null,
                         'tagihan' => $tagihans->map(function ($t) {
                             return [
+                                'id' => $t->id,
                                 'jenis' => $t->jenisTagihan->nama_tagihan ?? 'Biaya',
                                 'bulan' => $t->bulan,
-                                'tahun' => $t->tahun,
-                                'nominal' => $t->nominal,
+                                'tahun' => (int) $t->tahun,
+                                'nominal' => (float) $t->nominal,
+                                'dibayar' => (float) $t->dibayar,
+                                'sisa' => (float) $t->sisa,
                             ];
                         }),
                     ];

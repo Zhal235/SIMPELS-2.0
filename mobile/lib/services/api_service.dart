@@ -28,7 +28,16 @@ class ApiService {
   static String getFullImageUrl(String? relativePath) {
     if (relativePath == null || relativePath.isEmpty) return '';
     
-    // If already full URL, return as is
+    // If already full URL with localhost, convert to platform-specific URL
+    if (relativePath.startsWith('http://localhost:') || relativePath.startsWith('http://127.0.0.1:')) {
+      final baseUrl = getBaseUrl();
+      // Extract path after domain:port
+      final uri = Uri.parse(relativePath);
+      final path = uri.path.startsWith('/') ? uri.path.substring(1) : uri.path;
+      return '$baseUrl/$path';
+    }
+    
+    // If already full URL with correct domain, return as is
     if (relativePath.startsWith('http://') || relativePath.startsWith('https://')) {
       return relativePath;
     }

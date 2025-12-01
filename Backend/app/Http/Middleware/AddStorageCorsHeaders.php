@@ -25,12 +25,11 @@ class AddStorageCorsHeaders
 
         $response = $next($request);
 
-        // Add CORS headers to all responses from storage paths
-        if ($request->is('storage/*')) {
-            $response->headers->set('Access-Control-Allow-Origin', '*');
-            $response->headers->set('Access-Control-Allow-Methods', 'GET, OPTIONS');
-            $response->headers->set('Access-Control-Allow-Headers', '*');
-        }
+        // Add CORS headers to ALL responses (not just storage)
+        // This ensures static files also get CORS headers
+        $response->headers->set('Access-Control-Allow-Origin', '*');
+        $response->headers->set('Access-Control-Allow-Methods', 'GET, POST, PUT, DELETE, OPTIONS');
+        $response->headers->set('Access-Control-Allow-Headers', '*');
 
         return $response;
     }

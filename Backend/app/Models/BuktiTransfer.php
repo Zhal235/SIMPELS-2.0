@@ -56,7 +56,8 @@ class BuktiTransfer extends Model
     public function getBuktiUrlAttribute()
     {
         if ($this->bukti_path) {
-            return Storage::url($this->bukti_path);
+            // Use API route for CORS support (no CSRF issues)
+            return '/api/storage/' . $this->bukti_path;
         }
         return null;
     }

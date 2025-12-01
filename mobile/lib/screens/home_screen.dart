@@ -9,6 +9,7 @@ import 'login_screen.dart';
 import 'wallet_history_screen.dart';
 import 'notification_screen.dart';
 import 'unified_payment_screen.dart';
+import 'bukti_history_screen.dart';
 import '../widgets/announcement_badge.dart';
 
 class HomeScreen extends StatefulWidget {
@@ -479,6 +480,26 @@ class DashboardTab extends StatelessWidget {
                 child: Row(
                   mainAxisAlignment: MainAxisAlignment.spaceAround,
                   children: [
+                    _buildQuickMenu(
+                      context,
+                      icon: Icons.receipt_long,
+                      title: 'Bukti TF',
+                      color: Colors.orange,
+                      onTap: () {
+                        final santri = Provider.of<AuthProvider>(context, listen: false).activeSantri;
+                        if (santri != null) {
+                          Navigator.push(
+                            context,
+                            MaterialPageRoute(
+                              builder: (_) => BuktiHistoryScreen(
+                                santriId: santri.id,
+                                santriName: santri.nama,
+                              ),
+                            ),
+                          );
+                        }
+                      },
+                    ),
                     _buildQuickMenu(
                       context,
                       icon: Icons.history,
@@ -1199,7 +1220,7 @@ class _PembayaranTabState extends State<PembayaranTab>
   }
 }
 
-// Riwayat Tab - Gabungan Wallet Transactions dan Bukti Transfer History
+// Riwayat Tab - Unified History with 3 tabs: Dompet, Pembayaran, Bukti Transfer
 class RiwayatTab extends StatefulWidget {
   const RiwayatTab({super.key});
 
@@ -1207,15 +1228,25 @@ class RiwayatTab extends StatefulWidget {
   State<RiwayatTab> createState() => _RiwayatTabState();
 }
 
-class _RiwayatTabState extends State<RiwayatTab> {
-  List<dynamic> _riwayatList = [];
+class _RiwayatTabState extends State<RiwayatTab> with SingleTickerProviderStateMixin {
+  late TabController _tabController;
+  List<dynamic> _walletTransactions = [];
+  List<dynamic> _pembayaranList = [];
+  List<dynamic> _buktiTransferList = [];
   bool _isLoading = true;
   String? _errorMessage;
 
   @override
   void initState() {
     super.initState();
+    _tabController = TabController(length: 3, vsync: this);
     _loadRiwayat();
+  }
+
+  @override
+  void dispose() {
+    _tabController.dispose();
+    super.dispose();
   }
 
   Future<void> _loadRiwayat() async {
@@ -1246,12 +1277,13 @@ class _RiwayatTabState extends State<RiwayatTab> {
       final buktiResponse = await apiService.getBuktiHistory(santri.id);
       final buktiData = buktiResponse.data['data'] ?? [];
 
-      // Combine and sort by date
-      final combined = <Map<String, dynamic>>[];
+      // Separate data into 3 categories
+      final walletList = <Map<String, dynamic>>[];
+      final buktiList = <Map<String, dynamic>>[];
       
-      // Add wallet transactions
+      // Process wallet transactions
       for (var item in walletData) {
-        combined.add({
+        walletList.add({
           'type': 'wallet',
           'date': item['created_at'] ?? '',
           'description': item['description'] ?? '',
@@ -1261,10 +1293,10 @@ class _RiwayatTabState extends State<RiwayatTab> {
         });
       }
       
-      // Add bukti transfer
+      // Process bukti transfer
       for (var item in buktiData) {
         final status = item['status'] ?? 'pending';
-        combined.add({
+        buktiList.add({
           'type': 'bukti_transfer',
           'date': item['uploaded_at'] ?? item['created_at'] ?? '',
           'jenis_transaksi': item['jenis_transaksi'] ?? 'pembayaran',
@@ -1278,8 +1310,14 @@ class _RiwayatTabState extends State<RiwayatTab> {
         });
       }
 
-      // Sort by date descending
-      combined.sort((a, b) {
+      // Sort each category by date descending
+      walletList.sort((a, b) {
+        final dateA = DateTime.tryParse(a['date'] ?? '') ?? DateTime(2000);
+        final dateB = DateTime.tryParse(b['date'] ?? '') ?? DateTime(2000);
+        return dateB.compareTo(dateA);
+      });
+      
+      buktiList.sort((a, b) {
         final dateA = DateTime.tryParse(a['date'] ?? '') ?? DateTime(2000);
         final dateB = DateTime.tryParse(b['date'] ?? '') ?? DateTime(2000);
         return dateB.compareTo(dateA);
@@ -1287,7 +1325,10 @@ class _RiwayatTabState extends State<RiwayatTab> {
 
       if (mounted) {
         setState(() {
-          _riwayatList = combined;
+          _walletTransactions = walletList;
+          _buktiTransferList = buktiList;
+          // Pembayaran will be fetched separately or extracted from bukti
+          _pembayaranList = buktiList.where((b) => b['status'] == 'approved').toList();
           _isLoading = false;
         });
       }
@@ -1310,8 +1351,21 @@ class _RiwayatTabState extends State<RiwayatTab> {
           IconButton(
             icon: const Icon(Icons.refresh),
             onPressed: _loadRiwayat,
+            tooltip: 'Refresh',
           ),
         ],
+        bottom: TabBar(
+          controller: _tabController,
+          labelColor: Colors.white,
+          unselectedLabelColor: Colors.white70,
+          indicatorColor: Colors.white,
+          indicatorWeight: 3,
+          tabs: const [
+            Tab(icon: Icon(Icons.account_balance_wallet), text: 'Dompet'),
+            Tab(icon: Icon(Icons.payment), text: 'Pembayaran'),
+            Tab(icon: Icon(Icons.receipt_long), text: 'Bukti Transfer'),
+          ],
+        ),
       ),
       body: _isLoading
           ? const Center(child: CircularProgressIndicator())
@@ -1329,30 +1383,69 @@ class _RiwayatTabState extends State<RiwayatTab> {
                     ],
                   ),
                 )
-              : _riwayatList.isEmpty
-                  ? const Center(child: Text('Belum ada riwayat'))
-                  : RefreshIndicator(
-                      onRefresh: _loadRiwayat,
-                      child: ListView.builder(
-                        padding: const EdgeInsets.all(16),
-                        itemCount: _riwayatList.length,
-                        itemBuilder: (context, index) {
-                          final item = _riwayatList[index];
-                          return _buildRiwayatCard(item);
-                        },
-                      ),
-                    ),
+              : TabBarView(
+                  controller: _tabController,
+                  children: [
+                    // Tab 1: Wallet Transactions
+                    _buildWalletTab(),
+                    // Tab 2: Pembayaran (Approved Bukti)
+                    _buildPembayaranTab(),
+                    // Tab 3: Bukti Transfer
+                    _buildBuktiTransferTab(),
+                  ],
+                ),
     );
   }
 
-  Widget _buildRiwayatCard(Map<String, dynamic> item) {
-    final type = item['type'];
-    
-    if (type == 'wallet') {
-      return _buildWalletCard(item);
-    } else {
-      return _buildBuktiTransferCard(item);
+  Widget _buildWalletTab() {
+    if (_walletTransactions.isEmpty) {
+      return const Center(child: Text('Belum ada transaksi dompet'));
     }
+    return RefreshIndicator(
+      onRefresh: _loadRiwayat,
+      child: ListView.builder(
+        padding: const EdgeInsets.all(16),
+        itemCount: _walletTransactions.length,
+        itemBuilder: (context, index) {
+          final item = _walletTransactions[index];
+          return _buildWalletCard(item);
+        },
+      ),
+    );
+  }
+
+  Widget _buildPembayaranTab() {
+    if (_pembayaranList.isEmpty) {
+      return const Center(child: Text('Belum ada pembayaran yang disetujui'));
+    }
+    return RefreshIndicator(
+      onRefresh: _loadRiwayat,
+      child: ListView.builder(
+        padding: const EdgeInsets.all(16),
+        itemCount: _pembayaranList.length,
+        itemBuilder: (context, index) {
+          final item = _pembayaranList[index];
+          return _buildBuktiTransferCard(item);
+        },
+      ),
+    );
+  }
+
+  Widget _buildBuktiTransferTab() {
+    if (_buktiTransferList.isEmpty) {
+      return const Center(child: Text('Belum ada bukti transfer'));
+    }
+    return RefreshIndicator(
+      onRefresh: _loadRiwayat,
+      child: ListView.builder(
+        padding: const EdgeInsets.all(16),
+        itemCount: _buktiTransferList.length,
+        itemBuilder: (context, index) {
+          final item = _buktiTransferList[index];
+          return _buildBuktiTransferCard(item);
+        },
+      ),
+    );
   }
 
   Widget _buildWalletCard(Map<String, dynamic> item) {

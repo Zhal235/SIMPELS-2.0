@@ -9,6 +9,7 @@ import 'package:shared_preferences/shared_preferences.dart';
 import '../providers/auth_provider.dart';
 import '../services/api_service.dart';
 import '../widgets/announcement_badge.dart';
+import 'bukti_history_screen.dart';
 
 /// Unified screen untuk:
 /// 1. Pembayaran tagihan saja
@@ -337,13 +338,65 @@ class _UnifiedPaymentScreenState extends State<UnifiedPaymentScreen> {
                   ? 'Pembayaran dan top-up berhasil dikirim! Tunggu konfirmasi admin.'
                   : 'Pembayaran berhasil dikirim! Tunggu konfirmasi admin.';
           
-          ScaffoldMessenger.of(context).showSnackBar(
-            SnackBar(
-              content: Text(message),
-              backgroundColor: Colors.green,
+          // Show success dialog with option to view status
+          await showDialog(
+            context: context,
+            barrierDismissible: false,
+            builder: (context) => AlertDialog(
+              icon: const Icon(Icons.check_circle, color: Colors.green, size: 60),
+              title: const Text('Upload Berhasil!'),
+              content: Column(
+                mainAxisSize: MainAxisSize.min,
+                children: [
+                  Text(
+                    message,
+                    textAlign: TextAlign.center,
+                    style: const TextStyle(fontSize: 14),
+                  ),
+                  const SizedBox(height: 16),
+                  const Text(
+                    'Kami akan memverifikasi bukti transfer Anda. Anda akan menerima notifikasi setelah diproses.',
+                    textAlign: TextAlign.center,
+                    style: TextStyle(fontSize: 12, color: Colors.grey),
+                  ),
+                ],
+              ),
+              actions: [
+                TextButton(
+                  onPressed: () {
+                    Navigator.pop(context); // Close dialog
+                    Navigator.pop(context, true); // Back to previous screen
+                  },
+                  child: const Text('Tutup'),
+                ),
+                ElevatedButton.icon(
+                  onPressed: () {
+                    Navigator.pop(context); // Close dialog
+                    final santri = Provider.of<AuthProvider>(context, listen: false).activeSantri;
+                    if (santri != null) {
+                      Navigator.pushReplacement(
+                        context,
+                        MaterialPageRoute(
+                          builder: (_) => BuktiHistoryScreen(
+                            santriId: santri.id,
+                            santriName: santri.nama,
+                          ),
+                        ),
+                      );
+                    } else {
+                      Navigator.pop(context, true);
+                    }
+                  },
+                  icon: const Icon(Icons.receipt_long, size: 18),
+                  label: const Text('Lihat Status'),
+                  style: ElevatedButton.styleFrom(
+                    backgroundColor: Colors.green,
+                    foregroundColor: Colors.white,
+                  ),
+                ),
+              ],
             ),
           );
-          Navigator.pop(context, true);
         }
       } else {
         throw Exception(response.data['error'] ?? 'Gagal submit bukti transfer');

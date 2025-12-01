@@ -32,6 +32,12 @@ return Application::configure(basePath: dirname(__DIR__))
             \App\Http\Middleware\SecurityHeaders::class,
             \App\Http\Middleware\AddStorageCorsHeaders::class,
         ]);
+        
+        // Exclude storage routes from CSRF verification
+        $middleware->validateCsrfTokens(except: [
+            '/storage/*',
+            '/public-storage/*',
+        ]);
     })
     ->withExceptions(function (Exceptions $exceptions) {
         //

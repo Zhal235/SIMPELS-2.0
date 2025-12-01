@@ -4,6 +4,7 @@ import '../providers/auth_provider.dart';
 import '../services/api_service.dart';
 import '../models/wallet_transaction.dart';
 import 'payment_info_screen.dart';
+import 'bukti_history_screen.dart';
 
 class WalletHistoryScreen extends StatefulWidget {
   final String santriId;
@@ -194,6 +195,23 @@ class _WalletHistoryScreenState extends State<WalletHistoryScreen> {
         title: Text('Riwayat Dompet — ${widget.santriName}'),
         backgroundColor: Theme.of(context).colorScheme.primary,
         foregroundColor: Colors.white,
+        actions: [
+          IconButton(
+            icon: const Icon(Icons.receipt_long),
+            tooltip: 'Riwayat Bukti Transfer',
+            onPressed: () {
+              Navigator.push(
+                context,
+                MaterialPageRoute(
+                  builder: (_) => BuktiHistoryScreen(
+                    santriId: widget.santriId,
+                    santriName: widget.santriName,
+                  ),
+                ),
+              );
+            },
+          ),
+        ],
       ),
       body: RefreshIndicator(
         onRefresh: _loadWallet,
