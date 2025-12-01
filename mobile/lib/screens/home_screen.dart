@@ -108,6 +108,96 @@ class DashboardTab extends StatelessWidget {
 
   const DashboardTab({super.key, this.onNavigateToTab});
 
+  void _showSantriSelector(BuildContext context, AuthProvider authProvider) {
+    showModalBottomSheet(
+      context: context,
+      backgroundColor: Colors.transparent,
+      builder: (context) => Container(
+        decoration: const BoxDecoration(
+          color: Colors.white,
+          borderRadius: BorderRadius.vertical(top: Radius.circular(20)),
+        ),
+        child: Column(
+          mainAxisSize: MainAxisSize.min,
+          children: [
+            Container(
+              margin: const EdgeInsets.only(top: 12),
+              width: 40,
+              height: 4,
+              decoration: BoxDecoration(
+                color: Colors.grey[300],
+                borderRadius: BorderRadius.circular(2),
+              ),
+            ),
+            Padding(
+              padding: const EdgeInsets.all(16),
+              child: Text(
+                'Pilih Santri',
+                style: TextStyle(
+                  fontSize: 18,
+                  fontWeight: FontWeight.bold,
+                  color: Colors.grey[800],
+                ),
+              ),
+            ),
+            const Divider(height: 1),
+            ListView.builder(
+              shrinkWrap: true,
+              itemCount: authProvider.santriList.length,
+              itemBuilder: (context, index) {
+                final santri = authProvider.santriList[index];
+                final isActive = santri.id == authProvider.activeSantri?.id;
+                
+                return ListTile(
+                  leading: CircleAvatar(
+                    backgroundColor: Theme.of(context).colorScheme.primary.withAlpha(51),
+                    backgroundImage: santri.fotoUrl != null && santri.fotoUrl!.isNotEmpty
+                        ? NetworkImage(santri.fotoUrl!)
+                        : null,
+                    child: santri.fotoUrl == null || santri.fotoUrl!.isEmpty
+                        ? Icon(
+                            santri.jenisKelamin == 'L' ? Icons.boy : Icons.girl,
+                            color: Theme.of(context).colorScheme.primary,
+                          )
+                        : null,
+                  ),
+                  title: Text(
+                    santri.nama,
+                    style: TextStyle(
+                      fontWeight: isActive ? FontWeight.bold : FontWeight.normal,
+                    ),
+                  ),
+                  subtitle: Text('NIS: ${santri.nis} • ${santri.kelas ?? 'Belum ada kelas'}'),
+                  trailing: isActive
+                      ? Icon(Icons.check_circle, color: Theme.of(context).colorScheme.primary)
+                      : const Icon(Icons.chevron_right),
+                  onTap: isActive
+                      ? null
+                      : () async {
+                          Navigator.pop(context);
+                          
+                          // Switch santri (instant, no loading needed)
+                          await authProvider.switchSantri(santri.id);
+                          
+                          if (context.mounted) {
+                            ScaffoldMessenger.of(context).showSnackBar(
+                              SnackBar(
+                                content: Text('Beralih ke akun ${santri.nama}'),
+                                duration: const Duration(seconds: 1),
+                              ),
+                            );
+                          }
+                        },
+                );
+              },
+            ),
+            const SizedBox(height: 16),
+          ],
+        ),
+      ),
+    );
+  }
+
   @override
   Widget build(BuildContext context) {
     final authProvider = Provider.of<AuthProvider>(context);
@@ -201,16 +291,42 @@ class DashboardTab extends StatelessWidget {
                       },
                     ),
                     const SizedBox(height: 16),
-                    // Nama Santri
-                    Text(
-                      santri?.nama ?? 'Nama Santri',
-                      style: const TextStyle(
-                        fontSize: 24,
-                        fontWeight: FontWeight.bold,
-                        color: Colors.white,
-                      ),
-                      textAlign: TextAlign.center,
-                    ),
+                    // Nama Santri with Dropdown (if multiple santri)
+                    authProvider.santriList.length > 1
+                        ? InkWell(
+                            onTap: () => _showSantriSelector(context, authProvider),
+                            child: Container(
+                              padding: const EdgeInsets.symmetric(horizontal: 16, vertical: 8),
+                              decoration: BoxDecoration(
+                                color: Colors.white.withAlpha(26),
+                                borderRadius: BorderRadius.circular(20),
+                              ),
+                              child: Row(
+                                mainAxisSize: MainAxisSize.min,
+                                children: [
+                                  Text(
+                                    santri?.nama ?? 'Nama Santri',
+                                    style: const TextStyle(
+                                      fontSize: 24,
+                                      fontWeight: FontWeight.bold,
+                                      color: Colors.white,
+                                    ),
+                                  ),
+                                  const SizedBox(width: 8),
+                                  const Icon(Icons.keyboard_arrow_down, color: Colors.white, size: 28),
+                                ],
+                              ),
+                            ),
+                          )
+                        : Text(
+                            santri?.nama ?? 'Nama Santri',
+                            style: const TextStyle(
+                              fontSize: 24,
+                              fontWeight: FontWeight.bold,
+                              color: Colors.white,
+                            ),
+                            textAlign: TextAlign.center,
+                          ),
                     const SizedBox(height: 8),
                     // Info Santri
                     Text(

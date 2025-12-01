@@ -83,6 +83,8 @@ class AuthProvider with ChangeNotifier {
     _activeSantri = _santriList.firstWhere((s) => s.id == santriId);
     await StorageHelper.saveActiveSantriId(santriId);
     notifyListeners();
+    // Data sudah ada di _santriList, tidak perlu refresh lagi
+    // UI akan auto-update karena notifyListeners()
   }
 
   // Refresh data from API
