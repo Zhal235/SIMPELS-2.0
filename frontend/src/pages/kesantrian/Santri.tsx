@@ -1,13 +1,13 @@
-import { useEffect, useMemo, useState } from 'react'
+import { useEffect, useMemo, useState, useRef } from 'react'
 import Card from '../../components/Card'
 import Table from '../../components/Table'
 import Modal from '../../components/Modal'
-import { Edit2, Eye, Shuffle, Trash2 } from 'lucide-react'
+import { Edit2, Eye, Shuffle, Trash2, Download, Upload, Search, FileDown } from 'lucide-react'
 import { useNavigate } from 'react-router-dom'
 import { Button } from '@/components/ui/button'
 import SantriForm from './components/SantriForm'
 import type { Santri } from './components/SantriForm'
-import { listSantri, deleteSantri, updateSantri, getSantri } from '@/api/santri'
+import { listSantri, deleteSantri, updateSantri, getSantri, exportSantri, importSantri, downloadTemplate } from '@/api/santri'
 import { getTagihanBySantri } from '@/api/pembayaran'
 import { deleteTagihanSantri } from '@/api/tagihanSantri'
 import { createMutasiKeluar } from '@/api/mutasiKeluar'
@@ -19,6 +19,8 @@ export default function KesantrianSantri() {
   // Mulai dengan data kosong; sebelumnya ada data dummy untuk demo yang membuat tabel menampilkan 3 baris saat reload
   const [items, setItems] = useState<Row[]>([])
   const [loading, setLoading] = useState<boolean>(false)
+  const [searchQuery, setSearchQuery] = useState<string>('')
+  const fileInputRef = useRef<HTMLInputElement>(null)
 
   const [modalOpen, setModalOpen] = useState(false)
   const [mode, setMode] = useState<'create' | 'edit' | 'preview'>('create')
@@ -256,31 +258,185 @@ export default function KesantrianSantri() {
     ]
   ), [currentPage, pageSize])
 
+  // Filter items based on search query
+  const filteredItems = useMemo(() => {
+    if (!searchQuery.trim()) return items
+    
+    const query = searchQuery.toLowerCase()
+    return items.filter(item => 
+      item.nama_santri?.toLowerCase().includes(query) ||
+      item.nis?.toLowerCase().includes(query) ||
+      item.nisn?.toLowerCase().includes(query)
+    )
+  }, [items, searchQuery])
+
+  // Handle download template
+  async function handleDownloadTemplate() {
+    try {
+      toast.info('Mengunduh template...')
+      const blob = await downloadTemplate()
+      const url = window.URL.createObjectURL(blob)
+      const a = document.createElement('a')
+      a.href = url
+      a.download = 'template-import-santri.xlsx'
+      document.body.appendChild(a)
+      a.click()
+      document.body.removeChild(a)
+      window.URL.revokeObjectURL(url)
+      toast.success('✅ Template berhasil diunduh')
+    } catch (error: any) {
+      console.error('Download template error:', error)
+      toast.error('❌ Gagal download template')
+    }
+  }
+
+  // Handle export
+  async function handleExport() {
+    try {
+      toast.info('Mengunduh data santri...')
+      const blob = await exportSantri()
+      const url = window.URL.createObjectURL(blob)
+      const a = document.createElement('a')
+      a.href = url
+      a.download = `data-santri-${new Date().toISOString().split('T')[0]}.xlsx`
+      document.body.appendChild(a)
+      a.click()
+      document.body.removeChild(a)
+      window.URL.revokeObjectURL(url)
+      toast.success('✅ Data santri berhasil diunduh')
+    } catch (error: any) {
+      console.error('Export error:', error)
+      toast.error('❌ Gagal export data santri')
+    }
+  }
+
+  // Handle import
+  async function handleImport(event: React.ChangeEvent<HTMLInputElement>) {
+    const file = event.target.files?.[0]
+    if (!file) return
+
+    // Validate file extension
+    const fileName = file.name.toLowerCase()
+    if (!fileName.endsWith('.xlsx') && !fileName.endsWith('.xls')) {
+      toast.error('❌ File harus berformat Excel (.xlsx atau .xls)')
+      if (fileInputRef.current) {
+        fileInputRef.current.value = ''
+      }
+      return
+    }
+
+    try {
+      toast.info('Mengupload file...')
+      const result = await importSantri(file)
+      
+      const total = (result.imported || 0) + (result.updated || 0)
+      
+      if (result.errors && result.errors.length > 0) {
+        console.warn('Import warnings:', result.errors)
+        toast.warning(`Import selesai dengan ${result.errors.length} peringatan. Sukses: ${total} data`)
+      } else {
+        let msg = `✅ Berhasil import ${result.imported} data baru`
+        if (result.updated > 0) {
+          msg += ` dan update ${result.updated} data`
+        }
+        toast.success(msg)
+      }
+      
+      // Refresh data
+      await fetchData()
+      
+      // Reset file input
+      if (fileInputRef.current) {
+        fileInputRef.current.value = ''
+      }
+    } catch (error: any) {
+      console.error('Import error:', error)
+      const msg = error?.response?.data?.message || 'Gagal import data santri'
+      toast.error('❌ ' + msg)
+      if (fileInputRef.current) {
+        fileInputRef.current.value = ''
+      }
+    }
+  }
+
   return (
     <div className="space-y-4">
-      <div className="flex justify-between">
+      <div className="flex justify-between items-center">
         <h1 className="text-2xl font-semibold text-gray-900">Data Santri</h1>
-        <button
-          className="btn btn-primary"
-          onClick={() => { setMode('create'); setCurrent(null); setModalOpen(true) }}
-        >
-          Tambah Santri
-        </button>
+        <div className="flex gap-2">
+          <input
+            ref={fileInputRef}
+            type="file"
+            accept=".xlsx,.xls"
+            onChange={handleImport}
+            className="hidden"
+          />
+          <Button
+            variant="outline"
+            onClick={handleDownloadTemplate}
+            className="border-blue-200 text-blue-700 hover:text-blue-800 hover:border-blue-400 hover:bg-blue-50"
+          >
+            <FileDown size={16} className="mr-2" />
+            Download Template
+          </Button>
+          <Button
+            variant="outline"
+            onClick={handleExport}
+            className="border-gray-200 text-gray-700 hover:text-brand hover:border-brand"
+          >
+            <Download size={16} className="mr-2" />
+            Export Excel
+          </Button>
+          <Button
+            variant="outline"
+            onClick={() => fileInputRef.current?.click()}
+            className="border-gray-200 text-gray-700 hover:text-brand hover:border-brand"
+          >
+            <Upload size={16} className="mr-2" />
+            Import Excel
+          </Button>
+          <button
+            className="btn btn-primary"
+            onClick={() => { setMode('create'); setCurrent(null); setModalOpen(true) }}
+          >
+            Tambah Santri
+          </button>
+        </div>
       </div>
+      
+      {/* Search Bar */}
+      <Card>
+        <div className="p-4 border-b">
+          <div className="relative">
+            <Search className="absolute left-3 top-1/2 transform -translate-y-1/2 text-gray-400" size={20} />
+            <input
+              type="text"
+              placeholder="Cari berdasarkan nama, NIS, atau NISN..."
+              value={searchQuery}
+              onChange={(e) => setSearchQuery(e.target.value)}
+              className="w-full pl-10 pr-4 py-2 border border-gray-300 rounded-lg focus:ring-2 focus:ring-blue-500 focus:border-blue-500"
+            />
+          </div>
+        </div>
+      </Card>
+      
       <Card>
         {loading && items.length === 0 ? (
           <div className="p-4 text-sm text-gray-500">Memuat data…</div>
         ) : !items || items.length === 0 ? (
           <div className="p-4 text-sm text-gray-500">Belum ada data santri.</div>
+        ) : filteredItems.length === 0 ? (
+          <div className="p-4 text-sm text-gray-500">Tidak ada data yang sesuai dengan pencarian "{searchQuery}"</div>
         ) : (
           <>
-            <Table columns={columns as any} data={items} getRowKey={(row: Row, idx: number) => String((row as any)?.id ?? idx)} />
+            <Table columns={columns as any} data={filteredItems} getRowKey={(row: Row, idx: number) => String((row as any)?.id ?? idx)} />
             
             {/* Pagination */}
             <div className="px-6 py-4 border-t flex items-center justify-between">
               <div className="flex items-center gap-4">
                 <div className="text-sm text-gray-700">
                   Menampilkan {((currentPage - 1) * pageSize) + 1} - {Math.min(currentPage * pageSize, totalItems)} dari {totalItems} data
+                  {searchQuery && ` (${filteredItems.length} hasil pencarian)`}
                 </div>
                 <div className="flex items-center gap-2">
                   <label className="text-sm text-gray-600">Per halaman:</label>

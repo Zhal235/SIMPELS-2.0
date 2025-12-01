@@ -107,6 +107,11 @@ Route::middleware('auth:sanctum')->group(function () {
 
     // API v1 endpoints untuk modul Kesantrian (Santri)
     Route::prefix('v1/kesantrian')->group(function () {
+        // Template, Export & Import routes (before apiResource)
+        Route::get('santri/template', [SantriController::class, 'template']);
+        Route::get('santri/export', [SantriController::class, 'export']);
+        Route::post('santri/import', [SantriController::class, 'import']);
+        
         Route::apiResource('santri', SantriController::class);
     });
 

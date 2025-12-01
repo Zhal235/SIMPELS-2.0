@@ -14,18 +14,11 @@ class DatabaseSeeder extends Seeder
     public function run(): void
     {
         /*
-         * Komentar Teknis (Perubahan):
-         * - Memindahkan seeding user ke UserSeeder terpisah untuk modularitas.
-         * - Tidak ada perubahan logika bisnis; hanya penataan struktur seeder.
-         * - UserSeeder akan membuat Admin dari ENV serta user demo via factory.
+         * Hanya UserSeeder yang dijalankan untuk testing dari awal.
+         * Semua data master (santri, kelas, asrama, dll) akan dibuat manual via aplikasi.
          */
         $this->call([
             UserSeeder::class,
-            RoleSeeder::class,
-            KelasSeeder::class,
-            AsramaSeeder::class,
-            KategoriPengeluaranSeeder::class,
-            SantriSeeder::class,
         ]);
     }
 }

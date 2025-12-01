@@ -27,3 +27,26 @@ export async function getSantri(id: string | number) {
   const res = await api.get(`/v1/kesantrian/santri/${id}`)
   return res.data
 }
+
+export async function downloadTemplate() {
+  const res = await api.get('/v1/kesantrian/santri/template', {
+    responseType: 'blob',
+  })
+  return res.data
+}
+
+export async function exportSantri() {
+  const res = await api.get('/v1/kesantrian/santri/export', {
+    responseType: 'blob',
+  })
+  return res.data
+}
+
+export async function importSantri(file: File) {
+  const formData = new FormData()
+  formData.append('file', file)
+  const res = await api.post('/v1/kesantrian/santri/import', formData, {
+    headers: { 'Content-Type': 'multipart/form-data' }
+  })
+  return res.data
+}

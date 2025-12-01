@@ -9,6 +9,12 @@ use Illuminate\Http\Request;
 use Illuminate\Support\Facades\Storage;
 use Illuminate\Validation\Rule;
 use Throwable;
+use PhpOffice\PhpSpreadsheet\Spreadsheet;
+use PhpOffice\PhpSpreadsheet\Writer\Xlsx;
+use PhpOffice\PhpSpreadsheet\IOFactory;
+use PhpOffice\PhpSpreadsheet\Style\Fill;
+use PhpOffice\PhpSpreadsheet\Style\Alignment;
+use PhpOffice\PhpSpreadsheet\Style\Border;
 
 class SantriController extends Controller
 {
@@ -253,5 +259,344 @@ class SantriController extends Controller
             'status' => 'success',
             'message' => 'Santri berhasil dihapus',
         ]);
+    }
+
+    /**
+     * GET /api/v1/kesantrian/santri/template
+     * Download template Excel untuk import data santri
+     */
+    public function template()
+    {
+        try {
+            $spreadsheet = new Spreadsheet();
+            $sheet = $spreadsheet->getActiveSheet();
+            
+            // Set header dengan keterangan wajib/opsional
+            $headers = [
+                'A' => ['label' => 'NIS', 'required' => true],
+                'B' => ['label' => 'NISN', 'required' => false],
+                'C' => ['label' => 'NIK Santri', 'required' => false],
+                'D' => ['label' => 'Nama Santri', 'required' => true],
+                'E' => ['label' => 'Jenis Kelamin', 'required' => true],
+                'F' => ['label' => 'Tempat Lahir', 'required' => true],
+                'G' => ['label' => 'Tanggal Lahir', 'required' => true],
+                'H' => ['label' => 'Alamat', 'required' => true],
+                'I' => ['label' => 'Provinsi', 'required' => false],
+                'J' => ['label' => 'Kabupaten', 'required' => false],
+                'K' => ['label' => 'Kecamatan', 'required' => false],
+                'L' => ['label' => 'Desa', 'required' => false],
+                'M' => ['label' => 'Kode Pos', 'required' => false],
+                'N' => ['label' => 'Kelas', 'required' => false],
+                'O' => ['label' => 'Asrama', 'required' => false],
+                'P' => ['label' => 'Asal Sekolah', 'required' => false],
+                'Q' => ['label' => 'Hobi', 'required' => false],
+                'R' => ['label' => 'Cita-cita', 'required' => false],
+                'S' => ['label' => 'Jumlah Saudara', 'required' => false],
+                'T' => ['label' => 'No KK', 'required' => false],
+                'U' => ['label' => 'Nama Ayah', 'required' => true],
+                'V' => ['label' => 'NIK Ayah', 'required' => false],
+                'W' => ['label' => 'Pendidikan Ayah', 'required' => false],
+                'X' => ['label' => 'Pekerjaan Ayah', 'required' => false],
+                'Y' => ['label' => 'HP Ayah', 'required' => false],
+                'Z' => ['label' => 'Nama Ibu', 'required' => true],
+                'AA' => ['label' => 'NIK Ibu', 'required' => false],
+                'AB' => ['label' => 'Pendidikan Ibu', 'required' => false],
+                'AC' => ['label' => 'Pekerjaan Ibu', 'required' => false],
+                'AD' => ['label' => 'HP Ibu', 'required' => false],
+            ];
+            
+            // Row 1: Header dengan tanda wajib
+            foreach ($headers as $col => $info) {
+                $label = $info['label'] . ($info['required'] ? ' *' : '');
+                $sheet->setCellValue($col . '1', $label);
+                
+                // Style header
+                $style = $sheet->getStyle($col . '1');
+                $style->getFont()->setBold(true)->setSize(11);
+                $style->getAlignment()->setHorizontal(Alignment::HORIZONTAL_CENTER);
+                $style->getFill()->setFillType(Fill::FILL_SOLID)
+                    ->getStartColor()->setRGB($info['required'] ? 'FFD9D9' : 'E0E0E0');
+                $style->getBorders()->getAllBorders()->setBorderStyle(Border::BORDER_THIN);
+                
+                // Auto width
+                $sheet->getColumnDimension($col)->setAutoSize(true);
+            }
+            
+            // Row 2: Keterangan format
+            $sheet->setCellValue('A2', 'Contoh: 2024001');
+            $sheet->setCellValue('B2', 'Contoh: 1234567890');
+            $sheet->setCellValue('C2', 'Contoh: 3201012345678901');
+            $sheet->setCellValue('D2', 'Contoh: Ahmad Fauzi');
+            $sheet->setCellValue('E2', 'L atau P');
+            $sheet->setCellValue('F2', 'Contoh: Jakarta');
+            $sheet->setCellValue('G2', 'Format: YYYY-MM-DD');
+            $sheet->setCellValue('H2', 'Alamat lengkap');
+            $sheet->setCellValue('I2', 'Contoh: DKI Jakarta');
+            $sheet->setCellValue('J2', 'Contoh: Jakarta Selatan');
+            $sheet->setCellValue('U2', 'Nama lengkap ayah');
+            $sheet->setCellValue('Y2', 'Contoh: 081234567890');
+            $sheet->setCellValue('Z2', 'Nama lengkap ibu');
+            $sheet->setCellValue('AD2', 'Contoh: 081234567890');
+            
+            // Style row keterangan
+            $sheet->getStyle('A2:AD2')->getFont()->setItalic(true)->setSize(9);
+            $sheet->getStyle('A2:AD2')->getAlignment()->setHorizontal(Alignment::HORIZONTAL_LEFT);
+            $sheet->getStyle('A2:AD2')->getFill()->setFillType(Fill::FILL_SOLID)
+                ->getStartColor()->setRGB('F9F9F9');
+            
+            // Row 3: Info
+            $sheet->mergeCells('A3:AD3');
+            $sheet->setCellValue('A3', 'KETERANGAN: Kolom dengan tanda * (merah) WAJIB diisi. Kolom abu-abu adalah OPSIONAL.');
+            $sheet->getStyle('A3')->getFont()->setBold(true)->setSize(10)->getColor()->setRGB('FF0000');
+            $sheet->getStyle('A3')->getAlignment()->setHorizontal(Alignment::HORIZONTAL_CENTER);
+            
+            // Freeze header
+            $sheet->freezePane('A4');
+            
+            $filename = 'template-import-santri.xlsx';
+            $tempFile = tempnam(sys_get_temp_dir(), 'excel');
+            
+            $writer = new Xlsx($spreadsheet);
+            $writer->save($tempFile);
+            
+            return response()->download($tempFile, $filename, [
+                'Content-Type' => 'application/vnd.openxmlformats-officedocument.spreadsheetml.sheet',
+            ])->deleteFileAfterSend(true);
+        } catch (Throwable $e) {
+            return response()->json([
+                'status' => 'error',
+                'message' => 'Gagal membuat template: ' . $e->getMessage(),
+            ], 500);
+        }
+    }
+
+    /**
+     * GET /api/v1/kesantrian/santri/export
+     * Export all santri data to Excel
+     */
+    public function export()
+    {
+        try {
+            $santri = Santri::with(['kelas', 'asrama'])->orderBy('nama_santri')->get();
+            
+            $spreadsheet = new Spreadsheet();
+            $sheet = $spreadsheet->getActiveSheet();
+            
+            // Header row
+            $headers = [
+                'NIS', 'NISN', 'NIK Santri', 'Nama Santri', 'Jenis Kelamin', 
+                'Tempat Lahir', 'Tanggal Lahir', 'Alamat',
+                'Provinsi', 'Kabupaten', 'Kecamatan', 'Desa', 'Kode Pos',
+                'Kelas', 'Asrama', 'Asal Sekolah', 'Hobi', 'Cita-cita', 'Jumlah Saudara',
+                'No KK', 'Nama Ayah', 'NIK Ayah', 'Pendidikan Ayah', 'Pekerjaan Ayah', 'HP Ayah',
+                'Nama Ibu', 'NIK Ibu', 'Pendidikan Ibu', 'Pekerjaan Ibu', 'HP Ibu',
+            ];
+            
+            $col = 'A';
+            foreach ($headers as $header) {
+                $sheet->setCellValue($col . '1', $header);
+                $sheet->getStyle($col . '1')->getFont()->setBold(true);
+                $sheet->getStyle($col . '1')->getFill()->setFillType(Fill::FILL_SOLID)
+                    ->getStartColor()->setRGB('4472C4');
+                $sheet->getStyle($col . '1')->getFont()->getColor()->setRGB('FFFFFF');
+                $sheet->getStyle($col . '1')->getAlignment()->setHorizontal(Alignment::HORIZONTAL_CENTER);
+                $sheet->getColumnDimension($col)->setAutoSize(true);
+                $col++;
+            }
+            
+            // Data rows
+            $row = 2;
+            foreach ($santri as $s) {
+                $sheet->setCellValue('A' . $row, $s->nis ?? '');
+                $sheet->setCellValue('B' . $row, $s->nisn ?? '');
+                $sheet->setCellValue('C' . $row, $s->nik_santri ?? '');
+                $sheet->setCellValue('D' . $row, $s->nama_santri ?? '');
+                $sheet->setCellValue('E' . $row, $s->jenis_kelamin === 'L' ? 'Laki-laki' : 'Perempuan');
+                $sheet->setCellValue('F' . $row, $s->tempat_lahir ?? '');
+                $sheet->setCellValue('G' . $row, $s->tanggal_lahir ?? '');
+                $sheet->setCellValue('H' . $row, $s->alamat ?? '');
+                $sheet->setCellValue('I' . $row, $s->provinsi ?? '');
+                $sheet->setCellValue('J' . $row, $s->kabupaten ?? '');
+                $sheet->setCellValue('K' . $row, $s->kecamatan ?? '');
+                $sheet->setCellValue('L' . $row, $s->desa ?? '');
+                $sheet->setCellValue('M' . $row, $s->kode_pos ?? '');
+                $sheet->setCellValue('N' . $row, $s->kelas->nama_kelas ?? $s->kelas_nama ?? '');
+                $sheet->setCellValue('O' . $row, $s->asrama->nama_asrama ?? '');
+                $sheet->setCellValue('P' . $row, $s->asal_sekolah ?? '');
+                $sheet->setCellValue('Q' . $row, $s->hobi ?? '');
+                $sheet->setCellValue('R' . $row, $s->cita_cita ?? '');
+                $sheet->setCellValue('S' . $row, $s->jumlah_saudara ?? '');
+                $sheet->setCellValue('T' . $row, $s->no_kk ?? '');
+                $sheet->setCellValue('U' . $row, $s->nama_ayah ?? '');
+                $sheet->setCellValue('V' . $row, $s->nik_ayah ?? '');
+                $sheet->setCellValue('W' . $row, $s->pendidikan_ayah ?? '');
+                $sheet->setCellValue('X' . $row, $s->pekerjaan_ayah ?? '');
+                $sheet->setCellValue('Y' . $row, $s->hp_ayah ?? '');
+                $sheet->setCellValue('Z' . $row, $s->nama_ibu ?? '');
+                $sheet->setCellValue('AA' . $row, $s->nik_ibu ?? '');
+                $sheet->setCellValue('AB' . $row, $s->pendidikan_ibu ?? '');
+                $sheet->setCellValue('AC' . $row, $s->pekerjaan_ibu ?? '');
+                $sheet->setCellValue('AD' . $row, $s->hp_ibu ?? '');
+                $row++;
+            }
+            
+            $filename = 'data-santri-' . date('Y-m-d-His') . '.xlsx';
+            $tempFile = tempnam(sys_get_temp_dir(), 'excel');
+            
+            $writer = new Xlsx($spreadsheet);
+            $writer->save($tempFile);
+            
+            return response()->download($tempFile, $filename, [
+                'Content-Type' => 'application/vnd.openxmlformats-officedocument.spreadsheetml.sheet',
+            ])->deleteFileAfterSend(true);
+        } catch (Throwable $e) {
+            return response()->json([
+                'status' => 'error',
+                'message' => 'Gagal export data santri: ' . $e->getMessage(),
+            ], 500);
+        }
+    }
+
+    /**
+     * POST /api/v1/kesantrian/santri/import
+     * Import santri data from Excel
+     */
+    public function import(Request $request)
+    {
+        try {
+            $request->validate([
+                'file' => 'required|file|mimes:xlsx,xls|max:5120', // 5MB max
+            ]);
+
+            $file = $request->file('file');
+            $path = $file->getRealPath();
+            
+            $spreadsheet = IOFactory::load($path);
+            $sheet = $spreadsheet->getActiveSheet();
+            $rows = $sheet->toArray();
+            
+            if (count($rows) < 4) {
+                return response()->json([
+                    'status' => 'error',
+                    'message' => 'File Excel tidak valid atau kosong',
+                ], 400);
+            }
+            
+            $imported = 0;
+            $updated = 0;
+            $errors = [];
+            
+            // Start from row 4 (skip header, example, and info rows)
+            for ($i = 3; $i < count($rows); $i++) {
+                $rowNum = $i + 1;
+                $data = $rows[$i];
+                
+                try {
+                    // Skip empty rows
+                    if (empty(array_filter($data))) {
+                        continue;
+                    }
+                    
+                    $nis = trim($data[0] ?? '');
+                    if (empty($nis)) {
+                        $errors[] = "Baris {$rowNum}: NIS tidak boleh kosong";
+                        continue;
+                    }
+                    
+                    $namaSantri = trim($data[3] ?? '');
+                    if (empty($namaSantri)) {
+                        $errors[] = "Baris {$rowNum}: Nama Santri tidak boleh kosong";
+                        continue;
+                    }
+                    
+                    $jenisKelamin = trim($data[4] ?? '');
+                    if (empty($jenisKelamin)) {
+                        $errors[] = "Baris {$rowNum}: Jenis Kelamin tidak boleh kosong";
+                        continue;
+                    }
+                    
+                    // Check if santri already exists
+                    $existing = Santri::where('nis', $nis)->first();
+                    
+                    // Convert jenis kelamin
+                    $jk = strtoupper(substr($jenisKelamin, 0, 1));
+                    if ($jk !== 'L' && $jk !== 'P') {
+                        if (stripos($jenisKelamin, 'perempuan') !== false || stripos($jenisKelamin, 'wanita') !== false) {
+                            $jk = 'P';
+                        } else {
+                            $jk = 'L';
+                        }
+                    }
+                    
+                    $santriData = [
+                        'nis' => $nis,
+                        'nisn' => trim($data[1] ?? '') ?: null,
+                        'nik_santri' => trim($data[2] ?? '') ?: null,
+                        'nama_santri' => $namaSantri,
+                        'jenis_kelamin' => $jk,
+                        'tempat_lahir' => trim($data[5] ?? ''),
+                        'tanggal_lahir' => trim($data[6] ?? ''),
+                        'alamat' => trim($data[7] ?? ''),
+                        'provinsi' => trim($data[8] ?? '') ?: null,
+                        'kabupaten' => trim($data[9] ?? '') ?: null,
+                        'kecamatan' => trim($data[10] ?? '') ?: null,
+                        'desa' => trim($data[11] ?? '') ?: null,
+                        'kode_pos' => trim($data[12] ?? '') ?: null,
+                        'kelas_nama' => trim($data[13] ?? '') ?: null,
+                        'asal_sekolah' => trim($data[15] ?? '') ?: null,
+                        'hobi' => trim($data[16] ?? '') ?: null,
+                        'cita_cita' => trim($data[17] ?? '') ?: null,
+                        'jumlah_saudara' => !empty($data[18]) ? (int)$data[18] : null,
+                        'no_kk' => trim($data[19] ?? '') ?: null,
+                        'nama_ayah' => trim($data[20] ?? ''),
+                        'nik_ayah' => trim($data[21] ?? '') ?: null,
+                        'pendidikan_ayah' => trim($data[22] ?? '') ?: null,
+                        'pekerjaan_ayah' => trim($data[23] ?? '') ?: null,
+                        'hp_ayah' => trim($data[24] ?? '') ?: null,
+                        'nama_ibu' => trim($data[25] ?? ''),
+                        'nik_ibu' => trim($data[26] ?? '') ?: null,
+                        'pendidikan_ibu' => trim($data[27] ?? '') ?: null,
+                        'pekerjaan_ibu' => trim($data[28] ?? '') ?: null,
+                        'hp_ibu' => trim($data[29] ?? '') ?: null,
+                        'status' => 'aktif',
+                        'jenis_penerimaan' => 'baru',
+                    ];
+                    
+                    if ($existing) {
+                        $existing->update($santriData);
+                        $updated++;
+                    } else {
+                        Santri::create($santriData);
+                        $imported++;
+                    }
+                } catch (Throwable $e) {
+                    $errors[] = "Baris {$rowNum}: " . $e->getMessage();
+                }
+            }
+            
+            $message = "Berhasil import {$imported} data baru";
+            if ($updated > 0) {
+                $message .= " dan update {$updated} data";
+            }
+            
+            return response()->json([
+                'status' => 'success',
+                'message' => $message,
+                'imported' => $imported,
+                'updated' => $updated,
+                'errors' => $errors,
+            ]);
+        } catch (\Illuminate\Validation\ValidationException $ve) {
+            return response()->json([
+                'status' => 'error',
+                'message' => 'File tidak valid. Hanya menerima file Excel (.xlsx atau .xls)',
+                'errors' => $ve->errors(),
+            ], 422);
+        } catch (Throwable $e) {
+            return response()->json([
+                'status' => 'error',
+                'message' => 'Gagal import data: ' . $e->getMessage(),
+            ], 500);
+        }
     }
 }
