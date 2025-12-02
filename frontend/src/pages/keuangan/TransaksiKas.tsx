@@ -325,13 +325,13 @@ export default function TransaksiKas() {
     return b.id - a.id
   })
 
-  // Hitung total
+  // Hitung total - EXCLUDE Transfer Internal karena itu hanya perpindahan
   const totalPemasukan = filteredTransaksi
-    .filter(t => t.jenis === 'pemasukan')
+    .filter(t => t.jenis === 'pemasukan' && !t.kategori.includes('Transfer Internal'))
     .reduce((sum, t) => sum + Number(t.nominal), 0)
 
   const totalPengeluaran = filteredTransaksi
-    .filter(t => t.jenis === 'pengeluaran')
+    .filter(t => t.jenis === 'pengeluaran' && !t.kategori.includes('Transfer Internal'))
     .reduce((sum, t) => sum + Number(t.nominal), 0)
 
   const saldo = totalPemasukan - totalPengeluaran

@@ -304,6 +304,7 @@ class AdminBuktiTransferController extends Controller
                     'wallet_id' => (int)$wallet->id,
                     'amount' => (float)$nominalTopup,
                     'type' => 'credit',
+                    'method' => 'transfer', // Top-up via mobile selalu transfer bank
                     'description' => 'Top-up via SIMPELS Mobile - Disetujui oleh ' . (Auth::user()?->name ?? 'Admin'),
                     'balance_after' => (float)$wallet->balance,
                     'created_by' => Auth::id(),

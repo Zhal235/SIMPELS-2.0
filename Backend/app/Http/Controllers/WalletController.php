@@ -880,12 +880,14 @@ class WalletController extends Controller
             // Gunakan wallet_withdrawals dengan pool_id = NULL untuk membedakan dari EPOS withdrawal
             $reference = 'CWDRAW-' . now()->format('YmdHis') . '-' . Str::upper(Str::random(6));
             
+            $userId = auth()->id() ?? 1; // Fallback to admin ID 1 if not authenticated
+            
             $withdrawal = DB::table('wallet_withdrawals')->insertGetId([
                 'pool_id' => null, // NULL untuk cash withdrawal, bukan NULL untuk EPOS
                 'amount' => $amount,
                 'status' => 'done',
-                'requested_by' => auth()->id(),
-                'processed_by' => auth()->id(),
+                'requested_by' => $userId,
+                'processed_by' => $userId,
                 'epos_ref' => $reference, // Gunakan field ini untuk reference cash withdrawal
                 'notes' => 'CASH_TRANSFER: Tarik dana Transfer → Cash' . ($note ? ' - ' . $note : ''),
                 'created_at' => now(),

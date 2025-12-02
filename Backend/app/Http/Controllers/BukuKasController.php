@@ -19,7 +19,7 @@ class BukuKasController extends Controller
 
         $result = $bukuKasList->map(function ($bukuKas) {
             // Hitung total pemasukan dan pengeluaran dari transaksi
-            // Exclude internal transfers (Transfer Internal Masuk/Keluar)
+            // Exclude internal transfers (Transfer Internal Masuk/Keluar) dari laporan
             $totalPemasukanCash = TransaksiKas::where('buku_kas_id', $bukuKas->id)
                 ->where('jenis', 'pemasukan')
                 ->where('metode', 'cash')
@@ -44,9 +44,47 @@ class BukuKasController extends Controller
                 ->where('kategori', 'NOT LIKE', 'Transfer Internal%')
                 ->sum('nominal');
 
-            // Saldo = saldo awal + pemasukan - pengeluaran
-            $saldoCash = $bukuKas->saldo_cash_awal + $totalPemasukanCash - $totalPengeluaranCash;
-            $saldoBank = $bukuKas->saldo_bank_awal + $totalPemasukanBank - $totalPengeluaranBank;
+            // Untuk saldo, kita harus INCLUDE transfer internal karena itu perpindahan uang
+            // Transfer Internal Masuk (cash) = uang dari bank ke cash
+            $transferInternalMasukCash = TransaksiKas::where('buku_kas_id', $bukuKas->id)
+                ->where('jenis', 'pemasukan')
+                ->where('metode', 'cash')
+                ->where('kategori', 'LIKE', 'Transfer Internal%')
+                ->sum('nominal');
+            
+            // Transfer Internal Keluar (bank) = uang dari bank ke cash
+            $transferInternalKeluarBank = TransaksiKas::where('buku_kas_id', $bukuKas->id)
+                ->where('jenis', 'pengeluaran')
+                ->where('metode', 'transfer')
+                ->where('kategori', 'LIKE', 'Transfer Internal%')
+                ->sum('nominal');
+            
+            // Transfer Internal Masuk (bank) = uang dari cash ke bank
+            $transferInternalMasukBank = TransaksiKas::where('buku_kas_id', $bukuKas->id)
+                ->where('jenis', 'pemasukan')
+                ->where('metode', 'transfer')
+                ->where('kategori', 'LIKE', 'Transfer Internal%')
+                ->sum('nominal');
+            
+            // Transfer Internal Keluar (cash) = uang dari cash ke bank
+            $transferInternalKeluarCash = TransaksiKas::where('buku_kas_id', $bukuKas->id)
+                ->where('jenis', 'pengeluaran')
+                ->where('metode', 'cash')
+                ->where('kategori', 'LIKE', 'Transfer Internal%')
+                ->sum('nominal');
+
+            // Saldo = saldo awal + pemasukan - pengeluaran + transfer internal
+            $saldoCash = $bukuKas->saldo_cash_awal 
+                + $totalPemasukanCash 
+                - $totalPengeluaranCash
+                + $transferInternalMasukCash 
+                - $transferInternalKeluarCash;
+                
+            $saldoBank = $bukuKas->saldo_bank_awal 
+                + $totalPemasukanBank 
+                - $totalPengeluaranBank
+                + $transferInternalMasukBank 
+                - $transferInternalKeluarBank;
             
             $totalPemasukan = $totalPemasukanCash + $totalPemasukanBank;
             $totalPengeluaran = $totalPengeluaranCash + $totalPengeluaranBank;
