@@ -13,6 +13,68 @@ use App\Models\EposPool;
 
 class WalletController extends Controller
 {
+    /**
+     * Calculate total Cash balance across all santri wallets
+     */
+    private function calculateTotalCashBalance()
+    {
+        // Credit cash dari top-up manual
+        $cashCredit = WalletTransaction::where('type', 'credit')
+            ->where('method', 'cash')
+            ->where('voided', false)
+            ->sum('amount');
+        
+        // Debit cash (tarik tunai santri, EPOS belanja)
+        $cashDebit = WalletTransaction::where('type', 'debit')
+            ->where('method', 'cash')
+            ->where('voided', false)
+            ->sum('amount');
+        
+        // Tambah dari penarikan Bank→Cash
+        $withdrawals = DB::table('wallet_withdrawals')
+            ->where('pool_id', null) // Cash withdrawals (bukan EPOS)
+            ->where('status', 'done')
+            ->sum('amount');
+        
+        // Kurangi pencairan EPOS yang pakai cash
+        $eposWithdrawalsCash = DB::table('epos_withdrawals')
+            ->where('status', 'approved')
+            ->where('payment_method', 'cash')
+            ->sum('amount');
+        
+        return ($cashCredit - $cashDebit) + $withdrawals - $eposWithdrawalsCash;
+    }
+
+    /**
+     * Calculate total Transfer/Bank balance across all santri wallets
+     */
+    private function calculateTotalBankBalance()
+    {
+        $transferCredit = WalletTransaction::where('type', 'credit')
+            ->where('method', 'transfer')
+            ->where('voided', false)
+            ->sum('amount');
+        
+        $transferDebit = WalletTransaction::where('type', 'debit')
+            ->where('method', 'transfer')
+            ->where('voided', false)
+            ->sum('amount');
+        
+        // Kurangi penarikan Bank→Cash
+        $withdrawals = DB::table('wallet_withdrawals')
+            ->where('pool_id', null)
+            ->where('status', 'done')
+            ->sum('amount');
+        
+        // Kurangi pencairan EPOS yang pakai transfer
+        $eposWithdrawalsTransfer = DB::table('epos_withdrawals')
+            ->where('status', 'approved')
+            ->where('payment_method', 'transfer')
+            ->sum('amount');
+        
+        return ($transferCredit - $transferDebit) - $withdrawals - $eposWithdrawalsTransfer;
+    }
+
     public function index()
     {
         $wallets = Wallet::with('santri')->get();
@@ -137,6 +199,26 @@ class WalletController extends Controller
 
         $amount = $request->input('amount');
         $description = $request->input('description');
+        $method = $request->input('method', 'cash'); // Default cash untuk tarik tunai
+
+        // VALIDASI: Jika method=cash, cek saldo cash sekolah
+        if ($method === 'cash') {
+            $totalCashBalance = $this->calculateTotalCashBalance();
+            
+            if ($totalCashBalance < $amount) {
+                $shortage = $amount - $totalCashBalance;
+                return response()->json([
+                    'success' => false,
+                    'message' => 'Saldo Cash tidak mencukupi',
+                    'data' => [
+                        'available_cash' => $totalCashBalance,
+                        'requested' => $amount,
+                        'shortage' => $shortage,
+                        'hint' => 'Silakan melakukan penarikan dari Bank terlebih dahulu'
+                    ]
+                ], 422);
+            }
+        }
 
         DB::beginTransaction();
         try {
@@ -154,7 +236,7 @@ class WalletController extends Controller
                 'balance_after' => $wallet->balance,
                 'description' => $description,
                 'reference' => $reference,
-                'method' => $request->input('method', 'cash'),
+                'method' => $method,
                 'created_by' => auth()->id()
             ]);
 
@@ -521,9 +603,24 @@ class WalletController extends Controller
     /**
      * Approve EPOS withdrawal request
      * PUT /api/v1/wallets/epos/withdrawal/{id}/approve
+     * Body: { "payment_method": "cash" | "transfer" }
      */
-    public function approveEposWithdrawal($id)
+    public function approveEposWithdrawal(Request $request, $id)
     {
+        $validator = Validator::make($request->all(), [
+            'payment_method' => 'required|in:cash,transfer'
+        ]);
+
+        if ($validator->fails()) {
+            return response()->json([
+                'success' => false,
+                'message' => 'Validation error',
+                'errors' => $validator->errors()
+            ], 422);
+        }
+
+        $paymentMethod = $request->input('payment_method');
+
         DB::beginTransaction();
         try {
             $withdrawal = \App\Models\EposWithdrawal::findOrFail($id);
@@ -558,12 +655,49 @@ class WalletController extends Controller
                 ], 422);
             }
 
+            // VALIDASI: Cek saldo sesuai payment method
+            if ($paymentMethod === 'cash') {
+                $totalCashBalance = $this->calculateTotalCashBalance();
+                
+                if ($totalCashBalance < $withdrawal->amount) {
+                    DB::rollBack();
+                    $shortage = $withdrawal->amount - $totalCashBalance;
+                    return response()->json([
+                        'success' => false,
+                        'message' => 'Saldo Cash sekolah tidak mencukupi',
+                        'data' => [
+                            'available_cash' => $totalCashBalance,
+                            'requested' => $withdrawal->amount,
+                            'shortage' => $shortage,
+                            'hint' => 'Silakan tarik dana dari Bank ke Cash terlebih dahulu'
+                        ]
+                    ], 422);
+                }
+            } else if ($paymentMethod === 'transfer') {
+                $totalBankBalance = $this->calculateTotalBankBalance();
+                
+                if ($totalBankBalance < $withdrawal->amount) {
+                    DB::rollBack();
+                    $shortage = $withdrawal->amount - $totalBankBalance;
+                    return response()->json([
+                        'success' => false,
+                        'message' => 'Saldo Bank/Transfer sekolah tidak mencukupi',
+                        'data' => [
+                            'available_bank' => $totalBankBalance,
+                            'requested' => $withdrawal->amount,
+                            'shortage' => $shortage
+                        ]
+                    ], 422);
+                }
+            }
+
             // Deduct from pool
             $pool->balance -= $withdrawal->amount;
             $pool->save();
 
             // Update withdrawal status
             $withdrawal->status = \App\Models\EposWithdrawal::STATUS_APPROVED;
+            $withdrawal->payment_method = $paymentMethod;
             $withdrawal->approved_by = auth()->id();
             $withdrawal->approved_at = now();
             $withdrawal->save();

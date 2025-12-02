@@ -15,6 +15,7 @@ class EposWithdrawal extends Model
         'notes',
         'requested_by',
         'status',
+        'payment_method',
         'approved_at',
         'approved_by',
         'completed_at',

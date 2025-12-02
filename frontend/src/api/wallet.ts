@@ -86,8 +86,8 @@ export async function listEposWithdrawals(params?: any) {
   return res.data
 }
 
-export async function approveEposWithdrawal(id: number | string) {
-  const res = await api.put(`/v1/wallets/epos/withdrawal/${id}/approve`)
+export async function approveEposWithdrawal(id: number | string, paymentMethod: 'cash' | 'transfer') {
+  const res = await api.put(`/v1/wallets/epos/withdrawal/${id}/approve`, { payment_method: paymentMethod })
   return res.data
 }
 
