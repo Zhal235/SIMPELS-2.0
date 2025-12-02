@@ -491,6 +491,17 @@ export default function Sidebar() {
                   </li>
                   <li>
                     <NavLink
+                      to="/dompet/tagihan-kolektif"
+                      className={({ isActive }) =>
+                        `flex items-center gap-3 rounded-md px-3 py-2 text-sm ${isActive ? 'bg-white text-brand shadow-sm' : 'text-gray-700 hover:bg-white'}`
+                      }
+                    >
+                      <Receipt className="w-5 h-5" />
+                      {hasAccess('dompet.tagihan') && sidebarOpen && <span>Tagihan Kolektif</span>}
+                    </NavLink>
+                  </li>
+                  <li>
+                    <NavLink
                       to="/dompet/rfid"
                       className={({ isActive }) =>
                         `flex items-center gap-3 rounded-md px-3 py-2 text-sm ${isActive ? 'bg-white text-brand shadow-sm' : 'text-gray-700 hover:bg-white'}`

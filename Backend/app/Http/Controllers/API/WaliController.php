@@ -210,6 +210,10 @@ class WaliController extends Controller
         $transactionLimit = SantriTransactionLimit::where('santri_id', $santriId)->first();
         $limitHarian = $transactionLimit ? $transactionLimit->daily_limit : 15000;
         
+        // Get global minimum balance
+        $settings = \App\Models\WalletSettings::first();
+        $minBalance = $settings ? $settings->global_minimum_balance : 10000;
+        
         if (!$wallet) {
             return response()->json([
                 'success' => true,
@@ -219,6 +223,8 @@ class WaliController extends Controller
                     'saldo' => 0.0,
                     'limit_harian' => (float)$limitHarian,
                     'limit_tersisa' => (float)$limitHarian,
+                    'minimum_balance' => (float)$minBalance,
+                    'is_below_minimum' => true,
                     'transaksi_terakhir' => [],
                 ],
             ]);
@@ -253,14 +259,19 @@ class WaliController extends Controller
                 ];
             });
 
+        $currentBalance = (float)($wallet->balance ?? $wallet->saldo ?? 0);
+        $isBelowMinimum = $currentBalance < $minBalance;
+        
         return response()->json([
             'success' => true,
             'data' => [
                 'santri_id' => $santri->id,
                 'santri_nama' => $santri->nama_santri,
-                'saldo' => (float)($wallet->balance ?? $wallet->saldo ?? 0),
+                'saldo' => $currentBalance,
                 'limit_harian' => (float)$limitHarian,
                 'limit_tersisa' => (float)($wallet->remaining_limit ?? $limitHarian),
+                'minimum_balance' => (float)$minBalance,
+                'is_below_minimum' => $isBelowMinimum,
                 'transaksi_terakhir' => $recentTransactions,
             ],
         ]);

@@ -106,3 +106,31 @@ export async function getBalances() {
   const res = await api.get('/v1/wallets/balances')
   return res.data
 }
+
+// Collective Payments
+export async function listCollectivePayments() {
+  const res = await api.get('/v1/wallets/collective-payments')
+  return res.data
+}
+
+export async function getCollectivePayment(id: number | string) {
+  const res = await api.get(`/v1/wallets/collective-payments/${id}`)
+  return res.data
+}
+
+export async function createCollectivePayment(payload: {
+  title: string
+  description?: string
+  amount_per_santri: number
+  target_type: 'individual' | 'class' | 'all'
+  class_id?: number
+  santri_ids?: string[]
+}) {
+  const res = await api.post('/v1/wallets/collective-payments', payload)
+  return res.data
+}
+
+export async function retryCollectivePayment(id: number | string) {
+  const res = await api.post(`/v1/wallets/collective-payments/${id}/retry`)
+  return res.data
+}

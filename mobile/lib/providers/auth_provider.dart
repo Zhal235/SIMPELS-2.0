@@ -1,4 +1,5 @@
 import 'package:flutter/foundation.dart';
+import 'package:flutter/material.dart';
 import '../services/api_service.dart';
 import '../models/wali_model.dart';
 import '../models/santri_model.dart';
@@ -61,6 +62,32 @@ class AuthProvider with ChangeNotifier {
         // Save active santri ID
         await StorageHelper.saveActiveSantriId(_activeSantri!.id);
 
+        // Fetch wallet info to get is_below_minimum status
+        try {
+          final walletRes = await _apiService.getWalletInfo(_activeSantri!.id);
+          if (walletRes.statusCode == 200 && walletRes.data['success'] == true) {
+            final walletData = walletRes.data['data'];
+            // Update active santri with wallet info
+            _activeSantri = SantriModel(
+              id: _activeSantri!.id,
+              nis: _activeSantri!.nis,
+              nama: _activeSantri!.nama,
+              jenisKelamin: _activeSantri!.jenisKelamin,
+              kelas: _activeSantri!.kelas,
+              asrama: _activeSantri!.asrama,
+              fotoUrl: _activeSantri!.fotoUrl,
+              saldoDompet: walletData['saldo'] != null ? double.parse(walletData['saldo'].toString()) : 0,
+              limitHarian: walletData['limit_harian'] != null ? double.parse(walletData['limit_harian'].toString()) : null,
+              minimumBalance: walletData['minimum_balance'] != null ? double.parse(walletData['minimum_balance'].toString()) : null,
+              isBelowMinimum: walletData['is_below_minimum'] == true || walletData['is_below_minimum'] == 1,
+              hubungan: _activeSantri!.hubungan,
+              namaWali: _activeSantri!.namaWali,
+            );
+          }
+        } catch (e) {
+          debugPrint('Failed to fetch wallet info on login: $e');
+        }
+
         _isLoading = false;
         notifyListeners();
         return data; // Return data untuk cek jumlah santri
@@ -82,9 +109,35 @@ class AuthProvider with ChangeNotifier {
   Future<void> switchSantri(String santriId) async {
     _activeSantri = _santriList.firstWhere((s) => s.id == santriId);
     await StorageHelper.saveActiveSantriId(santriId);
+    
+    // Fetch wallet info to get latest balance and is_below_minimum status
+    try {
+      final walletRes = await _apiService.getWalletInfo(santriId);
+      if (walletRes.statusCode == 200 && walletRes.data['success'] == true) {
+        final walletData = walletRes.data['data'];
+        // Update active santri with wallet info
+        _activeSantri = SantriModel(
+          id: _activeSantri!.id,
+          nis: _activeSantri!.nis,
+          nama: _activeSantri!.nama,
+          jenisKelamin: _activeSantri!.jenisKelamin,
+          kelas: _activeSantri!.kelas,
+          asrama: _activeSantri!.asrama,
+          fotoUrl: _activeSantri!.fotoUrl,
+          saldoDompet: walletData['saldo'] != null ? double.parse(walletData['saldo'].toString()) : 0,
+          limitHarian: walletData['limit_harian'] != null ? double.parse(walletData['limit_harian'].toString()) : null,
+          minimumBalance: walletData['minimum_balance'] != null ? double.parse(walletData['minimum_balance'].toString()) : null,
+          isBelowMinimum: walletData['is_below_minimum'] == true || walletData['is_below_minimum'] == 1,
+          hubungan: _activeSantri!.hubungan,
+          namaWali: _activeSantri!.namaWali,
+        );
+      }
+    } catch (e) {
+      // Ignore wallet fetch error
+      debugPrint('Failed to fetch wallet info: $e');
+    }
+    
     notifyListeners();
-    // Data sudah ada di _santriList, tidak perlu refresh lagi
-    // UI akan auto-update karena notifyListeners()
   }
 
   // Refresh data from API
@@ -113,13 +166,40 @@ class AuthProvider with ChangeNotifier {
           _santriList.map((s) => s.toJson()).toList(),
         );
 
-        // Update active santri with fresh data
+        // Update active santri with fresh data and fetch wallet info
         final currentActiveSantriId = _activeSantri?.id;
         if (currentActiveSantriId != null) {
           _activeSantri = _santriList.firstWhere(
             (s) => s.id == currentActiveSantriId,
             orElse: () => _santriList.first,
           );
+          
+          // Fetch wallet info to get is_below_minimum status
+          try {
+            final walletRes = await _apiService.getWalletInfo(_activeSantri!.id);
+            if (walletRes.statusCode == 200 && walletRes.data['success'] == true) {
+              final walletData = walletRes.data['data'];
+              // Update active santri with wallet info
+              _activeSantri = SantriModel(
+                id: _activeSantri!.id,
+                nis: _activeSantri!.nis,
+                nama: _activeSantri!.nama,
+                jenisKelamin: _activeSantri!.jenisKelamin,
+                kelas: _activeSantri!.kelas,
+                asrama: _activeSantri!.asrama,
+                fotoUrl: _activeSantri!.fotoUrl,
+                saldoDompet: walletData['saldo'] != null ? double.parse(walletData['saldo'].toString()) : 0,
+                limitHarian: walletData['limit_harian'] != null ? double.parse(walletData['limit_harian'].toString()) : null,
+                minimumBalance: walletData['minimum_balance'] != null ? double.parse(walletData['minimum_balance'].toString()) : null,
+                isBelowMinimum: walletData['is_below_minimum'] == true || walletData['is_below_minimum'] == 1,
+                hubungan: _activeSantri!.hubungan,
+                namaWali: _activeSantri!.namaWali,
+              );
+            }
+          } catch (e) {
+            // Ignore wallet fetch error
+            debugPrint('Failed to fetch wallet info: $e');
+          }
         }
       }
 

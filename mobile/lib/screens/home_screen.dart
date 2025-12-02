@@ -398,10 +398,15 @@ class DashboardTab extends StatelessWidget {
                       padding: const EdgeInsets.all(24),
                       decoration: BoxDecoration(
                         gradient: LinearGradient(
-                          colors: [
-                            Colors.green.shade400,
-                            Colors.green.shade600,
-                          ],
+                          colors: (santri?.isBelowMinimum ?? false)
+                              ? [
+                                  Colors.red.shade400,
+                                  Colors.red.shade600,
+                                ]
+                              : [
+                                  Colors.green.shade400,
+                                  Colors.green.shade600,
+                                ],
                           begin: Alignment.topLeft,
                           end: Alignment.bottomRight,
                         ),
@@ -478,6 +483,36 @@ class DashboardTab extends StatelessWidget {
                               ],
                             ),
                           ),
+                          if (santri?.isBelowMinimum ?? false) ...[
+                            const SizedBox(height: 12),
+                            Container(
+                              padding: const EdgeInsets.all(12),
+                              decoration: BoxDecoration(
+                                color: Colors.white.withAlpha(51),
+                                borderRadius: BorderRadius.circular(8),
+                              ),
+                              child: Row(
+                                children: [
+                                  const Icon(
+                                    Icons.warning_amber_rounded,
+                                    color: Colors.white,
+                                    size: 20,
+                                  ),
+                                  const SizedBox(width: 8),
+                                  Expanded(
+                                    child: Text(
+                                      'Saldo di bawah minimum (Rp ${_formatCurrency(santri?.minimumBalance ?? 10000)}). Segera top-up!',
+                                      style: const TextStyle(
+                                        fontSize: 11,
+                                        color: Colors.white,
+                                        fontWeight: FontWeight.w600,
+                                      ),
+                                    ),
+                                  ),
+                                ],
+                              ),
+                            ),
+                          ],
                         ],
                       ),
                     ),

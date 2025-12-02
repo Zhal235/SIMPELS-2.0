@@ -11,7 +11,7 @@ export async function getAllSantriWithLimits() {
 }
 
 export async function updateGlobalMinBalance(minBalance: number) {
-  const res = await api.put('/v1/wallets/settings/global', { min_balance: minBalance })
+  const res = await api.put('/v1/wallets/settings/global', { global_minimum_balance: minBalance })
   return res.data
 }
 

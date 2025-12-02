@@ -57,6 +57,7 @@ const DompetWithdrawals = lazy(() => import('./pages/dompet/Withdrawals'))
 const ManajemenKeuangan = lazy(() => import('./pages/dompet/ManajemenKeuangan'))
 const HistoryTransaksi = lazy(() => import('./pages/dompet/HistoryTransaksi'))
 const LaporanKeuanganDompet = lazy(() => import('./pages/dompet/LaporanKeuangan'))
+const TagihanKolektif = lazy(() => import('./pages/dompet/TagihanKolektif'))
 // Akademik subpages
 const AkademikTahunAjaran = lazy(() => import('./pages/akademik/TahunAjaran'))
 
@@ -374,6 +375,13 @@ export default function App() {
               <ProtectedRoute>
                 <AppLayout>
                   <DompetSettings />
+                </AppLayout>
+              </ProtectedRoute>
+            } />
+            <Route path="/dompet/tagihan-kolektif" element={
+              <ProtectedRoute>
+                <AppLayout>
+                  <TagihanKolektif />
                 </AppLayout>
               </ProtectedRoute>
             } />

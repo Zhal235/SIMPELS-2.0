@@ -109,6 +109,11 @@ class ApiService {
     return await _dio.get('${AppConfig.waliWalletEndpoint}/$santriId');
   }
 
+  /// Get wallet info including balance and minimum balance status
+  Future<Response> getWalletInfo(String santriId) async {
+    return await _dio.get('/wali/wallet/$santriId');
+  }
+
   /// Get wallet transactions (full history) using admin-style endpoint
   Future<Response> getWalletTransactions(String santriId,
       {int page = 1, int limit = 50}) async {

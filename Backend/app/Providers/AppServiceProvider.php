@@ -4,7 +4,9 @@ namespace App\Providers;
 
 use Illuminate\Support\ServiceProvider;
 use App\Models\Santri;
+use App\Models\WalletTransaction;
 use App\Observers\SantriObserver;
+use App\Observers\WalletTransactionObserver;
 
 class AppServiceProvider extends ServiceProvider
 {
@@ -23,5 +25,6 @@ class AppServiceProvider extends ServiceProvider
     {
         // Register model observers
         Santri::observe(SantriObserver::class);
+        WalletTransaction::observe(WalletTransactionObserver::class);
     }
 }

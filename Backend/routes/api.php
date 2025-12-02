@@ -174,6 +174,12 @@ Route::middleware('auth:sanctum')->group(function () {
         // Cash withdrawal (tarik dana dari bank ke cash)
         Route::post('cash-withdrawal', [WalletController::class, 'cashWithdrawal']);
 
+        // Collective Payments (Tagihan Kolektif)
+        Route::get('collective-payments', [\App\Http\Controllers\CollectivePaymentController::class, 'index']);
+        Route::post('collective-payments', [\App\Http\Controllers\CollectivePaymentController::class, 'store']);
+        Route::get('collective-payments/{id}', [\App\Http\Controllers\CollectivePaymentController::class, 'show']);
+        Route::post('collective-payments/{id}/retry', [\App\Http\Controllers\CollectivePaymentController::class, 'retry']);
+
         // Wallet management per-santri - MUST BE AFTER specific routes to avoid conflicts
         Route::get('/', [WalletController::class, 'index']);
         // santriId is a UUID — constrain to avoid catching static paths like /ping
