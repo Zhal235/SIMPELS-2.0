@@ -19,24 +19,29 @@ class BukuKasController extends Controller
 
         $result = $bukuKasList->map(function ($bukuKas) {
             // Hitung total pemasukan dan pengeluaran dari transaksi
+            // Exclude internal transfers (Transfer Internal Masuk/Keluar)
             $totalPemasukanCash = TransaksiKas::where('buku_kas_id', $bukuKas->id)
                 ->where('jenis', 'pemasukan')
                 ->where('metode', 'cash')
+                ->where('kategori', 'NOT LIKE', 'Transfer Internal%')
                 ->sum('nominal');
             
             $totalPemasukanBank = TransaksiKas::where('buku_kas_id', $bukuKas->id)
                 ->where('jenis', 'pemasukan')
                 ->where('metode', 'transfer')
+                ->where('kategori', 'NOT LIKE', 'Transfer Internal%')
                 ->sum('nominal');
             
             $totalPengeluaranCash = TransaksiKas::where('buku_kas_id', $bukuKas->id)
                 ->where('jenis', 'pengeluaran')
                 ->where('metode', 'cash')
+                ->where('kategori', 'NOT LIKE', 'Transfer Internal%')
                 ->sum('nominal');
             
             $totalPengeluaranBank = TransaksiKas::where('buku_kas_id', $bukuKas->id)
                 ->where('jenis', 'pengeluaran')
                 ->where('metode', 'transfer')
+                ->where('kategori', 'NOT LIKE', 'Transfer Internal%')
                 ->sum('nominal');
 
             // Saldo = saldo awal + pemasukan - pengeluaran
