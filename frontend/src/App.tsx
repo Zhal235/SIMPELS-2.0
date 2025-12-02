@@ -53,6 +53,10 @@ const DompetRFID = lazy(() => import('./pages/dompet/RFID'))
 const DompetHistory = lazy(() => import('./pages/dompet/History'))
 const DompetSettings = lazy(() => import('./pages/dompet/Settings'))
 const DompetWithdrawals = lazy(() => import('./pages/dompet/Withdrawals'))
+// New Dompet pages
+const ManajemenKeuangan = lazy(() => import('./pages/dompet/ManajemenKeuangan'))
+const HistoryTransaksi = lazy(() => import('./pages/dompet/HistoryTransaksi'))
+const LaporanKeuanganDompet = lazy(() => import('./pages/dompet/LaporanKeuangan'))
 // Akademik subpages
 const AkademikTahunAjaran = lazy(() => import('./pages/akademik/TahunAjaran'))
 
@@ -338,17 +342,31 @@ export default function App() {
                 </AppLayout>
               </ProtectedRoute>
             } />
+            <Route path="/dompet/manajemen-keuangan" element={
+              <ProtectedRoute>
+                <AppLayout>
+                  <ManajemenKeuangan />
+                </AppLayout>
+              </ProtectedRoute>
+            } />
+            <Route path="/dompet/history-transaksi" element={
+              <ProtectedRoute>
+                <AppLayout>
+                  <HistoryTransaksi />
+                </AppLayout>
+              </ProtectedRoute>
+            } />
+            <Route path="/dompet/laporan-keuangan" element={
+              <ProtectedRoute>
+                <AppLayout>
+                  <LaporanKeuanganDompet />
+                </AppLayout>
+              </ProtectedRoute>
+            } />
             <Route path="/dompet/rfid" element={
               <ProtectedRoute>
                 <AppLayout>
                   <DompetRFID />
-                </AppLayout>
-              </ProtectedRoute>
-            } />
-            <Route path="/dompet/history" element={
-              <ProtectedRoute>
-                <AppLayout>
-                  <DompetHistory />
                 </AppLayout>
               </ProtectedRoute>
             } />
@@ -359,13 +377,9 @@ export default function App() {
                 </AppLayout>
               </ProtectedRoute>
             } />
-            <Route path="/dompet/withdrawals" element={
-              <ProtectedRoute>
-                <AppLayout>
-                  <DompetWithdrawals />
-                </AppLayout>
-              </ProtectedRoute>
-            } />
+            {/* Legacy routes - keep for backward compatibility */}
+            <Route path="/dompet/history" element={<Navigate to="/dompet/history-transaksi" replace />} />
+            <Route path="/dompet/withdrawals" element={<Navigate to="/dompet/manajemen-keuangan" replace />} />
             
             {/* bottom menus */}
             <Route path="/pengguna" element={

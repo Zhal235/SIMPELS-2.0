@@ -149,6 +149,9 @@ Route::middleware('auth:sanctum')->group(function () {
 
     // API v1 endpoints untuk Dompet Digital / Wallets (protected)
     Route::prefix('v1/wallets')->group(function () {
+        // Get cash & bank balances
+        Route::get('balances', [WalletController::class, 'getBalances']);
+        
         // Wallet Settings (admin only) - MUST BE BEFORE /{santriId} route
         Route::get('settings', [WalletSettingsController::class, 'index']);
         Route::put('settings/global', [WalletSettingsController::class, 'updateGlobalSettings']);

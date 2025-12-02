@@ -101,3 +101,8 @@ export async function listCashWithdrawals(params?: any) {
   const res = await api.get('/v1/wallets/withdrawals', { params: { ...params, is_cash: true } })
   return res.data
 }
+
+export async function getBalances() {
+  const res = await api.get('/v1/wallets/balances')
+  return res.data
+}

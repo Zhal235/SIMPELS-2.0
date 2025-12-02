@@ -18,16 +18,23 @@ class WalletController extends Controller
      */
     private function calculateTotalCashBalance()
     {
-        // Credit cash dari top-up manual
+        // Credit cash dari top-up manual (exclude voided & admin-void)
         $cashCredit = WalletTransaction::where('type', 'credit')
             ->where('method', 'cash')
-            ->where('voided', false)
+            ->where(function($q) {
+                $q->where('voided', '!=', 1)
+                  ->orWhereNull('voided');
+            })
             ->sum('amount');
         
-        // Debit cash (tarik tunai santri, EPOS belanja)
+        // Debit cash (tarik tunai santri, EPOS belanja) - exclude voided & admin-void
         $cashDebit = WalletTransaction::where('type', 'debit')
             ->where('method', 'cash')
-            ->where('voided', false)
+            ->where('method', '!=', 'admin-void')
+            ->where(function($q) {
+                $q->where('voided', '!=', 1)
+                  ->orWhereNull('voided');
+            })
             ->sum('amount');
         
         // Tambah dari penarikan Bank→Cash
@@ -52,12 +59,18 @@ class WalletController extends Controller
     {
         $transferCredit = WalletTransaction::where('type', 'credit')
             ->where('method', 'transfer')
-            ->where('voided', false)
+            ->where(function($q) {
+                $q->where('voided', '!=', 1)
+                  ->orWhereNull('voided');
+            })
             ->sum('amount');
         
         $transferDebit = WalletTransaction::where('type', 'debit')
             ->where('method', 'transfer')
-            ->where('voided', false)
+            ->where(function($q) {
+                $q->where('voided', '!=', 1)
+                  ->orWhereNull('voided');
+            })
             ->sum('amount');
         
         // Kurangi penarikan Bank→Cash
@@ -75,50 +88,93 @@ class WalletController extends Controller
         return ($transferCredit - $transferDebit) - $withdrawals - $eposWithdrawalsTransfer;
     }
 
+    /**
+     * Get total cash and bank balances
+     * GET /api/v1/wallets/balances
+     */
+    public function getBalances()
+    {
+        $cashBalance = $this->calculateTotalCashBalance();
+        $bankBalance = $this->calculateTotalBankBalance();
+        
+        return response()->json([
+            'success' => true,
+            'data' => [
+                'cash_balance' => $cashBalance,
+                'bank_balance' => $bankBalance,
+                'total_balance' => $cashBalance + $bankBalance
+            ]
+        ]);
+    }
+
     public function index()
     {
         $wallets = Wallet::with('santri')->get();
 
         // Add transaction totals per wallet
         $wallets->transform(function ($wallet) {
+            // Exclude voided transactions (voided=1/true) AND admin-void reversal transactions
             $wallet->total_credit = WalletTransaction::where('wallet_id', $wallet->id)
                 ->where('type', 'credit')
-                ->where('voided', false)
+                ->where('method', '!=', 'admin-void') // Exclude reversal transactions
+                ->where(function($q) {
+                    $q->where('voided', '!=', 1)
+                      ->orWhereNull('voided');
+                })
                 ->sum('amount');
             
             $wallet->total_debit = WalletTransaction::where('wallet_id', $wallet->id)
                 ->where('type', 'debit')
-                ->where('voided', false)
+                ->where('method', '!=', 'admin-void') // Exclude reversal transactions
+                ->where(function($q) {
+                    $q->where('voided', '!=', 1)
+                      ->orWhereNull('voided');
+                })
                 ->sum('amount');
             
             $wallet->total_credit_cash = WalletTransaction::where('wallet_id', $wallet->id)
                 ->where('type', 'credit')
                 ->where('method', 'cash')
-                ->where('voided', false)
+                ->where(function($q) {
+                    $q->where('voided', '!=', 1)
+                      ->orWhereNull('voided');
+                })
                 ->sum('amount');
             
             $wallet->total_credit_transfer = WalletTransaction::where('wallet_id', $wallet->id)
                 ->where('type', 'credit')
                 ->where('method', 'transfer')
-                ->where('voided', false)
+                ->where(function($q) {
+                    $q->where('voided', '!=', 1)
+                      ->orWhereNull('voided');
+                })
                 ->sum('amount');
             
             $wallet->total_debit_cash = WalletTransaction::where('wallet_id', $wallet->id)
                 ->where('type', 'debit')
                 ->where('method', 'cash')
-                ->where('voided', false)
+                ->where(function($q) {
+                    $q->where('voided', '!=', 1)
+                      ->orWhereNull('voided');
+                })
                 ->sum('amount');
             
             $wallet->total_debit_transfer = WalletTransaction::where('wallet_id', $wallet->id)
                 ->where('type', 'debit')
                 ->where('method', 'transfer')
-                ->where('voided', false)
+                ->where(function($q) {
+                    $q->where('voided', '!=', 1)
+                      ->orWhereNull('voided');
+                })
                 ->sum('amount');
             
             $wallet->total_debit_epos = WalletTransaction::where('wallet_id', $wallet->id)
                 ->where('type', 'debit')
                 ->where('method', 'epos')
-                ->where('voided', false)
+                ->where(function($q) {
+                    $q->where('voided', '!=', 1)
+                      ->orWhereNull('voided');
+                })
                 ->sum('amount');
             
             return $wallet;
@@ -987,12 +1043,18 @@ class WalletController extends Controller
             // Calculate total transfer balance across all santri wallets
             $totalTransferCredit = WalletTransaction::where('type', 'credit')
                 ->where('method', 'transfer')
-                ->where('voided', false)
+                ->where(function($q) {
+                    $q->where('voided', '!=', 1)
+                      ->orWhereNull('voided');
+                })
                 ->sum('amount');
 
             $totalTransferDebit = WalletTransaction::where('type', 'debit')
                 ->where('method', 'transfer')
-                ->where('voided', false)
+                ->where(function($q) {
+                    $q->where('voided', '!=', 1)
+                      ->orWhereNull('voided');
+                })
                 ->sum('amount');
 
             $availableTransferBalance = $totalTransferCredit - $totalTransferDebit;

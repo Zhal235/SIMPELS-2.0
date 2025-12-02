@@ -458,24 +458,46 @@ export default function Sidebar() {
                   </li>
                   <li>
                     <NavLink
+                      to="/dompet/manajemen-keuangan"
+                      className={({ isActive }) =>
+                        `flex items-center gap-3 rounded-md px-3 py-2 text-sm ${isActive ? 'bg-white text-brand shadow-sm' : 'text-gray-700 hover:bg-white'}`
+                      }
+                    >
+                      <DollarSign className="w-5 h-5" />
+                      {hasAccess('dompet.manajemen-keuangan') && sidebarOpen && <span>Manajemen Keuangan</span>}
+                    </NavLink>
+                  </li>
+                  <li>
+                    <NavLink
+                      to="/dompet/history-transaksi"
+                      className={({ isActive }) =>
+                        `flex items-center gap-3 rounded-md px-3 py-2 text-sm ${isActive ? 'bg-white text-brand shadow-sm' : 'text-gray-700 hover:bg-white'}`
+                      }
+                    >
+                      <FileText className="w-5 h-5" />
+                      {hasAccess('dompet.history') && sidebarOpen && <span>History Transaksi</span>}
+                    </NavLink>
+                  </li>
+                  <li>
+                    <NavLink
+                      to="/dompet/laporan-keuangan"
+                      className={({ isActive }) =>
+                        `flex items-center gap-3 rounded-md px-3 py-2 text-sm ${isActive ? 'bg-white text-brand shadow-sm' : 'text-gray-700 hover:bg-white'}`
+                      }
+                    >
+                      <Receipt className="w-5 h-5" />
+                      {hasAccess('dompet.laporan') && sidebarOpen && <span>Laporan Keuangan</span>}
+                    </NavLink>
+                  </li>
+                  <li>
+                    <NavLink
                       to="/dompet/rfid"
                       className={({ isActive }) =>
                         `flex items-center gap-3 rounded-md px-3 py-2 text-sm ${isActive ? 'bg-white text-brand shadow-sm' : 'text-gray-700 hover:bg-white'}`
                       }
                     >
                       <Users className="w-5 h-5" />
-                      {hasAccess('dompet.rfid') && sidebarOpen && <span>RFID</span>}
-                    </NavLink>
-                  </li>
-                  <li>
-                    <NavLink
-                      to="/dompet/history"
-                      className={({ isActive }) =>
-                        `flex items-center gap-3 rounded-md px-3 py-2 text-sm ${isActive ? 'bg-white text-brand shadow-sm' : 'text-gray-700 hover:bg-white'}`
-                      }
-                    >
-                      <FileText className="w-5 h-5" />
-                      {hasAccess('dompet.history') && sidebarOpen && <span>History & Laporan</span>}
+                      {hasAccess('dompet.rfid') && sidebarOpen && <span>Kelola RFID</span>}
                     </NavLink>
                   </li>
                   <li>
@@ -486,18 +508,7 @@ export default function Sidebar() {
                       }
                     >
                       <Settings className="w-5 h-5" />
-                      {hasAccess('dompet.settings') && sidebarOpen && <span>Setting</span>}
-                    </NavLink>
-                  </li>
-                  <li>
-                    <NavLink
-                      to="/dompet/withdrawals"
-                      className={({ isActive }) =>
-                        `flex items-center gap-3 rounded-md px-3 py-2 text-sm ${isActive ? 'bg-white text-brand shadow-sm' : 'text-gray-700 hover:bg-white'}`
-                      }
-                    >
-                      <Receipt className="w-5 h-5" />
-                      {hasAccess('dompet.withdrawals') && sidebarOpen && <span>Penarikan (ePOS)</span>}
+                      {hasAccess('dompet.settings') && sidebarOpen && <span>Pengaturan Dompet</span>}
                     </NavLink>
                   </li>
                 </ul>
