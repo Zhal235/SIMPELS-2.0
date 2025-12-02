@@ -176,7 +176,7 @@ class AdminBuktiTransferController extends Controller
 
             // Process tagihan if not topup-only
             if (!$isTopupOnly && $bukti->tagihan_ids && count($bukti->tagihan_ids) > 0) {
-                $tagihans = TagihanSantri::whereIn('id', $bukti->tagihan_ids)->get();
+                $tagihans = TagihanSantri::with('jenisTagihan')->whereIn('id', $bukti->tagihan_ids)->get();
 
                 // Process each tagihan - pay full sisa for each
                 foreach ($tagihans as $tagihan) {
@@ -199,17 +199,23 @@ class AdminBuktiTransferController extends Controller
                 
                 $tagihan->save();
 
-                // Prepare pembayaran attributes — ensure required fields exist
-                $bukuKasId = DB::table('buku_kas')->value('id');
-                if (!$bukuKasId) {
-                    // Create a default buku kas if none exists
-                    $bukuKasId = DB::table('buku_kas')->insertGetId([
-                        'nama_kas' => 'Kas Default',
-                        'saldo_cash_awal' => 0,
-                        'saldo_bank_awal' => 0,
-                        'created_at' => now(),
-                        'updated_at' => now(),
-                    ]);
+                // Get buku_kas_id from jenis tagihan
+                $bukuKasId = null;
+                if ($tagihan->jenisTagihan && $tagihan->jenisTagihan->buku_kas_id) {
+                    $bukuKasId = $tagihan->jenisTagihan->buku_kas_id;
+                } else {
+                    // Fallback to first buku kas if jenis tagihan doesn't have buku_kas_id
+                    $bukuKasId = DB::table('buku_kas')->value('id');
+                    if (!$bukuKasId) {
+                        // Create a default buku kas if none exists
+                        $bukuKasId = DB::table('buku_kas')->insertGetId([
+                            'nama_kas' => 'Kas Default',
+                            'saldo_cash_awal' => 0,
+                            'saldo_bank_awal' => 0,
+                            'created_at' => now(),
+                            'updated_at' => now(),
+                        ]);
+                    }
                 }
 
                 $noTransaksi = Pembayaran::generateNoTransaksi();
