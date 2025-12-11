@@ -5,7 +5,16 @@ import { fileURLToPath, URL } from 'node:url'
 export default defineConfig({
   plugins: [react()],
   // Pastikan dev server berjalan di port 5173 dengan strictPort
-  server: { port: 5173, strictPort: true, open: true },
+  server: { 
+    host: '0.0.0.0', 
+    port: 5173, 
+    strictPort: true, 
+    open: false,
+    allowedHosts: [
+      'simpels.saza.sch.id',
+      '.saza.sch.id', // Allow all subdomains
+    ]
+  },
   preview: { port: 4173 },
   resolve: {
     // Prioritaskan resolusi ke file .tsx terlebih dahulu
