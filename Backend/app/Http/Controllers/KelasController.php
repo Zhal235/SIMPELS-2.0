@@ -5,10 +5,12 @@ namespace App\Http\Controllers;
 use Illuminate\Http\Request;
 use App\Models\Kelas;
 use App\Models\Santri;
+use App\Traits\ValidatesDeletion;
 use Illuminate\Validation\Rule;
 
 class KelasController extends Controller
 {
+    use ValidatesDeletion;
     /**
      * GET /api/kelas
      * Tampilkan semua kelas dengan jumlah santri (withCount)
@@ -78,11 +80,19 @@ class KelasController extends Controller
     public function destroy(int $id)
     {
         $kelas = Kelas::findOrFail($id);
-        $kelas->delete();
-        return response()->json([
-            'success' => true,
-            'message' => 'Kelas berhasil dihapus',
+        
+        // Validasi dependency sebelum delete
+        $validation = $this->validateDeletion($kelas, [
+            'santri' => [
+                'label' => 'Santri',
+                'action' => 'Pindahkan atau hapus semua santri di kelas "' . $kelas->nama_kelas . '" terlebih dahulu (Menu: Data Santri → Filter Kelas)'
+            ],
         ]);
+
+        // Return response sesuai hasil validasi
+        return $this->deletionResponse($validation, function() use ($kelas) {
+            $kelas->delete();
+        });
     }
 
     /**

@@ -6,10 +6,12 @@ use App\Http\Controllers\Controller;
 use Illuminate\Http\Request;
 use App\Models\Asrama;
 use App\Models\Santri;
+use App\Traits\ValidatesDeletion;
 use Illuminate\Support\Facades\Validator;
 
 class AsramaController extends Controller
 {
+    use ValidatesDeletion;
     public function index()
     {
         $list = Asrama::query()
@@ -65,8 +67,28 @@ class AsramaController extends Controller
         if (!$asrama) {
             return response()->json(['status' => 'error', 'message' => 'Asrama tidak ditemukan'], 404);
         }
+        
+        // Validasi dependency sebelum delete
+        $validation = $this->validateDeletion($asrama, [
+            'santri' => [
+                'label' => 'Santri',
+                'action' => 'Pindahkan atau hapus semua santri di asrama "' . $asrama->nama_asrama . '" terlebih dahulu (Menu: Data Santri → Filter Asrama)'
+            ],
+        ]);
+
+        // Return response sesuai hasil validasi
+        if (!$validation['can_delete']) {
+            return response()->json([
+                'status' => 'error',
+                'message' => $validation['message'],
+                'reason' => $validation['reason'],
+                'dependencies' => $validation['dependencies'],
+                'instructions' => $validation['instructions']
+            ], 422);
+        }
+        
         $asrama->delete();
-        return response()->json(['status' => 'success', 'message' => 'Asrama berhasil dihapus']);
+        return response()->json(['status' => 'success', 'message' => $validation['message']]);
     }
 
     public function tambahAnggota(Request $request, string $id)

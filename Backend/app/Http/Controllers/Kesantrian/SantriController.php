@@ -5,6 +5,7 @@ namespace App\Http\Controllers\Kesantrian;
 use App\Http\Controllers\Controller;
 use App\Models\Santri;
 use App\Http\Resources\SantriResource;
+use App\Traits\ValidatesDeletion;
 use Illuminate\Http\Request;
 use Illuminate\Support\Facades\Storage;
 use Illuminate\Validation\Rule;
@@ -18,6 +19,7 @@ use PhpOffice\PhpSpreadsheet\Style\Border;
 
 class SantriController extends Controller
 {
+    use ValidatesDeletion;
     /**
      * GET /api/v1/kesantrian/santri
      */
@@ -246,7 +248,7 @@ class SantriController extends Controller
      */
     public function destroy(string $id)
     {
-        $santri = Santri::find($id);
+        $santri = Santri::with(['wallet'])->find($id);
         if (!$santri) {
             return response()->json([
                 'status' => 'error',
@@ -254,10 +256,68 @@ class SantriController extends Controller
             ], 404);
         }
 
+        // Cek saldo wallet jika ada
+        $walletWarning = null;
+        if ($santri->wallet && $santri->wallet->balance > 0) {
+            $walletWarning = [
+                'type' => 'Saldo Dompet',
+                'count' => 1,
+                'relation' => 'wallet',
+                'action' => '⚠️ PENTING: Tarik saldo dompet sebesar Rp ' . number_format($santri->wallet->balance, 0, ',', '.') . ' terlebih dahulu! (Menu: Dompet → Penarikan Saldo)'
+            ];
+        }
+
+        // Validasi dependency sebelum delete
+        $validation = $this->validateDeletion($santri, [
+            'tagihanSantri' => [
+                'label' => 'Tagihan Santri',
+                'action' => 'Hapus semua tagihan santri "' . $santri->nama_santri . '" terlebih dahulu (Menu: Tagihan Santri → Filter Santri)'
+            ],
+            'pembayaran' => [
+                'label' => 'Pembayaran',
+                'action' => 'Hapus semua pembayaran santri "' . $santri->nama_santri . '" terlebih dahulu (Menu: Pembayaran → Filter Santri)'
+            ],
+            'walletTransactions' => [
+                'label' => 'Transaksi Dompet',
+                'action' => 'Hapus semua transaksi dompet santri "' . $santri->nama_santri . '" terlebih dahulu'
+            ],
+            'wallet' => [
+                'label' => 'Dompet Digital',
+                'action' => 'Hapus dompet digital santri "' . $santri->nama_santri . '" terlebih dahulu'
+            ],
+            'rfid_tag' => [
+                'label' => 'RFID Tag',
+                'action' => 'Hapus RFID Tag santri "' . $santri->nama_santri . '" terlebih dahulu (Menu: RFID Tag)'
+            ],
+        ]);
+
+        // Tambahkan warning saldo wallet jika ada
+        if ($walletWarning && !$validation['can_delete']) {
+            // Insert di awal array dependencies
+            array_unshift($validation['dependencies'], $walletWarning);
+            // Update instructions
+            $validation['instructions'] = str_replace(
+                'Langkah yang harus dilakukan',
+                'Langkah yang harus dilakukan (WAJIB BERURUTAN)',
+                $validation['instructions']
+            );
+        }
+
+        // Return response sesuai hasil validasi
+        if (!$validation['can_delete']) {
+            return response()->json([
+                'status' => 'error',
+                'message' => $validation['message'],
+                'reason' => $validation['reason'],
+                'dependencies' => $validation['dependencies'],
+                'instructions' => $validation['instructions']
+            ], 422);
+        }
+
         $santri->delete();
         return response()->json([
             'status' => 'success',
-            'message' => 'Santri berhasil dihapus',
+            'message' => $validation['message'],
         ]);
     }
 

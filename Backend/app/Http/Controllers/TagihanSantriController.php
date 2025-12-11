@@ -5,12 +5,14 @@ namespace App\Http\Controllers;
 use App\Models\TagihanSantri;
 use App\Models\JenisTagihan;
 use App\Models\Santri;
+use App\Traits\ValidatesDeletion;
 use Illuminate\Http\Request;
 use Illuminate\Support\Facades\DB;
 use Illuminate\Support\Facades\Validator;
 
 class TagihanSantriController extends Controller
 {
+    use ValidatesDeletion;
     /**
      * Display a listing of the resource (rekap per santri)
      */
@@ -331,7 +333,7 @@ class TagihanSantriController extends Controller
      */
     public function destroy(string $id)
     {
-        $tagihan = TagihanSantri::find($id);
+        $tagihan = TagihanSantri::with(['santri', 'jenisTagihan'])->find($id);
 
         if (!$tagihan) {
             return response()->json([
@@ -340,12 +342,21 @@ class TagihanSantriController extends Controller
             ], 404);
         }
 
-        $tagihan->delete();
-
-        return response()->json([
-            'success' => true,
-            'message' => 'Tagihan berhasil dihapus'
+        // Validasi dependency sebelum delete
+        $santriName = $tagihan->santri ? $tagihan->santri->nama_santri : 'Unknown';
+        $jenisName = $tagihan->jenisTagihan ? $tagihan->jenisTagihan->nama_tagihan : 'Unknown';
+        
+        $validation = $this->validateDeletion($tagihan, [
+            'pembayaran' => [
+                'label' => 'Pembayaran/Cicilan',
+                'action' => 'Hapus semua pembayaran yang terkait dengan tagihan ini (' . $santriName . ' - ' . $jenisName . ' ' . $tagihan->bulan . ' ' . $tagihan->tahun . ') terlebih dahulu (Menu: Pembayaran)'
+            ],
         ]);
+
+        // Return response sesuai hasil validasi
+        return $this->deletionResponse($validation, function() use ($tagihan) {
+            $tagihan->delete();
+        });
     }
 
     /**

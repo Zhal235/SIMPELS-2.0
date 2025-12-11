@@ -38,4 +38,12 @@ class BukuKas extends Model
     {
         return $this->hasMany(TransaksiKas::class);
     }
+
+    /**
+     * Relasi ke pembayaran
+     */
+    public function pembayaran()
+    {
+        return $this->hasMany(Pembayaran::class, 'buku_kas_id');
+    }
 }

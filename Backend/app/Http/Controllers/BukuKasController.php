@@ -4,12 +4,14 @@ namespace App\Http\Controllers;
 
 use App\Models\BukuKas;
 use App\Models\TransaksiKas;
+use App\Traits\ValidatesDeletion;
 use Illuminate\Http\Request;
 use Illuminate\Support\Facades\DB;
 use Illuminate\Support\Facades\Validator;
 
 class BukuKasController extends Controller
 {
+    use ValidatesDeletion;
     /**
      * Display a listing of the resource.
      */
@@ -229,11 +231,25 @@ class BukuKasController extends Controller
             ], 404);
         }
 
-        $bukuKas->delete();
-
-        return response()->json([
-            'success' => true,
-            'message' => 'Buku kas berhasil dihapus'
+        // Validasi dependency sebelum delete
+        $validation = $this->validateDeletion($bukuKas, [
+            'jenisTagihan' => [
+                'label' => 'Jenis Tagihan',
+                'action' => 'Ubah atau hapus semua jenis tagihan yang menggunakan buku kas "' . $bukuKas->nama_kas . '" (Menu: Jenis Tagihan → Edit → Ubah Buku Kas)'
+            ],
+            'transaksi' => [
+                'label' => 'Transaksi Kas',
+                'action' => 'Hapus atau pindahkan semua transaksi kas di buku kas "' . $bukuKas->nama_kas . '" terlebih dahulu'
+            ],
+            'pembayaran' => [
+                'label' => 'Pembayaran',
+                'action' => 'Hapus semua pembayaran yang terkait dengan buku kas "' . $bukuKas->nama_kas . '" terlebih dahulu'
+            ],
         ]);
+
+        // Return response sesuai hasil validasi
+        return $this->deletionResponse($validation, function() use ($bukuKas) {
+            $bukuKas->delete();
+        });
     }
 }
