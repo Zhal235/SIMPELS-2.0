@@ -3,7 +3,8 @@ import { getUnreadCount } from '../api/announcements'
 
 /**
  * Custom hook for polling unread announcements count
- * @param intervalMs - Polling interval in milliseconds (default: 60000 = 1 minute)
+ * POLLING DISABLED - Manual refresh only to reduce server load
+ * @param intervalMs - Polling interval in milliseconds (TIDAK DIGUNAKAN - polling disabled)
  */
 export function useAnnouncementPolling(intervalMs: number = 60000) {
   const [unreadCount, setUnreadCount] = useState<number>(0)
@@ -21,21 +22,15 @@ export function useAnnouncementPolling(intervalMs: number = 60000) {
   }, [])
 
   useEffect(() => {
-    // Initial fetch
+    // Initial fetch only - NO AUTO POLLING
     fetchUnreadCount()
-    setIsPolling(true)
-
-    // Set up polling interval
-    const intervalId = setInterval(() => {
-      fetchUnreadCount()
-    }, intervalMs)
-
-    // Cleanup on unmount
-    return () => {
-      clearInterval(intervalId)
-      setIsPolling(false)
-    }
-  }, [fetchUnreadCount, intervalMs])
+    
+    // Polling disabled to reduce server load
+    // Badge will only update when:
+    // 1. Component mounts (initial load)
+    // 2. User manually clicks refresh
+    // 3. User opens announcements modal
+  }, [fetchUnreadCount])
 
   return {
     unreadCount,

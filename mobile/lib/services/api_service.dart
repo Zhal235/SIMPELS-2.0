@@ -10,17 +10,17 @@ class ApiService {
 
   /// Get base URL based on platform
   static String getBaseUrl() {
-    // For web, always use localhost
+    // For web, use production API URL
     if (kIsWeb) {
-      return 'http://localhost:8001';
+      return 'https://api.saza.sch.id';
     }
 
-    // For Android emulator
+    // For Android emulator (development)
     if (Platform.isAndroid) {
       return 'http://10.0.2.2:8001';
     }
 
-    // For iOS simulator or other platforms
+    // For iOS simulator or other platforms (development)
     return 'http://localhost:8001';
   }
 

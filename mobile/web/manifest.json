@@ -1,32 +1,33 @@
 {
-  "name": "SIMPELS Mobile",
+  "name": "SIMPELS Mobile - Wali Santri",
   "short_name": "SIMPELS",
-  "start_url": ".",
+  "start_url": "/",
+  "scope": "/",
   "display": "standalone",
   "background_color": "#2563EB",
   "theme_color": "#2563EB",
-  "description": "SIMPELS Mobile - Aplikasi PWA untuk Wali Santri",
+  "description": "Aplikasi untuk Wali Santri - Sistem Informasi Pesantren",
   "orientation": "portrait-primary",
   "prefer_related_applications": false,
   "icons": [
     {
-      "src": "icons/Icon-192.png",
+      "src": "favicon.png",
       "sizes": "192x192",
       "type": "image/png"
     },
     {
-      "src": "icons/Icon-512.png",
+      "src": "favicon.png",
       "sizes": "512x512",
       "type": "image/png"
     },
     {
-      "src": "icons/Icon-maskable-192.png",
+      "src": "favicon.png",
       "sizes": "192x192",
       "type": "image/png",
       "purpose": "maskable"
     },
     {
-      "src": "icons/Icon-maskable-512.png",
+      "src": "favicon.png",
       "sizes": "512x512",
       "type": "image/png",
       "purpose": "maskable"
