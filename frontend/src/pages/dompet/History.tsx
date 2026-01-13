@@ -173,7 +173,8 @@ export default function History() {
           <div className="grid grid-cols-1 md:grid-cols-2 lg:grid-cols-5 gap-4">
             <Card>
               <div className="text-sm text-gray-500 mb-1">Total Saldo Keseluruhan</div>
-              <div className="text-2xl font-bold text-blue-600">Rp {totalBalance.toLocaleString('id-ID')}</div>
+              <div className="text-2xl font-bold text-blue-600">Rp {(totalCashBalance + totalBankBalance).toLocaleString('id-ID')}</div>
+              <div className="text-xs text-gray-500 mt-1">Cash + Bank</div>
             </Card>
             <Card>
               <div className="text-sm text-gray-500 mb-1">Saldo Cash</div>

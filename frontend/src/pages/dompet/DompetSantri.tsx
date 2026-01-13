@@ -164,7 +164,15 @@ export default function DompetSantri() {
       }
     } catch (err: any) {
       console.error(err)
-      toast.error(err?.response?.data?.message || 'Gagal melakukan penarikan')
+      const errorData = err?.response?.data
+      
+      // Handle cash insufficient error
+      if (errorData?.data?.shortage && errorData?.data?.hint) {
+        const shortage = parseFloat(errorData.data.shortage || 0)
+        toast.error(`Saldo Cash tidak mencukupi. Silakan melakukan penarikan dari Bank terlebih dahulu (Kurang: Rp ${shortage.toLocaleString('id-ID')})`, { duration: 5000 })
+      } else {
+        toast.error(errorData?.message || 'Gagal melakukan penarikan')
+      }
     }
   }
 
@@ -390,10 +398,8 @@ export default function DompetSantri() {
         <form onSubmit={submitWithdraw} className="grid grid-cols-1 gap-3">
           <label className="block text-sm">Nominal (Rp)</label>
           <input value={amount} onChange={(e) => setAmount(e.target.value.replace(/\D/g, ''))} className="rounded-md border px-3 py-2" placeholder="Contoh: 50000" />
-          <label className="block text-sm">Metode</label>
-          <div className="flex gap-2 mb-2">
-            <button type="button" onClick={() => setMethod('cash')} className={`px-3 py-2 rounded-lg border ${method === 'cash' ? 'border-blue-600 bg-blue-50' : 'border-gray-200'}`}>Cash</button>
-            <button type="button" onClick={() => setMethod('transfer')} className={`px-3 py-2 rounded-lg border ${method === 'transfer' ? 'border-blue-600 bg-blue-50' : 'border-gray-200'}`}>Transfer</button>
+          <div className="text-xs text-gray-500 bg-blue-50 p-2 rounded">
+            💵 Penarikan tunai menggunakan metode Cash
           </div>
           <label className="block text-sm">Catatan (opsional)</label>
           <input value={note} onChange={(e) => setNote(e.target.value)} className="rounded-md border px-3 py-2" placeholder="Alasan penarikan" />

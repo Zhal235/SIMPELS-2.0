@@ -5,10 +5,12 @@ namespace App\Http\Controllers;
 use Illuminate\Http\Request;
 use App\Models\Kelas;
 use App\Models\Santri;
+use App\Traits\ValidatesDeletion;
 use Illuminate\Validation\Rule;
 
 class KelasController extends Controller
 {
+    use ValidatesDeletion;
     /**
      * GET /api/kelas
      * Tampilkan semua kelas dengan jumlah santri (withCount)
@@ -78,11 +80,19 @@ class KelasController extends Controller
     public function destroy(int $id)
     {
         $kelas = Kelas::findOrFail($id);
-        $kelas->delete();
-        return response()->json([
-            'success' => true,
-            'message' => 'Kelas berhasil dihapus',
+        
+        // Validasi dependency sebelum delete
+        $validation = $this->validateDeletion($kelas, [
+            'santri' => [
+                'label' => 'Santri',
+                'action' => 'Pindahkan atau hapus semua santri di kelas "' . $kelas->nama_kelas . '" terlebih dahulu (Menu: Data Santri → Filter Kelas)'
+            ],
         ]);
+
+        // Return response sesuai hasil validasi
+        return $this->deletionResponse($validation, function() use ($kelas) {
+            $kelas->delete();
+        });
     }
 
     /**
@@ -139,34 +149,62 @@ class KelasController extends Controller
     /**
      * Endpoint baru sesuai spesifikasi:
      * POST /v1/kesantrian/kelas/{kelas}/anggota
-     * Body: { santri_id: string }
+     * Body: { santri_id: string } OR { santri_ids: array }
+     * Mendukung single dan bulk add
      */
     public function tambahAnggota(Request $request, int $kelas_id)
     {
         $data = $request->validate([
-            'santri_id' => ['required', 'string'],
+            'santri_id' => ['sometimes', 'string'],
+            'santri_ids' => ['sometimes', 'array'],
+            'santri_ids.*' => ['string'],
         ]);
 
         $kelas = Kelas::findOrFail($kelas_id);
-        $santri = Santri::findOrFail($data['santri_id']);
 
-        // Validasi: santri tidak boleh sudah punya kelas lain
-        if (!is_null($santri->kelas_id) && $santri->kelas_id !== $kelas->id) {
+        // Support both single and bulk
+        $santriIds = [];
+        if (isset($data['santri_id'])) {
+            $santriIds = [$data['santri_id']];
+        } elseif (isset($data['santri_ids'])) {
+            $santriIds = $data['santri_ids'];
+        } else {
             return response()->json([
                 'success' => false,
-                'message' => 'Santri sudah terdaftar di kelas lain.',
+                'message' => 'Tidak ada santri yang dipilih',
             ], 422);
         }
 
-        $santri->kelas_id = $kelas->id;
-        $santri->setAttribute('kelas_nama', $kelas->nama_kelas);
-        $santri->save();
+        $errors = [];
+        $success = 0;
+
+        foreach ($santriIds as $santri_id) {
+            try {
+                $santri = Santri::findOrFail($santri_id);
+
+                // Validasi: santri tidak boleh sudah punya kelas lain
+                if (!is_null($santri->kelas_id) && $santri->kelas_id !== $kelas->id) {
+                    $errors[] = "Santri {$santri->nama_santri} sudah terdaftar di kelas lain.";
+                    continue;
+                }
+
+                $santri->kelas_id = $kelas->id;
+                $santri->setAttribute('kelas_nama', $kelas->nama_kelas);
+                $santri->save();
+                $success++;
+            } catch (\Exception $e) {
+                $errors[] = "Gagal menambahkan santri ID {$santri_id}: " . $e->getMessage();
+            }
+        }
 
         return response()->json([
-            'success' => true,
-            'message' => 'Anggota kelas berhasil diperbarui',
-            'data' => $santri,
-        ]);
+            'success' => $success > 0,
+            'message' => $success > 0 
+                ? "{$success} santri berhasil ditambahkan" . (count($errors) > 0 ? " (" . count($errors) . " gagal)" : "")
+                : 'Tidak ada santri yang berhasil ditambahkan',
+            'success_count' => $success,
+            'errors' => $errors,
+        ], $success > 0 ? 200 : 422);
     }
 
     /**

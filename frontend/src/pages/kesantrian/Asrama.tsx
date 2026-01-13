@@ -33,6 +33,9 @@ export default function KesantrianAsrama() {
   const [waliAsrama, setWaliAsrama] = useState('')
   const [availableSantri, setAvailableSantri] = useState<Santri[]>([])
   const [selectedSantriId, setSelectedSantriId] = useState<string>('')
+  const [selectedSantriIds, setSelectedSantriIds] = useState<string[]>([])
+  const [searchTerm, setSearchTerm] = useState<string>('')
+  const [showAddForm, setShowAddForm] = useState(false)
 
   async function fetchAsrama() {
     try {
@@ -135,6 +138,9 @@ export default function KesantrianAsrama() {
       setMemberAsrama(row)
       setMembersOpen(true)
       setSelectedSantriId('')
+      setSelectedSantriIds([])
+      setSearchTerm('')
+      setShowAddForm(false)
       // ambil santri tanpa asrama
       const res = await api.get('/v1/kesantrian/santri', { params: { page: 1, perPage: 1000, withoutAsrama: 1 } })
       const list: any[] = Array.isArray(res?.data?.data) ? res.data.data : []
@@ -167,6 +173,54 @@ export default function KesantrianAsrama() {
     } catch (err: any) {
       const message = err?.response?.data?.message || 'Gagal menambah anggota'
       toast.error(message)
+    }
+  }
+
+  async function addMultipleMembers() {
+    if (!memberAsrama?.id || selectedSantriIds.length === 0) {
+      toast.error('Pilih minimal satu santri')
+      return
+    }
+    
+    try {
+      const res = await api.post(`/v1/kesantrian/asrama/${memberAsrama.id}/anggota`, { 
+        santri_ids: selectedSantriIds 
+      })
+      
+      if (res.data.status === 'success') {
+        toast.success(res.data.message)
+        setSelectedSantriIds([])
+        setShowAddForm(false)
+        await fetchAsrama()
+        await openMembers(memberAsrama)
+      } else {
+        toast.error(res.data.message)
+      }
+    } catch (err: any) {
+      const message = err?.response?.data?.message || 'Gagal menambahkan anggota'
+      toast.error(message)
+    }
+  }
+
+  function toggleSantriSelection(santriId: string) {
+    setSelectedSantriIds(prev => {
+      if (prev.includes(santriId)) {
+        return prev.filter(id => id !== santriId)
+      } else {
+        return [...prev, santriId]
+      }
+    })
+  }
+
+  function toggleSelectAll() {
+    const filteredSantri = searchTerm 
+      ? availableSantri.filter(s => s.nama_santri.toLowerCase().includes(searchTerm.toLowerCase()))
+      : availableSantri
+    
+    if (selectedSantriIds.length === filteredSantri.length) {
+      setSelectedSantriIds([])
+    } else {
+      setSelectedSantriIds(filteredSantri.map(s => s.id))
     }
   }
 
@@ -227,22 +281,101 @@ export default function KesantrianAsrama() {
         footer={<button className="btn" onClick={() => setMembersOpen(false)}>Tutup</button>}
       >
         <div className="space-y-4">
-          <div className="flex items-end gap-2">
-            <div className="flex-1">
-              <label className="block text-sm font-medium text-gray-700">Tambah Anggota</label>
-              <select
-                className="mt-1 w-full rounded-md border px-3 py-2"
-                value={selectedSantriId}
-                onChange={(e) => setSelectedSantriId(e.target.value)}
-              >
-                <option value="">Pilih santri tanpa asrama</option>
-                {availableSantri.map((s) => (
-                  <option key={s.id} value={s.id}>{s.nama_santri}</option>
-                ))}
-              </select>
+          {/* Tombol Tambah Anggota */}
+          {!showAddForm && (
+            <button 
+              className="btn btn-primary w-full" 
+              onClick={() => setShowAddForm(true)}
+            >
+              + Tambah Anggota
+            </button>
+          )}
+
+          {/* Form Tambah Anggota - Hanya tampil jika showAddForm true */}
+          {showAddForm && (
+            <div className="border rounded-lg p-4 bg-gray-50">
+              <div className="flex items-center justify-between mb-3">
+                <h3 className="font-medium text-gray-900">Tambah Anggota Baru</h3>
+                <button 
+                  className="text-gray-500 hover:text-gray-700"
+                  onClick={() => {
+                    setShowAddForm(false)
+                    setSelectedSantriIds([])
+                    setSearchTerm('')
+                  }}
+                >
+                  ✕
+                </button>
+              </div>
+
+              {/* Search Box */}
+              <div className="mb-3">
+                <label className="block text-sm font-medium text-gray-700 mb-2">Cari Santri</label>
+                <input
+                  type="text"
+                  className="w-full rounded-md border px-3 py-2"
+                  placeholder="Ketik nama santri..."
+                  value={searchTerm}
+                  onChange={(e) => setSearchTerm(e.target.value)}
+                />
+              </div>
+
+              {/* Checkbox Multi-Select */}
+              <div>
+                <div className="flex items-center justify-between mb-3">
+                  <label className="text-sm font-medium text-gray-700">
+                    Pilih Santri ({selectedSantriIds.length} dipilih)
+                  </label>
+                  {availableSantri.length > 0 && (
+                    <button 
+                      className="text-sm text-brand hover:underline"
+                      onClick={toggleSelectAll}
+                    >
+                      {selectedSantriIds.length === availableSantri.filter(s => !searchTerm || s.nama_santri.toLowerCase().includes(searchTerm.toLowerCase())).length 
+                        ? 'Batal Pilih Semua' 
+                        : 'Pilih Semua'}
+                    </button>
+                  )}
+                </div>
+
+                <div className="max-h-64 overflow-y-auto space-y-2">
+                  {availableSantri.length === 0 ? (
+                    <p className="text-sm text-gray-500 text-center py-4">
+                      Semua santri sudah memiliki asrama
+                    </p>
+                  ) : (
+                    availableSantri
+                      .filter(s => !searchTerm || s.nama_santri.toLowerCase().includes(searchTerm.toLowerCase()))
+                      .map((s) => (
+                        <label
+                          key={s.id}
+                          className="flex items-center gap-2 p-2 hover:bg-gray-50 rounded cursor-pointer"
+                        >
+                          <input
+                            type="checkbox"
+                            checked={selectedSantriIds.includes(s.id)}
+                            onChange={() => toggleSantriSelection(s.id)}
+                            className="w-4 h-4 text-brand border-gray-300 rounded focus:ring-brand"
+                          />
+                          <span className="text-sm text-gray-700">{s.nama_santri}</span>
+                        </label>
+                      ))
+                  )}
+                </div>
+
+                {selectedSantriIds.length > 0 && (
+                  <div className="mt-3 pt-3 border-t">
+                    <button 
+                      className="btn btn-primary w-full" 
+                      onClick={addMultipleMembers}
+                    >
+                      Tambahkan {selectedSantriIds.length} Santri ke Asrama
+                    </button>
+                  </div>
+                )}
+              </div>
             </div>
-            <button className="btn btn-primary" onClick={addMember} disabled={!selectedSantriId}>Tambah Anggota</button>
-          </div>
+          )}
 
           <Card title="Daftar Anggota">
             <MembersTable asrama={memberAsrama!} onRemove={removeMember} />

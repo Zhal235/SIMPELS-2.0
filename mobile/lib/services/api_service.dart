@@ -10,17 +10,17 @@ class ApiService {
 
   /// Get base URL based on platform
   static String getBaseUrl() {
-    // For web, always use localhost
+    // For web, use production API URL
     if (kIsWeb) {
-      return 'http://localhost:8001';
+      return 'https://api.saza.sch.id';
     }
 
-    // For Android emulator
+    // For Android emulator (development)
     if (Platform.isAndroid) {
       return 'http://10.0.2.2:8001';
     }
 
-    // For iOS simulator or other platforms
+    // For iOS simulator or other platforms (development)
     return 'http://localhost:8001';
   }
 
@@ -107,6 +107,11 @@ class ApiService {
 
   Future<Response> getWaliWallet(String santriId) async {
     return await _dio.get('${AppConfig.waliWalletEndpoint}/$santriId');
+  }
+
+  /// Get wallet info including balance and minimum balance status
+  Future<Response> getWalletInfo(String santriId) async {
+    return await _dio.get('/wali/wallet/$santriId');
   }
 
   /// Get wallet transactions (full history) using admin-style endpoint

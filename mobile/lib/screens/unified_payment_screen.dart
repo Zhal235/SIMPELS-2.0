@@ -14,6 +14,7 @@ import 'bukti_history_screen.dart';
 /// 1. Pembayaran tagihan saja
 /// 2. Top-up dompet saja
 /// 3. Pembayaran tagihan + Top-up dompet sekaligus
+/// 4. Multiple pembayaran tagihan sekaligus (+ optional topup)
 class UnifiedPaymentScreen extends StatefulWidget {
   final Map<String, dynamic>? tagihan;
   final bool isTopupOnly;
@@ -21,6 +22,13 @@ class UnifiedPaymentScreen extends StatefulWidget {
   final String? santriName;
   final bool shouldIncludeTopup;
   final int? selectedBankId;
+  
+  // For multiple payment
+  final bool isMultiplePayment;
+  final List<dynamic>? multipleTagihan;
+  
+  // To prevent auto-save when opened from draft
+  final bool fromDraft;
 
   const UnifiedPaymentScreen({
     super.key,
@@ -30,6 +38,9 @@ class UnifiedPaymentScreen extends StatefulWidget {
     this.santriName,
     this.shouldIncludeTopup = false,
     this.selectedBankId,
+    this.isMultiplePayment = false,
+    this.multipleTagihan,
+    this.fromDraft = false,
   });
 
   @override
@@ -58,9 +69,31 @@ class _UnifiedPaymentScreenState extends State<UnifiedPaymentScreen> {
     final authProvider = Provider.of<AuthProvider>(context, listen: false);
     final santriId = authProvider.activeSantri?.id;
 
+    debugPrint('[UnifiedPayment] Loading params...');
+    debugPrint('[UnifiedPayment] isMultiplePayment: ${widget.isMultiplePayment}');
+    debugPrint('[UnifiedPayment] multipleTagihan: ${widget.multipleTagihan?.length}');
+    debugPrint('[UnifiedPayment] fromDraft: ${widget.fromDraft}');
+
     // First, set values from parameters (might be from draft list navigation)
     setState(() {
-      if (widget.isTopupOnly && widget.topupNominal != null) {
+      if (widget.isMultiplePayment && widget.multipleTagihan != null) {
+        // Calculate total from multiple tagihan
+        double total = 0;
+        for (var tagihan in widget.multipleTagihan!) {
+          if (tagihan is Map) {
+            final sisa = double.tryParse(tagihan['sisa']?.toString() ?? '0') ?? 0;
+            debugPrint('[UnifiedPayment] Adding tagihan: ${tagihan['jenis_tagihan']} - Rp $sisa');
+            total += sisa;
+          }
+        }
+        _paymentAmount = total;
+        debugPrint('[UnifiedPayment] Total payment amount: $_paymentAmount');
+        
+        if (widget.topupNominal != null && widget.topupNominal! > 0) {
+          _topupAmount = widget.topupNominal!;
+          debugPrint('[UnifiedPayment] Topup amount: $_topupAmount');
+        }
+      } else if (widget.isTopupOnly && widget.topupNominal != null) {
         _topupAmount = widget.topupNominal!;
       } else if (widget.tagihan != null) {
         _paymentAmount =
@@ -73,6 +106,11 @@ class _UnifiedPaymentScreenState extends State<UnifiedPaymentScreen> {
 
     if (santriId != null) {
       // Generate unique draft key
+      if (widget.isMultiplePayment || widget.fromDraft) {
+        _draftKey = null; // Don't use draft for multiple payment or when from draft
+        return;
+      }
+      
       _draftKey =
           'payment_draft_${santriId}_${widget.tagihan?['id'] ?? 'topup'}';
 
@@ -146,9 +184,57 @@ class _UnifiedPaymentScreenState extends State<UnifiedPaymentScreen> {
   }
 
   Future<void> _clearDraft() async {
-    if (_draftKey == null) return;
     final prefs = await SharedPreferences.getInstance();
-    await prefs.remove(_draftKey!);
+    
+    // Clear single payment draft
+    if (_draftKey != null) {
+      await prefs.remove(_draftKey!);
+      debugPrint('[Clear Draft] Removed single payment draft: $_draftKey');
+    }
+    
+    // Clear multiple payment draft if this is from draft
+    if (widget.isMultiplePayment && widget.fromDraft && widget.multipleTagihan != null) {
+      final authProvider = Provider.of<AuthProvider>(context, listen: false);
+      final santriId = authProvider.activeSantri?.id;
+      
+      if (santriId != null) {
+        // Get tagihan IDs from submitted payment
+        final submittedIds = widget.multipleTagihan!
+            .map((t) => t is Map ? t['id'] as int? : null)
+            .where((id) => id != null)
+            .toSet();
+        
+        // Find and remove matching multiple payment draft
+        final keys = prefs.getKeys().where((key) => 
+          key.startsWith('payment_draft_multiple_$santriId')
+        ).toList();
+        
+        for (final key in keys) {
+          final draftJson = prefs.getString(key);
+          if (draftJson != null) {
+            try {
+              final draft = json.decode(draftJson);
+              if (draft['tagihan'] is List) {
+                final draftIds = (draft['tagihan'] as List)
+                    .map((t) => t is Map ? t['id'] as int? : null)
+                    .where((id) => id != null)
+                    .toSet();
+                
+                // Check if this draft matches the submitted tagihan
+                if (draftIds.length == submittedIds.length && 
+                    draftIds.containsAll(submittedIds)) {
+                  await prefs.remove(key);
+                  debugPrint('[Clear Draft] Removed matching multiple payment draft: $key');
+                  break; // Only remove the matching draft
+                }
+              }
+            } catch (e) {
+              debugPrint('[Clear Draft] Error checking draft: $e');
+            }
+          }
+        }
+      }
+    }
   }
 
   void _showDraftDialog() {
@@ -193,8 +279,11 @@ class _UnifiedPaymentScreenState extends State<UnifiedPaymentScreen> {
   @override
   void dispose() {
     _catatanController.dispose();
-    // Only save draft if payment was NOT successfully submitted
-    if (!_submitSuccess) {
+    // Only save draft if:
+    // 1. Payment was NOT successfully submitted
+    // 2. NOT opened from draft (to prevent duplicate drafts)
+    // 3. NOT multiple payment (draft already saved from MultiplePaymentInfoScreen)
+    if (!_submitSuccess && !widget.fromDraft && !widget.isMultiplePayment) {
       _saveDraft(); // Auto-save saat keluar
     }
     super.dispose();
@@ -292,8 +381,22 @@ class _UnifiedPaymentScreenState extends State<UnifiedPaymentScreen> {
         );
         return;
       }
+    } else if (widget.isMultiplePayment && widget.multipleTagihan != null) {
+      // Mode multiple payment
+      tagihanIds = widget.multipleTagihan!
+          .map((t) => t is Map ? t['id'] as int? : null)
+          .where((id) => id != null)
+          .cast<int>()
+          .toList();
+          
+      if (tagihanIds.isEmpty) {
+        ScaffoldMessenger.of(context).showSnackBar(
+          const SnackBar(content: Text('Tidak ada tagihan valid')),
+        );
+        return;
+      }
     } else {
-      // Mode pembayaran tagihan
+      // Mode pembayaran tagihan single
       if (paymentAmount == null || paymentAmount <= 0) {
         ScaffoldMessenger.of(context).showSnackBar(
           const SnackBar(content: Text('Nominal pembayaran tidak valid')),
@@ -339,11 +442,21 @@ class _UnifiedPaymentScreenState extends State<UnifiedPaymentScreen> {
         await _clearDraft();
 
         if (mounted) {
-          final message = widget.isTopupOnly
-              ? 'Top-up berhasil dikirim! Tunggu konfirmasi admin.'
-              : topupAmount != null && topupAmount > 0
-                  ? 'Pembayaran dan top-up berhasil dikirim! Tunggu konfirmasi admin.'
-                  : 'Pembayaran berhasil dikirim! Tunggu konfirmasi admin.';
+          final String message;
+          if (widget.isTopupOnly) {
+            message = 'Top-up berhasil dikirim! Tunggu konfirmasi admin.';
+          } else if (widget.isMultiplePayment) {
+            final count = widget.multipleTagihan?.length ?? 0;
+            if (topupAmount != null && topupAmount > 0) {
+              message = '$count tagihan + top-up berhasil dikirim! Tunggu konfirmasi admin.';
+            } else {
+              message = '$count tagihan berhasil dikirim! Tunggu konfirmasi admin.';
+            }
+          } else {
+            message = topupAmount != null && topupAmount > 0
+                ? 'Pembayaran dan top-up berhasil dikirim! Tunggu konfirmasi admin.'
+                : 'Pembayaran berhasil dikirim! Tunggu konfirmasi admin.';
+          }
 
           // Show success dialog with option to view status
           await showDialog(
@@ -413,12 +526,10 @@ class _UnifiedPaymentScreenState extends State<UnifiedPaymentScreen> {
             response.data['error'] ?? 'Gagal submit bukti transfer');
       }
     } catch (e) {
+      debugPrint('[Submit Payment Error] $e');
       if (mounted) {
         ScaffoldMessenger.of(context).showSnackBar(
-          SnackBar(
-            content: Text('Error: $e'),
-            backgroundColor: Colors.red,
-          ),
+          SnackBar(content: Text('Error: ${e.toString()}')),
         );
       }
     } finally {
@@ -490,8 +601,66 @@ class _UnifiedPaymentScreenState extends State<UnifiedPaymentScreen> {
         child: Column(
           crossAxisAlignment: CrossAxisAlignment.start,
           children: [
-            // Info Card
-            if (isTopup)
+            // Info Card - different for multiple vs single payment
+            if (widget.isMultiplePayment && widget.multipleTagihan != null)
+              Card(
+                child: Padding(
+                  padding: const EdgeInsets.all(16),
+                  child: Column(
+                    crossAxisAlignment: CrossAxisAlignment.start,
+                    children: [
+                      Text(
+                        '${widget.multipleTagihan!.length} Tagihan Dipilih',
+                        style: const TextStyle(
+                          fontSize: 18,
+                          fontWeight: FontWeight.bold,
+                        ),
+                      ),
+                      const SizedBox(height: 16),
+                      ...widget.multipleTagihan!.map((tagihan) {
+                        if (tagihan is! Map) return const SizedBox.shrink();
+                        final sisa = double.tryParse(tagihan['sisa']?.toString() ?? '0') ?? 0;
+                        return Padding(
+                          padding: const EdgeInsets.only(bottom: 12),
+                          child: Row(
+                            children: [
+                              Icon(Icons.check_circle, size: 18, color: Colors.green.shade600),
+                              const SizedBox(width: 8),
+                              Expanded(
+                                child: Column(
+                                  crossAxisAlignment: CrossAxisAlignment.start,
+                                  children: [
+                                    Text(
+                                      tagihan['jenis_tagihan'] ?? 'Tagihan',
+                                      style: const TextStyle(
+                                        fontSize: 14,
+                                        fontWeight: FontWeight.w600,
+                                      ),
+                                    ),
+                                    if (tagihan['bulan'] != null)
+                                      Text(
+                                        '${tagihan['bulan']} ${tagihan['tahun']}',
+                                        style: TextStyle(fontSize: 12, color: Colors.grey[600]),
+                                      ),
+                                  ],
+                                ),
+                              ),
+                              Text(
+                                'Rp ${_formatCurrency(sisa)}',
+                                style: const TextStyle(
+                                  fontSize: 14,
+                                  fontWeight: FontWeight.bold,
+                                ),
+                              ),
+                            ],
+                          ),
+                        );
+                      }),
+                    ],
+                  ),
+                ),
+              )
+            else if (isTopup)
               Card(
                 color: Colors.blue.shade50,
                 child: Padding(

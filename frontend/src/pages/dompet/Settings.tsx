@@ -22,8 +22,9 @@ export default function Settings() {
     try {
       const [settingsRes, santriRes] = await Promise.all([getWalletSettings(), getAllSantriWithLimits()])
       if (settingsRes?.success) {
-        setGlobalMinBalance(settingsRes.data?.global_settings?.min_balance || 0)
-        setTempGlobalMinBalance(settingsRes.data?.global_settings?.min_balance || 0)
+        const minBal = settingsRes.data?.global_settings?.global_minimum_balance || 0
+        setGlobalMinBalance(minBal)
+        setTempGlobalMinBalance(minBal)
       }
       if (santriRes?.success) setSantriLimits((santriRes.data || []).map((s: any) => ({ ...s })))
     } catch (err) {

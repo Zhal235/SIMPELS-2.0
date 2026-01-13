@@ -5,12 +5,14 @@ namespace App\Http\Controllers;
 use App\Models\TagihanSantri;
 use App\Models\JenisTagihan;
 use App\Models\Santri;
+use App\Traits\ValidatesDeletion;
 use Illuminate\Http\Request;
 use Illuminate\Support\Facades\DB;
 use Illuminate\Support\Facades\Validator;
 
 class TagihanSantriController extends Controller
 {
+    use ValidatesDeletion;
     /**
      * Display a listing of the resource (rekap per santri)
      */
@@ -331,7 +333,7 @@ class TagihanSantriController extends Controller
      */
     public function destroy(string $id)
     {
-        $tagihan = TagihanSantri::find($id);
+        $tagihan = TagihanSantri::with(['santri', 'jenisTagihan'])->find($id);
 
         if (!$tagihan) {
             return response()->json([
@@ -340,12 +342,21 @@ class TagihanSantriController extends Controller
             ], 404);
         }
 
-        $tagihan->delete();
-
-        return response()->json([
-            'success' => true,
-            'message' => 'Tagihan berhasil dihapus'
+        // Validasi dependency sebelum delete
+        $santriName = $tagihan->santri ? $tagihan->santri->nama_santri : 'Unknown';
+        $jenisName = $tagihan->jenisTagihan ? $tagihan->jenisTagihan->nama_tagihan : 'Unknown';
+        
+        $validation = $this->validateDeletion($tagihan, [
+            'pembayaran' => [
+                'label' => 'Pembayaran/Cicilan',
+                'action' => 'Hapus semua pembayaran yang terkait dengan tagihan ini (' . $santriName . ' - ' . $jenisName . ' ' . $tagihan->bulan . ' ' . $tagihan->tahun . ') terlebih dahulu (Menu: Pembayaran)'
+            ],
         ]);
+
+        // Return response sesuai hasil validasi
+        return $this->deletionResponse($validation, function() use ($tagihan) {
+            $tagihan->delete();
+        });
     }
 
     /**
@@ -455,5 +466,127 @@ class TagihanSantriController extends Controller
         ];
 
         return $bulanMap[$bulan] ?? 1;
+    }
+
+    /**
+     * Bulk delete tagihan by jenis_tagihan_id
+     * POST /v1/keuangan/tagihan-santri/bulk-delete
+     */
+    public function bulkDelete(Request $request)
+    {
+        $validator = Validator::make($request->all(), [
+            'jenis_tagihan_id' => 'required|exists:jenis_tagihan,id',
+            'tahun' => 'sometimes|integer',
+            'bulan' => 'sometimes|string',
+            'santri_ids' => 'sometimes|array',
+            'santri_ids.*' => 'exists:santri,id',
+        ]);
+
+        if ($validator->fails()) {
+            return response()->json([
+                'success' => false,
+                'message' => 'Validation error',
+                'errors' => $validator->errors()
+            ], 422);
+        }
+
+        try {
+            DB::beginTransaction();
+
+            $query = TagihanSantri::where('jenis_tagihan_id', $request->jenis_tagihan_id)
+                ->where('status', 'belum_bayar'); // Hanya hapus yang belum dibayar
+
+            // Filter tambahan jika ada
+            if ($request->has('tahun')) {
+                $query->where('tahun', $request->tahun);
+            }
+            if ($request->has('bulan')) {
+                $query->where('bulan', $request->bulan);
+            }
+            if ($request->has('santri_ids')) {
+                $query->whereIn('santri_id', $request->santri_ids);
+            }
+
+            $count = $query->count();
+            $query->delete();
+
+            DB::commit();
+
+            return response()->json([
+                'success' => true,
+                'message' => "{$count} tagihan berhasil dihapus",
+                'deleted_count' => $count
+            ]);
+        } catch (\Exception $e) {
+            DB::rollBack();
+            return response()->json([
+                'success' => false,
+                'message' => 'Gagal menghapus tagihan: ' . $e->getMessage()
+            ], 500);
+        }
+    }
+
+    /**
+     * Bulk update nominal tagihan by jenis_tagihan_id
+     * POST /v1/keuangan/tagihan-santri/bulk-update-nominal
+     */
+    public function bulkUpdateNominal(Request $request)
+    {
+        $validator = Validator::make($request->all(), [
+            'jenis_tagihan_id' => 'required|exists:jenis_tagihan,id',
+            'nominal_baru' => 'required|numeric|min:0',
+            'tahun' => 'sometimes|integer',
+            'bulan' => 'sometimes|string',
+            'santri_ids' => 'sometimes|array',
+            'santri_ids.*' => 'exists:santri,id',
+        ]);
+
+        if ($validator->fails()) {
+            return response()->json([
+                'success' => false,
+                'message' => 'Validation error',
+                'errors' => $validator->errors()
+            ], 422);
+        }
+
+        try {
+            DB::beginTransaction();
+
+            $query = TagihanSantri::where('jenis_tagihan_id', $request->jenis_tagihan_id)
+                ->where('status', 'belum_bayar'); // Hanya update yang belum dibayar
+
+            // Filter tambahan jika ada
+            if ($request->has('tahun')) {
+                $query->where('tahun', $request->tahun);
+            }
+            if ($request->has('bulan')) {
+                $query->where('bulan', $request->bulan);
+            }
+            if ($request->has('santri_ids')) {
+                $query->whereIn('santri_id', $request->santri_ids);
+            }
+
+            $count = $query->count();
+            
+            // Update nominal dan sisa
+            $query->update([
+                'nominal' => $request->nominal_baru,
+                'sisa' => $request->nominal_baru
+            ]);
+
+            DB::commit();
+
+            return response()->json([
+                'success' => true,
+                'message' => "{$count} tagihan berhasil diperbarui",
+                'updated_count' => $count
+            ]);
+        } catch (\Exception $e) {
+            DB::rollBack();
+            return response()->json([
+                'success' => false,
+                'message' => 'Gagal memperbarui tagihan: ' . $e->getMessage()
+            ], 500);
+        }
     }
 }

@@ -10,6 +10,8 @@ class SantriModel {
   final String? fotoUrl;
   final double saldoDompet;
   final double? limitHarian;
+  final double? minimumBalance;
+  final bool isBelowMinimum;
   final String? hubungan; // 'ayah' atau 'ibu'
   final String? namaWali;
 
@@ -23,6 +25,8 @@ class SantriModel {
     this.fotoUrl,
     this.saldoDompet = 0,
     this.limitHarian,
+    this.minimumBalance,
+    this.isBelowMinimum = false,
     this.hubungan,
     this.namaWali,
   });
@@ -61,6 +65,10 @@ class SantriModel {
           ? double.parse(json['saldo_dompet'].toString())
           : 0,
       limitHarian: limitHarianValue,
+      minimumBalance: json['minimum_balance'] != null
+          ? double.parse(json['minimum_balance'].toString())
+          : null,
+      isBelowMinimum: json['is_below_minimum'] == true || json['is_below_minimum'] == 1,
       hubungan: json['hubungan'],
       namaWali: json['nama_wali'],
     );

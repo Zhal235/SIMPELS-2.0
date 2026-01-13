@@ -3,10 +3,10 @@ import type { AxiosRequestConfig, Method } from 'axios'
 import { useAuthStore } from '../stores/useAuthStore'
 
 const api = axios.create({
-  // Default fallback ke http://127.0.0.1:8001/api jika VITE_API_BASE tidak diset
-  // Menggunakan 127.0.0.1 untuk menghindari potensi masalah resolusi "localhost" pada beberapa environment
-  baseURL: (import.meta as any)?.env?.VITE_API_BASE || 'http://127.0.0.1:8001/api',
-  withCredentials: false,
+  // Default fallback ke https://api.saza.sch.id/api jika VITE_API_BASE tidak diset
+  // Menggunakan domain publik agar bisa diakses dari device lain
+  baseURL: (import.meta as any)?.env?.VITE_API_BASE || 'https://api.saza.sch.id/api',
+  withCredentials: true,
 })
 
 // Attach token if available

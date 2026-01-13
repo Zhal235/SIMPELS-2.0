@@ -110,6 +110,7 @@ Route::middleware('auth:sanctum')->group(function () {
         // Template, Export & Import routes (before apiResource)
         Route::get('santri/template', [SantriController::class, 'template']);
         Route::get('santri/export', [SantriController::class, 'export']);
+        Route::post('santri/validate-import', [SantriController::class, 'validateImport']);
         Route::post('santri/import', [SantriController::class, 'import']);
         
         Route::apiResource('santri', SantriController::class);
@@ -123,6 +124,8 @@ Route::middleware('auth:sanctum')->group(function () {
         // Tagihan Santri
         Route::post('tagihan-santri/generate', [TagihanSantriController::class, 'generate']);
         Route::post('tagihan-santri/tunggakan', [TagihanSantriController::class, 'createTunggakan']);
+        Route::post('tagihan-santri/bulk-delete', [TagihanSantriController::class, 'bulkDelete']);
+        Route::post('tagihan-santri/bulk-update-nominal', [TagihanSantriController::class, 'bulkUpdateNominal']);
         Route::apiResource('tagihan-santri', TagihanSantriController::class);
         Route::get('tagihan-santri/santri/{santriId}', [TagihanSantriController::class, 'getBySantri']);
         
@@ -146,6 +149,9 @@ Route::middleware('auth:sanctum')->group(function () {
 
     // API v1 endpoints untuk Dompet Digital / Wallets (protected)
     Route::prefix('v1/wallets')->group(function () {
+        // Get cash & bank balances
+        Route::get('balances', [WalletController::class, 'getBalances']);
+        
         // Wallet Settings (admin only) - MUST BE BEFORE /{santriId} route
         Route::get('settings', [WalletSettingsController::class, 'index']);
         Route::put('settings/global', [WalletSettingsController::class, 'updateGlobalSettings']);
@@ -167,6 +173,12 @@ Route::middleware('auth:sanctum')->group(function () {
 
         // Cash withdrawal (tarik dana dari bank ke cash)
         Route::post('cash-withdrawal', [WalletController::class, 'cashWithdrawal']);
+
+        // Collective Payments (Tagihan Kolektif)
+        Route::get('collective-payments', [\App\Http\Controllers\CollectivePaymentController::class, 'index']);
+        Route::post('collective-payments', [\App\Http\Controllers\CollectivePaymentController::class, 'store']);
+        Route::get('collective-payments/{id}', [\App\Http\Controllers\CollectivePaymentController::class, 'show']);
+        Route::post('collective-payments/{id}/retry', [\App\Http\Controllers\CollectivePaymentController::class, 'retry']);
 
         // Wallet management per-santri - MUST BE AFTER specific routes to avoid conflicts
         Route::get('/', [WalletController::class, 'index']);

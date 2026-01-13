@@ -234,27 +234,53 @@ export default function TransaksiKas() {
       const dariBukuKas = bukuKasList.find(bk => bk.id === Number(transferData.dari_buku_kas_id))
       const keBukuKas = bukuKasList.find(bk => bk.id === Number(transferData.ke_buku_kas_id))
 
-      // Buat transaksi pengeluaran dari sumber
-      await createTransaksiKas({
-        buku_kas_id: Number(transferData.dari_buku_kas_id),
-        tanggal: tanggal,
-        jenis: 'pengeluaran',
-        metode: transferData.dari_metode,
-        kategori: 'Transfer Keluar',
-        nominal: nominal,
-        keterangan: `Transfer ke ${keBukuKas?.nama_kas} (${keLabel}) - ${transferData.keterangan}`
-      })
+      // Check if this is internal transfer (same buku kas, different metode)
+      const isInternalTransfer = transferData.dari_buku_kas_id === transferData.ke_buku_kas_id
 
-      // Buat transaksi pemasukan ke tujuan
-      await createTransaksiKas({
-        buku_kas_id: Number(transferData.ke_buku_kas_id),
-        tanggal: tanggal,
-        jenis: 'pemasukan',
-        metode: transferData.ke_metode,
-        kategori: 'Transfer Masuk',
-        nominal: nominal,
-        keterangan: `Transfer dari ${dariBukuKas?.nama_kas} (${dariLabel}) - ${transferData.keterangan}`
-      })
+      if (isInternalTransfer) {
+        // Internal transfer: Bank ↔ Cash dalam buku kas yang sama
+        // Gunakan kategori khusus agar tidak mengurangi total saldo
+        await createTransaksiKas({
+          buku_kas_id: Number(transferData.dari_buku_kas_id),
+          tanggal: tanggal,
+          jenis: 'pengeluaran',
+          metode: transferData.dari_metode,
+          kategori: 'Transfer Internal (Keluar)',
+          nominal: nominal,
+          keterangan: `Transfer internal: ${dariLabel} → ${keLabel} - ${transferData.keterangan}`
+        })
+
+        await createTransaksiKas({
+          buku_kas_id: Number(transferData.ke_buku_kas_id),
+          tanggal: tanggal,
+          jenis: 'pemasukan',
+          metode: transferData.ke_metode,
+          kategori: 'Transfer Internal (Masuk)',
+          nominal: nominal,
+          keterangan: `Transfer internal: ${dariLabel} → ${keLabel} - ${transferData.keterangan}`
+        })
+      } else {
+        // Transfer antar buku kas berbeda
+        await createTransaksiKas({
+          buku_kas_id: Number(transferData.dari_buku_kas_id),
+          tanggal: tanggal,
+          jenis: 'pengeluaran',
+          metode: transferData.dari_metode,
+          kategori: 'Transfer Keluar',
+          nominal: nominal,
+          keterangan: `Transfer ke ${keBukuKas?.nama_kas} (${keLabel}) - ${transferData.keterangan}`
+        })
+
+        await createTransaksiKas({
+          buku_kas_id: Number(transferData.ke_buku_kas_id),
+          tanggal: tanggal,
+          jenis: 'pemasukan',
+          metode: transferData.ke_metode,
+          kategori: 'Transfer Masuk',
+          nominal: nominal,
+          keterangan: `Transfer dari ${dariBukuKas?.nama_kas} (${dariLabel}) - ${transferData.keterangan}`
+        })
+      }
 
       toast.success('Transfer saldo berhasil!')
       setShowModalTransfer(false)
@@ -299,13 +325,13 @@ export default function TransaksiKas() {
     return b.id - a.id
   })
 
-  // Hitung total
+  // Hitung total - EXCLUDE Transfer Internal karena itu hanya perpindahan
   const totalPemasukan = filteredTransaksi
-    .filter(t => t.jenis === 'pemasukan')
+    .filter(t => t.jenis === 'pemasukan' && !t.kategori.includes('Transfer Internal'))
     .reduce((sum, t) => sum + Number(t.nominal), 0)
 
   const totalPengeluaran = filteredTransaksi
-    .filter(t => t.jenis === 'pengeluaran')
+    .filter(t => t.jenis === 'pengeluaran' && !t.kategori.includes('Transfer Internal'))
     .reduce((sum, t) => sum + Number(t.nominal), 0)
 
   const saldo = totalPemasukan - totalPengeluaran

@@ -1,0 +1,33 @@
+<?php
+
+use Illuminate\Database\Migrations\Migration;
+use Illuminate\Database\Schema\Blueprint;
+use Illuminate\Support\Facades\Schema;
+
+return new class extends Migration
+{
+    /**
+     * Run the migrations.
+     */
+    public function up(): void
+    {
+        Schema::create('device_tokens', function (Blueprint $table) {
+            $table->id();
+            $table->uuid('wali_id');
+            $table->string('device_token');
+            $table->string('device_type')->nullable(); // android, ios, web
+            $table->timestamps();
+            
+            $table->foreign('wali_id')->references('id')->on('walis')->onDelete('cascade');
+            $table->unique(['wali_id', 'device_token']);
+        });
+    }
+
+    /**
+     * Reverse the migrations.
+     */
+    public function down(): void
+    {
+        Schema::dropIfExists('device_tokens');
+    }
+};

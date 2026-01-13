@@ -17,6 +17,10 @@ export default function Withdrawals() {
   const [selectedWithdrawal, setSelectedWithdrawal] = useState<any>(null)
   const [rejectReason, setRejectReason] = useState('')
   const [processing, setProcessing] = useState(false)
+  const [showApproveModal, setShowApproveModal] = useState(false)
+  const [paymentMethod, setPaymentMethod] = useState<'cash' | 'transfer'>('cash')
+  const [cashBalance, setCashBalance] = useState(0)
+  const [bankBalance, setBankBalance] = useState(0)
 
   useEffect(() => { load() }, [])
 
@@ -53,21 +57,34 @@ export default function Withdrawals() {
     }
   }
 
-  async function handleApprove(withdrawal: any) {
-    if (!window.confirm(`Setujui penarikan ${withdrawal.withdrawal_number} sebesar Rp ${parseFloat(withdrawal.amount || 0).toLocaleString('id-ID')}?`)) {
-      return
-    }
+  function openApproveModal(withdrawal: any) {
+    setSelectedWithdrawal(withdrawal)
+    setPaymentMethod('cash')
+    // TODO: Fetch actual cash & bank balance from API
+    setShowApproveModal(true)
+  }
+
+  async function handleApprove(e?: React.FormEvent) {
+    e?.preventDefault()
     
     try {
       setProcessing(true)
-      const res = await approveEposWithdrawal(withdrawal.id)
+      const res = await approveEposWithdrawal(selectedWithdrawal.id, paymentMethod)
       if (res.success) {
         toast.success('Penarikan berhasil disetujui')
+        setShowApproveModal(false)
+        setSelectedWithdrawal(null)
         load()
       }
     } catch (err: any) {
       console.error(err)
-      toast.error(err?.response?.data?.message || 'Gagal menyetujui penarikan')
+      const errorMsg = err?.response?.data?.message || 'Gagal menyetujui penarikan'
+      const hint = err?.response?.data?.data?.hint
+      if (hint) {
+        toast.error(`${errorMsg}\n${hint}`, { duration: 6000 })
+      } else {
+        toast.error(errorMsg)
+      }
     } finally {
       setProcessing(false)
     }
@@ -148,7 +165,7 @@ export default function Withdrawals() {
           {row.status === 'pending' && (
             <>
               <button
-                onClick={() => handleApprove(row)}
+                onClick={() => openApproveModal(row)}
                 disabled={processing}
                 className="px-3 py-1 bg-green-500 text-white text-xs rounded hover:bg-green-600 disabled:opacity-50"
               >
@@ -277,6 +294,117 @@ export default function Withdrawals() {
             />
             <div className="text-xs text-gray-500 mt-1">
               {rejectReason.trim().length} / 5 karakter minimum
+            </div>
+          </div>
+        </form>
+      </Modal>
+
+      {/* Approve Modal dengan Pilihan Metode Pembayaran */}
+      <Modal 
+        open={showApproveModal} 
+        title="Setujui Penarikan EPOS" 
+        onClose={() => {
+          setShowApproveModal(false)
+          setSelectedWithdrawal(null)
+        }} 
+        footer={(
+          <>
+            <button 
+              className="btn" 
+              onClick={() => {
+                setShowApproveModal(false)
+                setSelectedWithdrawal(null)
+              }}
+              disabled={processing}
+            >
+              Batal
+            </button>
+            <button 
+              className="btn btn-primary" 
+              onClick={(e) => handleApprove(e as any)}
+              disabled={processing}
+            >
+              {processing ? 'Memproses...' : 'Setujui Penarikan'}
+            </button>
+          </>
+        )}
+      >
+        <form onSubmit={handleApprove} className="space-y-4">
+          {selectedWithdrawal && (
+            <div className="p-3 bg-gray-50 rounded">
+              <div className="text-xs text-gray-500">Nomor Penarikan</div>
+              <div className="font-mono font-semibold">{selectedWithdrawal.withdrawal_number}</div>
+              <div className="text-xs text-gray-500 mt-2">Nominal</div>
+              <div className="font-bold text-green-600">
+                Rp {parseFloat(selectedWithdrawal.amount || 0).toLocaleString('id-ID')}
+              </div>
+              {selectedWithdrawal.requested_by && (
+                <>
+                  <div className="text-xs text-gray-500 mt-2">Diminta oleh</div>
+                  <div className="text-sm">{selectedWithdrawal.requested_by}</div>
+                </>
+              )}
+            </div>
+          )}
+
+          <div>
+            <label className="block text-sm font-medium mb-2">Metode Pembayaran *</label>
+            <div className="grid grid-cols-2 gap-3">
+              <button
+                type="button"
+                onClick={() => setPaymentMethod('cash')}
+                className={`p-4 border-2 rounded-lg text-left transition-all ${
+                  paymentMethod === 'cash'
+                    ? 'border-blue-600 bg-blue-50'
+                    : 'border-gray-200 hover:border-gray-300'
+                }`}
+              >
+                <div className="flex items-center gap-2 mb-2">
+                  <div className={`w-4 h-4 rounded-full border-2 flex items-center justify-center ${
+                    paymentMethod === 'cash' ? 'border-blue-600' : 'border-gray-300'
+                  }`}>
+                    {paymentMethod === 'cash' && (
+                      <div className="w-2 h-2 rounded-full bg-blue-600"></div>
+                    )}
+                  </div>
+                  <span className="font-semibold">💵 Cash</span>
+                </div>
+                <div className="text-xs text-gray-600">
+                  Bayar dari saldo Cash sekolah
+                </div>
+              </button>
+
+              <button
+                type="button"
+                onClick={() => setPaymentMethod('transfer')}
+                className={`p-4 border-2 rounded-lg text-left transition-all ${
+                  paymentMethod === 'transfer'
+                    ? 'border-blue-600 bg-blue-50'
+                    : 'border-gray-200 hover:border-gray-300'
+                }`}
+              >
+                <div className="flex items-center gap-2 mb-2">
+                  <div className={`w-4 h-4 rounded-full border-2 flex items-center justify-center ${
+                    paymentMethod === 'transfer' ? 'border-blue-600' : 'border-gray-300'
+                  }`}>
+                    {paymentMethod === 'transfer' && (
+                      <div className="w-2 h-2 rounded-full bg-blue-600"></div>
+                    )}
+                  </div>
+                  <span className="font-semibold">🏦 Transfer</span>
+                </div>
+                <div className="text-xs text-gray-600">
+                  Bayar dari saldo Bank sekolah
+                </div>
+              </button>
+            </div>
+          </div>
+
+          <div className="bg-yellow-50 border border-yellow-200 rounded p-3 text-sm">
+            <div className="font-medium text-yellow-800 mb-1">⚠️ Perhatian</div>
+            <div className="text-yellow-700 text-xs">
+              Pastikan saldo {paymentMethod === 'cash' ? 'Cash' : 'Bank'} mencukupi sebelum menyetujui penarikan.
+              {paymentMethod === 'cash' && ' Jika saldo Cash kurang, lakukan penarikan dari Bank ke Cash terlebih dahulu.'}
             </div>
           </div>
         </form>

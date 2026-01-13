@@ -20,6 +20,7 @@ interface BuktiTransfer {
     account_name: string;
   } | null;
   total_nominal: number;
+  nominal_topup?: number; // Topup amount
   status: 'pending' | 'approved' | 'rejected';
   catatan_wali: string | null;
   catatan_admin: string | null;
@@ -36,6 +37,7 @@ interface BuktiTransfer {
     dibayar: number;
     sisa: number;
     status: string;
+    nominal_bayar?: number; // Actual payment amount for this transaction
   }>;
 }
 
@@ -339,20 +341,37 @@ export default function BuktiTransfer() {
                   </h4>
                   <div className="space-y-2">
                     {bukti.tagihan.length > 0 ? (
-                      bukti.tagihan.map((t, idx) => (
-                        <div key={idx} className="flex justify-between text-sm">
-                          <span className="text-gray-700">
-                            {t.jenis} {t.bulan && `- ${t.bulan} ${t.tahun}`}
-                          </span>
-                          <span className="font-medium">{formatCurrency(t.sisa)}</span>
-                        </div>
-                      ))
+                      bukti.tagihan.map((t, idx) => {
+                        // Use nominal_bayar from backend (actual payment for this transaction)
+                        const nominalDibayar = t.nominal_bayar || t.sisa;
+                        
+                        return (
+                          <div key={idx} className="flex justify-between text-sm">
+                            <span className="text-gray-700">
+                              {t.jenis} {t.bulan && `- ${t.bulan} ${t.tahun}`}
+                            </span>
+                            <span className="font-medium">{formatCurrency(nominalDibayar)}</span>
+                          </div>
+                        );
+                      })
                     ) : (
                       <div className="text-sm text-gray-500 italic">
                         {bukti.jenis_transaksi === 'topup' ? 'Top-up dompet santri' : 'Tidak ada detail tagihan'}
                       </div>
                     )}
                   </div>
+                  
+                  {/* Show topup amount if exists */}
+                  {(bukti.jenis_transaksi === 'pembayaran_topup' || bukti.jenis_transaksi === 'topup') && bukti.nominal_topup && bukti.nominal_topup > 0 && (
+                    <div className="mt-3 pt-3 border-t">
+                      <div className="flex justify-between text-sm">
+                        <span className="text-gray-700">Top-up Dompet</span>
+                        <span className="font-medium text-blue-600">
+                          {formatCurrency(bukti.nominal_topup)}
+                        </span>
+                      </div>
+                    </div>
+                  )}
                 </div>
 
                 {bukti.catatan_wali && (

@@ -4,12 +4,14 @@ namespace App\Http\Controllers;
 
 use App\Models\BukuKas;
 use App\Models\TransaksiKas;
+use App\Traits\ValidatesDeletion;
 use Illuminate\Http\Request;
 use Illuminate\Support\Facades\DB;
 use Illuminate\Support\Facades\Validator;
 
 class BukuKasController extends Controller
 {
+    use ValidatesDeletion;
     /**
      * Display a listing of the resource.
      */
@@ -19,29 +21,72 @@ class BukuKasController extends Controller
 
         $result = $bukuKasList->map(function ($bukuKas) {
             // Hitung total pemasukan dan pengeluaran dari transaksi
+            // Exclude internal transfers (Transfer Internal Masuk/Keluar) dari laporan
             $totalPemasukanCash = TransaksiKas::where('buku_kas_id', $bukuKas->id)
                 ->where('jenis', 'pemasukan')
                 ->where('metode', 'cash')
+                ->where('kategori', 'NOT LIKE', 'Transfer Internal%')
                 ->sum('nominal');
             
             $totalPemasukanBank = TransaksiKas::where('buku_kas_id', $bukuKas->id)
                 ->where('jenis', 'pemasukan')
                 ->where('metode', 'transfer')
+                ->where('kategori', 'NOT LIKE', 'Transfer Internal%')
                 ->sum('nominal');
             
             $totalPengeluaranCash = TransaksiKas::where('buku_kas_id', $bukuKas->id)
                 ->where('jenis', 'pengeluaran')
                 ->where('metode', 'cash')
+                ->where('kategori', 'NOT LIKE', 'Transfer Internal%')
                 ->sum('nominal');
             
             $totalPengeluaranBank = TransaksiKas::where('buku_kas_id', $bukuKas->id)
                 ->where('jenis', 'pengeluaran')
                 ->where('metode', 'transfer')
+                ->where('kategori', 'NOT LIKE', 'Transfer Internal%')
                 ->sum('nominal');
 
-            // Saldo = saldo awal + pemasukan - pengeluaran
-            $saldoCash = $bukuKas->saldo_cash_awal + $totalPemasukanCash - $totalPengeluaranCash;
-            $saldoBank = $bukuKas->saldo_bank_awal + $totalPemasukanBank - $totalPengeluaranBank;
+            // Untuk saldo, kita harus INCLUDE transfer internal karena itu perpindahan uang
+            // Transfer Internal Masuk (cash) = uang dari bank ke cash
+            $transferInternalMasukCash = TransaksiKas::where('buku_kas_id', $bukuKas->id)
+                ->where('jenis', 'pemasukan')
+                ->where('metode', 'cash')
+                ->where('kategori', 'LIKE', 'Transfer Internal%')
+                ->sum('nominal');
+            
+            // Transfer Internal Keluar (bank) = uang dari bank ke cash
+            $transferInternalKeluarBank = TransaksiKas::where('buku_kas_id', $bukuKas->id)
+                ->where('jenis', 'pengeluaran')
+                ->where('metode', 'transfer')
+                ->where('kategori', 'LIKE', 'Transfer Internal%')
+                ->sum('nominal');
+            
+            // Transfer Internal Masuk (bank) = uang dari cash ke bank
+            $transferInternalMasukBank = TransaksiKas::where('buku_kas_id', $bukuKas->id)
+                ->where('jenis', 'pemasukan')
+                ->where('metode', 'transfer')
+                ->where('kategori', 'LIKE', 'Transfer Internal%')
+                ->sum('nominal');
+            
+            // Transfer Internal Keluar (cash) = uang dari cash ke bank
+            $transferInternalKeluarCash = TransaksiKas::where('buku_kas_id', $bukuKas->id)
+                ->where('jenis', 'pengeluaran')
+                ->where('metode', 'cash')
+                ->where('kategori', 'LIKE', 'Transfer Internal%')
+                ->sum('nominal');
+
+            // Saldo = saldo awal + pemasukan - pengeluaran + transfer internal
+            $saldoCash = $bukuKas->saldo_cash_awal 
+                + $totalPemasukanCash 
+                - $totalPengeluaranCash
+                + $transferInternalMasukCash 
+                - $transferInternalKeluarCash;
+                
+            $saldoBank = $bukuKas->saldo_bank_awal 
+                + $totalPemasukanBank 
+                - $totalPengeluaranBank
+                + $transferInternalMasukBank 
+                - $transferInternalKeluarBank;
             
             $totalPemasukan = $totalPemasukanCash + $totalPemasukanBank;
             $totalPengeluaran = $totalPengeluaranCash + $totalPengeluaranBank;
@@ -186,11 +231,25 @@ class BukuKasController extends Controller
             ], 404);
         }
 
-        $bukuKas->delete();
-
-        return response()->json([
-            'success' => true,
-            'message' => 'Buku kas berhasil dihapus'
+        // Validasi dependency sebelum delete
+        $validation = $this->validateDeletion($bukuKas, [
+            'jenisTagihan' => [
+                'label' => 'Jenis Tagihan',
+                'action' => 'Ubah atau hapus semua jenis tagihan yang menggunakan buku kas "' . $bukuKas->nama_kas . '" (Menu: Jenis Tagihan → Edit → Ubah Buku Kas)'
+            ],
+            'transaksi' => [
+                'label' => 'Transaksi Kas',
+                'action' => 'Hapus atau pindahkan semua transaksi kas di buku kas "' . $bukuKas->nama_kas . '" terlebih dahulu'
+            ],
+            'pembayaran' => [
+                'label' => 'Pembayaran',
+                'action' => 'Hapus semua pembayaran yang terkait dengan buku kas "' . $bukuKas->nama_kas . '" terlebih dahulu'
+            ],
         ]);
+
+        // Return response sesuai hasil validasi
+        return $this->deletionResponse($validation, function() use ($bukuKas) {
+            $bukuKas->delete();
+        });
     }
 }

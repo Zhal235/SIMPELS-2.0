@@ -24,12 +24,19 @@ class WalletSettingsController extends Controller
             $amount = isset($val['amount']) ? (float)$val['amount'] : 0;
         }
 
+        // Get global_minimum_balance from wallet_settings table (new field)
+        $settingsRow = WalletSettings::first();
+        $globalMinBalance = $settingsRow ? $settingsRow->global_minimum_balance : 10000;
+
         $santriLimits = SantriTransactionLimit::with('santri:id,nis,nama_santri')
             ->orderBy('created_at')
             ->get();
 
         return response()->json(['success' => true, 'data' => [
-            'global_settings' => ['min_balance' => $amount],
+            'global_settings' => [
+                'min_balance' => $amount,
+                'global_minimum_balance' => (float)$globalMinBalance
+            ],
             'santri_limits' => $santriLimits
         ]]);
     }
@@ -56,26 +63,47 @@ class WalletSettingsController extends Controller
         return response()->json(['success' => true, 'data' => $santri]);
     }
 
-    // update global settings (min_balance)
+    // update global settings (min_balance and global_minimum_balance)
     public function updateGlobalSettings(Request $request)
     {
         $user = $request->user();
         if (!$user || ($user->role ?? 'user') !== 'admin') return response()->json(['success' => false, 'message' => 'Forbidden'], 403);
 
         $v = Validator::make($request->all(), [
-            'min_balance' => 'required|numeric|min:0'
+            'min_balance' => 'nullable|numeric|min:0',
+            'global_minimum_balance' => 'nullable|numeric|min:0'
         ]);
 
         if ($v->fails()) return response()->json(['success' => false, 'message' => 'Validation error', 'errors' => $v->errors()], 422);
 
-        DB::table('wallet_settings')->updateOrInsert(
-            ['key' => 'min_balance_jajan', 'scope' => 'global'],
-            ['value' => json_encode(['amount' => (float)$request->input('min_balance')]), 'updated_at' => now(), 'created_at' => now()]
-        );
+        // Update old min_balance for RFID jajan control (if provided)
+        if ($request->has('min_balance')) {
+            DB::table('wallet_settings')->updateOrInsert(
+                ['key' => 'min_balance_jajan', 'scope' => 'global'],
+                ['value' => json_encode(['amount' => (float)$request->input('min_balance')]), 'updated_at' => now(), 'created_at' => now()]
+            );
+        }
 
+        // Update global_minimum_balance for warning alert (if provided)
+        if ($request->has('global_minimum_balance')) {
+            $settingsRow = WalletSettings::firstOrCreate([]);
+            $settingsRow->update([
+                'global_minimum_balance' => (float)$request->input('global_minimum_balance')
+            ]);
+        }
+
+        // Return both values
         $row = DB::table('wallet_settings')->where('key', 'min_balance_jajan')->where('scope', 'global')->first();
         $val = json_decode($row->value ?? '{}', true);
-        return response()->json(['success' => true, 'data' => ['min_balance' => isset($val['amount']) ? (float)$val['amount'] : 0]]);
+        $minBalance = isset($val['amount']) ? (float)$val['amount'] : 0;
+
+        $settingsRow = WalletSettings::first();
+        $globalMinBalance = $settingsRow ? $settingsRow->global_minimum_balance : 10000;
+
+        return response()->json(['success' => true, 'data' => [
+            'min_balance' => $minBalance,
+            'global_minimum_balance' => (float)$globalMinBalance
+        ]]);
     }
 
     // set per-santri daily limit

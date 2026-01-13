@@ -3,11 +3,13 @@
 namespace App\Http\Controllers;
 
 use App\Models\JenisTagihan;
+use App\Traits\ValidatesDeletion;
 use Illuminate\Http\Request;
 use Illuminate\Support\Facades\Validator;
 
 class JenisTagihanController extends Controller
 {
+    use ValidatesDeletion;
     /**
      * Display a listing of the resource.
      */
@@ -192,11 +194,17 @@ class JenisTagihanController extends Controller
             ], 404);
         }
 
-        $jenisTagihan->delete();
-
-        return response()->json([
-            'success' => true,
-            'message' => 'Jenis tagihan berhasil dihapus'
+        // Validasi dependency sebelum delete
+        $validation = $this->validateDeletion($jenisTagihan, [
+            'jenisTagihan' => [
+                'label' => 'Tagihan Santri',
+                'action' => 'Hapus semua tagihan santri yang menggunakan jenis tagihan "' . $jenisTagihan->nama_tagihan . '" terlebih dahulu'
+            ],
         ]);
+
+        // Return response sesuai hasil validasi
+        return $this->deletionResponse($validation, function() use ($jenisTagihan) {
+            $jenisTagihan->delete();
+        });
     }
 }

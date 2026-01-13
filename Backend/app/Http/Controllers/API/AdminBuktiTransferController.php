@@ -40,6 +40,37 @@ class AdminBuktiTransferController extends Controller
                         $tagihans = TagihanSantri::whereIn('id', $bukti->tagihan_ids)
                             ->with('jenisTagihan')
                             ->get();
+                        
+                        // For approved/rejected bukti, get actual payment amounts from pembayaran table
+                        if (in_array($bukti->status, ['approved', 'rejected'])) {
+                            $pembayaranData = Pembayaran::where('bukti_pembayaran', $bukti->bukti_path)
+                                ->whereIn('tagihan_santri_id', $bukti->tagihan_ids)
+                                ->get()
+                                ->keyBy('tagihan_santri_id');
+                            
+                            // Map payment amounts to tagihan
+                            $tagihans = $tagihans->map(function ($t) use ($pembayaranData) {
+                                $pembayaran = $pembayaranData->get($t->id);
+                                // Add nominal_bayar field for actual payment amount
+                                $t->nominal_bayar = $pembayaran ? $pembayaran->nominal_bayar : 0;
+                                return $t;
+                            });
+                        }
+                    }
+                    
+                    // Calculate topup amount
+                    $nominalTopup = 0;
+                    if ($bukti->jenis_transaksi === 'topup') {
+                        $nominalTopup = $bukti->total_nominal;
+                    } else if ($bukti->jenis_transaksi === 'pembayaran_topup') {
+                        // Extract from catatan_admin or calculate from total - tagihan
+                        if ($bukti->catatan_admin && preg_match('/Top-up dompet[:\s]+Rp\s*([\d.,]+)/', $bukti->catatan_admin, $matches)) {
+                            $nominalTopup = (float) str_replace(['.', ','], ['', '.'], $matches[1]);
+                        } else {
+                            // Fallback: calculate from total - sum of payments
+                            $totalPembayaran = $tagihans->sum('nominal_bayar');
+                            $nominalTopup = $bukti->total_nominal - $totalPembayaran;
+                        }
                     }
                     
                     return [
@@ -58,6 +89,7 @@ class AdminBuktiTransferController extends Controller
                             'account_name' => $bukti->selectedBank->account_name,
                         ] : null,
                         'total_nominal' => $bukti->total_nominal,
+                        'nominal_topup' => $nominalTopup,
                         'status' => $bukti->status,
                         'catatan_wali' => $bukti->catatan_wali,
                         'catatan_admin' => $bukti->catatan_admin,
@@ -65,7 +97,7 @@ class AdminBuktiTransferController extends Controller
                         'uploaded_at' => $bukti->uploaded_at->format('Y-m-d H:i:s'),
                         'processed_at' => $bukti->processed_at ? $bukti->processed_at->format('Y-m-d H:i:s') : null,
                         'processed_by' => $bukti->processedBy ? $bukti->processedBy->name : null,
-                        'tagihan' => $tagihans->map(function ($t) {
+                        'tagihan' => $tagihans->map(function ($t) use ($bukti) {
                             return [
                                 'id' => $t->id,
                                 'jenis' => $t->jenisTagihan->nama_tagihan ?? 'Biaya',
@@ -75,6 +107,8 @@ class AdminBuktiTransferController extends Controller
                                 'dibayar' => $t->dibayar,
                                 'sisa' => $t->sisa,
                                 'status' => $t->status,
+                                // Add actual payment amount for this transaction
+                                'nominal_bayar' => $bukti->status === 'pending' ? $t->sisa : ($t->nominal_bayar ?? 0),
                             ];
                         }),
                     ];
@@ -142,13 +176,13 @@ class AdminBuktiTransferController extends Controller
 
             // Process tagihan if not topup-only
             if (!$isTopupOnly && $bukti->tagihan_ids && count($bukti->tagihan_ids) > 0) {
-                $tagihans = TagihanSantri::whereIn('id', $bukti->tagihan_ids)->get();
+                $tagihans = TagihanSantri::with('jenisTagihan')->whereIn('id', $bukti->tagihan_ids)->get();
 
-                // Process each tagihan
+                // Process each tagihan - pay full sisa for each
                 foreach ($tagihans as $tagihan) {
-                    // Calculate how much to pay for this tagihan
+                    // Pay the full remaining amount (sisa) for this tagihan
                     $sisaTagihan = $tagihan->nominal - $tagihan->dibayar;
-                    $nominalBayar = min($sisaTagihan, $nominalPembayaran / count($tagihans));
+                    $nominalBayar = $sisaTagihan; // Pay full sisa, not divided
 
                 // Capture sisa before applying payment
                 $sisaSebelum = $sisaTagihan;
@@ -165,17 +199,23 @@ class AdminBuktiTransferController extends Controller
                 
                 $tagihan->save();
 
-                // Prepare pembayaran attributes — ensure required fields exist
-                $bukuKasId = DB::table('buku_kas')->value('id');
-                if (!$bukuKasId) {
-                    // Create a default buku kas if none exists
-                    $bukuKasId = DB::table('buku_kas')->insertGetId([
-                        'nama_kas' => 'Kas Default',
-                        'saldo_cash_awal' => 0,
-                        'saldo_bank_awal' => 0,
-                        'created_at' => now(),
-                        'updated_at' => now(),
-                    ]);
+                // Get buku_kas_id from jenis tagihan
+                $bukuKasId = null;
+                if ($tagihan->jenisTagihan && $tagihan->jenisTagihan->buku_kas_id) {
+                    $bukuKasId = $tagihan->jenisTagihan->buku_kas_id;
+                } else {
+                    // Fallback to first buku kas if jenis tagihan doesn't have buku_kas_id
+                    $bukuKasId = DB::table('buku_kas')->value('id');
+                    if (!$bukuKasId) {
+                        // Create a default buku kas if none exists
+                        $bukuKasId = DB::table('buku_kas')->insertGetId([
+                            'nama_kas' => 'Kas Default',
+                            'saldo_cash_awal' => 0,
+                            'saldo_bank_awal' => 0,
+                            'created_at' => now(),
+                            'updated_at' => now(),
+                        ]);
+                    }
                 }
 
                 $noTransaksi = Pembayaran::generateNoTransaksi();
@@ -264,6 +304,7 @@ class AdminBuktiTransferController extends Controller
                     'wallet_id' => (int)$wallet->id,
                     'amount' => (float)$nominalTopup,
                     'type' => 'credit',
+                    'method' => 'transfer', // Top-up via mobile selalu transfer bank
                     'description' => 'Top-up via SIMPELS Mobile - Disetujui oleh ' . (Auth::user()?->name ?? 'Admin'),
                     'balance_after' => (float)$wallet->balance,
                     'created_by' => Auth::id(),

@@ -4,6 +4,8 @@ import 'screens/splash_screen.dart';
 import 'screens/payment_info_screen.dart';
 import 'screens/wallet_full_history_screen.dart';
 import 'screens/change_password_screen.dart';
+import 'screens/multiple_payment_info_screen.dart';
+import 'screens/unified_payment_screen.dart';
 import 'providers/auth_provider.dart';
 import 'config/app_theme.dart';
 
@@ -52,12 +54,12 @@ class SimpleMobileApp extends StatelessWidget {
                 );
               }
 
-              // Multiple tagihan: use first one for now - show PaymentInfoScreen
-              // TODO: Handle multiple tagihan properly
+              // Multiple tagihan: use MultiplePaymentInfoScreen
               return MaterialPageRoute(
-                builder: (context) => PaymentInfoScreen(
-                  tagihan: selectedTagihan[0] as Map<String, dynamic>,
-                  isTopupOnly: false,
+                builder: (context) => MultiplePaymentInfoScreen(
+                  selectedTagihan: selectedTagihan
+                      .map((e) => Map<String, dynamic>.from(e as Map))
+                      .toList(),
                 ),
               );
             }
@@ -77,6 +79,26 @@ class SimpleMobileApp extends StatelessWidget {
             return MaterialPageRoute(
               builder: (context) => const ChangePasswordScreen(),
             );
+          }
+          if (settings.name == '/unified-payment') {
+            final args = settings.arguments as Map<String, dynamic>?;
+            if (args != null) {
+              final isMultiple = args['isMultiplePayment'] as bool? ?? false;
+              
+              if (isMultiple) {
+                // Multiple payment - handle as batch
+                return MaterialPageRoute(
+                  builder: (context) => UnifiedPaymentScreen(
+                    isMultiplePayment: true,
+                    multipleTagihan: args['selectedTagihan'] as List<dynamic>?,
+                    selectedBankId: args['selectedBankId'] as int?,
+                    shouldIncludeTopup: args['includeTopup'] as bool? ?? false,
+                    topupNominal: args['topupNominal'] as double?,
+                    fromDraft: args['fromDraft'] as bool? ?? false,
+                  ),
+                );
+              }
+            }
           }
           return null;
         },

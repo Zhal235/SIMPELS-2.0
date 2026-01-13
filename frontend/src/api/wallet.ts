@@ -86,8 +86,8 @@ export async function listEposWithdrawals(params?: any) {
   return res.data
 }
 
-export async function approveEposWithdrawal(id: number | string) {
-  const res = await api.put(`/v1/wallets/epos/withdrawal/${id}/approve`)
+export async function approveEposWithdrawal(id: number | string, paymentMethod: 'cash' | 'transfer') {
+  const res = await api.put(`/v1/wallets/epos/withdrawal/${id}/approve`, { payment_method: paymentMethod })
   return res.data
 }
 
@@ -99,5 +99,38 @@ export async function rejectEposWithdrawal(id: number | string, reason: string) 
 export async function listCashWithdrawals(params?: any) {
   // Cash withdrawals have notes starting with 'CASH_TRANSFER:'
   const res = await api.get('/v1/wallets/withdrawals', { params: { ...params, is_cash: true } })
+  return res.data
+}
+
+export async function getBalances() {
+  const res = await api.get('/v1/wallets/balances')
+  return res.data
+}
+
+// Collective Payments
+export async function listCollectivePayments() {
+  const res = await api.get('/v1/wallets/collective-payments')
+  return res.data
+}
+
+export async function getCollectivePayment(id: number | string) {
+  const res = await api.get(`/v1/wallets/collective-payments/${id}`)
+  return res.data
+}
+
+export async function createCollectivePayment(payload: {
+  title: string
+  description?: string
+  amount_per_santri: number
+  target_type: 'individual' | 'class' | 'all'
+  class_id?: number
+  santri_ids?: string[]
+}) {
+  const res = await api.post('/v1/wallets/collective-payments', payload)
+  return res.data
+}
+
+export async function retryCollectivePayment(id: number | string) {
+  const res = await api.post(`/v1/wallets/collective-payments/${id}/retry`)
   return res.data
 }

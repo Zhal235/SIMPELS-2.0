@@ -5,6 +5,7 @@ namespace App\Http\Controllers\Kesantrian;
 use App\Http\Controllers\Controller;
 use App\Models\Santri;
 use App\Http\Resources\SantriResource;
+use App\Traits\ValidatesDeletion;
 use Illuminate\Http\Request;
 use Illuminate\Support\Facades\Storage;
 use Illuminate\Validation\Rule;
@@ -18,6 +19,7 @@ use PhpOffice\PhpSpreadsheet\Style\Border;
 
 class SantriController extends Controller
 {
+    use ValidatesDeletion;
     /**
      * GET /api/v1/kesantrian/santri
      */
@@ -246,7 +248,7 @@ class SantriController extends Controller
      */
     public function destroy(string $id)
     {
-        $santri = Santri::find($id);
+        $santri = Santri::with(['wallet'])->find($id);
         if (!$santri) {
             return response()->json([
                 'status' => 'error',
@@ -254,10 +256,68 @@ class SantriController extends Controller
             ], 404);
         }
 
+        // Cek saldo wallet jika ada
+        $walletWarning = null;
+        if ($santri->wallet && $santri->wallet->balance > 0) {
+            $walletWarning = [
+                'type' => 'Saldo Dompet',
+                'count' => 1,
+                'relation' => 'wallet',
+                'action' => '⚠️ PENTING: Tarik saldo dompet sebesar Rp ' . number_format($santri->wallet->balance, 0, ',', '.') . ' terlebih dahulu! (Menu: Dompet → Penarikan Saldo)'
+            ];
+        }
+
+        // Validasi dependency sebelum delete
+        $validation = $this->validateDeletion($santri, [
+            'tagihanSantri' => [
+                'label' => 'Tagihan Santri',
+                'action' => 'Hapus semua tagihan santri "' . $santri->nama_santri . '" terlebih dahulu (Menu: Tagihan Santri → Filter Santri)'
+            ],
+            'pembayaran' => [
+                'label' => 'Pembayaran',
+                'action' => 'Hapus semua pembayaran santri "' . $santri->nama_santri . '" terlebih dahulu (Menu: Pembayaran → Filter Santri)'
+            ],
+            'walletTransactions' => [
+                'label' => 'Transaksi Dompet',
+                'action' => 'Hapus semua transaksi dompet santri "' . $santri->nama_santri . '" terlebih dahulu'
+            ],
+            'wallet' => [
+                'label' => 'Dompet Digital',
+                'action' => 'Hapus dompet digital santri "' . $santri->nama_santri . '" terlebih dahulu'
+            ],
+            'rfid_tag' => [
+                'label' => 'RFID Tag',
+                'action' => 'Hapus RFID Tag santri "' . $santri->nama_santri . '" terlebih dahulu (Menu: RFID Tag)'
+            ],
+        ]);
+
+        // Tambahkan warning saldo wallet jika ada
+        if ($walletWarning && !$validation['can_delete']) {
+            // Insert di awal array dependencies
+            array_unshift($validation['dependencies'], $walletWarning);
+            // Update instructions
+            $validation['instructions'] = str_replace(
+                'Langkah yang harus dilakukan',
+                'Langkah yang harus dilakukan (WAJIB BERURUTAN)',
+                $validation['instructions']
+            );
+        }
+
+        // Return response sesuai hasil validasi
+        if (!$validation['can_delete']) {
+            return response()->json([
+                'status' => 'error',
+                'message' => $validation['message'],
+                'reason' => $validation['reason'],
+                'dependencies' => $validation['dependencies'],
+                'instructions' => $validation['instructions']
+            ], 422);
+        }
+
         $santri->delete();
         return response()->json([
             'status' => 'success',
-            'message' => 'Santri berhasil dihapus',
+            'message' => $validation['message'],
         ]);
     }
 
@@ -453,6 +513,195 @@ class SantriController extends Controller
             return response()->json([
                 'status' => 'error',
                 'message' => 'Gagal export data santri: ' . $e->getMessage(),
+            ], 500);
+        }
+    }
+
+    /**
+     * POST /api/v1/kesantrian/santri/validate-import
+     * Validate Excel file before import (dry-run)
+     */
+    public function validateImport(Request $request)
+    {
+        try {
+            $request->validate([
+                'file' => 'required|file|mimes:xlsx,xls|max:5120',
+            ]);
+
+            $file = $request->file('file');
+            $path = $file->getRealPath();
+            
+            $spreadsheet = IOFactory::load($path);
+            $sheet = $spreadsheet->getActiveSheet();
+            $rows = $sheet->toArray();
+            
+            if (count($rows) < 4) {
+                return response()->json([
+                    'status' => 'error',
+                    'message' => 'File Excel tidak valid atau kosong',
+                ], 400);
+            }
+            
+            $validRows = [];
+            $invalidRows = [];
+            $warnings = [];
+            $duplicateNIS = [];
+            
+            // Check for duplicate NIS in file
+            $nisInFile = [];
+            
+            for ($i = 3; $i < count($rows); $i++) {
+                $rowNum = $i + 1;
+                $data = $rows[$i];
+                
+                // Skip empty rows
+                if (empty(array_filter($data))) {
+                    continue;
+                }
+                
+                $errors = [];
+                $warns = [];
+                
+                // Validate required fields
+                $nis = trim($data[0] ?? '');
+                if (empty($nis)) {
+                    $errors[] = 'NIS tidak boleh kosong';
+                } else {
+                    // Check duplicate in file
+                    if (isset($nisInFile[$nis])) {
+                        $errors[] = "NIS duplikat dengan baris {$nisInFile[$nis]}";
+                    } else {
+                        $nisInFile[$nis] = $rowNum;
+                    }
+                    
+                    // Check if exists in database
+                    $existing = Santri::where('nis', $nis)->first();
+                    if ($existing) {
+                        $warns[] = "NIS sudah terdaftar a.n. {$existing->nama_santri} (akan diupdate)";
+                    }
+                }
+                
+                $namaSantri = trim($data[3] ?? '');
+                if (empty($namaSantri)) {
+                    $errors[] = 'Nama Santri tidak boleh kosong';
+                }
+                
+                $jenisKelamin = trim($data[4] ?? '');
+                if (empty($jenisKelamin)) {
+                    $errors[] = 'Jenis Kelamin tidak boleh kosong';
+                } else {
+                    $jk = strtoupper(substr($jenisKelamin, 0, 1));
+                    if ($jk !== 'L' && $jk !== 'P') {
+                        if (stripos($jenisKelamin, 'perempuan') === false && 
+                            stripos($jenisKelamin, 'wanita') === false &&
+                            stripos($jenisKelamin, 'laki') === false &&
+                            stripos($jenisKelamin, 'pria') === false) {
+                            $errors[] = 'Jenis Kelamin harus L/P atau Laki-laki/Perempuan';
+                        }
+                    }
+                }
+                
+                $tempatLahir = trim($data[5] ?? '');
+                if (empty($tempatLahir)) {
+                    $errors[] = 'Tempat Lahir tidak boleh kosong';
+                }
+                
+                $tanggalLahir = trim($data[6] ?? '');
+                if (empty($tanggalLahir)) {
+                    $errors[] = 'Tanggal Lahir tidak boleh kosong';
+                } else {
+                    // Validate date format
+                    $dateFormats = ['Y-m-d', 'Y/m/d', 'd-m-Y', 'd/m/Y'];
+                    $validDate = false;
+                    foreach ($dateFormats as $format) {
+                        $d = \DateTime::createFromFormat($format, $tanggalLahir);
+                        if ($d && $d->format($format) === $tanggalLahir) {
+                            $validDate = true;
+                            break;
+                        }
+                    }
+                    if (!$validDate) {
+                        $errors[] = 'Format Tanggal Lahir tidak valid (gunakan YYYY-MM-DD)';
+                    }
+                }
+                
+                $alamat = trim($data[7] ?? '');
+                if (empty($alamat)) {
+                    $errors[] = 'Alamat tidak boleh kosong';
+                }
+                
+                $namaAyah = trim($data[20] ?? '');
+                if (empty($namaAyah)) {
+                    $errors[] = 'Nama Ayah tidak boleh kosong';
+                }
+                
+                $namaIbu = trim($data[25] ?? '');
+                if (empty($namaIbu)) {
+                    $errors[] = 'Nama Ibu tidak boleh kosong';
+                }
+                
+                // Check optional fields for warnings
+                $nisn = trim($data[1] ?? '');
+                if (empty($nisn)) {
+                    $warns[] = 'NISN kosong (opsional)';
+                }
+                
+                $hpAyah = trim($data[24] ?? '');
+                $hpIbu = trim($data[29] ?? '');
+                if (empty($hpAyah) && empty($hpIbu)) {
+                    $warns[] = 'HP Ayah dan HP Ibu kosong (disarankan diisi minimal salah satu untuk fitur login wali)';
+                }
+                
+                $rowData = [
+                    'row' => $rowNum,
+                    'nis' => $nis,
+                    'nama' => $namaSantri,
+                    'jenis_kelamin' => $jenisKelamin,
+                    'tempat_lahir' => $tempatLahir,
+                    'tanggal_lahir' => $tanggalLahir,
+                    'errors' => $errors,
+                    'warnings' => $warns,
+                ];
+                
+                if (count($errors) > 0) {
+                    $invalidRows[] = $rowData;
+                } else {
+                    $validRows[] = $rowData;
+                    if (count($warns) > 0) {
+                        $warnings = array_merge($warnings, $warns);
+                    }
+                }
+            }
+            
+            $totalRows = count($validRows) + count($invalidRows);
+            $canImport = count($invalidRows) === 0;
+            
+            return response()->json([
+                'status' => 'success',
+                'can_import' => $canImport,
+                'summary' => [
+                    'total_rows' => $totalRows,
+                    'valid_rows' => count($validRows),
+                    'invalid_rows' => count($invalidRows),
+                    'warnings_count' => count($warnings),
+                ],
+                'valid_rows' => array_slice($validRows, 0, 10), // Show first 10 valid rows
+                'invalid_rows' => $invalidRows,
+                'warnings' => array_slice(array_unique($warnings), 0, 20), // Show unique warnings
+                'message' => $canImport 
+                    ? "File siap diimport: {$totalRows} baris data valid" 
+                    : "Ditemukan " . count($invalidRows) . " baris dengan error. Perbaiki data sebelum import.",
+            ]);
+        } catch (\Illuminate\Validation\ValidationException $ve) {
+            return response()->json([
+                'status' => 'error',
+                'message' => 'File tidak valid. Hanya menerima file Excel (.xlsx atau .xls)',
+                'errors' => $ve->errors(),
+            ], 422);
+        } catch (Throwable $e) {
+            return response()->json([
+                'status' => 'error',
+                'message' => 'Gagal memvalidasi file: ' . $e->getMessage(),
             ], 500);
         }
     }
