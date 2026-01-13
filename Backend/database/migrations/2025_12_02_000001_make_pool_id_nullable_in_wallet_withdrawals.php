@@ -9,6 +9,18 @@ return new class extends Migration
 {
     public function up(): void
     {
+        // Check if migration already ran (table recreated with nullable pool_id)
+        if (!Schema::hasTable('wallet_withdrawals')) {
+            return; // Table doesn't exist, nothing to do
+        }
+
+        // Check if pool_id is already nullable by checking if the old backup exists
+        if (Schema::hasTable('wallet_withdrawals_old')) {
+            // Already migrated, just clean up
+            Schema::dropIfExists('wallet_withdrawals_old');
+            return;
+        }
+
         // SQLite doesn't support ALTER COLUMN with foreign keys
         // So we need to recreate the table
         
@@ -30,7 +42,10 @@ return new class extends Migration
             $table->foreign('pool_id')->references('id')->on('epos_pools')->onDelete('cascade');
             $table->foreign('requested_by')->references('id')->on('users')->onDelete('set null');
             $table->foreign('processed_by')->references('id')->on('users')->onDelete('set null');
-            $table->index(['pool_id', 'status']);
+            // Only create index if not exists
+            if (!DB::connection()->getSchemaBuilder()->hasIndex('wallet_withdrawals', 'wallet_withdrawals_pool_id_status_index')) {
+                $table->index(['pool_id', 'status']);
+            }
         });
         
         // 3. Copy data from old table

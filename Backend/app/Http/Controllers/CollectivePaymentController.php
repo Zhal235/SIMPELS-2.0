@@ -66,6 +66,7 @@ class CollectivePaymentController extends Controller
             'target_type' => 'required|in:individual,class,all',
             'class_id' => 'required_if:target_type,class|exists:kelas,id',
             'santri_ids' => 'required_if:target_type,individual|array',
+            'santri_ids.*' => 'exists:santri,id',
         ]);
 
         DB::beginTransaction();
@@ -94,11 +95,20 @@ class CollectivePaymentController extends Controller
             // Create items and process payment
             $collected = 0;
             $outstanding = 0;
+            $skipped = 0;
 
             foreach ($santris as $santri) {
+                // Ensure wallet exists for santri
                 $wallet = Wallet::where('santri_id', $santri->id)->first();
                 
-                if (!$wallet) continue;
+                if (!$wallet) {
+                    // Create wallet if not exists
+                    $wallet = Wallet::create([
+                        'santri_id' => $santri->id,
+                        'balance' => 0
+                    ]);
+                    $skipped++;
+                }
 
                 $item = CollectivePaymentItem::create([
                     'collective_payment_id' => $payment->id,
@@ -134,7 +144,7 @@ class CollectivePaymentController extends Controller
 
         } catch (\Exception $e) {
             DB::rollBack();
-            \Log::error('Create collective payment error: ' . $e->getMessage());
+            \Log::error('Create collective payment error: ' . $e->getMessage() . ' Trace: ' . $e->getTraceAsString());
             return response()->json(['success' => false, 'message' => 'Gagal membuat tagihan', 'error' => $e->getMessage()], 500);
         }
     }
