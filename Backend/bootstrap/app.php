@@ -40,5 +40,7 @@ return Application::configure(basePath: dirname(__DIR__))
         ]);
     })
     ->withExceptions(function (Exceptions $exceptions) {
-        //
-    })->create();
+        // Customize exception handling (optional)
+    })
+    ->withProviders()  // ← KEY FIX: Ensure providers are registered for console bootstrap
+    ->create();
