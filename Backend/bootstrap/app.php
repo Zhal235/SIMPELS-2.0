@@ -33,8 +33,10 @@ return Application::configure(basePath: dirname(__DIR__))
             \App\Http\Middleware\AddStorageCorsHeaders::class,
         ]);
         
-        // Exclude storage routes from CSRF verification
+        // Exclude storage routes and API routes from CSRF verification
+        // API routes use Bearer token authentication, not CSRF tokens
         $middleware->validateCsrfTokens(except: [
+            '/api/*',
             '/storage/*',
             '/public-storage/*',
         ]);
