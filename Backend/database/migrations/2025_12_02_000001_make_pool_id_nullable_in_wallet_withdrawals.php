@@ -9,77 +9,98 @@ return new class extends Migration
 {
     public function up(): void
     {
-        // Check if migration already ran (table recreated with nullable pool_id)
+        // Check if migration already ran
         if (!Schema::hasTable('wallet_withdrawals')) {
-            return; // Table doesn't exist, nothing to do
-        }
-
-        // Check if pool_id is already nullable by checking if the old backup exists
-        if (Schema::hasTable('wallet_withdrawals_old')) {
-            // Already migrated, just clean up
-            Schema::dropIfExists('wallet_withdrawals_old');
             return;
         }
 
-        // SQLite doesn't support ALTER COLUMN with foreign keys
-        // So we need to recreate the table
+        // For SQLite, we need to recreate the table since it doesn't support ALTER COLUMN with constraints
+        // Drop the foreign key constraints by recreating the table
         
-        // 1. Rename old table
-        Schema::rename('wallet_withdrawals', 'wallet_withdrawals_old');
+        DB::statement('BEGIN TRANSACTION');
         
-        // 2. Create new table with nullable pool_id
-        Schema::create('wallet_withdrawals', function (Blueprint $table) {
-            $table->id();
-            $table->unsignedBigInteger('pool_id')->nullable(); // Now nullable for cash withdrawals
-            $table->decimal('amount', 15, 2);
-            $table->enum('status', ['pending', 'approved', 'rejected', 'done'])->default('pending');
-            $table->unsignedBigInteger('requested_by')->nullable();
-            $table->unsignedBigInteger('processed_by')->nullable();
-            $table->string('epos_ref')->nullable();
-            $table->text('notes')->nullable();
-            $table->timestamps();
+        try {
+            // 1. Save existing data
+            DB::statement('CREATE TABLE wallet_withdrawals_backup AS SELECT * FROM wallet_withdrawals');
+            
+            // 2. Drop old table
+            Schema::dropIfExists('wallet_withdrawals');
+            
+            // 3. Create new table with nullable pool_id
+            Schema::create('wallet_withdrawals', function (Blueprint $table) {
+                $table->id();
+                $table->unsignedBigInteger('pool_id')->nullable(); // Now nullable
+                $table->decimal('amount', 15, 2);
+                $table->enum('status', ['pending', 'approved', 'rejected', 'done'])->default('pending');
+                $table->unsignedBigInteger('requested_by')->nullable();
+                $table->unsignedBigInteger('processed_by')->nullable();
+                $table->string('epos_ref')->nullable();
+                $table->text('notes')->nullable();
+                $table->timestamps();
 
-            $table->foreign('pool_id')->references('id')->on('epos_pools')->onDelete('cascade');
-            $table->foreign('requested_by')->references('id')->on('users')->onDelete('set null');
-            $table->foreign('processed_by')->references('id')->on('users')->onDelete('set null');
-            // Only create index if not exists
-            if (!DB::connection()->getSchemaBuilder()->hasIndex('wallet_withdrawals', 'wallet_withdrawals_pool_id_status_index')) {
+                $table->foreign('pool_id')->references('id')->on('epos_pools')->onDelete('cascade');
+                $table->foreign('requested_by')->references('id')->on('users')->onDelete('set null');
+                $table->foreign('processed_by')->references('id')->on('users')->onDelete('set null');
                 $table->index(['pool_id', 'status']);
-            }
-        });
-        
-        // 3. Copy data from old table
-        DB::statement('INSERT INTO wallet_withdrawals SELECT * FROM wallet_withdrawals_old');
-        
-        // 4. Drop old table
-        Schema::dropIfExists('wallet_withdrawals_old');
+            });
+            
+            // 4. Restore data
+            DB::statement('INSERT INTO wallet_withdrawals SELECT * FROM wallet_withdrawals_backup');
+            
+            // 5. Drop backup
+            DB::statement('DROP TABLE wallet_withdrawals_backup');
+            
+            DB::statement('COMMIT');
+        } catch (\Exception $e) {
+            DB::statement('ROLLBACK');
+            throw $e;
+        }
     }
 
     public function down(): void
     {
         // Reverse: make pool_id NOT NULL again
-        Schema::rename('wallet_withdrawals', 'wallet_withdrawals_old');
-        
-        Schema::create('wallet_withdrawals', function (Blueprint $table) {
-            $table->id();
-            $table->unsignedBigInteger('pool_id'); // Back to NOT NULL
-            $table->decimal('amount', 15, 2);
-            $table->enum('status', ['pending', 'approved', 'rejected', 'done'])->default('pending');
-            $table->unsignedBigInteger('requested_by')->nullable();
-            $table->unsignedBigInteger('processed_by')->nullable();
-            $table->string('epos_ref')->nullable();
-            $table->text('notes')->nullable();
-            $table->timestamps();
+        if (!Schema::hasTable('wallet_withdrawals')) {
+            return;
+        }
 
-            $table->foreign('pool_id')->references('id')->on('epos_pools')->onDelete('cascade');
-            $table->foreign('requested_by')->references('id')->on('users')->onDelete('set null');
-            $table->foreign('processed_by')->references('id')->on('users')->onDelete('set null');
-            $table->index(['pool_id', 'status']);
-        });
+        DB::statement('BEGIN TRANSACTION');
         
-        // Copy back (hanya yang pool_id tidak NULL)
-        DB::statement('INSERT INTO wallet_withdrawals SELECT * FROM wallet_withdrawals_old WHERE pool_id IS NOT NULL');
-        
-        Schema::dropIfExists('wallet_withdrawals_old');
+        try {
+            // 1. Save existing data
+            DB::statement('CREATE TABLE wallet_withdrawals_backup AS SELECT * FROM wallet_withdrawals');
+            
+            // 2. Drop old table
+            Schema::dropIfExists('wallet_withdrawals');
+            
+            // 3. Recreate with pool_id NOT NULL
+            Schema::create('wallet_withdrawals', function (Blueprint $table) {
+                $table->id();
+                $table->unsignedBigInteger('pool_id'); // Back to NOT NULL
+                $table->decimal('amount', 15, 2);
+                $table->enum('status', ['pending', 'approved', 'rejected', 'done'])->default('pending');
+                $table->unsignedBigInteger('requested_by')->nullable();
+                $table->unsignedBigInteger('processed_by')->nullable();
+                $table->string('epos_ref')->nullable();
+                $table->text('notes')->nullable();
+                $table->timestamps();
+
+                $table->foreign('pool_id')->references('id')->on('epos_pools')->onDelete('cascade');
+                $table->foreign('requested_by')->references('id')->on('users')->onDelete('set null');
+                $table->foreign('processed_by')->references('id')->on('users')->onDelete('set null');
+                $table->index(['pool_id', 'status']);
+            });
+            
+            // 4. Restore data (only rows where pool_id is not NULL)
+            DB::statement('INSERT INTO wallet_withdrawals SELECT * FROM wallet_withdrawals_backup WHERE pool_id IS NOT NULL');
+            
+            // 5. Drop backup
+            DB::statement('DROP TABLE wallet_withdrawals_backup');
+            
+            DB::statement('COMMIT');
+        } catch (\Exception $e) {
+            DB::statement('ROLLBACK');
+            throw $e;
+        }
     }
 };
