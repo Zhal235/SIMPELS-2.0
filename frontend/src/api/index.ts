@@ -7,6 +7,11 @@ const api = axios.create({
   // Menggunakan domain publik agar bisa diakses dari device lain
   baseURL: (import.meta as any)?.env?.VITE_API_BASE || 'https://api.saza.sch.id/api',
   withCredentials: true,
+  // Ensure proper headers for authentication and CORS
+  headers: {
+    'Content-Type': 'application/json',
+    'Accept': 'application/json',
+  },
 })
 
 // Attach token if available
@@ -33,6 +38,14 @@ api.interceptors.response.use(
     if (status === 401) {
       // Token invalid/expired
       useAuthStore.getState().logout()
+    }
+    // Log 405 errors for debugging
+    if (status === 405) {
+      console.error('405 Method Not Allowed:', {
+        method: err?.config?.method,
+        url: err?.config?.url,
+        baseURL: err?.config?.baseURL,
+      })
     }
     return Promise.reject(err)
   }

@@ -2,7 +2,7 @@
 
 return [
     'paths' => ['api/*', 'sanctum/csrf-cookie', 'storage/*'],
-    'allowed_methods' => ['*'],
+    'allowed_methods' => ['GET', 'HEAD', 'PUT', 'PATCH', 'POST', 'DELETE', 'OPTIONS'],
     'allowed_origins' => [
         'https://simpels.saza.sch.id',
         'https://api.saza.sch.id',
@@ -19,7 +19,7 @@ return [
         '/^https:\/\/.*\.saza\.sch\.id$/',
     ],
     'allowed_headers' => ['*'],
-    'exposed_headers' => [],
+    'exposed_headers' => ['X-Total-Count', 'X-Page-Count'],
     'max_age' => 0,
     'supports_credentials' => true,
 ];
