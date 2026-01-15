@@ -14,10 +14,8 @@ return new class extends Migration
             return;
         }
 
-        // For SQLite, we need to recreate the table since it doesn't support ALTER COLUMN with constraints
-        // Drop the foreign key constraints by recreating the table
-        
-        DB::statement('BEGIN TRANSACTION');
+        // Use Laravel's built-in transaction handling which is database-agnostic
+        DB::beginTransaction();
         
         try {
             // 1. Save existing data
@@ -50,9 +48,9 @@ return new class extends Migration
             // 5. Drop backup
             DB::statement('DROP TABLE wallet_withdrawals_backup');
             
-            DB::statement('COMMIT');
+            DB::commit();
         } catch (\Exception $e) {
-            DB::statement('ROLLBACK');
+            DB::rollBack();
             throw $e;
         }
     }
@@ -64,7 +62,7 @@ return new class extends Migration
             return;
         }
 
-        DB::statement('BEGIN TRANSACTION');
+        DB::beginTransaction();
         
         try {
             // 1. Save existing data
@@ -97,9 +95,9 @@ return new class extends Migration
             // 5. Drop backup
             DB::statement('DROP TABLE wallet_withdrawals_backup');
             
-            DB::statement('COMMIT');
+            DB::commit();
         } catch (\Exception $e) {
-            DB::statement('ROLLBACK');
+            DB::rollBack();
             throw $e;
         }
     }
