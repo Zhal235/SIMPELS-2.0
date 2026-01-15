@@ -30,7 +30,7 @@ type Santri = {
 }
 
 type Tagihan = {
-  id: number
+  id: number | string
   bulan: string
   tahun: string
   jenisTagihan: string
@@ -1028,7 +1028,6 @@ export default function PembayaranSantri() {
         paymentDetails: paymentDetails,
         totalTagihan: totalTagihan,
         nominalBayar: nominal,
-        opsiKembalian: opsiKembalian,
         admin: user?.name,
         tanggal: new Date().toLocaleDateString('id-ID'),
         jam: new Date().toLocaleTimeString('id-ID')

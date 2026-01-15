@@ -1,5 +1,5 @@
 import { create } from 'zustand'
-import { persist } from 'zustand/middleware'
+import { persist, createJSONStorage } from 'zustand/middleware'
 
 type User = {
   id?: number
@@ -18,18 +18,20 @@ type AuthState = {
   logout: () => void
 }
 
-export const useAuthStore = create<AuthState>(
+export const useAuthStore = create<AuthState>()(
   persist(
     (set) => ({
       token: null,
       user: null,
+      roles: null,
       setToken: (token) => set({ token }),
       setUser: (user) => set({ user }),
       setRoles: (roles) => set({ roles }),
-      logout: () => set({ token: null, user: null }),
+      logout: () => set({ token: null, user: null, roles: null }),
     }),
     {
       name: 'auth-store', // localStorage key
+      storage: createJSONStorage(() => localStorage),
     }
   )
 )

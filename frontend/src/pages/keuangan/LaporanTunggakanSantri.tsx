@@ -7,7 +7,9 @@ interface TunggakanSantri {
   santri: {
     nama: string
     nis: string
+    kelas_id?: number
     kelas?: {
+      id?: number
       nama_kelas: string
     }
     asrama?: {

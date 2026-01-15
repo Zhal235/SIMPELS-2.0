@@ -20,7 +20,7 @@ export default function RFID() {
     try {
       setLoading(true)
       // Load santri dengan status aktif
-      const res = await listSantri(1, 9999, '')
+      const res = await listSantri(1, 9999)
       if (res.status === 'success') {
         // Filter hanya santri aktif
         const aktivSantri = (res.data || []).filter((s: any) => s.status === 'aktif')

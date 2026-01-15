@@ -32,6 +32,8 @@ export default function Pengguna() {
         if (payload?.success) setRows(payload.data || [])
       } catch (e) {
         console.error('Failed to fetch users', e)
+      } finally {
+        setLoading(false)
       }
     }
     load()
@@ -228,7 +230,13 @@ export default function Pengguna() {
       </div>
 
       <Card>
-        <Table columns={columns as any} data={rows} loading={loading} />
+        {loading ? (
+          <div className="flex items-center justify-center py-12">
+            <div className="animate-spin rounded-full h-8 w-8 border-b-2 border-primary"></div>
+          </div>
+        ) : (
+          <Table columns={columns as any} data={rows} />
+        )}
       </Card>
 
       {/* Create user modal */}
@@ -265,7 +273,13 @@ export default function Pengguna() {
             </div>
           </div>
           <Card>
-            <Table columns={[{ key: 'name', header: 'Nama' }, { key: 'menus', header: 'Menus', render: (_v:any, r:any) => (r.menus?.length ? r.menus.join(', ') : '-') }, { key: 'actions', header: 'Aksi', render: (_v:any, r:any) => (<div className="flex gap-2"><button className="btn btn-sm" onClick={() => openEditRole(r)}>Edit</button><button className="btn btn-danger btn-sm" onClick={() => removeRole(r)}>Hapus</button></div>) }]} data={rolesList} loading={rolesLoading} />
+            {rolesLoading ? (
+              <div className="flex items-center justify-center py-12">
+                <div className="animate-spin rounded-full h-8 w-8 border-b-2 border-primary"></div>
+              </div>
+            ) : (
+              <Table columns={[{ key: 'name', header: 'Nama' }, { key: 'menus', header: 'Menus', render: (_v:any, r:any) => (r.menus?.length ? r.menus.join(', ') : '-') }, { key: 'actions', header: 'Aksi', render: (_v:any, r:any) => (<div className="flex gap-2"><button className="btn btn-sm" onClick={() => openEditRole(r)}>Edit</button><button className="btn btn-danger btn-sm" onClick={() => removeRole(r)}>Hapus</button></div>) }]} data={rolesList} />
+            )}
           </Card>
 
           <Modal open={showRoleModal} title={editingRoleObj ? `Edit Role: ${editingRoleObj.name}` : 'Tambah Role'} onClose={() => setShowRoleModal(false)} footer={(

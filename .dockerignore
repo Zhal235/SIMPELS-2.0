@@ -1,0 +1,25 @@
+# Backend
+Backend/node_modules
+Backend/vendor
+Backend/storage/logs/*.log
+Backend/storage/framework/cache/*
+Backend/storage/framework/sessions/*
+Backend/storage/framework/views/*
+Backend/.env.example
+
+# Frontend
+frontend/node_modules
+frontend/dist
+frontend/.env.example
+
+# Git
+.git
+.gitignore
+
+# IDE
+.vscode
+.idea
+
+# OS
+.DS_Store
+Thumbs.db

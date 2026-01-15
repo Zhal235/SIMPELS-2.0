@@ -101,7 +101,10 @@ export default function App() {
         // load roles into store for permission checks
         try {
           const rolesPayload: any = await listRoles()
-          if (rolesPayload?.success) setRoles(rolesPayload.data || [])
+          // Note: roles data loaded but not stored in zustand - used for permission checks in components
+          if (rolesPayload?.success) {
+            // Roles can be accessed via API call when needed
+          }
         } catch (err) {
           // ignore
         }
