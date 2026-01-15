@@ -28,7 +28,7 @@ return Application::configure(basePath: dirname(__DIR__))
         |       replace append() with appendToGroup('web', [...]). We use
         |       global headers by default to protect APIs and web.
         */
-        $middleware->append([
+        $middleware->appendToGroup('web', [
             \App\Http\Middleware\SecurityHeaders::class,
             \App\Http\Middleware\AddStorageCorsHeaders::class,
         ]);
