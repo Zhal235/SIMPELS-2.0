@@ -12,7 +12,7 @@ return new class extends Migration
     public function up(): void
     {
         Schema::table('wallet_settings', function (Blueprint $table) {
-            $table->decimal('global_minimum_balance', 15, 2)->default(10000)->after('global_daily_limit');
+            $table->decimal('global_minimum_balance', 15, 2)->default(10000);
         });
     }
 
