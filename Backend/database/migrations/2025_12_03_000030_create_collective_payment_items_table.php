@@ -20,7 +20,7 @@ return new class extends Migration
             $table->decimal('amount', 15, 2); // 10000
             $table->enum('status', ['paid', 'pending'])->default('pending');
             $table->timestamp('paid_at')->nullable();
-            $table->uuid('transaction_id')->nullable();
+            $table->unsignedBigInteger('transaction_id')->nullable();
             $table->foreign('transaction_id')->references('id')->on('wallet_transactions')->onDelete('set null');
             $table->text('failure_reason')->nullable(); // "insufficient_balance"
             $table->timestamps();
