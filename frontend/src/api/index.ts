@@ -3,9 +3,8 @@ import type { AxiosRequestConfig, Method } from 'axios'
 import { useAuthStore } from '../stores/useAuthStore'
 
 const api = axios.create({
-  // Default fallback ke https://api.saza.sch.id/api jika VITE_API_BASE tidak diset
-  // Menggunakan domain publik agar bisa diakses dari device lain
-  baseURL: (import.meta as any)?.env?.VITE_API_BASE || 'https://api.saza.sch.id/api',
+  // Use environment variable for development, fallback to production URL
+  baseURL: import.meta.env.VITE_API_BASE || import.meta.env.VITE_API_URL || 'https://api.saza.sch.id/api',
   withCredentials: true,
   // Ensure proper headers for authentication and CORS
   headers: {
@@ -13,6 +12,15 @@ const api = axios.create({
     'Accept': 'application/json',
   },
 })
+
+// Debug only in development mode
+if (import.meta.env.DEV) {
+  console.log('API Base URL:', api.defaults.baseURL)
+  console.log('Environment variables:', {
+    VITE_API_BASE: import.meta.env.VITE_API_BASE,
+    VITE_API_URL: import.meta.env.VITE_API_URL
+  })
+}
 
 // Attach token if available
 api.interceptors.request.use((config) => {

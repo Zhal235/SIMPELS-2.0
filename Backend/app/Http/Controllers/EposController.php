@@ -196,6 +196,45 @@ class EposController extends Controller
         return response()->json(['success' => true, 'data' => $pool]);
     }
 
+    /**
+     * Get sample santri data for EPOS testing
+     */
+    public function getSampleSantri()
+    {
+        try {
+            $santri = \App\Models\Santri::with(['kelas', 'asrama', 'wallet', 'rfid_tag'])
+                ->where('status', 'aktif')
+                ->first();
+                
+            if (!$santri) {
+                return response()->json([
+                    'success' => false,
+                    'message' => 'No active santri found'
+                ], 404);
+            }
+
+            return response()->json([
+                'success' => true,
+                'data' => [
+                    'santri_id' => $santri->id,
+                    'nis' => $santri->nis,
+                    'nama_santri' => $santri->nama_santri,
+                    'kelas' => $santri->kelas?->nama_kelas,
+                    'has_wallet' => $santri->wallet ? true : false,
+                    'wallet_balance' => $santri->wallet?->balance ?? 0,
+                    'has_rfid' => $santri->rfid_tag ? true : false,
+                    'rfid_uid' => $santri->rfid_tag?->uid,
+                    'note' => 'Use this santri_id for EPOS testing'
+                ]
+            ]);
+        } catch (\Exception $e) {
+            return response()->json([
+                'success' => false,
+                'message' => 'Error getting sample santri: ' . $e->getMessage()
+            ], 500);
+        }
+    }
+
     public function createWithdrawal(Request $request)
     {
         $validator = Validator::make($request->all(), [

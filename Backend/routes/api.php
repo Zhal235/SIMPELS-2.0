@@ -203,6 +203,7 @@ Route::prefix('v1/wallets')->group(function () {
     
     Route::post('epos/transaction', [EposController::class, 'transaction']);
     Route::get('epos/pool', [EposController::class, 'pool']);
+    Route::get('epos/sample-santri', [EposController::class, 'getSampleSantri']); // For testing EPOS integration
     Route::post('withdrawals', [EposController::class, 'createWithdrawal']);
     Route::get('withdrawals', [EposController::class, 'listWithdrawals']);
     

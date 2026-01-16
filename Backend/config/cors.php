@@ -12,6 +12,10 @@ return [
         'http://localhost:54475',
         'http://localhost:8888',
         'http://127.0.0.1:8888',
+        'http://localhost:8001',
+        'http://127.0.0.1:8001',
+        'http://localhost:8002',
+        'http://127.0.0.1:8002',
     ],
     'allowed_origins_patterns' => [
         '/^http:\/\/localhost:\\d+$/',

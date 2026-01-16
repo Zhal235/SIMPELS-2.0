@@ -33,6 +33,11 @@ return Application::configure(basePath: dirname(__DIR__))
             \App\Http\Middleware\AddStorageCorsHeaders::class,
         ]);
         
+        // Add CORS middleware to API routes for development
+        $middleware->appendToGroup('api', [
+            \Illuminate\Http\Middleware\HandleCors::class,
+        ]);
+        
         // Exclude storage routes and API routes from CSRF verification
         // API routes use Bearer token authentication, not CSRF tokens
         $middleware->validateCsrfTokens(except: [
