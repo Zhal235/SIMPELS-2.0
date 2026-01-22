@@ -1,6 +1,5 @@
 import 'package:flutter/material.dart';
 import 'package:provider/provider.dart';
-import 'package:flutter_svg/flutter_svg.dart';
 import '../providers/auth_provider.dart';
 import 'home_screen.dart';
 import 'select_account_screen.dart';
@@ -76,7 +75,7 @@ class _LoginScreenState extends State<LoginScreen> {
               crossAxisAlignment: CrossAxisAlignment.stretch,
               children: [
                 const SizedBox(height: 40),
-                // BSI Logo Section
+                // SIMPELS Logo Section
                 Container(
                   width: 100,
                   height: 100,
@@ -97,31 +96,10 @@ class _LoginScreenState extends State<LoginScreen> {
                   ),
                   child: ClipRRect(
                     borderRadius: BorderRadius.circular(16),
-                    child: Padding(
-                      padding: const EdgeInsets.all(12),
-                      child: SvgPicture.asset(
-                        'assets/images/bsi_logo.svg',
-                        fit: BoxFit.contain,
-                        placeholderBuilder: (context) => Column(
-                          mainAxisAlignment: MainAxisAlignment.center,
-                          children: [
-                            Icon(
-                              Icons.account_balance,
-                              size: 32,
-                              color: Theme.of(context).colorScheme.primary,
-                            ),
-                            const SizedBox(height: 4),
-                            Text(
-                              'BSI',
-                              style: TextStyle(
-                                fontSize: 14,
-                                fontWeight: FontWeight.bold,
-                                color: Theme.of(context).colorScheme.primary,
-                              ),
-                            ),
-                          ],
-                        ),
-                      ),
+                    child: Icon(
+                      Icons.school,
+                      size: 50,
+                      color: Theme.of(context).colorScheme.primary,
                     ),
                   ),
                 ),
@@ -142,16 +120,6 @@ class _LoginScreenState extends State<LoginScreen> {
                   style: TextStyle(
                     fontSize: 14,
                     color: Colors.grey[600],
-                  ),
-                ),
-                const SizedBox(height: 4),
-                Text(
-                  'Powered by Bank Syariah Indonesia',
-                  textAlign: TextAlign.center,
-                  style: TextStyle(
-                    fontSize: 12,
-                    color: Colors.grey[500],
-                    fontStyle: FontStyle.italic,
                   ),
                 ),
                 const SizedBox(height: 32),

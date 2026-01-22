@@ -2,18 +2,18 @@ import 'package:flutter/material.dart';
 import 'package:google_fonts/google_fonts.dart';
 
 class AppTheme {
-  // BSI Brand Colors
-  static const Color primaryColor = Color(0xFF00A651); // BSI Green
-  static const Color primaryDarkColor = Color(0xFF0F5F2A); // BSI Dark Green
-  static const Color secondaryColor = Color(0xFF1B7F3A); // BSI Secondary Green
-  static const Color accentColor = Color(0xFFE8F5E8); // Light BSI Green
+  // App Theme Colors
+  static const Color primaryColor = Color(0xFF2563EB); // Blue
+  static const Color primaryDarkColor = Color(0xFF1E40AF); // Dark Blue
+  static const Color secondaryColor = Color(0xFF3B82F6); // Secondary Blue
+  static const Color accentColor = Color(0xFFDBEAFE); // Light Blue
   static const Color errorColor = Color(0xFFDC2626); // Red
   static const Color warningColor = Color(0xFFF59E0B); // Orange
-  static const Color backgroundColor = Color(0xFFF8FDF9); // Very light green tint
+  static const Color backgroundColor = Color(0xFFFAFBFC); // Light background
   static const Color cardColor = Colors.white;
   static const Color textPrimaryColor = Color(0xFF111827);
   static const Color textSecondaryColor = Color(0xFF6B7280);
-  static const Color bsiGold = Color(0xFFFFC107); // BSI Gold accent
+  static const Color accentGold = Color(0xFFFFC107); // Gold accent
 
   static ThemeData lightTheme = ThemeData(
     useMaterial3: true,
@@ -21,7 +21,7 @@ class AppTheme {
       seedColor: primaryColor,
       primary: primaryColor,
       secondary: secondaryColor,
-      tertiary: bsiGold,
+      tertiary: accentGold,
       error: errorColor,
       surface: backgroundColor,
       onPrimary: Colors.white,
