@@ -79,13 +79,9 @@ class EposController extends Controller
             ], 422);
         }
 
-        // enforce global minimum balance (min_balance_jajan)
-        $minBalanceRow = DB::table('wallet_settings')->where('key', 'min_balance_jajan')->where('scope', 'global')->first();
-        $minBalance = 0;
-        if ($minBalanceRow) {
-            $val = json_decode($minBalanceRow->value, true);
-            $minBalance = isset($val['amount']) ? (float)$val['amount'] : 0;
-        }
+        // enforce global minimum balance - use the new global_minimum_balance field
+        $settingsRow = \App\Models\WalletSettings::first();
+        $minBalance = $settingsRow ? (float)$settingsRow->global_minimum_balance : 10000;
 
         if (($wallet->balance - $amount) < $minBalance) {
             DB::rollBack();
@@ -95,7 +91,8 @@ class EposController extends Controller
                 'data' => [
                     'current_balance' => (float)$wallet->balance,
                     'min_balance_required' => (float)$minBalance,
-                    'attempted_debit' => (float)$amount
+                    'attempted_debit' => (float)$amount,
+                    'saldo_setelah_transaksi' => (float)($wallet->balance - $amount)
                 ]
             ], 422);
         }

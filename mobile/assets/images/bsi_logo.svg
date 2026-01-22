@@ -1,0 +1,21 @@
+<!-- BSI Logo SVG -->
+<svg width="200" height="200" viewBox="0 0 200 200" xmlns="http://www.w3.org/2000/svg">
+  <!-- Background Circle -->
+  <circle cx="100" cy="100" r="90" fill="#ffffff" stroke="#00A651" stroke-width="2"/>
+  
+  <!-- Bank Icon -->
+  <g transform="translate(100,75)">
+    <!-- Building base -->
+    <rect x="-25" y="0" width="50" height="30" fill="#00A651"/>
+    <!-- Pillars -->
+    <rect x="-20" y="-15" width="6" height="15" fill="#00A651"/>
+    <rect x="-10" y="-15" width="6" height="15" fill="#00A651"/>
+    <rect x="0" y="-15" width="6" height="15" fill="#00A651"/>
+    <rect x="10" y="-15" width="6" height="15" fill="#00A651"/>
+    <!-- Roof -->
+    <polygon points="-30,-20 0,-35 30,-20" fill="#00A651"/>
+  </g>
+  
+  <!-- BSI Text -->
+  <text x="100" y="140" text-anchor="middle" font-family="Arial, sans-serif" font-size="24" font-weight="bold" fill="#00A651">BSI</text>
+</svg>

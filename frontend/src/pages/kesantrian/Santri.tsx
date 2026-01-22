@@ -189,6 +189,16 @@ export default function KesantrianSantri() {
       { key: 'nisn', header: 'NISN' },
       { key: 'jenis_kelamin', header: 'Jenis Kelamin', render: (v: string) => (v === 'L' ? 'Laki-laki' : 'Perempuan') },
       {
+        key: 'ttl',
+        header: 'TTL',
+        render: (_: any, row: Row) => {
+          const tempat = row?.tempat_lahir || '';
+          const tanggal = row?.tanggal_lahir || '';
+          if (!tempat && !tanggal) return '-';
+          return `${tempat}${tempat && tanggal ? ', ' : ''}${tanggal}`;
+        }
+      },
+      {
         key: 'aksi',
         header: 'Aksi',
         render: (_: any, row: Row) => (

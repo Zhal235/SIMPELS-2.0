@@ -13,6 +13,7 @@ dependencies:
   # UI & Icons
   cupertino_icons: ^1.0.6
   google_fonts: ^6.1.0
+  flutter_svg: ^2.0.10+1
   
   # State Management
   provider: ^6.1.1
@@ -28,7 +29,7 @@ dependencies:
   flutter_secure_storage: ^9.0.0
   
   # File Handling
-  file_picker: ^6.1.1
+  # file_picker: ^6.1.1
   image_picker: ^1.0.4
   
   # Utils
@@ -48,6 +49,5 @@ flutter:
   uses-material-design: true
   
   # Assets
-  # assets:
-  #   - assets/images/
-  #   - assets/icons/
+  assets:
+    - assets/images/

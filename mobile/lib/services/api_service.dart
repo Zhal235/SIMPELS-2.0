@@ -10,18 +10,24 @@ class ApiService {
 
   /// Get base URL based on platform
   static String getBaseUrl() {
-    // For web, use production API URL
+    // For web platform, use localhost directly
     if (kIsWeb) {
-      return 'https://api.saza.sch.id';
+      return 'http://localhost:8001';
     }
 
-    // For Android emulator (development)
-    if (Platform.isAndroid) {
-      return 'http://10.0.2.2:8001';
+    // For mobile platforms, try to use Platform
+    try {
+      // For Android emulator (development)
+      if (Platform.isAndroid) {
+        return 'http://10.0.2.2:8001';
+      }
+      
+      // For iOS simulator or other platforms (development)
+      return 'http://localhost:8001';
+    } catch (e) {
+      // Fallback jika Platform tidak tersedia
+      return 'http://localhost:8001';
     }
-
-    // For iOS simulator or other platforms (development)
-    return 'http://localhost:8001';
   }
 
   /// Convert relative storage URL to full URL
@@ -38,9 +44,15 @@ class ApiService {
       return '$baseUrl/$path';
     }
 
-    // If already full URL with correct domain, return as is
-    if (relativePath.startsWith('http://') ||
-        relativePath.startsWith('https://')) {
+    // If production URL, convert to local development URL
+    if (relativePath.startsWith('https://api.saza.sch.id')) {
+      final baseUrl = getBaseUrl();
+      final path = relativePath.replaceFirst('https://api.saza.sch.id/', '');
+      return '$baseUrl/$path';
+    }
+
+    // If already full URL with correct local domain, return as is
+    if (relativePath.startsWith('http://')) {
       return relativePath;
     }
 
