@@ -47,25 +47,25 @@ export const hasAccess = (key: string): boolean => {
   const currentRole = roles?.find((r: any) => r.slug === user.role)
   if (!currentRole) return false
   
-  // if menus is null => full access
+  // if menus is null => full access (admin role)
   if (currentRole.menus === null) return true
   if (!Array.isArray(currentRole.menus)) return false
   
   // Check for exact match first
   if (currentRole.menus.includes(key)) return true
   
-  // For backward compatibility: if checking a specific permission like "keuangan.transaksi-kas.edit"
-  // also check for base permission "keuangan.transaksi-kas"
   const parts = key.split('.')
-  if (parts.length >= 3) {
+  const isSpecificPermission = parts.length >= 3 && ['view', 'edit', 'delete'].includes(parts[parts.length - 1])
+  
+  if (isSpecificPermission) {
+    // For specific permissions like "keuangan.pembayaran.edit", also check base permission
     const basePerm = parts.slice(0, -1).join('.')
     if (currentRole.menus.includes(basePerm)) return true
+  } else {
+    // For base permissions like "keuangan.pembayaran", allow if user has ANY permission for that module
+    const matchingPerms = currentRole.menus.filter((menu: string) => menu.startsWith(key + '.'))
+    if (matchingPerms.length > 0) return true
   }
-  
-  // For checking base permissions like "keuangan.transaksi-kas"
-  // also allow if user has any specific permission for that base
-  const matchingPerms = currentRole.menus.filter((menu: string) => menu.startsWith(key + '.'))
-  if (matchingPerms.length > 0) return true
   
   return false
 }

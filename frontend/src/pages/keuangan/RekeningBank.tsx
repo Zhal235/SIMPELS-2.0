@@ -2,6 +2,7 @@ import { useState, useEffect } from 'react'
 import { CreditCard, Plus, Edit2, Trash2, Power, PowerOff } from 'lucide-react'
 import Modal from '../../components/Modal'
 import api from '../../api'
+import { hasAccess } from '../../stores/useAuthStore'
 
 interface BankAccount {
   id: number
@@ -150,25 +151,27 @@ export default function RekeningBank() {
             Kelola rekening bank untuk pembayaran tagihan santri
           </p>
         </div>
+        {hasAccess('keuangan.rekening-bank.edit') && (
         <button
           onClick={openAddModal}
           className="flex items-center gap-2 bg-blue-600 text-white px-4 py-2 rounded-lg hover:bg-blue-700 transition-colors"
         >
           <Plus className="w-5 h-5" />
           Tambah Rekening
-        </button>
+        </button>)}
       </div>
 
       {accounts.length === 0 ? (
         <div className="bg-white rounded-lg border border-gray-200 p-12 text-center">
           <CreditCard className="w-12 h-12 text-gray-400 mx-auto mb-4" />
           <p className="text-gray-500 mb-4">Belum ada rekening bank yang ditambahkan</p>
+          {hasAccess('keuangan.rekening-bank.edit') && (
           <button
             onClick={openAddModal}
             className="text-blue-600 hover:text-blue-700 font-medium"
           >
             + Tambah Rekening Pertama
-          </button>
+          </button>)}
         </div>
       ) : (
         <div className="grid grid-cols-1 md:grid-cols-2 lg:grid-cols-3 gap-4">
@@ -231,6 +234,7 @@ export default function RekeningBank() {
                   onClick={() => openEditModal(account)}
                   className="flex items-center justify-center gap-2 px-3 py-2 bg-blue-100 text-blue-700 rounded-lg hover:bg-blue-200 transition-colors"
                   title="Edit"
+                  disabled={!hasAccess('keuangan.rekening-bank.edit')}
                 >
                   <Edit2 className="w-4 h-4" />
                 </button>
@@ -238,6 +242,7 @@ export default function RekeningBank() {
                   onClick={() => handleDelete(account.id)}
                   className="flex items-center justify-center gap-2 px-3 py-2 bg-red-100 text-red-700 rounded-lg hover:bg-red-200 transition-colors"
                   title="Hapus"
+                  disabled={!hasAccess('keuangan.rekening-bank.delete')}
                 >
                   <Trash2 className="w-4 h-4" />
                 </button>

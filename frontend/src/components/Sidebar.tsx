@@ -6,7 +6,7 @@ import {
   BookOpen, FileText, AlertCircle, ListChecks, DollarSign, Calendar, CheckCircle
 } from 'lucide-react'
 import { motion, AnimatePresence } from 'framer-motion'
-import { useAuthStore } from '../stores/useAuthStore'
+import { useAuthStore, hasAccess } from '../stores/useAuthStore'
 import { useState } from 'react'
 
   const bottomMenu = [
@@ -28,16 +28,6 @@ export default function Sidebar() {
   const roles = useAuthStore((s) => s.roles)
   const currentRole = roles?.find((r: any) => r.slug === currentUser?.role)
 
-  const hasAccess = (key: string) => {
-    // Admin always has access
-    if (!currentUser) return false
-    if (currentUser.role === 'admin') return true
-    if (!currentRole) return false
-    // if menus is null => full access
-    if (currentRole.menus === null) return true
-    if (!Array.isArray(currentRole.menus)) return false
-    return currentRole.menus.includes(key)
-  }
   const dompetActive = location.pathname.startsWith('/dompet')
   const kesantrianActive = location.pathname.startsWith('/kesantrian')
   const keuanganActive = location.pathname.startsWith('/keuangan')
@@ -80,6 +70,7 @@ export default function Sidebar() {
         </NavLink>)}
 
         {/* Kesantrian parent */}
+        {(hasAccess('kesantrian.santri') || hasAccess('kesantrian.kelas') || hasAccess('kesantrian.asrama') || hasAccess('kesantrian.koreksi_data') || hasAccess('kesantrian.mutasi.masuk') || hasAccess('kesantrian.mutasi.keluar') || hasAccess('kesantrian.alumni')) && (
         <div className="space-y-1">
           <button
             type="button"
@@ -213,8 +204,10 @@ export default function Sidebar() {
             )}
           </AnimatePresence>
         </div>
+        )}
 
         {/* Keuangan parent */}
+        {(hasAccess('keuangan.pembayaran') || hasAccess('keuangan.transaksi-kas') || hasAccess('keuangan.buku-kas') || hasAccess('keuangan.laporan') || hasAccess('keuangan.tagihan') || hasAccess('keuangan.bukti-transfer') || hasAccess('keuangan.rekening-bank') || hasAccess('keuangan.tunggakan') || hasAccess('keuangan.pengaturan')) && (
         <div className="space-y-1">
           <button
             type="button"
@@ -428,8 +421,10 @@ export default function Sidebar() {
             )}
           </AnimatePresence>
         </div>
+        )}
 
         {/* Dompet Digital (top-level) */}
+        {(hasAccess('dompet.dompet-santri') || hasAccess('dompet.manajemen-keuangan') || hasAccess('dompet.history') || hasAccess('dompet.laporan') || hasAccess('dompet.tagihan') || hasAccess('dompet.rfid') || hasAccess('dompet.settings') || hasAccess('dompet.manage') || hasAccess('dompet.withdrawals')) && (
         <div className="space-y-1">
           <button
             type="button"
@@ -538,8 +533,10 @@ export default function Sidebar() {
             )}
           </AnimatePresence>
         </div>
+        )}
 
         {/* Akademik parent */}
+        {hasAccess('akademik.tahun-ajaran') && (
         <div className="space-y-1">
           <button
             type="button"
@@ -576,6 +573,7 @@ export default function Sidebar() {
             )}
           </AnimatePresence>
         </div>
+        )}
         <div className="border-t border-gray-200 pt-2 space-y-1">
           {sidebarOpen && hasAccess('pengguna') && (
             <NavLink to="/pengguna" className={({ isActive }) => `flex items-center gap-3 rounded-md px-3 py-2 text-sm ${isActive ? 'bg-white text-brand shadow-sm' : 'text-gray-700 hover:bg-white'}`}>

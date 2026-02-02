@@ -2,6 +2,7 @@ import { useState, useEffect } from 'react'
 import { Plus, Edit2, Trash2, X, CheckCircle } from 'lucide-react'
 import { listTahunAjaran, createTahunAjaran, updateTahunAjaran, deleteTahunAjaran } from '../../api/tahunAjaran'
 import toast from 'react-hot-toast'
+import { hasAccess } from '../../stores/useAuthStore'
 
 interface TahunAjaran {
   id: number
@@ -133,13 +134,14 @@ export default function TahunAjaran() {
           <h1 className="text-3xl font-bold text-gray-900">Tahun Ajaran</h1>
           <p className="text-gray-600 mt-1">Kelola data tahun ajaran sekolah</p>
         </div>
+        {hasAccess('akademik.tahun-ajaran.edit') && (
         <button
           onClick={handleAdd}
           className="flex items-center gap-2 px-4 py-2 bg-blue-600 text-white rounded-lg hover:bg-blue-700 font-medium"
         >
           <Plus className="w-5 h-5" />
           Tambah Tahun Ajaran
-        </button>
+        </button>)}
       </div>
 
       {/* Table */}
@@ -207,6 +209,7 @@ export default function TahunAjaran() {
                           onClick={() => handleEdit(item)}
                           className="p-2 hover:bg-blue-100 text-blue-600 rounded-lg"
                           title="Edit"
+                          disabled={!hasAccess('akademik.tahun-ajaran.edit')}
                         >
                           <Edit2 className="w-4 h-4" />
                         </button>
@@ -214,6 +217,7 @@ export default function TahunAjaran() {
                           onClick={() => handleDelete(item)}
                           className="p-2 hover:bg-red-100 text-red-600 rounded-lg"
                           title="Hapus"
+                          disabled={!hasAccess('akademik.tahun-ajaran.delete')}
                         >
                           <Trash2 className="w-4 h-4" />
                         </button>

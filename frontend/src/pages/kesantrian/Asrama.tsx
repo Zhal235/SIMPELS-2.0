@@ -8,6 +8,7 @@ import { toast } from 'sonner'
 import api from '@/api'
 import { listAsrama, createAsrama, updateAsrama, deleteAsrama, tambahAnggotaAsrama, keluarkanAnggotaAsrama } from '@/api/asrama'
 import { listSantri } from '@/api/santri'
+import { hasAccess } from '../../stores/useAuthStore'
 
 type Asrama = {
   id?: number
@@ -63,6 +64,7 @@ export default function KesantrianAsrama() {
       header: 'Aksi',
       render: (_: any, row: Asrama) => (
         <div className="flex gap-2">
+          {hasAccess('kesantrian.asrama.edit') && (
           <Button
             variant="outline"
             size="icon"
@@ -71,7 +73,7 @@ export default function KesantrianAsrama() {
             onClick={() => { setEditItem(row); setNamaAsrama(row.nama_asrama); setWaliAsrama(row.wali_asrama || ''); setModalOpen(true) }}
           >
             <Edit2 size={16} />
-          </Button>
+          </Button>)}
           <Button
             variant="outline"
             size="icon"
@@ -81,6 +83,7 @@ export default function KesantrianAsrama() {
           >
             <UserRoundPlus size={16} />
           </Button>
+          {hasAccess('kesantrian.asrama.delete') && (
           <Button
             variant="outline"
             size="icon"
@@ -89,7 +92,7 @@ export default function KesantrianAsrama() {
             onClick={() => deleteRow(row)}
           >
             <Trash2 size={16} />
-          </Button>
+          </Button>)}
         </div>
       ),
     },

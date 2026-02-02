@@ -90,6 +90,7 @@ function AppLayout({ children }: { children: React.ReactNode }) {
 export default function App() {
   const token = useAuthStore((state) => state.token)
   const setUser = useAuthStore((state) => state.setUser)
+  const setRoles = useAuthStore((state) => state.setRoles)
 
   // When the app mounts (or when token changes), fetch the current user if we have a token
   useEffect(() => {
@@ -101,18 +102,17 @@ export default function App() {
         // load roles into store for permission checks
         try {
           const rolesPayload: any = await listRoles()
-          // Note: roles data loaded but not stored in zustand - used for permission checks in components
           if (rolesPayload?.success) {
-            // Roles can be accessed via API call when needed
+            setRoles(rolesPayload.data || [])
           }
         } catch (err) {
-          // ignore
+          console.error('Failed to load roles:', err)
         }
       } catch (e) {
         // ignore - interceptor in api will logout on 401
       }
     })()
-  }, [token])
+  }, [token, setUser, setRoles])
   return (
     <BrowserRouter>
       <Toaster position="top-right" richColors expand />

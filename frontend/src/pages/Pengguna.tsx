@@ -14,6 +14,8 @@ export default function Pengguna() {
   const [rows, setRows] = useState<UserRow[]>([])
   const [loading, setLoading] = useState(false)
   const currentUser = useAuthStore((s) => s.user)
+  const roles = useAuthStore((s) => s.roles)
+  const currentRole = roles?.find((r: any) => r.slug === currentUser?.role)
 
   // edit modal
   const [showEdit, setShowEdit] = useState(false)
@@ -155,7 +157,7 @@ export default function Pengguna() {
     keuangan: {
       title: 'Keuangan',
       menus: [
-        { key: 'keuangan.pembayaran', label: 'Pembayaran Santri' },
+        { key: 'keuangan.pembayaran', label: 'Pembayaran Santri', permissions: ['view', 'edit', 'delete'] },
         { key: 'keuangan.transaksi-kas', label: 'Transaksi Kas', permissions: ['view', 'edit', 'delete'] },
         { key: 'keuangan.buku-kas', label: 'Buku Kas', permissions: ['view', 'edit', 'delete'] },
         { key: 'keuangan.laporan', label: 'Laporan' },
@@ -315,12 +317,12 @@ export default function Pengguna() {
   ]
 
   // add actions column for admins
-  if (hasAccess('pengguna.edit') || hasAccess('pengguna.delete') || hasAccess('pengguna')) {
+  if (hasAccess('pengguna.edit') || hasAccess('pengguna.delete')) {
     columns.push({ key: 'actions', header: 'Aksi', render: (_v:any, r:any) => (
       <div className="flex gap-2">
-        {(hasAccess('pengguna.edit') || hasAccess('pengguna')) && (
+        {hasAccess('pengguna.edit') && (
         <button className="px-3 py-1 rounded bg-yellow-500 text-white text-sm" onClick={() => { setEditing(r); setNewRole(r.role); setNewPassword(''); setShowEdit(true) }}>Edit</button>)}
-        {(hasAccess('pengguna.delete') || hasAccess('pengguna')) && (
+        {hasAccess('pengguna.delete') && (
         <button className="px-3 py-1 rounded bg-red-600 text-white text-sm" onClick={() => { setDeleting(r); setShowDelete(true) }}>Hapus</button>)}
       </div>
     ) })
@@ -332,9 +334,9 @@ export default function Pengguna() {
       <h2 className="text-lg font-semibold">Pengguna</h2>
       <div className="flex items-center justify-between mb-3">
         <div />
-        {(hasAccess('pengguna') || hasAccess('pengguna.roles') || currentUser?.role === 'admin') && (
+        {(hasAccess('pengguna.edit') || hasAccess('pengguna.roles') || currentUser?.role === 'admin') && (
           <div className="flex items-center gap-2">
-            {(hasAccess('pengguna') || currentUser?.role === 'admin') && (
+            {(hasAccess('pengguna.edit') || currentUser?.role === 'admin') && (
             <button className="btn" onClick={() => setShowCreateUser(true)}>Tambah User</button>)}
             {(hasAccess('pengguna.roles') || currentUser?.role === 'admin') && (
             <button className="btn btn-primary" onClick={openCreateRole}>Tambah Role</button>)}
