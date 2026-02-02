@@ -577,8 +577,9 @@ export default function Pengguna() {
         <div className="grid gap-3">
           <label className="block text-sm">Role</label>
           <select value={newRole} onChange={(e) => setNewRole(e.target.value)} className="rounded border px-3 py-2">
-            <option value="user">user</option>
-            <option value="admin">admin</option>
+            {rolesList.map(role => (
+              <option value={role.slug} key={role.id}>{role.name}</option>
+            ))}
           </select>
 
           <label className="block text-sm">Password baru (kosongkan kalau tidak ingin mengganti)</label>
