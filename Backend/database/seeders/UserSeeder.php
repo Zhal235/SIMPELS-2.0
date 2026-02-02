@@ -36,5 +36,36 @@ class UserSeeder extends Seeder
                 'role' => 'admin', // ensure seeded admin has admin role
             ]
         );
+
+        // Create test users for different roles
+        User::updateOrCreate(
+            ['email' => 'keuangan@example.com'],
+            [
+                'name' => 'Staff Keuangan',
+                'password' => 'password',
+                'email_verified_at' => now(),
+                'role' => 'keuangan',
+            ]
+        );
+
+        User::updateOrCreate(
+            ['email' => 'akademik@example.com'],
+            [
+                'name' => 'Staff Akademik',
+                'password' => 'password',
+                'email_verified_at' => now(),
+                'role' => 'akademik',
+            ]
+        );
+
+        User::updateOrCreate(
+            ['email' => 'operator@example.com'],
+            [
+                'name' => 'Operator',
+                'password' => 'password',
+                'email_verified_at' => now(),
+                'role' => 'operator',
+            ]
+        );
     }
 }

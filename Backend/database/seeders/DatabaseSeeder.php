@@ -14,10 +14,11 @@ class DatabaseSeeder extends Seeder
     public function run(): void
     {
         /*
-         * Hanya UserSeeder yang dijalankan untuk testing dari awal.
+         * Jalankan UserSeeder dan RoleSeeder untuk setup dasar aplikasi.
          * Semua data master (santri, kelas, asrama, dll) akan dibuat manual via aplikasi.
          */
         $this->call([
+            RoleSeeder::class,
             UserSeeder::class,
         ]);
     }
