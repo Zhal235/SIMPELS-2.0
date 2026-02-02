@@ -2,7 +2,7 @@ import { useState, useEffect } from 'react'
 import { Plus, Search, Trash2, X, ArrowDownCircle, ArrowUpCircle, Filter, Calendar, Eye, ArrowRightLeft } from 'lucide-react'
 import { listBukuKas, listTransaksiKas, createTransaksiKas, deleteTransaksiKas } from '../../api/bukuKas'
 import { listKategoriPengeluaran, createKategoriPengeluaran } from '../../api/kategoriPengeluaran'
-import { useAuthStore } from '../../stores/useAuthStore'
+import { useAuthStore, hasAccess } from '../../stores/useAuthStore'
 import toast from 'react-hot-toast'
 
 // Helper function untuk format rupiah

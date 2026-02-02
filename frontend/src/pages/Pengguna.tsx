@@ -121,7 +121,19 @@ export default function Pengguna() {
   const [roleName, setRoleName] = useState('')
   const [roleMenus, setRoleMenus] = useState<string[]>([])
 
-  const menuCategories = {
+  // Type definition untuk menu
+  type MenuItemType = {
+    key: string
+    label: string
+    permissions?: string[]
+  }
+
+  type MenuCategoryType = {
+    title: string
+    menus: MenuItemType[]
+  }
+
+  const menuCategories: Record<string, MenuCategoryType> = {
     dashboard: {
       title: 'Dashboard',
       menus: [

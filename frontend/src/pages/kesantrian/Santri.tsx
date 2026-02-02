@@ -11,7 +11,7 @@ import { listSantri, deleteSantri, updateSantri, getSantri, exportSantri, import
 import { getTagihanBySantri } from '@/api/pembayaran'
 import { deleteTagihanSantri } from '@/api/tagihanSantri'
 import { createMutasiKeluar } from '@/api/mutasiKeluar'
-import { useAuthStore } from '../../stores/useAuthStore'
+import { useAuthStore, hasAccess } from '../../stores/useAuthStore'
 import { toast } from 'sonner'
 
 type Row = Santri & { aksi?: string }
