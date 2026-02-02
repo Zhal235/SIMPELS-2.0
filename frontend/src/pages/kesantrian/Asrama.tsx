@@ -74,6 +74,7 @@ export default function KesantrianAsrama() {
           >
             <Edit2 size={16} />
           </Button>)}
+          {hasAccess('kesantrian.asrama.edit') && (
           <Button
             variant="outline"
             size="icon"
@@ -82,7 +83,7 @@ export default function KesantrianAsrama() {
             onClick={() => openMembers(row)}
           >
             <UserRoundPlus size={16} />
-          </Button>
+          </Button>)}
           {hasAccess('kesantrian.asrama.delete') && (
           <Button
             variant="outline"
@@ -245,7 +246,8 @@ export default function KesantrianAsrama() {
     <div className="space-y-4">
       <div className="flex justify-between">
         <h1 className="text-2xl font-semibold text-gray-900">Asrama</h1>
-        <button className="btn btn-primary" onClick={() => { setEditItem(null); setNamaAsrama(''); setWaliAsrama(''); setModalOpen(true) }}>Tambah Asrama</button>
+        {hasAccess('kesantrian.asrama.edit') && (
+        <button className="btn btn-primary" onClick={() => { setEditItem(null); setNamaAsrama(''); setWaliAsrama(''); setModalOpen(true) }}>Tambah Asrama</button>)}
       </div>
 
       <Card>
@@ -414,7 +416,8 @@ function MembersTable({ asrama, onRemove }: { asrama: Asrama; onRemove: (s: Sant
         { key: 'nama_santri', header: 'Nama Santri' },
         { key: 'asrama', header: 'Asrama', render: () => asrama?.nama_asrama ?? '—' },
         { key: 'aksi' as any, header: 'Aksi', render: (_v, row) => (
-          <button className="btn btn-danger" onClick={() => onRemove(row)}>Keluarkan</button>
+          hasAccess('kesantrian.asrama.edit') && (
+          <button className="btn btn-danger" onClick={() => onRemove(row)}>Keluarkan</button>)
         ) },
       ]}
       data={Array.isArray(members) ? members : []}

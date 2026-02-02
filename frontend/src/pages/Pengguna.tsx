@@ -405,8 +405,8 @@ export default function Pengguna() {
                       
                       r.menus.forEach((menu: string) => {
                         const parts = menu.split('.')
-                        if (parts.length >= 3 && ['edit', 'delete', 'view'].includes(parts[parts.length - 1])) {
-                          // This is a permission like 'kesantrian.santri.edit'
+                        if (parts.length >= 3 && ['edit', 'delete', 'view', 'create', 'update'].includes(parts[parts.length - 1])) {
+                          // This is a permission like 'kesantrian.santri.view'
                           const baseKey = parts.slice(0, -1).join('.')
                           const permission = parts[parts.length - 1]
                           if (!permissionGroups[baseKey]) {

@@ -41,31 +41,92 @@ export const hasAccess = (key: string): boolean => {
   const state = useAuthStore.getState()
   const { user, roles } = state
   
-  if (!user) return false
-  if (user.role === 'admin') return true
+  // DEBUG: Log untuk melihat data user dan permission check
+  console.log('=== PERMISSION DEBUG ===')
+  console.log('User:', user)
+  console.log('Roles:', roles)
+  console.log('Checking permission:', key)
   
-  const currentRole = roles?.find((r: any) => r.slug === user.role)
-  if (!currentRole) return false
-  
-  // if menus is null => full access (admin role)
-  if (currentRole.menus === null) return true
-  if (!Array.isArray(currentRole.menus)) return false
-  
-  // Check for exact match first
-  if (currentRole.menus.includes(key)) return true
-  
-  const parts = key.split('.')
-  const isSpecificPermission = parts.length >= 3 && ['view', 'edit', 'delete'].includes(parts[parts.length - 1])
-  
-  if (isSpecificPermission) {
-    // For specific permissions like "keuangan.pembayaran.edit", also check base permission
-    const basePerm = parts.slice(0, -1).join('.')
-    if (currentRole.menus.includes(basePerm)) return true
-  } else {
-    // For base permissions like "keuangan.pembayaran", allow if user has ANY permission for that module
-    const matchingPerms = currentRole.menus.filter((menu: string) => menu.startsWith(key + '.'))
-    if (matchingPerms.length > 0) return true
+  if (!user) {
+    console.log('❌ No user found')
+    return false
+  }
+  if (user.role === 'admin') {
+    console.log('✅ Admin access granted')
+    return true
   }
   
+  const currentRole = roles?.find((r: any) => r.slug === user.role)
+  console.log('Current role found:', currentRole)
+  
+  if (!currentRole) {
+    console.log('❌ Role not found for:', user.role)
+    return false
+  }
+  
+  // if menus is null => full access (admin role)
+  if (currentRole.menus === null) {
+    console.log('✅ Full access (menus is null)')
+    return true
+  }
+  if (!Array.isArray(currentRole.menus)) {
+    console.log('❌ Menus is not array:', currentRole.menus)
+    return false
+  }
+  
+  console.log('Available menus:', currentRole.menus)
+  
+  // Check for exact match first
+  if (currentRole.menus.includes(key)) {
+    console.log('✅ Exact match found')
+    return true
+  }
+  
+  const parts = key.split('.')
+  const isSpecificPermission = parts.length >= 3 && ['view', 'create', 'edit', 'update', 'delete'].includes(parts[parts.length - 1])
+  
+  console.log('Is specific permission:', isSpecificPermission, 'Parts:', parts)
+  
+  if (isSpecificPermission) {
+    // For specific permissions like "kesantrian.santri.edit"
+    // HANYA berikan akses jika ada exact permission atau base permission 
+    // TETAPI jangan berikan edit/delete jika user hanya punya view
+    const basePerm = parts.slice(0, -1).join('.')
+    const requestedAction = parts[parts.length - 1]
+    
+    console.log('Checking base permission:', basePerm, 'Action:', requestedAction)
+    
+    // Jika meminta akses edit/delete, pastikan user punya permission tersebut
+    if (['edit', 'update', 'delete', 'create'].includes(requestedAction)) {
+      // Cek apakah user hanya punya .view untuk module ini
+      const hasOnlyView = currentRole.menus.includes(`${basePerm}.view`) && 
+                         !currentRole.menus.some((menu: string) => 
+                           menu.startsWith(basePerm) && 
+                           ['edit', 'update', 'delete', 'create'].includes(menu.split('.').pop()!)
+                         )
+      
+      if (hasOnlyView) {
+        console.log('❌ User only has view permission, denying', requestedAction)
+        return false
+      }
+    }
+    
+    // Cek base permission
+    if (currentRole.menus.includes(basePerm)) {
+      console.log('✅ Base permission found')
+      return true
+    }
+  } else {
+    // For base permissions like "kesantrian.santri", allow if user has ANY permission for that module
+    const matchingPerms = currentRole.menus.filter((menu: string) => menu.startsWith(key + '.'))
+    console.log('Matching permissions:', matchingPerms)
+    if (matchingPerms.length > 0) {
+      console.log('✅ Module access found')
+      return true
+    }
+  }
+  
+  console.log('❌ Access denied')
+  console.log('=== END DEBUG ===')
   return false
 }

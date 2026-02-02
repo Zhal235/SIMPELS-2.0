@@ -41,6 +41,14 @@ class RoleSeeder extends Seeder
                 'keuangan.rekening-bank.delete',
                 'keuangan.tunggakan',
                 'keuangan.pengaturan',
+                'dompet.dompet-santri',
+                'dompet.manajemen-keuangan',
+                'dompet.history',
+                'dompet.laporan',
+                'dompet.tagihan',
+                'dompet.rfid',
+                'dompet.withdrawals',
+                'dompet.settings',
             ]
         ]);
 
@@ -50,19 +58,27 @@ class RoleSeeder extends Seeder
             'menus' => [
                 'dashboard',
                 'kesantrian.santri',
-                'kesantrian.santri.edit',
+                'kesantrian.santri.view',
+                'kesantrian.santri.create',
+                'kesantrian.santri.update',
                 'kesantrian.kelas',
-                'kesantrian.kelas.edit',
+                'kesantrian.kelas.view',
+                'kesantrian.kelas.create',
+                'kesantrian.kelas.update',
                 'kesantrian.kelas.delete',
                 'kesantrian.asrama',
-                'kesantrian.asrama.edit',
+                'kesantrian.asrama.view',
+                'kesantrian.asrama.create',
+                'kesantrian.asrama.update',
                 'kesantrian.asrama.delete',
                 'kesantrian.koreksi_data',
                 'kesantrian.mutasi.masuk',
                 'kesantrian.mutasi.keluar',
                 'kesantrian.alumni',
                 'akademik.tahun-ajaran',
-                'akademik.tahun-ajaran.edit',
+                'akademik.tahun-ajaran.view',
+                'akademik.tahun-ajaran.create',
+                'akademik.tahun-ajaran.update',
                 'akademik.tahun-ajaran.delete',
             ]
         ]);
@@ -73,9 +89,26 @@ class RoleSeeder extends Seeder
             'menus' => [
                 'dashboard',
                 'kesantrian.santri',
+                'kesantrian.santri.view',
                 'keuangan.pembayaran',
+                'keuangan.pembayaran.view',
                 'dompet.dompet-santri',
                 'dompet.rfid',
+                'dompet.withdrawals',
+            ]
+        ]);
+
+        // Tata Usaha role - akses view only untuk kesantrian
+        Role::updateOrCreate(['slug' => 'tata usaha'], [
+            'name' => 'Tata Usaha',
+            'menus' => [
+                'dashboard',
+                'kesantrian.santri',
+                'kesantrian.santri.view',
+                'kesantrian.kelas',
+                'kesantrian.kelas.view',
+                'kesantrian.asrama',
+                'kesantrian.asrama.view',
             ]
         ]);
     }

@@ -6,6 +6,7 @@ import { listJenisTagihan, createJenisTagihan, updateJenisTagihan, deleteJenisTa
 import { listTahunAjaran } from '../../api/tahunAjaran'
 import { generateTagihanSantri, bulkDeleteTagihan, bulkUpdateNominalTagihan } from '../../api/tagihanSantri'
 import { listBukuKas } from '../../api/bukuKas'
+import { hasAccess } from '../../stores/useAuthStore'
 import toast from 'react-hot-toast'
 
 interface JenisTagihan {
@@ -188,13 +189,14 @@ export default function JenisTagihan() {
           </div>
 
           {/* Tambah Tagihan Button */}
+          {hasAccess('keuangan.tagihan.edit') && (
           <button
             onClick={() => setShowModal(true)}
             className="bg-blue-600 hover:bg-blue-700 text-white px-4 py-2 rounded-lg flex items-center gap-2 transition-colors"
           >
             <Plus className="w-5 h-5" />
             Tambah Tagihan
-          </button>
+          </button>)}
         </div>
       </div>
 
@@ -265,13 +267,15 @@ export default function JenisTagihan() {
                     </td>
                     <td className="px-6 py-4 whitespace-nowrap text-sm font-medium">
                       <div className="flex items-center gap-2">
+                        {hasAccess('keuangan.tagihan.edit') && (
                         <button
                           onClick={() => handleGenerate(item)}
                           className="text-green-600 hover:text-green-900 p-1 hover:bg-green-50 rounded"
                           title="Generate Tagihan"
                         >
                           <Play className="w-4 h-4" />
-                        </button>
+                        </button>)}
+                        {hasAccess('keuangan.tagihan.edit') && (
                         <button
                           onClick={() => {
                             setSelectedTagihan(item)
@@ -281,14 +285,16 @@ export default function JenisTagihan() {
                           title="Edit"
                         >
                           <Edit2 className="w-4 h-4" />
-                        </button>
+                        </button>)}
+                        {hasAccess('keuangan.tagihan.delete') && (
                         <button
                           onClick={() => handleDelete(item.id)}
                           className="text-red-600 hover:text-red-900 p-1 hover:bg-red-50 rounded"
                           title="Hapus"
                         >
                           <Trash2 className="w-4 h-4" />
-                        </button>
+                        </button>)}
+                        {hasAccess('keuangan.tagihan.edit') && (
                         <button
                           onClick={() => {
                             setSelectedTagihan(item)
@@ -298,7 +304,7 @@ export default function JenisTagihan() {
                           title="Perbaiki Tagihan"
                         >
                           Perbaiki
-                        </button>
+                        </button>)}
                       </div>
                     </td>
                   </tr>

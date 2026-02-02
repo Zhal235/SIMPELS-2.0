@@ -356,6 +356,7 @@ export default function TransaksiKas() {
           <h1 className="text-2xl font-bold text-gray-900">Transaksi Kas</h1>
           <p className="text-gray-600 mt-1">Kelola transaksi kas masuk dan keluar</p>
         </div>
+        {hasAccess('keuangan.transaksi-kas.edit') && (
         <div className="flex gap-3">
           <button
             onClick={() => setShowModalTransfer(true)}
@@ -371,7 +372,7 @@ export default function TransaksiKas() {
             <ArrowDownCircle className="w-5 h-5" />
             Tambah Pengeluaran
           </button>
-        </div>
+        </div>)}
       </div>
 
       {/* Summary Cards */}

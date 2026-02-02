@@ -195,7 +195,7 @@ export default function TahunAjaran() {
                     </td>
                     <td className="px-6 py-4">
                       <div className="flex items-center gap-2">
-                        {item.status === 'tidak_aktif' && (
+                        {item.status === 'tidak_aktif' && hasAccess('akademik.tahun-ajaran.edit') && (
                           <button
                             onClick={() => handleAktifkan(item)}
                             className="px-3 py-1.5 bg-green-600 hover:bg-green-700 text-white rounded-lg text-xs font-medium flex items-center gap-1"
@@ -205,22 +205,22 @@ export default function TahunAjaran() {
                             Aktifkan
                           </button>
                         )}
+                        {hasAccess('akademik.tahun-ajaran.edit') && (
                         <button
                           onClick={() => handleEdit(item)}
                           className="p-2 hover:bg-blue-100 text-blue-600 rounded-lg"
                           title="Edit"
-                          disabled={!hasAccess('akademik.tahun-ajaran.edit')}
                         >
                           <Edit2 className="w-4 h-4" />
-                        </button>
+                        </button>)}
+                        {hasAccess('akademik.tahun-ajaran.delete') && (
                         <button
                           onClick={() => handleDelete(item)}
                           className="p-2 hover:bg-red-100 text-red-600 rounded-lg"
                           title="Hapus"
-                          disabled={!hasAccess('akademik.tahun-ajaran.delete')}
                         >
                           <Trash2 className="w-4 h-4" />
-                        </button>
+                        </button>)}
                       </div>
                     </td>
                   </tr>

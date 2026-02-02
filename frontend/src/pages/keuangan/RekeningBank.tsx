@@ -214,6 +214,7 @@ export default function RekeningBank() {
               </div>
 
               <div className="flex gap-2 pt-4 border-t border-gray-100">
+                {hasAccess('keuangan.rekening-bank.edit') && (
                 <button
                   onClick={() => handleToggleActive(account.id)}
                   className={`flex-1 flex items-center justify-center gap-2 px-3 py-2 rounded-lg text-sm font-medium transition-colors ${
@@ -229,23 +230,23 @@ export default function RekeningBank() {
                     <Power className="w-4 h-4" />
                   )}
                   {account.is_active ? 'Nonaktifkan' : 'Aktifkan'}
-                </button>
+                </button>)}
+                {hasAccess('keuangan.rekening-bank.edit') && (
                 <button
                   onClick={() => openEditModal(account)}
                   className="flex items-center justify-center gap-2 px-3 py-2 bg-blue-100 text-blue-700 rounded-lg hover:bg-blue-200 transition-colors"
                   title="Edit"
-                  disabled={!hasAccess('keuangan.rekening-bank.edit')}
                 >
                   <Edit2 className="w-4 h-4" />
-                </button>
+                </button>)}
+                {hasAccess('keuangan.rekening-bank.delete') && (
                 <button
                   onClick={() => handleDelete(account.id)}
                   className="flex items-center justify-center gap-2 px-3 py-2 bg-red-100 text-red-700 rounded-lg hover:bg-red-200 transition-colors"
                   title="Hapus"
-                  disabled={!hasAccess('keuangan.rekening-bank.delete')}
                 >
                   <Trash2 className="w-4 h-4" />
-                </button>
+                </button>)}
               </div>
             </div>
           ))}

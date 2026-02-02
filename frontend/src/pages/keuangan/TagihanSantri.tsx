@@ -3,6 +3,7 @@ import { Search, Filter, Eye, DollarSign, Calendar, User, CheckCircle, XCircle, 
 import { listTagihanSantri, createTunggakan } from '../../api/tagihanSantri'
 import { listJenisTagihan } from '../../api/jenisTagihan'
 import { listTahunAjaran } from '../../api/tahunAjaran'
+import { hasAccess } from '../../stores/useAuthStore'
 import toast from 'react-hot-toast'
 
 // Helper function untuk format nominal sesuai standar Indonesia
@@ -88,13 +89,14 @@ export default function TagihanSantri() {
           <h1 className="text-3xl font-bold text-gray-900">Tagihan Santri</h1>
           <p className="text-gray-600 mt-1">Daftar rekap tagihan per santri</p>
         </div>
+        {hasAccess('keuangan.tagihan.edit') && (
         <button
           onClick={() => setShowTunggakanModal(true)}
           className="inline-flex items-center gap-2 px-4 py-2 bg-orange-600 text-white rounded-lg hover:bg-orange-700 text-sm font-medium"
         >
           <Plus className="w-4 h-4" />
           Tambah Tunggakan Manual
-        </button>
+        </button>)}
       </div>
 
       {/* Summary Cards */}

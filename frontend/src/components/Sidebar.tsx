@@ -516,6 +516,18 @@ export default function Sidebar() {
                       {sidebarOpen && <span>Kelola RFID</span>}
                     </NavLink>
                   </li>)}
+                  {hasAccess('dompet.withdrawals') && (
+                  <li>
+                    <NavLink
+                      to="/dompet/withdrawals"
+                      className={({ isActive }) =>
+                        `flex items-center gap-3 rounded-md px-3 py-2 text-sm ${isActive ? 'bg-white text-brand shadow-sm' : 'text-gray-700 hover:bg-white'}`
+                      }
+                    >
+                      <LogOut className="w-5 h-5" />
+                      {sidebarOpen && <span>Penarikan ePOS</span>}
+                    </NavLink>
+                  </li>)}
                   {hasAccess('dompet.settings') && (
                   <li>
                     <NavLink

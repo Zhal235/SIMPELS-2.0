@@ -17,6 +17,15 @@ import { toast } from 'sonner'
 type Row = Santri & { aksi?: string }
 
 export default function KesantrianSantri() {
+  if (!hasAccess('kesantrian.santri.view')) {
+    return (
+      <div className="p-4 text-center">
+        <h1 className="text-xl font-bold text-red-600">Akses Ditolak</h1>
+        <p className="text-gray-600">Anda tidak memiliki izin untuk melihat data santri.</p>
+      </div>
+    )
+  }
+
   // Mulai dengan data kosong; sebelumnya ada data dummy untuk demo yang membuat tabel menampilkan 3 baris saat reload
   const [items, setItems] = useState<Row[]>([])
   const [loading, setLoading] = useState<boolean>(false)
@@ -223,6 +232,7 @@ export default function KesantrianSantri() {
             >
               <Eye size={16} />
             </Button>
+            {hasAccess('kesantrian.mutasi.masuk') && (
             <Button
               variant="outline"
               size="icon"
@@ -240,7 +250,8 @@ export default function KesantrianSantri() {
               }}
             >
               <Shuffle size={16} />
-            </Button>
+            </Button>)}
+            {hasAccess('kesantrian.santri.delete') && (
             <Button
               variant="outline"
               size="icon"
@@ -270,7 +281,7 @@ export default function KesantrianSantri() {
               }}
             >
               <Trash2 size={16} />
-            </Button>
+            </Button>)}
           </div>
         ),
       },
@@ -435,6 +446,7 @@ export default function KesantrianSantri() {
             onChange={handleFileSelect}
             className="hidden"
           />
+          {hasAccess('kesantrian.santri.edit') && (
           <Button
             variant="outline"
             onClick={handleDownloadTemplate}
@@ -442,7 +454,7 @@ export default function KesantrianSantri() {
           >
             <FileDown size={16} className="mr-2" />
             Download Template
-          </Button>
+          </Button>)}
           <Button
             variant="outline"
             onClick={handleExport}
@@ -451,6 +463,7 @@ export default function KesantrianSantri() {
             <Download size={16} className="mr-2" />
             Export Excel
           </Button>
+          {hasAccess('kesantrian.santri.edit') && (
           <Button
             variant="outline"
             onClick={() => fileInputRef.current?.click()}
@@ -458,13 +471,14 @@ export default function KesantrianSantri() {
           >
             <Upload size={16} className="mr-2" />
             Import Excel
-          </Button>
+          </Button>)}
+          {hasAccess('kesantrian.santri.edit') && (
           <button
             className="btn btn-primary"
             onClick={() => { setMode('create'); setCurrent(null); setModalOpen(true) }}
           >
             Tambah Santri
-          </button>
+          </button>)}
         </div>
       </div>
       

@@ -1,5 +1,6 @@
 import { useState, useEffect } from 'react'
 import { toast } from 'sonner'
+import { hasAccess } from '../stores/useAuthStore'
 import {
   getAnnouncements,
   createAnnouncement,
@@ -165,6 +166,7 @@ export default function Pengumuman() {
           <h1 className="text-2xl font-bold text-gray-900">Pengumuman</h1>
           <p className="text-sm text-gray-500 mt-1">Kelola pengumuman untuk wali santri</p>
         </div>
+        {hasAccess('pengumuman.edit') && (
         <button
           onClick={() => {
             resetForm()
@@ -173,7 +175,7 @@ export default function Pengumuman() {
           className="px-4 py-2 bg-blue-600 text-white rounded-lg hover:bg-blue-700"
         >
           + Buat Pengumuman
-        </button>
+        </button>)}
       </div>
 
       {/* List Pengumuman */}
@@ -207,18 +209,20 @@ export default function Pengumuman() {
                     </div>
                   </div>
                   <div className="flex gap-2">
+                    {hasAccess('pengumuman.edit') && (
                     <button
                       onClick={() => handleEdit(announcement)}
                       className="px-3 py-1 text-sm text-blue-600 hover:bg-blue-50 rounded"
                     >
                       Edit
-                    </button>
+                    </button>)}
+                    {hasAccess('pengumuman.delete') && (
                     <button
                       onClick={() => handleDelete(announcement.id)}
                       className="px-3 py-1 text-sm text-red-600 hover:bg-red-50 rounded"
                     >
                       Hapus
-                    </button>
+                    </button>)}
                   </div>
                 </div>
               </div>

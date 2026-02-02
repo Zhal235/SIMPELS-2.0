@@ -5,6 +5,7 @@ import Modal from '../../components/Modal'
 import api from '../../api'
 import { handleError } from '../../utils/handleError'
 import { toast } from 'react-hot-toast'
+import { hasAccess } from '../../stores/useAuthStore'
 import { Button } from '@/components/ui/button'
 import { Edit2, Trash2, UserRoundPlus } from 'lucide-react'
 
@@ -26,6 +27,15 @@ type SantriItem = {
 const TINGKAT_OPTIONS = [7, 8, 9, 10, 11, 12]
 
 export default function KesantrianKelas() {
+  if (!hasAccess('kesantrian.kelas.view')) {
+    return (
+      <div className="p-4 text-center">
+        <h1 className="text-xl font-bold text-red-600">Akses Ditolak</h1>
+        <p className="text-gray-600">Anda tidak memiliki izin untuk melihat data kelas.</p>
+      </div>
+    )
+  }
+
   const [items, setItems] = useState<KelasItem[]>([])
   const [loading, setLoading] = useState(false)
 
@@ -253,7 +263,8 @@ export default function KesantrianKelas() {
     <div className="space-y-4">
       <div className="flex items-center justify-between">
         <h1 className="text-2xl font-semibold text-gray-900">Kelas</h1>
-        <button className="btn btn-primary" onClick={openCreate}>+ Tambah Kelas</button>
+        {hasAccess('kesantrian.kelas.edit') && (
+        <button className="btn btn-primary" onClick={openCreate}>+ Tambah Kelas</button>)}
       </div>
 
       <Card>
@@ -277,6 +288,7 @@ export default function KesantrianKelas() {
                 header: 'Aksi',
                 render: (_v, row) => (
                   <div className="flex gap-2">
+                    {hasAccess('kesantrian.kelas.edit') && (
                     <Button
                       variant="outline"
                       size="icon"
@@ -285,7 +297,8 @@ export default function KesantrianKelas() {
                       onClick={() => openEdit(row)}
                     >
                       <Edit2 size={16} />
-                    </Button>
+                    </Button>)}
+                    {hasAccess('kesantrian.kelas.edit') && (
                     <Button
                       variant="outline"
                       size="icon"
@@ -294,7 +307,8 @@ export default function KesantrianKelas() {
                       onClick={() => openMembers(row)}
                     >
                       <UserRoundPlus size={16} />
-                    </Button>
+                    </Button>)}
+                    {hasAccess('kesantrian.kelas.delete') && (
                     <Button
                       variant="outline"
                       size="icon"
@@ -303,7 +317,7 @@ export default function KesantrianKelas() {
                       onClick={() => deleteKelas(row)}
                     >
                       <Trash2 size={16} />
-                    </Button>
+                    </Button>)}
                   </div>
                 ),
               },
@@ -479,7 +493,8 @@ export default function KesantrianKelas() {
                   { key: 'kelas_id', header: 'Kelas', render: () => memberKelas?.nama_kelas ?? '—' },
                   {
                     key: 'actions', header: 'Aksi', render: (_v, row) => (
-                      <button className="btn btn-danger" onClick={() => removeMember(row)}>Keluarkan</button>
+                      hasAccess('kesantrian.kelas.update') && (
+                      <button className="btn btn-danger" onClick={() => removeMember(row)}>Keluarkan</button>)
                     )
                   }
                 ]}

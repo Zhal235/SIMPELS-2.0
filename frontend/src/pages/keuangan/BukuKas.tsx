@@ -1,6 +1,7 @@
 import { useState, useEffect } from 'react'
 import toast from 'react-hot-toast'
 import { listBukuKas, createBukuKas, updateBukuKas, deleteBukuKas, listTransaksiKas } from '../../api/bukuKas'
+import { hasAccess } from '../../stores/useAuthStore'
 
 // Helper function untuk format nominal sesuai standar Indonesia
 const formatRupiah = (nominal: number | undefined | null): string => {
@@ -205,6 +206,7 @@ export default function BukuKas() {
       </div>
 
       {/* Tombol Tambah */}
+      {hasAccess('keuangan.buku-kas.edit') && (
       <div className="flex justify-end">
         <button
           onClick={handleAdd}
@@ -215,7 +217,7 @@ export default function BukuKas() {
           </svg>
           Tambah Buku Kas
         </button>
-      </div>
+      </div>)}
 
       {/* Table */}
       <div className="bg-white rounded-lg shadow overflow-hidden">
@@ -298,6 +300,7 @@ export default function BukuKas() {
                           </svg>
                           Laporan
                         </button>
+                        {hasAccess('keuangan.buku-kas.edit') && (
                         <button
                           onClick={() => handleEdit(item)}
                           className="inline-flex items-center gap-1 px-3 py-1.5 bg-yellow-600 text-white rounded-lg hover:bg-yellow-700 text-sm"
@@ -306,7 +309,8 @@ export default function BukuKas() {
                             <path strokeLinecap="round" strokeLinejoin="round" strokeWidth={2} d="M11 5H6a2 2 0 00-2 2v11a2 2 0 002 2h11a2 2 0 002-2v-5m-1.414-9.414a2 2 0 112.828 2.828L11.828 15H9v-2.828l8.586-8.586z" />
                           </svg>
                           Edit
-                        </button>
+                        </button>)}
+                        {hasAccess('keuangan.buku-kas.delete') && (
                         <button
                           onClick={() => handleDelete(item)}
                           className="inline-flex items-center gap-1 px-3 py-1.5 bg-red-600 text-white rounded-lg hover:bg-red-700 text-sm"
@@ -315,7 +319,7 @@ export default function BukuKas() {
                             <path strokeLinecap="round" strokeLinejoin="round" strokeWidth={2} d="M19 7l-.867 12.142A2 2 0 0116.138 21H7.862a2 2 0 01-1.995-1.858L5 7m5 4v6m4-6v6m1-10V4a1 1 0 00-1-1h-4a1 1 0 00-1 1v3M4 7h16" />
                           </svg>
                           Hapus
-                        </button>
+                        </button>)}
                       </div>
                     </td>
                   </tr>
