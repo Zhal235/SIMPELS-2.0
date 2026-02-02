@@ -35,3 +35,21 @@ export const useAuthStore = create<AuthState>()(
     }
   )
 )
+
+// Helper function to check access
+export const hasAccess = (key: string): boolean => {
+  const state = useAuthStore.getState()
+  const { user, roles } = state
+  
+  if (!user) return false
+  if (user.role === 'admin') return true
+  
+  const currentRole = roles?.find((r: any) => r.slug === user.role)
+  if (!currentRole) return false
+  
+  // if menus is null => full access
+  if (currentRole.menus === null) return true
+  if (!Array.isArray(currentRole.menus)) return false
+  
+  return currentRole.menus.includes(key)
+}

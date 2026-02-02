@@ -344,6 +344,7 @@ export default function Sidebar() {
                           className="overflow-hidden"
                         >
                           <ul className="ml-5 space-y-1 border-l border-gray-300 pl-3">
+                            {hasAccess('keuangan.tunggakan') && (
                             <li>
                               <NavLink
                                 to="/keuangan/tunggakan/mutasi"
@@ -354,7 +355,8 @@ export default function Sidebar() {
                                 <ArrowDownUp className="w-4 h-4" />
                                 {sidebarOpen && <span>Mutasi</span>}
                               </NavLink>
-                            </li>
+                            </li>)}
+                            {hasAccess('keuangan.tunggakan') && (
                             <li>
                               <NavLink
                                 to="/keuangan/tunggakan/alumni"
@@ -365,7 +367,7 @@ export default function Sidebar() {
                                 <GraduationCap className="w-4 h-4" />
                                 {sidebarOpen && <span>Alumni</span>}
                               </NavLink>
-                            </li>
+                            </li>)}
                           </ul>
                         </motion.div>
                       )}
@@ -392,6 +394,7 @@ export default function Sidebar() {
                           className="overflow-hidden"
                         >
                           <ul className="ml-5 space-y-1 border-l border-gray-300 pl-3">
+                            {hasAccess('keuangan.pengaturan') && (
                             <li>
                               <NavLink
                                 to="/keuangan/pengaturan/jenis-tagihan"
@@ -402,7 +405,8 @@ export default function Sidebar() {
                                 <ListChecks className="w-4 h-4" />
                                 {sidebarOpen && <span>Jenis Tagihan</span>}
                               </NavLink>
-                            </li>
+                            </li>)}
+                            {hasAccess('keuangan.pengaturan') && (
                             <li>
                               <NavLink
                                 to="/keuangan/pengaturan/keringanan"
@@ -413,7 +417,7 @@ export default function Sidebar() {
                                 <DollarSign className="w-4 h-4" />
                                 {sidebarOpen && <span>Keringanan Tagihan</span>}
                               </NavLink>
-                            </li>
+                            </li>)}
                           </ul>
                         </motion.div>
                       )}
@@ -445,6 +449,7 @@ export default function Sidebar() {
                 className="overflow-hidden"
               >
                 <ul className="ml-5 space-y-1 border-l border-gray-300 pl-3">
+                  {hasAccess('dompet.dompet-santri') && (
                   <li>
                     <NavLink
                       to="/dompet/dompet-santri"
@@ -453,9 +458,10 @@ export default function Sidebar() {
                       }
                     >
                       <CreditCard className="w-5 h-5" />
-                      {hasAccess('dompet.dompet-santri') && sidebarOpen && <span>Dompet Santri</span>}
+                      {sidebarOpen && <span>Dompet Santri</span>}
                     </NavLink>
-                  </li>
+                  </li>)}
+                  {hasAccess('dompet.manajemen-keuangan') && (
                   <li>
                     <NavLink
                       to="/dompet/manajemen-keuangan"
@@ -464,9 +470,10 @@ export default function Sidebar() {
                       }
                     >
                       <DollarSign className="w-5 h-5" />
-                      {hasAccess('dompet.manajemen-keuangan') && sidebarOpen && <span>Manajemen Keuangan</span>}
+                      {sidebarOpen && <span>Manajemen Keuangan</span>}
                     </NavLink>
-                  </li>
+                  </li>)}
+                  {hasAccess('dompet.history') && (
                   <li>
                     <NavLink
                       to="/dompet/history-transaksi"
@@ -475,9 +482,10 @@ export default function Sidebar() {
                       }
                     >
                       <FileText className="w-5 h-5" />
-                      {hasAccess('dompet.history') && sidebarOpen && <span>History Transaksi</span>}
+                      {sidebarOpen && <span>History Transaksi</span>}
                     </NavLink>
-                  </li>
+                  </li>)}
+                  {hasAccess('dompet.laporan') && (
                   <li>
                     <NavLink
                       to="/dompet/laporan-keuangan"
@@ -486,9 +494,10 @@ export default function Sidebar() {
                       }
                     >
                       <Receipt className="w-5 h-5" />
-                      {hasAccess('dompet.laporan') && sidebarOpen && <span>Laporan Keuangan</span>}
+                      {sidebarOpen && <span>Laporan Keuangan</span>}
                     </NavLink>
-                  </li>
+                  </li>)}
+                  {hasAccess('dompet.tagihan') && (
                   <li>
                     <NavLink
                       to="/dompet/tagihan-kolektif"
@@ -497,9 +506,10 @@ export default function Sidebar() {
                       }
                     >
                       <Receipt className="w-5 h-5" />
-                      {hasAccess('dompet.tagihan') && sidebarOpen && <span>Tagihan Kolektif</span>}
+                      {sidebarOpen && <span>Tagihan Kolektif</span>}
                     </NavLink>
-                  </li>
+                  </li>)}
+                  {hasAccess('dompet.rfid') && (
                   <li>
                     <NavLink
                       to="/dompet/rfid"
@@ -508,9 +518,10 @@ export default function Sidebar() {
                       }
                     >
                       <Users className="w-5 h-5" />
-                      {hasAccess('dompet.rfid') && sidebarOpen && <span>Kelola RFID</span>}
+                      {sidebarOpen && <span>Kelola RFID</span>}
                     </NavLink>
-                  </li>
+                  </li>)}
+                  {hasAccess('dompet.settings') && (
                   <li>
                     <NavLink
                       to="/dompet/settings"
@@ -519,9 +530,9 @@ export default function Sidebar() {
                       }
                     >
                       <Settings className="w-5 h-5" />
-                      {hasAccess('dompet.settings') && sidebarOpen && <span>Pengaturan Dompet</span>}
+                      {sidebarOpen && <span>Pengaturan Dompet</span>}
                     </NavLink>
-                  </li>
+                  </li>)}
                 </ul>
               </motion.div>
             )}
@@ -548,6 +559,7 @@ export default function Sidebar() {
                 className="overflow-hidden"
               >
                 <ul className="ml-5 space-y-1 border-l border-gray-300 pl-3">
+                  {hasAccess('akademik.tahun-ajaran') && (
                   <li>
                     <NavLink
                       to="/akademik/tahun-ajaran"
@@ -558,7 +570,7 @@ export default function Sidebar() {
                       <Calendar className="w-5 h-5" />
                       {sidebarOpen && <span>Tahun Ajaran</span>}
                     </NavLink>
-                  </li>
+                  </li>)}
                 </ul>
               </motion.div>
             )}
@@ -571,7 +583,7 @@ export default function Sidebar() {
               {sidebarOpen && <span>Pengguna</span>}
             </NavLink>
           )}
-          {sidebarOpen && hasAccess('pengguna') && (
+          {sidebarOpen && hasAccess('pengumuman') && (
             <NavLink to="/pengumuman" className={({ isActive }) => `flex items-center gap-3 rounded-md px-3 py-2 text-sm ${isActive ? 'bg-white text-brand shadow-sm' : 'text-gray-700 hover:bg-white'}`}>
               <svg xmlns="http://www.w3.org/2000/svg" className="w-5 h-5" fill="none" viewBox="0 0 24 24" stroke="currentColor">
                 <path strokeLinecap="round" strokeLinejoin="round" strokeWidth={2} d="M11 5.882V19.24a1.76 1.76 0 01-3.417.592l-2.147-6.15M18 13a3 3 0 100-6M5.436 13.683A4.001 4.001 0 017 6h1.832c4.1 0 7.625-1.234 9.168-3v14c-1.543-1.766-5.067-3-9.168-3H7a3.988 3.988 0 01-1.564-.317z" />
@@ -582,6 +594,7 @@ export default function Sidebar() {
 
           {bottomMenu.map((m) => {
             const Icon = m.icon
+            if (!hasAccess('pengaturan')) return null
             return (
               <NavLink
                 key={m.to}

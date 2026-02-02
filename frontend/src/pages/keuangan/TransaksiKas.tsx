@@ -2,6 +2,7 @@ import { useState, useEffect } from 'react'
 import { Plus, Search, Trash2, X, ArrowDownCircle, ArrowUpCircle, Filter, Calendar, Eye, ArrowRightLeft } from 'lucide-react'
 import { listBukuKas, listTransaksiKas, createTransaksiKas, deleteTransaksiKas } from '../../api/bukuKas'
 import { listKategoriPengeluaran, createKategoriPengeluaran } from '../../api/kategoriPengeluaran'
+import { useAuthStore } from '../../stores/useAuthStore'
 import toast from 'react-hot-toast'
 
 // Helper function untuk format rupiah
@@ -583,7 +584,7 @@ export default function TransaksiKas() {
                         >
                           <Eye className="w-4 h-4" />
                         </button>
-                        {!transaksi.pembayaran_id ? (
+                        {(!transaksi.pembayaran_id && hasAccess('keuangan.transaksi-kas.delete')) ? (
                           <button
                             onClick={() => handleDelete(transaksi.id)}
                             className="text-red-600 hover:text-red-800 transition-colors"

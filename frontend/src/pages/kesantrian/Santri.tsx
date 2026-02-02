@@ -11,6 +11,7 @@ import { listSantri, deleteSantri, updateSantri, getSantri, exportSantri, import
 import { getTagihanBySantri } from '@/api/pembayaran'
 import { deleteTagihanSantri } from '@/api/tagihanSantri'
 import { createMutasiKeluar } from '@/api/mutasiKeluar'
+import { useAuthStore } from '../../stores/useAuthStore'
 import { toast } from 'sonner'
 
 type Row = Santri & { aksi?: string }
@@ -203,6 +204,7 @@ export default function KesantrianSantri() {
         header: 'Aksi',
         render: (_: any, row: Row) => (
           <div className="flex gap-2">
+            {hasAccess('kesantrian.santri.edit') && (
             <Button
               variant="outline"
               size="icon"
@@ -211,7 +213,7 @@ export default function KesantrianSantri() {
               onClick={() => { setMode('edit'); setCurrent(row); setModalOpen(true) }}
             >
               <Edit2 size={16} />
-            </Button>
+            </Button>)}
             <Button
               variant="outline"
               size="icon"

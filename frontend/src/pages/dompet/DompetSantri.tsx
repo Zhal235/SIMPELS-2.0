@@ -5,7 +5,7 @@ import Modal from '../../components/Modal'
 import { topupWallet, getWallet, getWalletTransactions, debitWallet, updateTransaction, voidTransaction } from '../../api/wallet'
 import { listSantri } from '../../api/santri'
 import { Search } from 'lucide-react'
-import { useAuthStore } from '../../stores/useAuthStore'
+import { useAuthStore, hasAccess } from '../../stores/useAuthStore'
 import toast from 'react-hot-toast'
 
 export default function DompetSantri() {
@@ -354,8 +354,8 @@ export default function DompetSantri() {
                   }
                 },
                     { key: 'author', header: 'Admin', render: (_v:any, r:any) => r?.author?.name ?? (r.created_by && currentUser && r.created_by === currentUser.id ? currentUser.name : '-') },
-                    // show actions only for admin
-                    ...( (currentUser?.role === 'admin') || (currentRole?.menus && currentRole?.menus.includes('dompet.manage')) ? [{ key: 'actions', header: 'Aksi', render: (_v:any, r:any) => (
+                    // show actions based on permission
+                    ...( hasAccess('dompet.manage') ? [{ key: 'actions', header: 'Aksi', render: (_v:any, r:any) => (
                       <div className="flex gap-2">
                         <button disabled={r.voided} onClick={() => { setEditingTxn(r); setEditAmount(String(r.amount)); setEditDesc(r.description ?? ''); setEditMethod((r.method as any) || 'cash'); setShowEditModal(true) }} className="px-3 py-1.5 bg-yellow-500 text-white rounded-lg text-sm">Edit</button>
                         <button disabled={r.voided} onClick={() => { setEditingTxn(r); setShowVoidConfirm(true) }} className="px-3 py-1.5 bg-red-600 text-white rounded-lg text-sm">Hapus</button>
