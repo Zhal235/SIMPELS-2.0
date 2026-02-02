@@ -5,6 +5,7 @@ import { listKelas } from '../../api/kelas'
 import { listAsrama } from '../../api/asrama'
 import { listJenisTagihan } from '../../api/jenisTagihan'
 import { createTunggakan } from '../../api/tagihanSantri'
+import { hasAccess } from '../../stores/useAuthStore'
 import toast from 'react-hot-toast'
 
 // Types
@@ -628,13 +629,14 @@ export default function MutasiMasuk() {
               <h1 className="text-2xl font-bold text-gray-900">Mutasi Masuk</h1>
               <p className="text-gray-600 mt-1">Daftar santri yang masuk melalui mutasi dari sekolah/pesantren lain</p>
             </div>
+            {hasAccess('kesantrian.mutasi.masuk') && (
             <button
               onClick={() => setShowWizard(true)}
               className="flex items-center gap-2 px-4 py-2 bg-blue-600 text-white rounded-lg hover:bg-blue-700 font-medium"
             >
               <Plus className="w-5 h-5" />
               Tambah Mutasi Masuk
-            </button>
+            </button>)}
           </div>
 
           {/* Table */}
@@ -676,13 +678,14 @@ export default function MutasiMasuk() {
                         <td className="px-6 py-4 text-gray-600">{santri.kelas?.nama_kelas || '-'}</td>
                         <td className="px-6 py-4">
                           <div className="flex items-center gap-2">
+                            {hasAccess('kesantrian.mutasi.masuk') && (
                             <button
                               onClick={() => handleDelete(santri.id, santri.nama_santri)}
                               className="p-2 hover:bg-red-100 text-red-600 rounded-lg"
                               title="Hapus"
                             >
                               <Trash2 className="w-4 h-4" />
-                            </button>
+                            </button>)}
                           </div>
                         </td>
                       </tr>
