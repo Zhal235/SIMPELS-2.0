@@ -94,7 +94,6 @@ export default function LaporanLabaRugi() {
         laba_rugi: summary.net
       })
     } catch (error) {
-      console.error('Error fetching income statement:', error)
     } finally {
       setLoading(false)
     }

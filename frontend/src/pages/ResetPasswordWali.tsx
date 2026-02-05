@@ -26,13 +26,7 @@ export default function ResetPasswordWali() {
     setWaliData(null)
 
     try {
-      console.log('[ResetPasswordWali] Searching for:', searchQuery)
-      console.log('[ResetPasswordWali] API URL:', `/admin/wali/check-password/${encodeURIComponent(searchQuery)}`)
-      
       const response = await api.get(`/admin/wali/check-password/${encodeURIComponent(searchQuery)}`)
-      console.log('[ResetPasswordWali] Full response:', response)
-      console.log('[ResetPasswordWali] Response data:', response.data)
-      console.log('[ResetPasswordWali] Response status:', response.status)
       
       if (response.data && response.data.success) {
         setWaliData(response.data.data)
@@ -41,11 +35,6 @@ export default function ResetPasswordWali() {
         toast.error(response.data?.message || 'Data tidak ditemukan')
       }
     } catch (error: any) {
-      console.error('[ResetPasswordWali] Search error:', error)
-      console.error('[ResetPasswordWali] Error response:', error.response)
-      console.error('[ResetPasswordWali] Error data:', error.response?.data)
-      console.error('[ResetPasswordWali] Error status:', error.response?.status)
-      
       const message = error.response?.data?.message || 
                      error.message || 
                      'Wali dengan nomor HP tersebut tidak ditemukan'

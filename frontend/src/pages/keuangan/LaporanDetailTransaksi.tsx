@@ -80,7 +80,6 @@ export default function LaporanDetailTransaksi() {
         setTotalPages(1)
       }
     } catch (error) {
-      console.error('Error fetching transactions:', error)
       setTransactions([])
     } finally {
       setLoading(false)

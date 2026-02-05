@@ -19,7 +19,6 @@ export default function Dashboard() {
         const data = await apiFetch<Summary>('/dashboard', 'GET')
         setSummary(data)
       } catch (e) {
-        console.error('Failed to fetch dashboard', e)
       } finally {
         setLoading(false)
       }

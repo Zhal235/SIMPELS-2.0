@@ -56,7 +56,6 @@ export default function LaporanTunggakanSantri() {
       const response = await api.get('/v1/kesantrian/kelas')
       setKelasList(response.data.data || [])
     } catch (error) {
-      console.error('Error fetching kelas:', error)
     }
   }
 

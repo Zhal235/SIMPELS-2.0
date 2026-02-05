@@ -56,7 +56,6 @@ export default function TagihanSantri() {
         const result = Array.isArray(response) ? response : (response?.data || [])
         setDataTagihan(result)
       } catch (error) {
-        console.error('Error fetching tagihan:', error)
         toast.error('Gagal memuat data tagihan')
         setDataTagihan([])
       } finally {

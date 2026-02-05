@@ -123,7 +123,6 @@ export default function LaporanPerBukuKas() {
 
       setData(kasData)
     } catch (error) {
-      console.error('Error fetching kas data:', error)
       setData([])
     } finally {
       setLoading(false)

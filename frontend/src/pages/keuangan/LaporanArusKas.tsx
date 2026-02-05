@@ -90,7 +90,6 @@ export default function LaporanArusKas() {
         net_cash_flow: summary.net
       })
     } catch (error) {
-      console.error('Error fetching cash flow:', error)
     } finally {
       setLoading(false)
     }

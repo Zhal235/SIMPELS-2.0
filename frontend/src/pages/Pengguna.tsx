@@ -33,7 +33,6 @@ export default function Pengguna() {
         const payload = await listUsers()
         if (payload?.success) setRows(payload.data || [])
       } catch (e) {
-        console.error('Failed to fetch users', e)
       } finally {
         setLoading(false)
       }
@@ -47,7 +46,6 @@ export default function Pengguna() {
       const payload = await listUsers()
       if (payload?.success) setRows(payload.data || [])
     } catch (e) {
-      console.error('Failed to fetch users', e)
       toast.error('Gagal memuat pengguna')
     } finally { setLoading(false) }
   }
@@ -67,7 +65,6 @@ export default function Pengguna() {
         toast.error(res.message || 'Gagal menyimpan perubahan')
       }
     } catch (e:any) {
-      console.error(e)
       toast.error(e?.response?.data?.message || 'Gagal menyimpan perubahan')
     }
   }
@@ -85,7 +82,6 @@ export default function Pengguna() {
         toast.error(res.message || 'Gagal menghapus user')
       }
     } catch (e:any) {
-      console.error(e)
       toast.error(e?.response?.data?.message || 'Gagal menghapus user')
     }
   }
@@ -110,7 +106,6 @@ export default function Pengguna() {
         await reload()
       }
     } catch (e:any) {
-      console.error(e)
       toast.error(e?.response?.data?.message || 'Gagal membuat user')
     }
   }
@@ -249,7 +244,6 @@ export default function Pengguna() {
       const res = await listRoles()
       if (res?.success) setRolesList(res.data || [])
     } catch (e) {
-      console.error(e)
       toast.error('Gagal memuat roles')
     } finally { setRolesLoading(false) }
   }
@@ -291,7 +285,6 @@ export default function Pengguna() {
         }
       }
     } catch (e:any) {
-      console.error(e)
       toast.error(e?.response?.data?.message || 'Gagal menyimpan role')
     }
   }
@@ -305,7 +298,6 @@ export default function Pengguna() {
         await loadRoles()
       }
     } catch (e:any) {
-      console.error(e)
       toast.error(e?.response?.data?.message || 'Gagal menghapus role')
     }
   }

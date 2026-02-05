@@ -55,7 +55,6 @@ export default function Pengumuman() {
         setKelasOptions(response.data)
       }
     } catch (error) {
-      console.error('Gagal memuat kelas options:', error)
     }
   }
 
@@ -66,7 +65,6 @@ export default function Pengumuman() {
         setSantriOptions(response.data)
       }
     } catch (error) {
-      console.error('Gagal memuat santri options:', error)
     }
   }
 

@@ -22,7 +22,6 @@ export default function Santri() {
         const data = await apiFetch<SantriRow[]>('/santri', 'GET')
         setRows(data)
       } catch (e) {
-        console.error('Failed to fetch santri', e)
       }
     }
     load()
