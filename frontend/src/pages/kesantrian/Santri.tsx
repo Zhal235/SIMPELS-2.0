@@ -64,8 +64,6 @@ export default function KesantrianSantri() {
       const res = await listSantri(currentPage, pageSize)
       const raw: any = res
       
-      console.log('API Response:', raw)
-      
       const applyMutasiKeluarFilter = (arr: any[]) => {
         return (arr || []).filter((it) => String(it?.status || 'aktif').toLowerCase() !== 'keluar')
       }
@@ -76,20 +74,17 @@ export default function KesantrianSantri() {
         const arr = applyMutasiKeluarFilter(raw.data.data)
         setItems(arr)
         setTotalItems(arr.length)
-        console.log('Items:', raw.data.data.length, 'Total:', raw.data.total)
       } else if (raw?.data) {
         const dataArray = Array.isArray(raw.data) ? raw.data : []
         const arr = applyMutasiKeluarFilter(dataArray)
         setItems(arr)
         // Jika tidak ada total, asumsikan ada lebih banyak data jika hasil = pageSize
         setTotalItems(arr.length)
-        console.log('Items:', dataArray.length, 'Total estimate:', totalItems)
       } else {
         const dataArray = Array.isArray(raw) ? raw : []
         const arr = applyMutasiKeluarFilter(dataArray)
         setItems(arr)
         setTotalItems(arr.length)
-        console.log('Items:', dataArray.length)
       }
     } catch (e: any) {
       console.error('Failed to fetch santri list', e)

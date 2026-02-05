@@ -367,8 +367,6 @@ function ModalTambahTunggakan({ dataTagihan, onClose, onSuccess }) {
                     });
                 });
             });
-            console.log('Payload to send:', payload); // DEBUG
-            console.log(`Total tagihan: ${payload.length} (dari ${rows.length} row)`);
             const res = await createTunggakan(payload);
             toast.success(res.message || `${payload.length} tunggakan berhasil ditambahkan`);
             onSuccess();

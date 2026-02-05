@@ -37,7 +37,6 @@ export default function KesantrianSantri() {
             setLoading(true);
             const res = await listSantri(currentPage, pageSize);
             const raw = res;
-            console.log('API Response:', raw);
             const applyMutasiKeluarFilter = (arr) => {
                 return (arr || []).filter((it) => String(it?.status || 'aktif').toLowerCase() !== 'keluar');
             };
@@ -47,7 +46,6 @@ export default function KesantrianSantri() {
                 const arr = applyMutasiKeluarFilter(raw.data.data);
                 setItems(arr);
                 setTotalItems(arr.length);
-                console.log('Items:', raw.data.data.length, 'Total:', raw.data.total);
             }
             else if (raw?.data) {
                 const dataArray = Array.isArray(raw.data) ? raw.data : [];
@@ -62,7 +60,6 @@ export default function KesantrianSantri() {
                 const arr = applyMutasiKeluarFilter(dataArray);
                 setItems(arr);
                 setTotalItems(arr.length);
-                console.log('Items:', dataArray.length);
             }
         }
         catch (e) {
