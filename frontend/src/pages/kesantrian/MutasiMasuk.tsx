@@ -173,10 +173,6 @@ export default function MutasiMasuk() {
         listJenisTagihan()
       ])
       
-      console.log('RAW Response - Kelas:', kelasRes)
-      console.log('RAW Response - Asrama:', asramaRes)
-      console.log('RAW Response - Jenis Tagihan:', tagihanRes)
-      
       // Handle berbagai format response
       let kelasData = []
       let asramaData = []
@@ -202,10 +198,6 @@ export default function MutasiMasuk() {
       } else if (tagihanRes?.data) {
         tagihanData = Array.isArray(tagihanRes.data) ? tagihanRes.data : (tagihanRes.data.data || [])
       }
-      
-      console.log('PARSED - Kelas:', kelasData)
-      console.log('PARSED - Asrama:', asramaData)
-      console.log('PARSED - Tagihan:', tagihanData)
       
       setKelasList(kelasData)
       setAsramaList(asramaData)

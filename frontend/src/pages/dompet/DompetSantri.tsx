@@ -90,10 +90,6 @@ export default function DompetSantri() {
         const santriData = santriRes.data || []
         // Debug foto - cek santri pertama yang punya foto
         const withFoto = santriData.find((s: any) => s.foto)
-        if (withFoto) {
-          console.log('[DompetSantri] Santri dengan foto:', withFoto.nama_santri, 'foto:', withFoto.foto)
-          console.log('[DompetSantri] getFotoUrl result:', getFotoUrl(withFoto))
-        }
         setSantriList(santriData)
       }
     } catch (err) {

@@ -35,16 +35,10 @@ export default function KoreksiDataSantri() {
   const loadCorrections = async () => {
     setLoading(true)
     try {
-      console.log('Fetching corrections with status:', filterStatus)
       const response = await api.get('/admin/data-corrections', {
         params: { status: filterStatus === 'all' ? undefined : filterStatus }
       })
-      console.log('Full Response:', response)
-      console.log('Response data:', response.data)
-      console.log('Response data.data:', response.data.data)
-      console.log('Is array?', Array.isArray(response.data.data))
       const dataArray = response.data.data || []
-      console.log('Setting corrections to:', dataArray)
       setCorrections(dataArray)
     } catch (error: any) {
       console.error('Load corrections error:', error)
