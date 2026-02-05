@@ -3,7 +3,6 @@
 namespace App\Http\Resources;
 
 use Illuminate\Http\Resources\Json\JsonResource;
-use Illuminate\Support\Facades\Storage;
 
 class SantriResource extends JsonResource
 {
@@ -50,7 +49,7 @@ class SantriResource extends JsonResource
             'pekerjaan_ibu' => $this->pekerjaan_ibu,
             'hp_ibu' => $this->hp_ibu,
             'jenis_penerimaan' => $this->jenis_penerimaan,
-            'foto' => $this->foto ? Storage::url($this->foto) : null,
+            'foto' => $this->foto ? '/storage/' . $this->foto : null,
             'created_at' => $this->created_at?->format('Y-m-d H:i:s'),
             // RFID tag information
             'rfid_tag' => $this->rfid_tag ? [
