@@ -885,7 +885,6 @@ function getFotoSrc(foto: string | Blob | undefined): string | null {
 }
 
 function getBackendOrigin(): string {
-  const fallback = `http://${window.location.hostname}:8001`
   try {
     const base = (import.meta as any)?.env?.VITE_API_BASE || ''
     if (base) {
@@ -902,6 +901,11 @@ function getBackendOrigin(): string {
     if (loc.includes(':5173')) return loc.replace(':5173', ':8001')
     if (loc.includes(':5174')) return loc.replace(':5174', ':8001')
     if (loc.includes(':5175')) return loc.replace(':5175', ':8001')
+    // For production or any other port, use current origin (assume /api relative path used)
+    return loc
+  } catch {}
+  // Final fallback: assume current origin
+  return window.location.origin
     if (loc.includes(':5176')) return loc.replace(':5176', ':8001')
   } catch {}
   return fallback
