@@ -906,7 +906,4 @@ function getBackendOrigin(): string {
   } catch {}
   // Final fallback: assume current origin
   return window.location.origin
-    if (loc.includes(':5176')) return loc.replace(':5176', ':8001')
-  } catch {}
-  return fallback
 }
