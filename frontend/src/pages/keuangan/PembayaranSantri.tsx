@@ -196,10 +196,14 @@ const isLunasTab = activeTab === 'lunas'
   }
 
   const getBackendOrigin = (): string => {
-    const fallback = 'http://127.0.0.1:8001'
+    const fallback = `http://${window.location.hostname}:8001`
     try {
       const base = import.meta.env.VITE_API_BASE || ''
       if (base) {
+        // If base is a relative path (/api), use current origin
+        if (base.startsWith('/')) {
+          return window.location.origin
+        }
         const u = new URL(base)
         return u.origin
       }
