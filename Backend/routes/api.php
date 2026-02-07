@@ -87,6 +87,7 @@ Route::middleware('auth:sanctum')->group(function () {
     Route::post('/logout', [AuthController::class, 'logout']);
     Route::get('/user', [AuthController::class, 'user']);
     Route::post('/change-password', [AuthController::class, 'changePassword']);
+    Route::get('/dashboard', [\App\Http\Controllers\DashboardController::class, 'index']);
     // Admin: manage users
     Route::get('/v1/users', [\App\Http\Controllers\UserController::class, 'index']);
     Route::post('/v1/users', [\App\Http\Controllers\UserController::class, 'store']);
