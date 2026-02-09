@@ -1,9 +1,10 @@
 class AppConfig {
   // API Configuration - Development Mode
   // Use local backend server for all platforms during development
-  static const String apiBaseUrl = 'http://localhost:8001/api';
+  static const String apiBaseUrl = 'http://localhost:8001/api/v1';
 
   // Endpoints
+  // Note: These should be relative to apiBaseUrl
   static const String loginEndpoint = '/auth/login';
   static const String waliSantriEndpoint = '/wali/santri';
   static const String waliWalletEndpoint = '/wali/wallet';

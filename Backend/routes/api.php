@@ -15,7 +15,7 @@ use App\Http\Controllers\WalletController;
 use App\Http\Controllers\RfidTagController;
 use App\Http\Controllers\EposController;
 use App\Http\Controllers\WalletSettingsController;
-use App\Http\Controllers\Api\WaliController;
+use App\Http\Controllers\Api\V1\Wali\WaliController;
 use App\Http\Controllers\BankAccountController;
 
 // Load V1 Routes
@@ -23,10 +23,12 @@ Route::prefix('v1')->group(base_path('routes/api_v1.php'));
 
 // Authentication routes (public)
 Route::post('/login', [AuthController::class, 'login']);
+Route::post('/login', [AuthController::class, 'login']);
 Route::post('/forgot-password', [AuthController::class, 'forgotPassword']);
 Route::post('/reset-password', [AuthController::class, 'resetPassword']);
 
-// Wali Santri Mobile App routes
+/*
+// Wali Santri Mobile App routes (MOVED TO V1)
 Route::prefix('auth')->group(function () {
     Route::post('login', [WaliController::class, 'login']);
 });
@@ -64,6 +66,7 @@ Route::middleware('auth:sanctum')->prefix('wali')->group(function () {
     Route::get('announcements/{id}', [\App\Http\Controllers\Api\AnnouncementController::class, 'show']);
     Route::post('announcements/{id}/mark-read', [\App\Http\Controllers\Api\AnnouncementController::class, 'markAsRead']);
 });
+*/
 
 // Admin Bukti Transfer routes
 Route::middleware('auth:sanctum')->prefix('admin/bukti-transfer')->group(function () {

@@ -12,21 +12,21 @@ class ApiService {
   static String getBaseUrl() {
     // For web platform, use localhost directly
     if (kIsWeb) {
-      return 'http://localhost:8001';
+      return AppConfig.apiBaseUrl;
     }
 
     // For mobile platforms, try to use Platform
     try {
       // For Android emulator (development)
       if (Platform.isAndroid) {
-        return 'http://10.0.2.2:8001';
+        return AppConfig.apiBaseUrl.replaceFirst('localhost', '10.0.2.2');
       }
       
       // For iOS simulator or other platforms (development)
-      return 'http://localhost:8001';
+      return AppConfig.apiBaseUrl;
     } catch (e) {
       // Fallback jika Platform tidak tersedia
-      return 'http://localhost:8001';
+      return AppConfig.apiBaseUrl;
     }
   }
 
@@ -69,7 +69,7 @@ class ApiService {
   ApiService() {
     final baseUrl = getBaseUrl();
     _dio = Dio(BaseOptions(
-      baseUrl: '$baseUrl/api',
+      baseUrl: baseUrl,
       connectTimeout: AppConfig.connectTimeout,
       receiveTimeout: AppConfig.receiveTimeout,
       responseType: ResponseType.json,
@@ -123,14 +123,16 @@ class ApiService {
 
   /// Get wallet info including balance and minimum balance status
   Future<Response> getWalletInfo(String santriId) async {
-    return await _dio.get('/wali/wallet/$santriId');
+    return await _dio.get('${AppConfig.waliWalletEndpoint}/$santriId');
   }
 
   /// Get wallet transactions (full history) using admin-style endpoint
   Future<Response> getWalletTransactions(String santriId,
       {int page = 1, int limit = 50}) async {
+    // Note: This endpoint might need refactoring to V1 structure
+    // For now we assume /v1 is handled by base URL
     return await _dio
-        .get('/v1/wallets/$santriId/transactions', queryParameters: {
+        .get('/admin/wallet/$santriId/transactions', queryParameters: {
       'page': page,
       'limit': limit,
     });
