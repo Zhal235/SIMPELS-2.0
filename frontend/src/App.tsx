@@ -75,9 +75,9 @@ function ProtectedRoute({ children }: { children: React.ReactNode }) {
 // Layout Component with Sidebar and Topbar
 function AppLayout({ children }: { children: React.ReactNode }) {
   return (
-    <div className="flex h-screen bg-[#F5F5F5]">
+    <div className="flex h-screen bg-[#F5F5F5] overflow-hidden">
       <Sidebar />
-      <div className="flex w-full flex-col">
+      <div className="flex flex-1 flex-col min-w-0 overflow-hidden">
         <Topbar />
         <main className="flex-1 overflow-y-auto p-4">
           {children}

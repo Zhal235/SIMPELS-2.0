@@ -7,7 +7,7 @@ import {
 } from 'lucide-react'
 import { motion, AnimatePresence } from 'framer-motion'
 import { useAuthStore, hasAccess } from '../stores/useAuthStore'
-import { useState } from 'react'
+import { useState, useEffect } from 'react'
 
   const bottomMenu = [
   // Pengguna is admin-only; we'll conditionally render it below
@@ -16,12 +16,13 @@ import { useState } from 'react'
 
 export default function Sidebar() {
   const { sidebarOpen, toggleSidebar } = useUIStore()
-  const [kesantrianOpen, setKesantrianOpen] = useState(true)
+  // Initialize states to false, will be set by useEffect
+  const [kesantrianOpen, setKesantrianOpen] = useState(false)
   const [kesantrianMutasiOpen, setKesantrianMutasiOpen] = useState(false)
-  const [keuanganOpen, setKeuanganOpen] = useState(true)
+  const [keuanganOpen, setKeuanganOpen] = useState(false)
   const [keuanganTunggakanOpen, setKeuanganTunggakanOpen] = useState(false)
   const [keuanganPengaturanOpen, setKeuanganPengaturanOpen] = useState(false)
-  const [akademikOpen, setAkademikOpen] = useState(true)
+  const [akademikOpen, setAkademikOpen] = useState(false)
   const [dompetOpen, setDompetOpen] = useState(false)
   const location = useLocation()
   const currentUser = useAuthStore((s) => s.user)
@@ -32,7 +33,69 @@ export default function Sidebar() {
   const kesantrianActive = location.pathname.startsWith('/kesantrian')
   const keuanganActive = location.pathname.startsWith('/keuangan')
   const akademikActive = location.pathname.startsWith('/akademik')
-  
+
+  // Sync sidebar state with current location
+  useEffect(() => {
+    const p = location.pathname
+    
+    // Reset all first (or set based on match)
+    // We'll determine which one should be open
+    const isKesantrian = p.startsWith('/kesantrian')
+    const isKeuangan = p.startsWith('/keuangan')
+    const isAkademik = p.startsWith('/akademik')
+    const isDompet = p.startsWith('/dompet')
+
+    setKesantrianOpen(isKesantrian)
+    setKeuanganOpen(isKeuangan)
+    setAkademikOpen(isAkademik)
+    setDompetOpen(isDompet)
+
+    // Handle nested open states if needed
+    if (isKesantrian) {
+       if (p.startsWith('/kesantrian/mutasi')) setKesantrianMutasiOpen(true)
+    }
+    if (isKeuangan) {
+       if (p.startsWith('/keuangan/tunggakan')) setKeuanganTunggakanOpen(true)
+       if (p.startsWith('/keuangan/pengaturan')) setKeuanganPengaturanOpen(true)
+    }
+  }, [location.pathname])
+
+  const toggleMenu = (menu: 'kesantrian' | 'keuangan' | 'akademik' | 'dompet') => {
+    if (menu === 'kesantrian') {
+      const newState = !kesantrianOpen
+      setKesantrianOpen(newState)
+      if (newState) {
+        setKeuanganOpen(false)
+        setAkademikOpen(false)
+        setDompetOpen(false)
+      }
+    } else if (menu === 'keuangan') {
+      const newState = !keuanganOpen
+      setKeuanganOpen(newState)
+      if (newState) {
+        setKesantrianOpen(false)
+        setAkademikOpen(false)
+        setDompetOpen(false)
+      }
+    } else if (menu === 'akademik') {
+      const newState = !akademikOpen
+      setAkademikOpen(newState)
+      if (newState) {
+        setKesantrianOpen(false)
+        setKeuanganOpen(false)
+        setDompetOpen(false)
+      }
+    } else if (menu === 'dompet') {
+      const newState = !dompetOpen
+      setDompetOpen(newState)
+      if (newState) {
+        setKesantrianOpen(false)
+        setKeuanganOpen(false)
+        setAkademikOpen(false)
+      }
+    }
+  }
+
   // Handler untuk menampilkan sidebar saat ada sentuhan di area sidebar saat collapsed
   const handleSidebarHover = () => {
     if (!sidebarOpen) {
@@ -74,7 +137,7 @@ export default function Sidebar() {
         <div className="space-y-1">
           <button
             type="button"
-            onClick={() => setKesantrianOpen((v) => !v)}
+            onClick={() => toggleMenu('kesantrian')}
             className={`w-full flex items-center gap-3 rounded-md px-3 py-2 text-sm ${kesantrianActive ? 'bg-white text-brand shadow-sm' : 'text-gray-700 hover:bg-white'}`}
           >
             <Users className="w-5 h-5" />
@@ -211,7 +274,7 @@ export default function Sidebar() {
         <div className="space-y-1">
           <button
             type="button"
-            onClick={() => setKeuanganOpen((v) => !v)}
+            onClick={() => toggleMenu('keuangan')}
             className={`w-full flex items-center gap-3 rounded-md px-3 py-2 text-sm ${keuanganActive ? 'bg-white text-brand shadow-sm' : 'text-gray-700 hover:bg-white'}`}
           >
             <Wallet className="w-5 h-5" />
@@ -428,7 +491,7 @@ export default function Sidebar() {
         <div className="space-y-1">
           <button
             type="button"
-            onClick={() => setDompetOpen((v) => !v)}
+            onClick={() => toggleMenu('dompet')}
             className={`w-full flex items-center gap-3 rounded-md px-3 py-2 text-sm ${dompetActive ? 'bg-white text-brand shadow-sm' : 'text-gray-700 hover:bg-white'}`}
           >
             <DollarSign className="w-5 h-5" />
@@ -552,7 +615,7 @@ export default function Sidebar() {
         <div className="space-y-1">
           <button
             type="button"
-            onClick={() => setAkademikOpen((v) => !v)}
+            onClick={() => toggleMenu('akademik')}
             className={`w-full flex items-center gap-3 rounded-md px-3 py-2 text-sm ${akademikActive ? 'bg-white text-brand shadow-sm' : 'text-gray-700 hover:bg-white'}`}
           >
             <Calendar className="w-5 h-5" />

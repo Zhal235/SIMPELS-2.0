@@ -8,6 +8,8 @@ import { Button } from '@/components/ui/button'
 import SantriForm from './components/SantriForm'
 import type { Santri } from './components/SantriForm'
 import { listSantri, deleteSantri, updateSantri, getSantri, exportSantri, importSantri, downloadTemplate, validateImportSantri } from '@/api/santri'
+import { listKelas } from '@/api/kelas'
+import { listAsrama } from '@/api/asrama'
 import { getTagihanBySantri } from '@/api/pembayaran'
 import { deleteTagihanSantri } from '@/api/tagihanSantri'
 import { createMutasiKeluar } from '@/api/mutasiKeluar'
@@ -58,33 +60,43 @@ export default function KesantrianSantri() {
   const [totalItems, setTotalItems] = useState(0)
   const navigate = useNavigate()
 
+  // Filters State
+  const [kelasOptions, setKelasOptions] = useState<any[]>([])
+  const [asramaOptions, setAsramaOptions] = useState<any[]>([])
+  const [selectedKelas, setSelectedKelas] = useState<string>('')
+  const [selectedAsrama, setSelectedAsrama] = useState<string>('')
+  const [selectedStatus, setSelectedStatus] = useState<string>('aktif')
+
+  useEffect(() => {
+    listKelas().then((res: any) => setKelasOptions(Array.isArray(res) ? res : res?.data || []))
+    listAsrama().then((res: any) => setAsramaOptions(Array.isArray(res) ? res : res?.data || []))
+  }, [])
+
   async function fetchData() {
     try {
       setLoading(true)
-      const res = await listSantri(currentPage, pageSize)
+      const res = await listSantri(currentPage, pageSize, {
+         q: searchQuery,
+         kelas_id: selectedKelas,
+         asrama_id: selectedAsrama,
+         status: selectedStatus
+      })
       const raw: any = res
       
-      const applyMutasiKeluarFilter = (arr: any[]) => {
-        return (arr || []).filter((it) => String(it?.status || 'aktif').toLowerCase() !== 'keluar')
-      }
-
       // Handle different response structures
       if (raw?.data?.data) {
         // Laravel pagination format
-        const arr = applyMutasiKeluarFilter(raw.data.data)
-        setItems(arr)
-        setTotalItems(arr.length)
+        setItems(raw.data.data)
+        setTotalItems(raw.data.total ?? raw.data.data.length)
       } else if (raw?.data) {
         const dataArray = Array.isArray(raw.data) ? raw.data : []
-        const arr = applyMutasiKeluarFilter(dataArray)
-        setItems(arr)
+        setItems(dataArray)
         // Jika tidak ada total, asumsikan ada lebih banyak data jika hasil = pageSize
-        setTotalItems(arr.length)
+        setTotalItems(raw.total ?? dataArray.length)
       } else {
         const dataArray = Array.isArray(raw) ? raw : []
-        const arr = applyMutasiKeluarFilter(dataArray)
-        setItems(arr)
-        setTotalItems(arr.length)
+        setItems(dataArray)
+        setTotalItems(dataArray.length)
       }
     } catch (e: any) {
       console.error('Failed to fetch santri list', e)
@@ -104,7 +116,7 @@ export default function KesantrianSantri() {
 
   useEffect(() => {
     fetchData()
-  }, [currentPage, pageSize])
+  }, [currentPage, pageSize, searchQuery, selectedKelas, selectedAsrama, selectedStatus])
 
   useEffect(() => {
     // when modal closes after create/edit, refresh table
@@ -231,9 +243,12 @@ export default function KesantrianSantri() {
             <Button
               variant="outline"
               size="icon"
-              title="Mutasi"
-              className="border-gray-200 text-gray-700 hover:text-brand hover:border-brand transition-all duration-150 rounded-lg shadow-sm bg-white"
+              title={['keluar', 'mutasi_keluar'].includes(row.status || '') ? 'Santri sudah dimutasi keluar' : 'Mutasi'}
+              className={`border-gray-200 text-gray-700 transition-all duration-150 rounded-lg shadow-sm bg-white ${['keluar', 'mutasi_keluar'].includes(row.status || '') ? 'opacity-50 cursor-not-allowed' : 'hover:text-brand hover:border-brand'}`}
+              disabled={['keluar', 'mutasi_keluar'].includes(row.status || '')}
               onClick={() => {
+                if (['keluar', 'mutasi_keluar'].includes(row.status || '')) return;
+                
                 if (row.id) {
                   setMutasiTarget(row)
                   setTanggalKeluar('')
@@ -283,17 +298,8 @@ export default function KesantrianSantri() {
     ]
   ), [currentPage, pageSize])
 
-  // Filter items based on search query
-  const filteredItems = useMemo(() => {
-    if (!searchQuery.trim()) return items
-    
-    const query = searchQuery.toLowerCase()
-    return items.filter(item => 
-      item.nama_santri?.toLowerCase().includes(query) ||
-      item.nis?.toLowerCase().includes(query) ||
-      item.nisn?.toLowerCase().includes(query)
-    )
-  }, [items, searchQuery])
+  // Filter items based on search query (Backend handles filtering now)
+  const filteredItems = items
 
   // Handle download template
   async function handleDownloadTemplate() {
@@ -477,18 +483,69 @@ export default function KesantrianSantri() {
         </div>
       </div>
       
-      {/* Search Bar */}
+      {/* Search Bar & Filters */}
       <Card>
-        <div className="p-4 border-b">
-          <div className="relative">
-            <Search className="absolute left-3 top-1/2 transform -translate-y-1/2 text-gray-400" size={20} />
-            <input
-              type="text"
-              placeholder="Cari berdasarkan nama, NIS, atau NISN..."
-              value={searchQuery}
-              onChange={(e) => setSearchQuery(e.target.value)}
-              className="w-full pl-10 pr-4 py-2 border border-gray-300 rounded-lg focus:ring-2 focus:ring-blue-500 focus:border-blue-500"
-            />
+        <div className="p-4 border-b space-y-4">
+          <div className="flex flex-col md:flex-row gap-4">
+            <div className="relative flex-1">
+              <Search className="absolute left-3 top-1/2 transform -translate-y-1/2 text-gray-400" size={20} />
+              <input
+                type="text"
+                placeholder="Cari berdasarkan nama, NIS, atau NISN..."
+                value={searchQuery}
+                onChange={(e) => setSearchQuery(e.target.value)}
+                className="w-full pl-10 pr-4 py-2 border border-gray-300 rounded-lg focus:ring-2 focus:ring-blue-500 focus:border-blue-500"
+              />
+            </div>
+            
+            <div className="flex gap-2 w-full md:w-auto overflow-x-auto">
+              {/* Kelas Filter */}
+              <select
+                value={selectedKelas}
+                onChange={(e) => {
+                  setSelectedKelas(e.target.value);
+                  setCurrentPage(1); // Reset to page 1 on filter change
+                }}
+                className="border border-gray-300 rounded-lg px-3 py-2 bg-white focus:ring-2 focus:ring-blue-500 focus:border-blue-500 min-w-[150px]"
+              >
+                <option value="">Semua Kelas</option>
+                {kelasOptions.map((k: any) => (
+                  <option key={k.id} value={k.id}>{k.nama_kelas}</option>
+                ))}
+              </select>
+
+              {/* Asrama Filter */}
+              <select
+                value={selectedAsrama}
+                onChange={(e) => {
+                  setSelectedAsrama(e.target.value);
+                  setCurrentPage(1);
+                }}
+                className="border border-gray-300 rounded-lg px-3 py-2 bg-white focus:ring-2 focus:ring-blue-500 focus:border-blue-500 min-w-[150px]"
+              >
+                <option value="">Semua Asrama</option>
+                <option value="non_asrama">Non Asrama</option>
+                {asramaOptions.map((a: any) => (
+                  <option key={a.id} value={a.id}>{a.nama_asrama}</option>
+                ))}
+              </select>
+
+              {/* Status Filter */}
+              <select
+                value={selectedStatus}
+                onChange={(e) => {
+                  setSelectedStatus(e.target.value);
+                  setCurrentPage(1);
+                }}
+                className="border border-gray-300 rounded-lg px-3 py-2 bg-white focus:ring-2 focus:ring-blue-500 focus:border-blue-500 min-w-[150px]"
+              >
+                <option value="">Semua Status</option>
+                <option value="aktif">Aktif</option>
+                <option value="lulus">Lulus</option>
+                <option value="keluar">Keluar</option>
+                <option value="mutasi_keluar">Mutasi Keluar</option>
+              </select>
+            </div>
           </div>
         </div>
       </Card>

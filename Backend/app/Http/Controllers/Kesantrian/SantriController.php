@@ -29,6 +29,37 @@ class SantriController extends Controller
             $page = max((int) $request->query('page', 1), 1);
             $perPage = max((int) $request->query('perPage', 10), 1);
             $query = Santri::query();
+
+            // Search
+            if ($request->filled('q')) {
+                $search = $request->input('q');
+                $query->where(function ($q) use ($search) {
+                    $q->where('nama_santri', 'like', "%{$search}%")
+                      ->orWhere('nis', 'like', "%{$search}%")
+                      ->orWhere('nisn', 'like', "%{$search}%");
+                });
+            }
+
+            // Filter: Kelas
+            if ($request->filled('kelas_id')) {
+                $query->where('kelas_id', $request->input('kelas_id'));
+            }
+
+            // Filter: Asrama
+            if ($request->filled('asrama_id')) {
+                $asramaId = $request->input('asrama_id');
+                if ($asramaId === 'non_asrama') {
+                    $query->whereNull('asrama_id');
+                } else {
+                    $query->where('asrama_id', $asramaId);
+                }
+            }
+
+            // Filter: Status
+            if ($request->filled('status')) {
+                $query->where('status', $request->input('status'));
+            }
+
             // Optional filter: santri tanpa asrama
             if ($request->boolean('withoutAsrama')) {
                 $query->whereNull('asrama_id');
