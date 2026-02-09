@@ -18,6 +18,9 @@ use App\Http\Controllers\WalletSettingsController;
 use App\Http\Controllers\Api\WaliController;
 use App\Http\Controllers\BankAccountController;
 
+// Load V1 Routes
+Route::prefix('v1')->group(base_path('routes/api_v1.php'));
+
 // Authentication routes (public)
 Route::post('/login', [AuthController::class, 'login']);
 Route::post('/forgot-password', [AuthController::class, 'forgotPassword']);
