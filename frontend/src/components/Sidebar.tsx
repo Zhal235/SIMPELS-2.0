@@ -579,18 +579,6 @@ export default function Sidebar() {
                       {sidebarOpen && <span>Kelola RFID</span>}
                     </NavLink>
                   </li>)}
-                  {hasAccess('dompet.withdrawals') && (
-                  <li>
-                    <NavLink
-                      to="/dompet/withdrawals"
-                      className={({ isActive }) =>
-                        `flex items-center gap-3 rounded-md px-3 py-2 text-sm ${isActive ? 'bg-white text-brand shadow-sm' : 'text-gray-700 hover:bg-white'}`
-                      }
-                    >
-                      <LogOut className="w-5 h-5" />
-                      {sidebarOpen && <span>Penarikan ePOS</span>}
-                    </NavLink>
-                  </li>)}
                   {hasAccess('dompet.settings') && (
                   <li>
                     <NavLink
@@ -654,14 +642,6 @@ export default function Sidebar() {
             <NavLink to="/pengguna" className={({ isActive }) => `flex items-center gap-3 rounded-md px-3 py-2 text-sm ${isActive ? 'bg-white text-brand shadow-sm' : 'text-gray-700 hover:bg-white'}`}>
               <UserCog className="w-5 h-5" />
               {sidebarOpen && <span>Pengguna</span>}
-            </NavLink>
-          )}
-          {sidebarOpen && hasAccess('pengumuman') && (
-            <NavLink to="/pengumuman" className={({ isActive }) => `flex items-center gap-3 rounded-md px-3 py-2 text-sm ${isActive ? 'bg-white text-brand shadow-sm' : 'text-gray-700 hover:bg-white'}`}>
-              <svg xmlns="http://www.w3.org/2000/svg" className="w-5 h-5" fill="none" viewBox="0 0 24 24" stroke="currentColor">
-                <path strokeLinecap="round" strokeLinejoin="round" strokeWidth={2} d="M11 5.882V19.24a1.76 1.76 0 01-3.417.592l-2.147-6.15M18 13a3 3 0 100-6M5.436 13.683A4.001 4.001 0 017 6h1.832c4.1 0 7.625-1.234 9.168-3v14c-1.543-1.766-5.067-3-9.168-3H7a3.988 3.988 0 01-1.564-.317z" />
-              </svg>
-              {sidebarOpen && <span>Pengumuman</span>}
             </NavLink>
           )}
 

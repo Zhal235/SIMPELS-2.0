@@ -2,7 +2,6 @@ import { Link, useLocation, useNavigate } from 'react-router-dom'
 import { useState, useRef, useEffect } from 'react'
 import { useUIStore } from '../stores/useUIStore'
 import { useAuthStore } from '../stores/useAuthStore'
-import AnnouncementBadge from './AnnouncementBadge'
 
 export default function Topbar() {
   const location = useLocation()
@@ -75,7 +74,6 @@ export default function Topbar() {
         </nav>
       </div>
       <div className="flex items-center gap-3">
-        <AnnouncementBadge />
         <div className="relative" ref={dropdownRef}>
           <button 
             onClick={() => setShowDropdown(!showDropdown)}
