@@ -106,6 +106,7 @@ Route::middleware('auth:sanctum')->group(function () {
     Route::delete('/v1/roles/{id}', [\App\Http\Controllers\RoleController::class, 'destroy']);
 
     // Announcements Admin Routes (create, update, delete)
+    Route::get('/v1/announcements', [\App\Http\Controllers\Api\AnnouncementController::class, 'index']);
     Route::post('/v1/announcements', [\App\Http\Controllers\Api\AnnouncementController::class, 'store']);
     Route::put('/v1/announcements/{id}', [\App\Http\Controllers\Api\AnnouncementController::class, 'update']);
     Route::delete('/v1/announcements/{id}', [\App\Http\Controllers\Api\AnnouncementController::class, 'destroy']);

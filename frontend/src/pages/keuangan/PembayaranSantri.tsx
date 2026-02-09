@@ -118,6 +118,8 @@ const isLunasTab = activeTab === 'lunas'
         const res = await listSantri(1, 1000) // Fetch lebih banyak santri untuk search
         let santriData = Array.isArray(res) ? res : (res?.data ? res.data : [])
         
+        setSantriList(santriData)
+
         // Auto-select santri dari URL parameter jika ada
         const santriId = searchParams.get('santri_id')
         const nama = searchParams.get('nama')

@@ -85,6 +85,8 @@ class SantriModel {
       'foto_url': fotoUrl,
       'saldo_dompet': saldoDompet,
       'limit_harian': limitHarian,
+      'minimum_balance': minimumBalance,
+      'is_below_minimum': isBelowMinimum,
       'hubungan': hubungan,
       'nama_wali': namaWali,
     };

@@ -12,6 +12,7 @@ import 'unified_payment_screen.dart';
 import 'bukti_history_screen.dart';
 import 'data_santri_screen.dart';
 import '../widgets/announcement_badge.dart';
+import '../widgets/dashboard_announcement_card.dart';
 
 class HomeScreen extends StatefulWidget {
   final int initialIndex;
@@ -219,8 +220,6 @@ class DashboardTab extends StatelessWidget {
         backgroundColor: Theme.of(context).colorScheme.primary,
         foregroundColor: Colors.white,
         actions: [
-          // Announcement Badge
-          const AnnouncementBadge(),
           // Notification Bell dengan Badge
           _NotificationBellWidget(santriId: santri?.id ?? ''),
           IconButton(
@@ -646,6 +645,11 @@ class DashboardTab extends StatelessWidget {
                   ],
                 ),
               ),
+              
+              const SizedBox(height: 24),
+              
+              // Pengumuman Section
+              const DashboardAnnouncementCard(),
 
               const SizedBox(height: 24),
             ],

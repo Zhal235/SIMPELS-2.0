@@ -40,7 +40,8 @@ export const getAnnouncements = async (params?: {
   unread_only?: boolean
   limit?: number
 }): Promise<AnnouncementResponse> => {
-  const response = await api.get('/wali/announcements', { params })
+  // Use V1 Admin route for list
+  const response = await api.get('/v1/announcements', { params })
   return response.data
 }
 
@@ -48,7 +49,8 @@ export const getAnnouncements = async (params?: {
  * Get unread count for badge
  */
 export const getUnreadCount = async (): Promise<UnreadCountResponse> => {
-  const response = await api.get('/wali/announcements/unread-count')
+  // Use correct V1 endpoint for Wali
+  const response = await api.get('/v1/wali/announcements/unread-count')
   return response.data
 }
 

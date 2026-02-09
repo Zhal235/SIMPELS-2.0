@@ -14,6 +14,7 @@ class AnnouncementService {
     int limit = 50,
   }) async {
     try {
+      // Endpoint: /wali/announcements (will be prefixed with /api/v1 by baseUrl)
       final response = await _dio.get(
         '/wali/announcements',
         queryParameters: {

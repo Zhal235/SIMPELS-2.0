@@ -22,7 +22,43 @@ class AnnouncementController extends Controller
         $unreadOnly = $request->boolean('unread_only', false);
         $limit = $request->input('limit', 50);
 
-        // Query announcements
+        // Check if user is Admin/Staff (Management View)
+        $isAdmin = false;
+        if (property_exists($user, 'role') && in_array($user->role, ['admin', 'staff', 'superadmin'])) {
+            $isAdmin = true;
+        }
+
+        if ($isAdmin) {
+             // Admin sees ALL announcements (Management View)
+             $query = Announcement::with(['creator', 'reads'])
+                ->orderBy('created_at', 'desc');
+
+             $announcements = $query->limit($limit)->get();
+             
+             // Map simplified format for admin list
+             $announcements = $announcements->map(function ($announcement) {
+                return [
+                    'id' => $announcement->id,
+                    'title' => $announcement->title,
+                    'content' => $announcement->content,
+                    'priority' => $announcement->priority,
+                    'target_type' => $announcement->target_type,
+                    'target_ids' => $announcement->target_ids,
+                    'push_notification' => $announcement->push_notification,
+                    'created_by' => $announcement->creator ? $announcement->creator->name : null,
+                    'created_at' => $announcement->created_at->toISOString(),
+                    'is_read' => true, 
+                ];
+            });
+
+            return response()->json([
+                'success' => true,
+                'data' => $announcements,
+                'unread_count' => 0 
+            ]);
+        }
+
+        // Filter for specific targets (Wali View)
         $query = Announcement::with(['creator', 'reads'])
             ->where(function ($q) use ($user) {
                 // Target: semua wali santri
@@ -76,6 +112,14 @@ class AnnouncementController extends Controller
     {
         $user = Auth::user();
         
+        // Admin always 0
+        if (property_exists($user, 'role') && in_array($user->role, ['admin', 'staff', 'superadmin'])) {
+             return response()->json([
+                'success' => true,
+                'count' => 0,
+            ]);
+        }
+
         $count = Announcement::whereDoesntHave('reads', function ($q) use ($user) {
             $q->where('user_id', $user->id);
         })->count();

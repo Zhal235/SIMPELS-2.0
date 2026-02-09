@@ -82,7 +82,8 @@ class _AnnouncementsScreenState extends State<AnnouncementsScreen>
     final token = await StorageHelper.getToken();
 
     final dio = Dio(BaseOptions(
-      baseUrl: '$baseUrl/api',
+      // Hapus suffix /api karena baseUrl sudah mengandung path yang lengkap (termasuk /api atau /api/v1)
+      baseUrl: baseUrl,
       headers: {
         'Content-Type': 'application/json',
         'Accept': 'application/json',
