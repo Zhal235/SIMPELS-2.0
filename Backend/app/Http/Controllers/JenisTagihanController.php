@@ -13,9 +13,28 @@ class JenisTagihanController extends Controller
     /**
      * Display a listing of the resource.
      */
-    public function index()
+    public function index(Request $request)
     {
-        $jenisTagihan = JenisTagihan::with('bukuKas')->latest()->get();
+        $query = JenisTagihan::with('bukuKas');
+        
+        // Filter berdasarkan tahun ajaran
+        if ($request->has('tahun_ajaran_id')) {
+            $query->where('tahun_ajaran_id', $request->tahun_ajaran_id);
+        } elseif ($request->has('all')) {
+            // Do nothing, return all
+        } else {
+             // Default: Filter berdasarkan tahun ajaran aktif
+             $activeTa = \App\Models\TahunAjaran::where('status', 'aktif')->first();
+             if ($activeTa) {
+                 $query->where('tahun_ajaran_id', $activeTa->id);
+             } else {
+                 // Fallback if no active TA: prefer strict or allow legacy?
+                 // Allowing legacy (null) for now
+                 $query->whereNull('tahun_ajaran_id'); 
+             }
+        }
+
+        $jenisTagihan = $query->latest()->get();
         
         return response()->json([
             'success' => true,
@@ -60,6 +79,9 @@ class JenisTagihanController extends Controller
             ], 422);
         }
 
+        // Get Active TA
+        $activeTa = \App\Models\TahunAjaran::where('status', 'aktif')->first();
+
         $data = [
             'nama_tagihan' => $request->namaTagihan,
             'kategori' => $request->kategori,
@@ -67,6 +89,7 @@ class JenisTagihanController extends Controller
             'tipe_nominal' => $request->tipeNominal,
             'jatuh_tempo' => $request->jatuhTempo,
             'buku_kas_id' => $request->bukuKasId,
+            'tahun_ajaran_id' => $activeTa ? $activeTa->id : null,
         ];
 
         if ($request->tipeNominal === 'sama') {

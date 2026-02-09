@@ -1,12 +1,13 @@
 import { useState, useEffect } from 'react'
-import { Plus, Edit2, Trash2, X, CheckCircle } from 'lucide-react'
+import { useNavigate } from 'react-router-dom'
+import { Plus, Edit2, Trash2, X, CheckCircle, ArrowRightCircle } from 'lucide-react'
 import { listTahunAjaran, createTahunAjaran, updateTahunAjaran, deleteTahunAjaran } from '../../api/tahunAjaran'
 import toast from 'react-hot-toast'
 import { hasAccess } from '../../stores/useAuthStore'
 
 interface TahunAjaran {
   id: number
-  nama_tahun_ajaran: string
+  nama_tahun_ajaran: string 
   tanggal_mulai: string
   bulan_mulai: string
   tahun_mulai: number
@@ -17,10 +18,16 @@ interface TahunAjaran {
 }
 
 export default function TahunAjaran() {
+  const navigate = useNavigate()
   const [dataTahunAjaran, setDataTahunAjaran] = useState<TahunAjaran[]>([])
   const [showModal, setShowModal] = useState(false)
   const [selectedTahunAjaran, setSelectedTahunAjaran] = useState<TahunAjaran | null>(null)
   const [showConfirmModal, setShowConfirmModal] = useState(false)
+  
+  // Modal Konfirmasi Aktivasi Wizard
+  const [showWizardConfirm, setShowWizardConfirm] = useState(false)
+  const [targetActivation, setTargetActivation] = useState<TahunAjaran | null>(null)
+
   const [loading, setLoading] = useState(false)
 
   useEffect(() => {
@@ -65,7 +72,27 @@ export default function TahunAjaran() {
     setShowModal(true)
   }
 
-  const handleAktifkan = async (tahunAjaran: TahunAjaran) => {
+  // Modifikasi: Tampilkan konfirmasi wizard sebelum aktivasi langsung
+  const handleAktifkanClick = (tahunAjaran: TahunAjaran) => {
+    // Jika tahun ajaran baru (status saat ini tidak aktif), tawarkan wizard
+    setTargetActivation(tahunAjaran)
+    setShowWizardConfirm(true)
+  }
+
+  const handleProceedActivation = async (useWizard: boolean) => {
+    setShowWizardConfirm(false)
+    if (!targetActivation) return
+
+    if (useWizard) {
+      navigate('/akademik/pindah-tahun-ajaran')
+      return
+    }
+
+    // Jika user menolak wizard (Hanya Aktifkan Manual)
+    await executeActivation(targetActivation)
+  }
+
+  const executeActivation = async (tahunAjaran: TahunAjaran) => {
     try {
       // Update tahun ajaran menjadi aktif
       const updatedData = { ...tahunAjaran, status: 'aktif' as 'aktif' | 'tidak_aktif' }
@@ -197,7 +224,7 @@ export default function TahunAjaran() {
                       <div className="flex items-center gap-2">
                         {item.status === 'tidak_aktif' && hasAccess('akademik.tahun-ajaran.edit') && (
                           <button
-                            onClick={() => handleAktifkan(item)}
+                            onClick={() => handleAktifkanClick(item)}
                             className="px-3 py-1.5 bg-green-600 hover:bg-green-700 text-white rounded-lg text-xs font-medium flex items-center gap-1"
                             title="Aktifkan tahun ajaran ini"
                           >
@@ -254,6 +281,65 @@ export default function TahunAjaran() {
           }}
         />
       )}
+      
+      {/* Modal Konfirmasi Wizard Activation */}
+      {showWizardConfirm && targetActivation && (
+        <WizardConfirmModal 
+          tahunNama={targetActivation.nama_tahun_ajaran}
+          onProcess={(useWizard) => handleProceedActivation(useWizard)}
+          onCancel={() => {
+            setShowWizardConfirm(false)
+            setTargetActivation(null)
+          }}
+        />
+      )}
+    </div>
+  )
+}
+
+function WizardConfirmModal({ tahunNama, onProcess, onCancel }: { tahunNama: string, onProcess: (val: boolean) => void, onCancel: () => void }) {
+  return (
+    <div className="fixed inset-0 z-[70] flex items-center justify-center p-4 bg-black/50">
+      <div className="bg-white rounded-lg shadow-xl max-w-lg w-full">
+        <div className="p-6 border-b">
+          <h3 className="font-bold text-gray-900 text-lg flex items-center gap-2">
+            <ArrowRightCircle className="text-blue-600"/>
+            Pindah Tahun Ajaran?
+          </h3>
+        </div>
+        <div className="p-6">
+          <p className="text-gray-700 mb-4">
+            Anda akan mengaktifkan Tahun Ajaran <strong>{tahunNama}</strong>.
+            Apakah Anda ingin menjalankan <strong>Wizard Pindah Tahun Ajaran</strong>?
+          </p>
+          <div className="bg-blue-50 p-4 rounded-lg text-sm text-blue-800 space-y-2 mb-4">
+            <p>Wizard ini akan membantu Anda:</p>
+            <ul className="list-disc list-inside ml-2">
+              <li>Meluluskan siswa tingkat akhir (Kelas 12)</li>
+              <li>Menaikkan kelas siswa (misal 7 ➡ 8)</li>
+              <li>Membuat kelas baru secara otomatis</li>
+            </ul>
+          </div>
+          <p className="text-sm text-gray-500">
+            Jika pilih "Hanya Aktifkan", sistem hanya akan mengubah status tahun ajaran tanpa memproses kenaikan kelas.
+          </p>
+        </div>
+        <div className="p-6 border-t flex flex-col md:flex-row gap-3 justify-end">
+           <button onClick={onCancel} className="px-4 py-2 border rounded hover:bg-gray-50 text-sm">Batal</button>
+           <button 
+             onClick={() => onProcess(false)}
+             className="px-4 py-2 border border-gray-300 text-gray-700 rounded hover:bg-gray-50 text-sm"
+           >
+             Hanya Aktifkan (Manual)
+           </button>
+           <button 
+             onClick={() => onProcess(true)}
+             className="px-4 py-2 bg-blue-600 text-white rounded hover:bg-blue-700 text-sm font-medium"
+           >
+             Ya, Jalankan Wizard
+           </button>
+        </div>
+      </div>
     </div>
   )
 }

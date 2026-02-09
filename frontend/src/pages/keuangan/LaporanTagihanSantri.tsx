@@ -1,5 +1,6 @@
 import { useState, useEffect } from 'react'
 import api from '../../api/index'
+import { listTahunAjaran } from '../../api/tahunAjaran'
 import { Download, Printer, Filter, Search } from 'lucide-react'
 
 interface TagihanData {
@@ -40,6 +41,8 @@ export default function LaporanTagihanSantri() {
   // Filters
   const [filterBulan, setFilterBulan] = useState<string>('all')
   const [filterTahun, setFilterTahun] = useState<string>(new Date().getFullYear() + '')
+  const [filterTa, setFilterTa] = useState<string>('all')
+  const [tahuns, setTahuns] = useState<any[]>([])
   const [filterStatus, setFilterStatus] = useState<string>('all')
   const [filterJenisTagihan, setFilterJenisTagihan] = useState<string>('all')
   const [search, setSearch] = useState('')
@@ -64,11 +67,12 @@ export default function LaporanTagihanSantri() {
 
   useEffect(() => {
     fetchJenisTagihan()
+    listTahunAjaran().then((res: any) => setTahuns(res.data || res || []))
   }, [])
 
   useEffect(() => {
     fetchData()
-  }, [filterBulan, filterTahun, filterStatus, filterJenisTagihan])
+  }, [filterBulan, filterTahun, filterStatus, filterJenisTagihan, filterTa])
 
   const fetchJenisTagihan = async () => {
     try {
@@ -114,6 +118,7 @@ export default function LaporanTagihanSantri() {
               },
               bulan: tagihan.bulan,
               tahun: tagihan.tahun,
+              tahun_ajaran_id: tagihan.tahun_ajaran_id, // Capture TA ID
               nominal: parseFloat(tagihan.nominal || 0),
               dibayar: parseFloat(tagihan.dibayar || 0),
               sisa: parseFloat(tagihan.sisa || 0),
@@ -143,6 +148,9 @@ export default function LaporanTagihanSantri() {
       }
       if (filterJenisTagihan !== 'all') {
         filtered = filtered.filter(t => t.jenis_tagihan.nama_tagihan === filterJenisTagihan)
+      }
+      if (filterTa !== 'all') {
+        filtered = filtered.filter(t => t.tahun_ajaran_id === Number(filterTa))
       }
       if (search) {
         const searchLower = search.toLowerCase()
@@ -248,7 +256,20 @@ export default function LaporanTagihanSantri() {
 
         {showFilters && (
           <div className="space-y-4">
-            <div className="grid grid-cols-1 md:grid-cols-5 gap-4">
+            <div className="grid grid-cols-1 md:grid-cols-2 lg:grid-cols-6 gap-4">
+              <div>
+                <label className="block text-sm font-medium text-gray-700 mb-1">Tahun Ajaran</label>
+                <select
+                  value={filterTa}
+                  onChange={(e) => setFilterTa(e.target.value)}
+                  className="w-full border border-gray-300 rounded-md px-3 py-2 text-sm"
+                >
+                  <option value="all">Semua</option>
+                  {tahuns.map(t => (
+                    <option key={t.id} value={t.id}>{t.nama_tahun_ajaran} ({t.status})</option>
+                  ))}
+                </select>
+              </div>
               <div>
                 <label className="block text-sm font-medium text-gray-700 mb-1">Bulan</label>
                 <select

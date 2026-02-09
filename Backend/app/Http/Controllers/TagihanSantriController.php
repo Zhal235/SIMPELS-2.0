@@ -50,6 +50,8 @@ class TagihanSantriController extends Controller
                     return [
                         'id' => $tagihan->id,
                         'jenis_tagihan' => $tagihan->jenisTagihan->nama_tagihan,
+                        'jenis_tagihan_id' => $tagihan->jenis_tagihan_id, // Add ID
+                        'tahun_ajaran_id' => $tagihan->jenisTagihan->tahun_ajaran_id, // Add TA ID
                         'bulan' => $tagihan->bulan,
                         'tahun' => $tagihan->tahun,
                         'nominal' => $tagihan->nominal,

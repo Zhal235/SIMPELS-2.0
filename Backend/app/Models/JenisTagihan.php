@@ -22,6 +22,7 @@ class JenisTagihan extends Model
         'nominal_per_individu',
         'jatuh_tempo',
         'buku_kas_id',
+        'tahun_ajaran_id',
     ];
 
     protected $casts = [
@@ -63,5 +64,13 @@ class JenisTagihan extends Model
     public function bukuKas()
     {
         return $this->belongsTo(BukuKas::class);
+    }
+
+    /**
+     * Relasi ke tahun ajaran
+     */
+    public function tahunAjaran()
+    {
+        return $this->belongsTo(TahunAjaran::class, 'tahun_ajaran_id');
     }
 }

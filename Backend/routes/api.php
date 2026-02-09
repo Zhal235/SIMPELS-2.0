@@ -227,6 +227,14 @@ Route::prefix('v1/wallets')->group(function () {
 // API v1 endpoints untuk modul Akademik
 Route::prefix('v1/akademik')->group(function () {
     Route::apiResource('tahun-ajaran', TahunAjaranController::class);
+
+    // Wizard Pindah Tahun Ajaran
+    Route::prefix('transition')->group(function () {
+        Route::get('graduation-preview', [\App\Http\Controllers\PindahTahunAjaranController::class, 'previewLulus']);
+        Route::post('graduate', [\App\Http\Controllers\PindahTahunAjaranController::class, 'graduate']);
+        Route::get('promotion-preview', [\App\Http\Controllers\PindahTahunAjaranController::class, 'previewNaikKelas']);
+        Route::post('promote', [\App\Http\Controllers\PindahTahunAjaranController::class, 'promote']);
+    });
 });
 
 // Modul Kelas

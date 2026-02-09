@@ -60,6 +60,7 @@ const LaporanKeuanganDompet = lazy(() => import('./pages/dompet/LaporanKeuangan'
 const TagihanKolektif = lazy(() => import('./pages/dompet/TagihanKolektif'))
 // Akademik subpages
 const AkademikTahunAjaran = lazy(() => import('./pages/akademik/TahunAjaran'))
+const PindahTahunAjaran = lazy(() => import('./pages/akademik/PindahTahunAjaran'))
 
 // Protected Route Component
 function ProtectedRoute({ children }: { children: React.ReactNode }) {
@@ -434,6 +435,13 @@ export default function App() {
               <ProtectedRoute>
                 <AppLayout>
                   <AkademikTahunAjaran />
+                </AppLayout>
+              </ProtectedRoute>
+            } />
+            <Route path="/akademik/pindah-tahun-ajaran" element={
+              <ProtectedRoute>
+                <AppLayout>
+                  <PindahTahunAjaran />
                 </AppLayout>
               </ProtectedRoute>
             } />
