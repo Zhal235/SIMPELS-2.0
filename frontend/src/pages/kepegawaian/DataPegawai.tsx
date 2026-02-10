@@ -66,7 +66,7 @@ export default function DataPegawai() {
   // Form State
   const [isEditing, setIsEditing] = useState(false)
   const [editId, setEditId] = useState<number | null>(null)
-  const [formData, setFormData] = useState<Partial<Pegawai>>({
+  const [formData, setFormData] = useState<Partial<Omit<Pegawai, 'foto_profil'>> & { foto_profil?: string | Blob }>({
     nama_pegawai: '',
     jenis_pegawai: 'Pendidik',
     status_kepegawaian: 'Tetap',
@@ -122,9 +122,9 @@ export default function DataPegawai() {
       })
       
       // Handle foto_profil secara terpisah dan hati-hati
-      if (formData.foto_profil && formData.foto_profil instanceof Blob) {
+      if (formData.foto_profil && typeof formData.foto_profil === 'object' && (formData.foto_profil as any) instanceof Blob) {
         console.log('Adding foto_profil:', formData.foto_profil)
-        form.append('foto_profil', formData.foto_profil, 'profile.jpg')
+        form.append('foto_profil', formData.foto_profil as Blob, 'profile.jpg')
       }
 
       console.log('Final FormData entries:')
