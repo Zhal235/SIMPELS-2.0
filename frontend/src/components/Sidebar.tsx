@@ -3,7 +3,7 @@ import { useUIStore } from '../stores/useUIStore'
 import { 
   LayoutDashboard, Users, Wallet, UserCog, Settings, Building2, Home, 
   ArrowDownUp, LogIn, LogOut, GraduationCap, CreditCard, Receipt, 
-  BookOpen, FileText, AlertCircle, ListChecks, DollarSign, Calendar, CheckCircle, Briefcase
+  BookOpen, FileText, AlertCircle, ListChecks, DollarSign, Calendar, CheckCircle, Briefcase, Megaphone
 } from 'lucide-react'
 import { motion, AnimatePresence } from 'framer-motion'
 import { useAuthStore, hasAccess } from '../stores/useAuthStore'
@@ -147,6 +147,20 @@ export default function Sidebar() {
         >
           <LayoutDashboard className="w-5 h-5" />
           {sidebarOpen && <span>Dashboard</span>}
+        </NavLink>)}
+
+        {/* Pengumuman */}
+        {(hasAccess('pengumuman.view') || hasAccess('pengumuman.create') || hasAccess('pengumuman.edit') || hasAccess('pengumuman.delete')) && (
+        <NavLink
+          to="/pengumuman"
+          className={({ isActive }) =>
+            `flex items-center gap-3 rounded-md px-3 py-2 text-sm ${
+              isActive ? 'bg-white text-brand shadow-sm' : 'text-gray-700 hover:bg-white'
+            }`
+          }
+        >
+          <Megaphone className="w-5 h-5" />
+          {sidebarOpen && <span>Pengumuman</span>}
         </NavLink>)}
 
         {/* Kesantrian parent */}

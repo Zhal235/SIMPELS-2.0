@@ -30,11 +30,22 @@ export const getPegawai = async (params?: any) => {
 }
 
 export const createPegawai = async (data: any) => {
-  const response = await api.post('/v1/kepegawaian/pegawai', data)
+  // Remove Content-Type header untuk FormData agar axios set otomatis
+  const config = data instanceof FormData ? { headers: { 'Content-Type': undefined } } : {}
+  const response = await api.post('/v1/kepegawaian/pegawai', data, config)
   return response.data
 }
 
 export const updatePegawai = async (id: number, data: any) => {
+  // Laravel cannot handle multipart/form-data via PUT directly
+  if (data instanceof FormData) {
+    if (!data.has('_method')) data.append('_method', 'PUT')
+    // Remove Content-Type header untuk FormData agar axios set otomatis
+    const response = await api.post(`/v1/kepegawaian/pegawai/${id}`, data, {
+      headers: { 'Content-Type': undefined }
+    })
+    return response.data
+  }
   const response = await api.put(`/v1/kepegawaian/pegawai/${id}`, data)
   return response.data
 }

@@ -1,9 +1,60 @@
 import { useState, useEffect } from 'react'
-import { Plus, Pencil, Trash2, Search } from 'lucide-react'
+import { Plus, Pencil, Trash2, Search, Upload } from 'lucide-react'
 import Table from '../../components/Table'
 import Modal from '../../components/Modal'
 import { Toaster, toast } from 'sonner'
 import { getPegawai, createPegawai, updatePegawai, deletePegawai, Pegawai } from '../../api/pegawai'
+
+// Helper untuk kompresi gambar
+async function compressImage(file: File): Promise<Blob> {
+  const MAX_SIZE = 1024 * 1024
+  const img = await fileToImage(file)
+
+  const scale = img.width > 1024 ? 1024 / img.width : 1
+  const targetW = Math.round(img.width * scale)
+  const targetH = Math.round(img.height * scale)
+
+  const canvas = document.createElement('canvas')
+  canvas.width = targetW
+  canvas.height = targetH
+  const ctx = canvas.getContext('2d')!
+  ctx.drawImage(img, 0, 0, targetW, targetH)
+
+  let quality = 0.9
+  let dataUrl = canvas.toDataURL('image/jpeg', quality)
+  if (file.size > MAX_SIZE) {
+    quality = 0.7
+    dataUrl = canvas.toDataURL('image/jpeg', quality)
+  }
+  const blob = await (await fetch(dataUrl)).blob()
+  return blob
+}
+
+function fileToImage(file: File): Promise<HTMLImageElement> {
+  return new Promise((resolve, reject) => {
+    const reader = new FileReader()
+    reader.onload = () => {
+      const img = new Image()
+      img.onload = () => resolve(img)
+      img.onerror = reject
+      img.src = reader.result as string
+    }
+    reader.onerror = reject
+    reader.readAsDataURL(file)
+  })
+}
+
+// Helper untuk menampilkan foto
+const getFotoSrc = (fotoPath: string | Blob | undefined) => {
+  if (!fotoPath) return undefined
+  if (fotoPath instanceof Blob) {
+    return URL.createObjectURL(fotoPath)
+  }
+  if (typeof fotoPath === 'string' && fotoPath.startsWith('http')) return fotoPath
+  // Assuming backend returns relative path stored in storage/app/public
+  // Adjust base URL based on your backend config
+  return `http://localhost:8001/storage/${fotoPath}`
+}
 
 export default function DataPegawai() {
   const [search, setSearch] = useState('')
@@ -17,10 +68,12 @@ export default function DataPegawai() {
   const [editId, setEditId] = useState<number | null>(null)
   const [formData, setFormData] = useState<Partial<Pegawai>>({
     nama_pegawai: '',
-    jenis_pegawai: 'Guru',
+    jenis_pegawai: 'Pendidik',
     status_kepegawaian: 'Tetap',
     jenis_kelamin: 'L'
   })
+
+  const [isSubmitting, setIsSubmitting] = useState(false)
 
   const fetchData = async (page = 1) => {
     setIsLoading(true)
@@ -47,26 +100,64 @@ export default function DataPegawai() {
     return () => clearTimeout(timer)
   }, [search])
 
+
   const handleSubmit = async (e: React.FormEvent) => {
     e.preventDefault()
+    setIsSubmitting(true)
     try {
-      if (isEditing && editId) {
-        await updatePegawai(editId, formData)
-        toast.success('Pegawai berhasil diperbarui')
-      } else {
-        await createPegawai(formData)
-        toast.success('Pegawai berhasil ditambahkan')
+      // Buat FormData baru dari awal
+      const form = new FormData()
+      
+      // Append semua field kecuali foto_profil dulu
+      const fields = ['nama_pegawai', 'nip', 'nuptk', 'nik', 'gelar_depan', 'gelar_belakang', 
+                      'jenis_kelamin', 'tempat_lahir', 'tanggal_lahir', 'alamat', 'no_hp', 
+                      'email', 'jenis_pegawai', 'status_kepegawaian', 'tanggal_mulai_tugas', 
+                      'jabatan', 'pendidikan_terakhir', 'status_pernikahan', 'nama_ibu_kandung']
+      
+      fields.forEach(field => {
+        const value = formData[field as keyof Pegawai]
+        if (value !== undefined && value !== null && value !== '') {
+          form.append(field, String(value))
+        }
+      })
+      
+      // Handle foto_profil secara terpisah dan hati-hati
+      if (formData.foto_profil && formData.foto_profil instanceof Blob) {
+        console.log('Adding foto_profil:', formData.foto_profil)
+        form.append('foto_profil', formData.foto_profil, 'profile.jpg')
       }
+
+      console.log('Final FormData entries:')
+      for (let pair of form.entries()) {
+        console.log(pair[0], typeof pair[1] === 'object' ? 'Blob/File' : pair[1])
+      }
+
+      if (isEditing && editId) {
+        await updatePegawai(editId, form)
+      } else {
+        await createPegawai(form)
+      }
+      
+      toast.success(isEditing ? 'DATA BERHASIL DISIMPAN!' : 'PEGAWAI BARU DITAMBAHKAN', {
+         description: isEditing ? 'Perubahan data pegawai telah diperbarui di database.' : 'Data pegawai baru berhasil disimpan.',
+         duration: 4000,
+      })
+      
       setIsModalOpen(false)
-      fetchData(pagination.currentPage)
+      setTimeout(() => fetchData(pagination.currentPage), 300)
       resetForm()
     } catch (error: any) {
-      const msg = error.response?.data?.message || 'Terjadi kesalahan'
-      toast.error(msg)
-      // Tampilkan error validasi jika ada
+      const msg = error.response?.data?.message || 'Gagal menyimpan data'
+      toast.error('GAGAL MENYIMPAN', { description: msg })
       if (error.response?.data?.errors) {
-        console.error(error.response.data.errors)
+        console.error('Backend validation errors:', error.response.data.errors)
+        if (error.response.data.errors.foto_profil) {
+          console.error('Foto error details:', error.response.data.errors.foto_profil)
+          toast.error('Error foto: ' + error.response.data.errors.foto_profil.join(', '))
+        }
       }
+    } finally {
+      setIsSubmitting(false)
     }
   }
 
@@ -82,7 +173,12 @@ export default function DataPegawai() {
   }
 
   const handleEdit = (pegawai: Pegawai) => {
-    setFormData(pegawai)
+    // Clean foto_profil nilai supaya tidak jadi array
+    const cleanedPegawai = { 
+      ...pegawai, 
+      foto_profil: typeof pegawai.foto_profil === 'string' ? pegawai.foto_profil : undefined 
+    }
+    setFormData(cleanedPegawai)
     setEditId(pegawai.id)
     setIsEditing(true)
     setIsModalOpen(true)
@@ -91,9 +187,10 @@ export default function DataPegawai() {
   const resetForm = () => {
     setFormData({
       nama_pegawai: '',
-      jenis_pegawai: 'Guru',
+      jenis_pegawai: 'Pendidik', 
       status_kepegawaian: 'Tetap',
-      jenis_kelamin: 'L'
+      jenis_kelamin: 'L',
+      foto_profil: undefined
     })
     setEditId(null)
     setIsEditing(false)
@@ -234,6 +331,7 @@ export default function DataPegawai() {
         open={isModalOpen} 
         onClose={() => setIsModalOpen(false)} 
         title={isEditing ? 'Edit Data Pegawai' : 'Tambah Pegawai Baru'}
+        footer={null}
       >
           <form onSubmit={handleSubmit} className="p-6 space-y-6 max-h-[80vh] overflow-y-auto">
               
@@ -341,14 +439,11 @@ export default function DataPegawai() {
                       <label className="block text-sm font-medium text-gray-700">Jenis Pegawai</label>
                       <select 
                         className="mt-1 block w-full rounded-md border-gray-300 shadow-sm focus:border-brand focus:ring-brand sm:text-sm border p-2"
-                        value={formData.jenis_pegawai || 'Guru'} 
+                        value={formData.jenis_pegawai || 'Pendidik'} 
                         onChange={e => setFormData({...formData, jenis_pegawai: e.target.value})}
                       >
-                        <option value="Guru">Guru</option>
-                        <option value="Staff">Staff TU</option>
-                        <option value="Security">Keamanan</option>
-                        <option value="Kebersihan">Kebersihan</option>
-                         <option value="Lainnya">Lainnya</option>
+                        <option value="Pendidik">Pendidik</option>
+                        <option value="Tenaga Kependidikan">Tenaga Kependidikan</option>
                       </select>
                   </div>
                    <div>
@@ -460,19 +555,94 @@ export default function DataPegawai() {
                    </div>
                </div>
 
-              <div className="flex justify-end gap-3 pt-4 border-t">
+               {/* Foto Pegawai */}
+               <div>
+                  <h3 className="text-sm font-semibold text-gray-900 border-b pb-2 mb-4">Foto Pegawai</h3>
+                  <div className="flex flex-col md:flex-row gap-6 items-start">
+                     <div className="w-full md:w-1/2">
+                        <label className="block text-sm font-medium text-gray-700 mb-2">Upload Foto</label>
+                        <div className="border-2 border-dashed border-gray-300 rounded-lg p-6 flex flex-col items-center justify-center text-center hover:bg-gray-50 transition-colors cursor-pointer"
+                             onClick={() => document.getElementById('foto-upload')?.click()}
+                        >
+                           <input 
+                              id="foto-upload"
+                              type="file" 
+                              className="hidden" 
+                              accept="image/*"
+                              onChange={async (e) => {
+                                 const file = e.target.files?.[0]
+                                 if (file) {
+                                    try {
+                                       const compressed = await compressImage(file)
+                                       // Langsung simpan Blob hasil kompresi seperti di SantriForm.tsx
+                                       setFormData({...formData, foto_profil: compressed})
+                                    } catch (err) {
+                                       toast.error('Gagal memproses gambar')
+                                    }
+                                 }
+                              }}
+                           />
+                           <Upload className="h-10 w-10 text-gray-400 mb-2" />
+                           <p className="text-sm text-gray-600 font-medium">Klik untuk upload foto</p>
+                           <p className="text-xs text-gray-500 mt-1">JPG, PNG max 2MB</p>
+                        </div>
+                     </div>
+                     <div className="w-full md:w-1/2 flex flex-col items-center">
+                        <label className="block text-sm font-medium text-gray-700 mb-2">Preview Foto</label>
+                         <div className="w-32 h-40 bg-gray-100 border rounded-lg overflow-hidden flex items-center justify-center shadow-sm">
+                           {formData.foto_profil ? (
+                              <img 
+                                 src={getFotoSrc(formData.foto_profil)} 
+                                 alt="Preview" 
+                                 className="w-full h-full object-cover"
+                              />
+                           ) : (
+                              <div className="text-gray-400 flex flex-col items-center">
+                                 <svg className="h-12 w-12" fill="none" viewBox="0 0 24 24" stroke="currentColor">
+                                    <path strokeLinecap="round" strokeLinejoin="round" strokeWidth={1} d="M16 7a4 4 0 11-8 0 4 4 0 018 0zM12 14a7 7 0 00-7 7h14a7 7 0 00-7-7z" />
+                                 </svg>
+                                 <span className="text-xs">No Photo</span>
+                              </div>
+                           )}
+                        </div>
+                        {formData.foto_profil && (
+                           <button 
+                             type="button"
+                             onClick={() => setFormData({...formData, foto_profil: undefined})}
+                             className="mt-2 text-xs text-red-600 hover:text-red-800"
+                           >
+                             Hapus Foto
+                           </button>
+                        )}
+                     </div>
+                  </div>
+               </div>
+
+              <div className="flex justify-end gap-3 pt-4 border-t sticky bottom-0 bg-white pb-6 pt-4 border-t mt-6">
                   <button
                     type="button"
                     onClick={() => setIsModalOpen(false)}
-                    className="rounded-md border border-gray-300 bg-white px-4 py-2 text-sm font-medium text-gray-700 shadow-sm hover:bg-gray-50 bg-white"
+                    disabled={isSubmitting}
+                    className="rounded-md border border-gray-300 bg-white px-4 py-2 text-sm font-medium text-gray-700 shadow-sm hover:bg-gray-50 bg-white disabled:opacity-50"
                   >
                     Batal
                   </button>
                   <button
                     type="submit"
-                    className="inline-flex justify-center rounded-md border border-transparent bg-brand px-4 py-2 text-sm font-medium text-white shadow-sm hover:bg-brand/90"
+                    disabled={isSubmitting}
+                    className="inline-flex justify-center rounded-md border border-transparent bg-brand px-4 py-2 text-sm font-medium text-white shadow-sm hover:bg-brand/90 disabled:opacity-70 disabled:cursor-wait"
                   >
-                    {isEditing ? 'Simpan Perubahan' : 'Tambah Pegawai'}
+                     {isSubmitting ? (
+                        <>
+                          <svg className="animate-spin -ml-1 mr-2 h-4 w-4 text-white" xmlns="http://www.w3.org/2000/svg" fill="none" viewBox="0 0 24 24">
+                            <circle className="opacity-25" cx="12" cy="12" r="10" stroke="currentColor" strokeWidth="4"></circle>
+                            <path className="opacity-75" fill="currentColor" d="M4 12a8 8 0 018-8V0C5.373 0 0 5.373 0 12h4zm2 5.291A7.962 7.962 0 014 12H0c0 3.042 1.135 5.824 3 7.938l3-2.647z"></path>
+                          </svg>
+                          Menyimpan...
+                        </>
+                     ) : (
+                        isEditing ? 'Simpan Perubahan' : 'Tambah Pegawai'
+                     )}
                   </button>
               </div>
           </form>
