@@ -315,7 +315,11 @@ export default function PembayaranSantri() {
         return santri.foto
       }
       // Construct URL from API if it's a file path
-      return `${import.meta.env.VITE_API_URL || 'http://localhost:8000'}/storage/${santri.foto}`
+      const apiBase = import.meta.env.VITE_API_BASE || import.meta.env.VITE_API_URL || window.location.origin;
+      // If apiBase ends with /api, remove it for storage access (assuming storage is at root)
+      const baseUrl = apiBase.replace(/\/api\/?$/, '');
+      return `${baseUrl}/storage/${santri.foto}`
+
     }
     // Fallback to avatar
     return `https://api.dicebear.com/7.x/avataaars/svg?seed=${santri.nama_santri}`

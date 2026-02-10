@@ -43,7 +43,7 @@ export default function DompetSantri() {
       return url
     }
     // Fallback: use current window origin and change port
-    return window.location.origin.replace(/5173/, '8001') // Vite dev (5173) -> Laravel (8001)
+    return window.location.origin
   }
 
   const getFotoUrl = (santri: any): string | null => {

@@ -608,9 +608,8 @@ function getFotoSrc(foto: string | Blob): string | null {
 }
 
 function getBackendOrigin(): string {
-  const fallback = `http://${window.location.hostname}:8001`
   try {
-    const base = (import.meta as any)?.env?.VITE_API_BASE || ''
+    const base = (import.meta as any)?.env?.VITE_API_BASE || (import.meta as any)?.env?.VITE_API_URL || ''
     if (base) {
       // If base is a relative path (/api), use current origin
       if (base.startsWith('/')) {
@@ -620,12 +619,7 @@ function getBackendOrigin(): string {
       return u.origin
     }
   } catch {}
-  // Attempt heuristic based on current origin (e.g. Vite dev server on 5173)
-  try {
-    const loc = window.location.origin
-    if (loc.includes(':5173')) return loc.replace(':5173', ':8001')
-  } catch {}
-  return fallback
+  return window.location.origin
 }
 
 // ---------- Preview Component ----------

@@ -326,7 +326,7 @@ function getFotoSrc(foto) {
     }
 }
 function getBackendOrigin() {
-    const fallback = 'http://127.0.0.1:8001';
+    const fallback = window.location.origin;
     try {
         const base = import.meta?.env?.VITE_API_BASE || '';
         if (base) {
