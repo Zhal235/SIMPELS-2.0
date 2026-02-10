@@ -62,6 +62,9 @@ const TagihanKolektif = lazy(() => import('./pages/dompet/TagihanKolektif'))
 const AkademikTahunAjaran = lazy(() => import('./pages/akademik/TahunAjaran'))
 const PindahTahunAjaran = lazy(() => import('./pages/akademik/PindahTahunAjaran'))
 
+// Kepegawaian subpages
+const DataPegawai = lazy(() => import('./pages/kepegawaian/DataPegawai'))
+
 // Protected Route Component
 function ProtectedRoute({ children }: { children: React.ReactNode }) {
   const token = useAuthStore((state) => state.token)
@@ -442,6 +445,15 @@ export default function App() {
               <ProtectedRoute>
                 <AppLayout>
                   <PindahTahunAjaran />
+                </AppLayout>
+              </ProtectedRoute>
+            } />
+
+            {/* Kepegawaian Routes */}
+            <Route path="/kepegawaian/data-pegawai" element={
+              <ProtectedRoute>
+                <AppLayout>
+                  <DataPegawai />
                 </AppLayout>
               </ProtectedRoute>
             } />

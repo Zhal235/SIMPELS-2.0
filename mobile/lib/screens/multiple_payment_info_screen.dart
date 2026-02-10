@@ -6,7 +6,6 @@ import 'package:provider/provider.dart';
 import '../models/bank_account.dart';
 import '../services/api_service.dart';
 import '../providers/auth_provider.dart';
-import 'unified_payment_screen.dart';
 
 /// Screen untuk menampilkan informasi pembayaran MULTIPLE tagihan
 class MultiplePaymentInfoScreen extends StatefulWidget {
@@ -203,10 +202,6 @@ class _MultiplePaymentInfoScreenState extends State<MultiplePaymentInfoScreen> {
         Navigator.pop(context, true);
       }
     });
-  }
-
-  void _showContinueDialog() {
-    // No longer needed - we pay all at once
   }
 
   @override

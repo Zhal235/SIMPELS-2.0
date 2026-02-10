@@ -3,7 +3,7 @@ import { useUIStore } from '../stores/useUIStore'
 import { 
   LayoutDashboard, Users, Wallet, UserCog, Settings, Building2, Home, 
   ArrowDownUp, LogIn, LogOut, GraduationCap, CreditCard, Receipt, 
-  BookOpen, FileText, AlertCircle, ListChecks, DollarSign, Calendar, CheckCircle
+  BookOpen, FileText, AlertCircle, ListChecks, DollarSign, Calendar, CheckCircle, Briefcase
 } from 'lucide-react'
 import { motion, AnimatePresence } from 'framer-motion'
 import { useAuthStore, hasAccess } from '../stores/useAuthStore'
@@ -24,6 +24,7 @@ export default function Sidebar() {
   const [keuanganPengaturanOpen, setKeuanganPengaturanOpen] = useState(false)
   const [akademikOpen, setAkademikOpen] = useState(false)
   const [dompetOpen, setDompetOpen] = useState(false)
+  const [kepegawaianOpen, setKepegawaianOpen] = useState(false)
   const location = useLocation()
   const currentUser = useAuthStore((s) => s.user)
   const roles = useAuthStore((s) => s.roles)
@@ -33,6 +34,7 @@ export default function Sidebar() {
   const kesantrianActive = location.pathname.startsWith('/kesantrian')
   const keuanganActive = location.pathname.startsWith('/keuangan')
   const akademikActive = location.pathname.startsWith('/akademik')
+  const kepegawaianActive = location.pathname.startsWith('/kepegawaian')
 
   // Sync sidebar state with current location
   useEffect(() => {
@@ -44,11 +46,13 @@ export default function Sidebar() {
     const isKeuangan = p.startsWith('/keuangan')
     const isAkademik = p.startsWith('/akademik')
     const isDompet = p.startsWith('/dompet')
+    const isKepegawaian = p.startsWith('/kepegawaian')
 
     setKesantrianOpen(isKesantrian)
     setKeuanganOpen(isKeuangan)
     setAkademikOpen(isAkademik)
     setDompetOpen(isDompet)
+    setKepegawaianOpen(isKepegawaian)
 
     // Handle nested open states if needed
     if (isKesantrian) {
@@ -60,7 +64,7 @@ export default function Sidebar() {
     }
   }, [location.pathname])
 
-  const toggleMenu = (menu: 'kesantrian' | 'keuangan' | 'akademik' | 'dompet') => {
+  const toggleMenu = (menu: 'kesantrian' | 'keuangan' | 'akademik' | 'dompet' | 'kepegawaian') => {
     if (menu === 'kesantrian') {
       const newState = !kesantrianOpen
       setKesantrianOpen(newState)
@@ -68,6 +72,7 @@ export default function Sidebar() {
         setKeuanganOpen(false)
         setAkademikOpen(false)
         setDompetOpen(false)
+        setKepegawaianOpen(false)
       }
     } else if (menu === 'keuangan') {
       const newState = !keuanganOpen
@@ -76,6 +81,7 @@ export default function Sidebar() {
         setKesantrianOpen(false)
         setAkademikOpen(false)
         setDompetOpen(false)
+        setKepegawaianOpen(false)
       }
     } else if (menu === 'akademik') {
       const newState = !akademikOpen
@@ -84,6 +90,7 @@ export default function Sidebar() {
         setKesantrianOpen(false)
         setKeuanganOpen(false)
         setDompetOpen(false)
+        setKepegawaianOpen(false)
       }
     } else if (menu === 'dompet') {
       const newState = !dompetOpen
@@ -92,6 +99,16 @@ export default function Sidebar() {
         setKesantrianOpen(false)
         setKeuanganOpen(false)
         setAkademikOpen(false)
+        setKepegawaianOpen(false)
+      }
+    } else if (menu === 'kepegawaian') {
+      const newState = !kepegawaianOpen
+      setKepegawaianOpen(newState)
+      if (newState) {
+        setKesantrianOpen(false)
+        setKeuanganOpen(false)
+        setAkademikOpen(false)
+        setDompetOpen(false)
       }
     }
   }
@@ -637,6 +654,44 @@ export default function Sidebar() {
           </AnimatePresence>
         </div>
         )}
+
+        {/* Kepegawaian parent */}
+        <div className="space-y-1">
+          <button
+            type="button"
+            onClick={() => toggleMenu('kepegawaian')}
+            className={`w-full flex items-center gap-3 rounded-md px-3 py-2 text-sm ${kepegawaianActive ? 'bg-white text-brand shadow-sm' : 'text-gray-700 hover:bg-white'}`}
+          >
+            <Briefcase className="w-5 h-5" />
+            {sidebarOpen && <span>Guru & Kepegawaian</span>}
+          </button>
+          <AnimatePresence initial={false}>
+            {kepegawaianOpen && sidebarOpen && (
+              <motion.div
+                initial={{ height: 0, opacity: 0 }}
+                animate={{ height: 'auto', opacity: 1 }}
+                exit={{ height: 0, opacity: 0 }}
+                transition={{ type: 'tween', duration: 0.2 }}
+                className="overflow-hidden"
+              >
+                <ul className="ml-5 space-y-1 border-l border-gray-300 pl-3">
+                  <li>
+                    <NavLink
+                      to="/kepegawaian/data-pegawai"
+                      className={({ isActive }) =>
+                        `flex items-center gap-3 rounded-md px-3 py-2 text-sm ${isActive ? 'bg-white text-brand shadow-sm' : 'text-gray-700 hover:bg-white'}`
+                      }
+                    >
+                      <Users className="w-5 h-5" />
+                      {sidebarOpen && <span>Data Pegawai</span>}
+                    </NavLink>
+                  </li>
+                </ul>
+              </motion.div>
+            )}
+          </AnimatePresence>
+        </div>
+
         <div className="border-t border-gray-200 pt-2 space-y-1">
           {sidebarOpen && hasAccess('pengguna') && (
             <NavLink to="/pengguna" className={({ isActive }) => `flex items-center gap-3 rounded-md px-3 py-2 text-sm ${isActive ? 'bg-white text-brand shadow-sm' : 'text-gray-700 hover:bg-white'}`}>

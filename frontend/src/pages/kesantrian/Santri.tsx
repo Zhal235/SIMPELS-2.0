@@ -16,7 +16,7 @@ import { createMutasiKeluar } from '@/api/mutasiKeluar'
 import { useAuthStore, hasAccess } from '../../stores/useAuthStore'
 import { toast } from 'sonner'
 
-type Row = Santri & { aksi?: string }
+type Row = Santri & { aksi?: string; status?: string }
 
 export default function KesantrianSantri() {
   if (!hasAccess('kesantrian.santri.view')) {

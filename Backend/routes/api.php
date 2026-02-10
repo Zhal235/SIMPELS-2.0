@@ -224,6 +224,11 @@ Route::prefix('v1/wallets')->group(function () {
     Route::get('epos/withdrawals', [WalletController::class, 'listEposWithdrawals']);
 });
 
+// API v1 endpoints untuk modul Kepegawaian
+Route::prefix('v1/kepegawaian')->group(function () {
+    Route::apiResource('pegawai', \App\Http\Controllers\PegawaiController::class);
+});
+
 // API v1 endpoints untuk modul Akademik
 Route::prefix('v1/akademik')->group(function () {
     Route::apiResource('tahun-ajaran', TahunAjaranController::class);
