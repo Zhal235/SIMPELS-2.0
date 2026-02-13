@@ -3,7 +3,7 @@ import { Plus, Pencil, Trash2, Search, Upload } from 'lucide-react'
 import Table from '../../components/Table'
 import Modal from '../../components/Modal'
 import { Toaster, toast } from 'sonner'
-import { getPegawai, createPegawai, updatePegawai, deletePegawai, Pegawai } from '../../api/pegawai'
+import { getPegawai, getPegawaiDetail, createPegawai, updatePegawai, deletePegawai, Pegawai } from '../../api/pegawai'
 import { getJabatan, getDepartments, Jabatan, Department } from '../../api/struktur'
 
 // Helper untuk kompresi gambar
@@ -69,7 +69,7 @@ export default function DataPegawai() {
   // Form State
   const [isEditing, setIsEditing] = useState(false)
   const [editId, setEditId] = useState<number | null>(null)
-  const [formData, setFormData] = useState<Partial<Omit<Pegawai, 'foto_profil'>> & { foto_profil?: string | Blob }>({
+  const [formData, setFormData] = useState<Partial<Omit<Pegawai, 'foto_profil'>> & { foto_profil?: string | Blob; selectedJabatan?: number[] }>({
     nama_pegawai: '',
     jenis_pegawai: 'Pendidik',
     status_kepegawaian: 'Tetap',
@@ -132,7 +132,14 @@ export default function DataPegawai() {
         }
       })
       
-      // Handle foto_profil secara terpisah dan hati-hati
+      // Append multiple jabatan sebagai array
+      if (formData.selectedJabatan && formData.selectedJabatan.length > 0) {
+        formData.selectedJabatan.forEach((jabatanId, index) => {
+          form.append(`jabatan_ids[${index}]`, jabatanId.toString())
+          // Jabatan pertama adalah jabatan utama
+          form.append(`is_primary[${index}]`, index === 0 ? '1' : '0')
+        })
+      }
       if (formData.foto_profil && typeof formData.foto_profil === 'object' && (formData.foto_profil as any) instanceof Blob) {
         console.log('Adding foto_profil:', formData.foto_profil)
         form.append('foto_profil', formData.foto_profil as Blob, 'profile.jpg')
@@ -183,16 +190,29 @@ export default function DataPegawai() {
     }
   }
 
-  const handleEdit = (pegawai: Pegawai) => {
-    // Clean foto_profil nilai supaya tidak jadi array
-    const cleanedPegawai = { 
-      ...pegawai, 
-      foto_profil: typeof pegawai.foto_profil === 'string' ? pegawai.foto_profil : undefined 
+  const handleEdit = async (pegawai: Pegawai) => {
+    try {
+      // Get detailed pegawai data with jabatan relationships
+      const detailResponse = await getPegawaiDetail(pegawai.id)
+      const pegawaiDetail = detailResponse
+      
+      // Extract jabatan IDs from the relationship
+      const selectedJabatan = pegawaiDetail.jabatan ? pegawaiDetail.jabatan.map((jab: any) => jab.id) : []
+      
+      const cleanedPegawai = { 
+        ...pegawaiDetail,
+        foto_profil: typeof pegawaiDetail.foto_profil === 'string' ? pegawaiDetail.foto_profil : undefined,
+        selectedJabatan
+      }
+      
+      setFormData(cleanedPegawai)
+      setEditId(pegawai.id)
+      setIsEditing(true)
+      setIsModalOpen(true)
+    } catch (error) {
+      toast.error('Gagal memuat detail pegawai')
+      console.error('Error loading pegawai detail:', error)
     }
-    setFormData(cleanedPegawai)
-    setEditId(pegawai.id)
-    setIsEditing(true)
-    setIsModalOpen(true)
   }
 
   const resetForm = () => {
@@ -201,7 +221,8 @@ export default function DataPegawai() {
       jenis_pegawai: 'Pendidik', 
       status_kepegawaian: 'Tetap',
       jenis_kelamin: 'L',
-      foto_profil: undefined
+      foto_profil: undefined,
+      selectedJabatan: []
     })
     setEditId(null)
     setIsEditing(false)
@@ -239,7 +260,32 @@ export default function DataPegawai() {
         <div>{row.email || '-'}</div>
       </div>
     )},
-    { header: 'Jabatan', key: 'jabatan' },
+    { 
+      header: 'Jabatan', 
+      key: 'jabatan',
+      render: (val: any, row: Pegawai) => {
+        if (row.jabatan && Array.isArray(row.jabatan) && row.jabatan.length > 0) {
+          return (
+            <div className="space-y-1">
+              {row.jabatan.slice(0, 2).map((jab: any, index: number) => (
+                <div key={jab.id} className="flex items-center gap-2">
+                  <span className={`px-2 py-0.5 rounded-full text-xs font-medium ${
+                    jab.pivot?.is_primary ? 'bg-blue-100 text-blue-800' : 'bg-gray-100 text-gray-700'
+                  }`}>
+                    {jab.nama}
+                  </span>
+                  {jab.pivot?.is_primary && <span className="text-xs text-blue-600">★</span>}
+                </div>
+              ))}
+              {row.jabatan.length > 2 && (
+                <span className="text-xs text-gray-500">+{row.jabatan.length - 2} lainnya</span>
+              )}
+            </div>
+          )
+        }
+        return <span className="text-gray-500 text-sm">-</span>
+      }
+    },
     {
        header: 'Aksi',
        key: 'aksi',
@@ -471,48 +517,104 @@ export default function DataPegawai() {
                       </select>
                   </div>
                   
-                  <div>
-                      <label className="block text-sm font-medium text-gray-700">Jabatan Struktural</label>
-                      <select
-                        className="mt-1 block w-full rounded-md border-gray-300 shadow-sm focus:border-brand focus:ring-brand sm:text-sm border p-2"
-                        value={formData.jabatan || ''} 
-                        onChange={e => {
-                          const selectedJabatan = jabatan.find(j => j.id === parseInt(e.target.value))
-                          setFormData({
-                            ...formData, 
-                            jabatan: selectedJabatan?.nama || ''
-                          })
-                        }}
-                      >
-                        <option value="">- Pilih Jabatan -</option>
-                        {departments.map(dept => (
-                          <optgroup key={dept.id} label={dept.nama}>
-                            {jabatan
-                              .filter(j => j.department_id === dept.id)
-                              .sort((a, b) => a.level - b.level)
-                              .map(jab => (
-                                <option key={jab.id} value={jab.id}>
-                                  {jab.nama} (Level {jab.level})
-                                </option>
-                              ))
+                  <div className="md:col-span-2">
+                      <label className="block text-sm font-medium text-gray-700 mb-3">Jabatan Struktural</label>
+                      
+                      {/* List jabatan yang sudah dipilih */}
+                      {(formData.selectedJabatan || []).length > 0 && (
+                        <div className="mb-4 space-y-2">
+                          {(formData.selectedJabatan || []).map((jabatanId, index) => {
+                            const selectedJab = jabatan.find(j => j.id === jabatanId)
+                            if (!selectedJab) return null
+                            
+                            return (
+                              <div key={jabatanId} className="flex items-center justify-between bg-blue-50 border border-blue-200 rounded-lg px-3 py-2">
+                                <div className="flex items-center space-x-3">
+                                  <span className={`px-2 py-1 rounded-full text-xs font-medium ${
+                                    index === 0 ? 'bg-blue-100 text-blue-800' : 'bg-gray-100 text-gray-800'
+                                  }`}>
+                                    {index === 0 ? 'Utama' : 'Tambahan'}
+                                  </span>
+                                  <div>
+                                    <div className="font-medium text-gray-900">{selectedJab.nama}</div>
+                                    <div className="text-sm text-gray-500">
+                                      {selectedJab.department?.nama || 'Pimpinan'} • Level {selectedJab.level}
+                                    </div>
+                                  </div>
+                                </div>
+                                <button
+                                  type="button"
+                                  onClick={() => {
+                                    const newSelected = (formData.selectedJabatan || []).filter(id => id !== jabatanId)
+                                    setFormData({...formData, selectedJabatan: newSelected})
+                                  }}
+                                  className="text-red-600 hover:text-red-800"
+                                >
+                                  <Trash2 className="w-4 h-4" />
+                                </button>
+                              </div>
+                            )
+                          })}
+                        </div>
+                      )}
+                      
+                      {/* Dropdown untuk menambah jabatan baru */}
+                      <div className="flex gap-3">
+                        <select
+                          className="flex-1 mt-1 block w-full rounded-md border-gray-300 shadow-sm focus:border-brand focus:ring-brand sm:text-sm border p-2"
+                          value="" 
+                          onChange={e => {
+                            if (e.target.value) {
+                              const jabatanId = parseInt(e.target.value)
+                              const currentSelected = formData.selectedJabatan || []
+                              
+                              // Cek jika jabatan belum dipilih
+                              if (!currentSelected.includes(jabatanId)) {
+                                setFormData({
+                                  ...formData, 
+                                  selectedJabatan: [...currentSelected, jabatanId]
+                                })
+                              }
+                              e.target.value = '' // Reset dropdown
                             }
-                          </optgroup>
-                        ))}
-                        {/* Jabatan tanpa department (Pimpinan Pesantren) */}
-                        {jabatan.filter(j => !j.department_id).length > 0 && (
-                          <optgroup label="Pimpinan">
-                            {jabatan
-                              .filter(j => !j.department_id)
-                              .sort((a, b) => a.level - b.level)
-                              .map(jab => (
-                                <option key={jab.id} value={jab.id}>
-                                  {jab.nama} (Level {jab.level})
-                                </option>
-                              ))
-                            }
-                          </optgroup>
-                        )}
-                      </select>
+                          }}
+                        >
+                          <option value="">+ Tambah Jabatan</option>
+                          {departments.map(dept => (
+                            <optgroup key={dept.id} label={dept.nama}>
+                              {jabatan
+                                .filter(j => j.department_id === dept.id)
+                                .filter(j => !(formData.selectedJabatan || []).includes(j.id))
+                                .sort((a, b) => a.level - b.level)
+                                .map(jab => (
+                                  <option key={jab.id} value={jab.id}>
+                                    {jab.nama} (Level {jab.level})
+                                  </option>
+                                ))
+                              }
+                            </optgroup>
+                          ))}
+                          {/* Jabatan tanpa department (Pimpinan Pesantren) */}
+                          {jabatan.filter(j => !j.department_id && !(formData.selectedJabatan || []).includes(j.id)).length > 0 && (
+                            <optgroup label="Pimpinan">
+                              {jabatan
+                                .filter(j => !j.department_id)
+                                .filter(j => !(formData.selectedJabatan || []).includes(j.id))
+                                .sort((a, b) => a.level - b.level)
+                                .map(jab => (
+                                  <option key={jab.id} value={jab.id}>
+                                    {jab.nama} (Level {jab.level})
+                                  </option>
+                                ))
+                              }
+                            </optgroup>
+                          )}
+                        </select>
+                      </div>
+                      
+                      {(formData.selectedJabatan || []).length === 0 && (
+                        <p className="text-sm text-gray-500 mt-2">Belum ada jabatan yang dipilih</p>
+                      )}
                   </div>
                   <div>
                       <label className="block text-sm font-medium text-gray-700">Tanggal Mulai Tugas</label>

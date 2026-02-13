@@ -24,7 +24,7 @@ class PegawaiController extends Controller
             });
         }
 
-        $pegawai = $query->latest()->paginate(10);
+        $pegawai = $query->with('jabatan')->latest()->paginate(10);
 
         return response()->json($pegawai);
     }
@@ -41,6 +41,8 @@ class PegawaiController extends Controller
             'jenis_pegawai' => 'required|in:Pendidik,Tenaga Kependidikan',
             'status_kepegawaian' => 'required|in:Tetap,Kontrak,Honorer,Magang',
             'foto_profil' => ['nullable', 'file', 'image', 'max:2048'],
+            'jabatan_ids.*' => 'nullable|exists:jabatan,id',
+            'is_primary.*' => 'nullable|boolean',
             // Tambahkan validasi lain sesuai kebutuhan
         ]);
 
@@ -58,6 +60,19 @@ class PegawaiController extends Controller
 
         $pegawai = Pegawai::create($data);
 
+        // Handle multiple jabatan relationships
+        if ($request->has('jabatan_ids') && is_array($request->jabatan_ids)) {
+            $jabatanData = [];
+            foreach ($request->jabatan_ids as $index => $jabatanId) {
+                $isPrimary = isset($request->is_primary[$index]) && $request->is_primary[$index];
+                $jabatanData[$jabatanId] = ['is_primary' => $isPrimary];
+            }
+            $pegawai->jabatan()->sync($jabatanData);
+        }
+
+        // Load relationships for response
+        $pegawai->load('jabatan');
+
         return response()->json([
             'message' => 'Data pegawai berhasil ditambahkan',
             'data' => $pegawai
@@ -69,7 +84,7 @@ class PegawaiController extends Controller
      */
     public function show($id)
     {
-        $pegawai = Pegawai::find($id);
+        $pegawai = Pegawai::with('jabatan')->find($id);
         
         if (!$pegawai) {
             return response()->json(['message' => 'Pegawai tidak ditemukan'], 404);
@@ -105,6 +120,8 @@ class PegawaiController extends Controller
             'jenis_pegawai' => 'required|in:Pendidik,Tenaga Kependidikan',
             'status_kepegawaian' => 'required|in:Tetap,Kontrak,Honorer,Magang',
             'foto_profil' => ['nullable', 'file', 'image', 'max:2048'],
+            'jabatan_ids.*' => 'nullable|exists:jabatan,id',
+            'is_primary.*' => 'nullable|boolean',
         ]);
 
         if ($validator->fails()) {
@@ -125,6 +142,24 @@ class PegawaiController extends Controller
         }
 
         $pegawai->update($data);
+
+        // Handle multiple jabatan relationships
+        if ($request->has('jabatan_ids')) {
+            if (is_array($request->jabatan_ids)) {
+                $jabatanData = [];
+                foreach ($request->jabatan_ids as $index => $jabatanId) {
+                    $isPrimary = isset($request->is_primary[$index]) && $request->is_primary[$index];
+                    $jabatanData[$jabatanId] = ['is_primary' => $isPrimary];
+                }
+                $pegawai->jabatan()->sync($jabatanData);
+            } else {
+                // Clear all jabatan if empty array or null
+                $pegawai->jabatan()->sync([]);
+            }
+        }
+
+        // Load relationships for response
+        $pegawai->load('jabatan');
 
         return response()->json([
             'message' => 'Data pegawai berhasil diperbarui',

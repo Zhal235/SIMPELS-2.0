@@ -17,7 +17,7 @@ export interface Pegawai {
   jenis_pegawai: string
   status_kepegawaian: string
   tanggal_mulai_tugas?: string
-  jabatan?: string
+  jabatan?: string | any[] // Support both string and array for multiple jabatan
   pendidikan_terakhir?: string
   foto_profil?: string
   status_pernikahan?: string
@@ -26,6 +26,11 @@ export interface Pegawai {
 
 export const getPegawai = async (params?: any) => {
   const response = await api.get('/v1/kepegawaian/pegawai', { params })
+  return response.data
+}
+
+export const getPegawaiDetail = async (id: number) => {
+  const response = await api.get(`/v1/kepegawaian/pegawai/${id}`)
   return response.data
 }
 
