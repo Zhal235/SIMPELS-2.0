@@ -670,6 +670,7 @@ export default function Sidebar() {
         )}
 
         {/* Kepegawaian parent */}
+        {(hasAccess('kepegawaian.data-pegawai') || hasAccess('kepegawaian.struktur-jabatan')) && (
         <div className="space-y-1">
           <button
             type="button"
@@ -689,6 +690,7 @@ export default function Sidebar() {
                 className="overflow-hidden"
               >
                 <ul className="ml-5 space-y-1 border-l border-gray-300 pl-3">
+                  {hasAccess('kepegawaian.data-pegawai') && (
                   <li>
                     <NavLink
                       to="/kepegawaian/data-pegawai"
@@ -699,12 +701,25 @@ export default function Sidebar() {
                       <Users className="w-5 h-5" />
                       {sidebarOpen && <span>Data Pegawai</span>}
                     </NavLink>
-                  </li>
+                  </li>)}
+                  {hasAccess('kepegawaian.struktur-jabatan') && (
+                  <li>
+                    <NavLink
+                      to="/kepegawaian/struktur-jabatan"
+                      className={({ isActive }) =>
+                        `flex items-center gap-3 rounded-md px-3 py-2 text-sm ${isActive ? 'bg-white text-brand shadow-sm' : 'text-gray-700 hover:bg-white'}`
+                      }
+                    >
+                      <Building2 className="w-5 h-5" />
+                      {sidebarOpen && <span>Struktur dan Jabatan</span>}
+                    </NavLink>
+                  </li>)}
                 </ul>
               </motion.div>
             )}
           </AnimatePresence>
         </div>
+        )}
 
         <div className="border-t border-gray-200 pt-2 space-y-1">
           {sidebarOpen && hasAccess('pengguna') && (

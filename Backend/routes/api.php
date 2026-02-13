@@ -227,6 +227,11 @@ Route::prefix('v1/wallets')->group(function () {
 // API v1 endpoints untuk modul Kepegawaian
 Route::prefix('v1/kepegawaian')->group(function () {
     Route::apiResource('pegawai', \App\Http\Controllers\PegawaiController::class);
+    Route::apiResource('departments', \App\Http\Controllers\DepartmentController::class);
+    Route::apiResource('jabatan', \App\Http\Controllers\JabatanController::class);
+    
+    // Additional routes for jabatan
+    Route::get('jabatan-hierarchy', [\App\Http\Controllers\JabatanController::class, 'hierarchy']);
 });
 
 // API v1 endpoints untuk modul Akademik

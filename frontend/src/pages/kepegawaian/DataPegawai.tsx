@@ -4,6 +4,7 @@ import Table from '../../components/Table'
 import Modal from '../../components/Modal'
 import { Toaster, toast } from 'sonner'
 import { getPegawai, createPegawai, updatePegawai, deletePegawai, Pegawai } from '../../api/pegawai'
+import { getJabatan, getDepartments, Jabatan, Department } from '../../api/struktur'
 
 // Helper untuk kompresi gambar
 async function compressImage(file: File): Promise<Blob> {
@@ -61,6 +62,8 @@ export default function DataPegawai() {
   const [isModalOpen, setIsModalOpen] = useState(false)
   const [isLoading, setIsLoading] = useState(false)
   const [data, setData] = useState<Pegawai[]>([])
+  const [jabatan, setJabatan] = useState<Jabatan[]>([])
+  const [departments, setDepartments] = useState<Department[]>([])
   const [pagination, setPagination] = useState({ currentPage: 1, lastPage: 1, total: 0 })
   
   // Form State
@@ -78,8 +81,16 @@ export default function DataPegawai() {
   const fetchData = async (page = 1) => {
     setIsLoading(true)
     try {
-      const result = await getPegawai({ page, search })
+      const [result, jabatanData, departmentData] = await Promise.all([
+        getPegawai({ page, search }),
+        getJabatan(),
+        getDepartments()
+      ])
+      
       setData(result.data)
+      setJabatan(jabatanData.data || jabatanData) 
+      setDepartments(departmentData.data || departmentData)
+      
       setPagination({
         currentPage: result.current_page,
         lastPage: result.last_page,
@@ -462,13 +473,46 @@ export default function DataPegawai() {
                   
                   <div>
                       <label className="block text-sm font-medium text-gray-700">Jabatan Struktural</label>
-                      <input 
-                        type="text" 
-                        placeholder="Contoh: Kepala Sekolah, Waka Kurikulum"
+                      <select
                         className="mt-1 block w-full rounded-md border-gray-300 shadow-sm focus:border-brand focus:ring-brand sm:text-sm border p-2"
                         value={formData.jabatan || ''} 
-                        onChange={e => setFormData({...formData, jabatan: e.target.value})}
-                      />
+                        onChange={e => {
+                          const selectedJabatan = jabatan.find(j => j.id === parseInt(e.target.value))
+                          setFormData({
+                            ...formData, 
+                            jabatan: selectedJabatan?.nama || ''
+                          })
+                        }}
+                      >
+                        <option value="">- Pilih Jabatan -</option>
+                        {departments.map(dept => (
+                          <optgroup key={dept.id} label={dept.nama}>
+                            {jabatan
+                              .filter(j => j.department_id === dept.id)
+                              .sort((a, b) => a.level - b.level)
+                              .map(jab => (
+                                <option key={jab.id} value={jab.id}>
+                                  {jab.nama} (Level {jab.level})
+                                </option>
+                              ))
+                            }
+                          </optgroup>
+                        ))}
+                        {/* Jabatan tanpa department (Pimpinan Pesantren) */}
+                        {jabatan.filter(j => !j.department_id).length > 0 && (
+                          <optgroup label="Pimpinan">
+                            {jabatan
+                              .filter(j => !j.department_id)
+                              .sort((a, b) => a.level - b.level)
+                              .map(jab => (
+                                <option key={jab.id} value={jab.id}>
+                                  {jab.nama} (Level {jab.level})
+                                </option>
+                              ))
+                            }
+                          </optgroup>
+                        )}
+                      </select>
                   </div>
                   <div>
                       <label className="block text-sm font-medium text-gray-700">Tanggal Mulai Tugas</label>

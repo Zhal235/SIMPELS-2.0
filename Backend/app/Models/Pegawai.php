@@ -39,4 +39,35 @@ class Pegawai extends Model
     {
         return $this->belongsTo(User::class);
     }
+
+    // Relasi many-to-many dengan jabatan
+    public function jabatan()
+    {
+        return $this->belongsToMany(Jabatan::class, 'pegawai_jabatan')
+                    ->withPivot('is_primary')
+                    ->withTimestamps();
+    }
+
+    // Get jabatan utama
+    public function jabatanUtama()
+    {
+        return $this->belongsToMany(Jabatan::class, 'pegawai_jabatan')
+                    ->withPivot('is_primary')
+                    ->withTimestamps()
+                    ->wherePivot('is_primary', true)
+                    ->first();
+    }
+
+    // Get nama jabatan utama untuk display
+    public function getJabatanUtamaNameAttribute()
+    {
+        $jabatanUtama = $this->jabatanUtama();
+        return $jabatanUtama ? $jabatanUtama->nama : '-';
+    }
+
+    // Get semua jabatan sebagai string
+    public function getJabatanListAttribute()
+    {
+        return $this->jabatan->pluck('nama')->implode(', ');
+    }
 }

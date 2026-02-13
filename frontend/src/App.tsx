@@ -64,6 +64,7 @@ const PindahTahunAjaran = lazy(() => import('./pages/akademik/PindahTahunAjaran'
 
 // Kepegawaian subpages
 const DataPegawai = lazy(() => import('./pages/kepegawaian/DataPegawai'))
+const StrukturJabatan = lazy(() => import('./pages/kepegawaian/StrukturJabatan'))
 
 // Protected Route Component
 function ProtectedRoute({ children }: { children: React.ReactNode }) {
@@ -454,6 +455,13 @@ export default function App() {
               <ProtectedRoute>
                 <AppLayout>
                   <DataPegawai />
+                </AppLayout>
+              </ProtectedRoute>
+            } />
+            <Route path="/kepegawaian/struktur-jabatan" element={
+              <ProtectedRoute>
+                <AppLayout>
+                  <StrukturJabatan />
                 </AppLayout>
               </ProtectedRoute>
             } />
