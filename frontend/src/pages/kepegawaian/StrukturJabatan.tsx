@@ -47,9 +47,10 @@ export default function StrukturJabatan() {
       
       // Process jabatan data to include relations (backend should already include this)
       setJabatan(jabatanData)
-    } catch (error) {
+    } catch (error: any) {
       console.error('Error loading data:', error)
-      toast.error('Gagal memuat data')
+      const message = error?.response?.data?.message || 'Gagal memuat data'
+      toast.error(message)
     } finally {
       setLoading(false)
     }
@@ -74,8 +75,9 @@ export default function StrukturJabatan() {
 
       setDepartmentModal({ open: false, mode: 'create', data: null })
       loadData()
-    } catch (error) {
-      toast.error('Gagal menyimpan department')
+    } catch (error: any) {
+      const message = error?.response?.data?.message || 'Gagal menyimpan department'
+      toast.error(message)
     }
   }
 
@@ -86,8 +88,9 @@ export default function StrukturJabatan() {
       await deleteDepartment(id)
       toast.success('Department berhasil dihapus')
       loadData()
-    } catch (error) {
-      toast.error('Gagal menghapus department')
+    } catch (error: any) {
+      const message = error?.response?.data?.message || 'Gagal menghapus department'
+      toast.error(message)
     }
   }
 
@@ -113,8 +116,9 @@ export default function StrukturJabatan() {
 
       setJabatanModal({ open: false, mode: 'create', data: null })
       loadData()
-    } catch (error) {
-      toast.error('Gagal menyimpan jabatan')
+    } catch (error: any) {
+      const message = error?.response?.data?.message || 'Gagal menyimpan jabatan'
+      toast.error(message)
     }
   }
 
@@ -125,8 +129,9 @@ export default function StrukturJabatan() {
       await deleteJabatan(id)
       toast.success('Jabatan berhasil dihapus')
       loadData()
-    } catch (error) {
-      toast.error('Gagal menghapus jabatan')
+    } catch (error: any) {
+      const message = error?.response?.data?.message || 'Gagal menghapus jabatan'
+      toast.error(message)
     }
   }
 
@@ -336,6 +341,7 @@ export default function StrukturJabatan() {
         open={departmentModal.open}
         onClose={() => setDepartmentModal({ open: false, mode: 'create', data: null })}
         title={departmentModal.mode === 'create' ? 'Tambah Department' : 'Edit Department'}
+        footer={""}
       >
         <form
           onSubmit={(e) => {
@@ -394,7 +400,7 @@ export default function StrukturJabatan() {
               type="submit"
               className="px-4 py-2 bg-brand text-white rounded-md hover:bg-brand/90"
             >
-              {departmentModal.mode === 'create' ? 'Tambah' : 'Simpan'}
+              Simpan
             </button>
           </div>
         </form>
@@ -405,6 +411,7 @@ export default function StrukturJabatan() {
         open={jabatanModal.open}
         onClose={() => setJabatanModal({ open: false, mode: 'create', data: null })}
         title={jabatanModal.mode === 'create' ? 'Tambah Jabatan' : 'Edit Jabatan'}
+        footer={""}
       >
         <form
           onSubmit={(e) => {
@@ -516,7 +523,7 @@ export default function StrukturJabatan() {
               type="submit"
               className="px-4 py-2 bg-brand text-white rounded-md hover:bg-brand/90"
             >
-              {jabatanModal.mode === 'create' ? 'Tambah' : 'Simpan'}
+              Simpan
             </button>
           </div>
         </form>
