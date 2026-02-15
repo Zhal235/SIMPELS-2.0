@@ -45,9 +45,9 @@ class ApiService {
     }
 
     // If production URL, convert to local development URL
-    if (relativePath.startsWith('https://api.simpels.saza.sch.id')) {
+    if (relativePath.startsWith('https://api-simpels.saza.sch.id')) {
       final baseUrl = getBaseUrl();
-      final path = relativePath.replaceFirst('https://api.simpels.saza.sch.id/', '');
+      final path = relativePath.replaceFirst('https://api-simpels.saza.sch.id/', '');
       return '$baseUrl/$path';
     }
 

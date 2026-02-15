@@ -4,7 +4,7 @@ import { useAuthStore } from '../stores/useAuthStore'
 
 const api = axios.create({
   // Use environment variable for development, fallback to production URL
-  baseURL: import.meta.env.VITE_API_BASE || import.meta.env.VITE_API_URL || 'https://api.simpels.saza.sch.id/api',
+  baseURL: import.meta.env.VITE_API_BASE || import.meta.env.VITE_API_URL || 'https://api-simpels.saza.sch.id/api',
   withCredentials: true,
   // Ensure proper headers for authentication and CORS
   headers: {
