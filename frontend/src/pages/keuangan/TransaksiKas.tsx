@@ -326,7 +326,9 @@ export default function TransaksiKas() {
     return b.id - a.id
   })
 
-  // Hitung total - EXCLUDE Transfer Internal karena itu hanya perpindahan
+  // Hitung total - EXCLUDE Transfer Internal saja (bukan transfer antar buku kas)
+  // Transfer Internal = perpindahan Bank ↔ Cash dalam 1 buku kas (bukan pemasukan/pengeluaran)
+  // Transfer Antar Buku Kas = perpindahan antar entitas kas berbeda (adalah pemasukan/pengeluaran)
   const totalPemasukan = filteredTransaksi
     .filter(t => t.jenis === 'pemasukan' && !t.kategori.includes('Transfer Internal'))
     .reduce((sum, t) => sum + Number(t.nominal), 0)

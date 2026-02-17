@@ -81,13 +81,18 @@ export default function LaporanPerBukuKas() {
 
           const transaksi = transaksiRes.data.data || []
           
-          // Calculate mutations
+          // Calculate mutations - EXCLUDE Transfer Internal
           let mutasi_masuk_cash = 0
           let mutasi_masuk_bank = 0
           let mutasi_keluar_cash = 0
           let mutasi_keluar_bank = 0
 
           transaksi.forEach((t: any) => {
+            // Skip Transfer Internal (perpindahan Bank ↔ Cash dalam 1 buku kas)
+            if (t.kategori && t.kategori.includes('Transfer Internal')) {
+              return // Skip this transaction
+            }
+            
             const nominal = parseFloat(t.nominal || 0)
             const isMasuk = t.jenis === 'pemasukan'
             const isCash = t.metode === 'cash' || t.metode === 'tunai'

@@ -75,3 +75,8 @@ export async function bulkUpdateNominalTagihan(data: {
   const res = await api.post('/v1/keuangan/tagihan-santri/bulk-update-nominal', data)
   return res.data
 }
+
+export async function cleanupOrphanTagihan() {
+  const res = await api.post('/v1/keuangan/tagihan-santri/cleanup-orphan')
+  return res.data
+}

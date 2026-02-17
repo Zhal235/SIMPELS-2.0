@@ -217,17 +217,24 @@ class JenisTagihanController extends Controller
             ], 404);
         }
 
-        // Validasi dependency sebelum delete
-        $validation = $this->validateDeletion($jenisTagihan, [
-            'jenisTagihan' => [
-                'label' => 'Tagihan Santri',
-                'action' => 'Hapus semua tagihan santri yang menggunakan jenis tagihan "' . $jenisTagihan->nama_tagihan . '" terlebih dahulu'
-            ],
-        ]);
+        // Hitung jumlah tagihan santri yang akan terhapus
+        $jumlahTagihan = \App\Models\TagihanSantri::where('jenis_tagihan_id', $id)->count();
+        
+        // CASCADE DELETE: Hapus semua tagihan santri yang terkait
+        \App\Models\TagihanSantri::where('jenis_tagihan_id', $id)->delete();
+        
+        // Hapus jenis tagihan
+        $jenisTagihan->delete();
+        
+        $message = 'Jenis tagihan berhasil dihapus';
+        if ($jumlahTagihan > 0) {
+            $message .= " beserta {$jumlahTagihan} tagihan santri yang terkait";
+        }
 
-        // Return response sesuai hasil validasi
-        return $this->deletionResponse($validation, function() use ($jenisTagihan) {
-            $jenisTagihan->delete();
-        });
+        return response()->json([
+            'success' => true,
+            'message' => $message,
+            'deleted_tagihan_count' => $jumlahTagihan
+        ]);
     }
 }

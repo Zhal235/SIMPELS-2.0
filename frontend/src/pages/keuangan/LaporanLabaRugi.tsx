@@ -77,12 +77,18 @@ export default function LaporanLabaRugi() {
         jumlah: parseFloat(e.total)
       }))
 
+      // Map receipts to categories
+      const pendapatanOperasional = summary.receipts_breakdown 
+        ? Object.entries(summary.receipts_breakdown).map(([name, amount]) => ({
+            nama: name,
+            jumlah: Number(amount)
+          }))
+        : [{ nama: 'Penerimaan', jumlah: summary.total_receipts }]
+
       setData({
         period: `${range.start} s/d ${range.end}`,
         pendapatan: {
-          operasional: [
-            { nama: 'Pembayaran SPP', jumlah: summary.total_receipts },
-          ],
+          operasional: pendapatanOperasional,
           non_operasional: [],
           total: summary.total_receipts
         },
@@ -116,8 +122,8 @@ export default function LaporanLabaRugi() {
       {/* Header */}
       <div className="flex items-center justify-between">
         <div>
-          <h1 className="text-2xl font-semibold text-gray-900">Laporan Laba Rugi</h1>
-          <p className="text-gray-600 mt-1">Income Statement - Format Standar Akuntansi</p>
+          <h1 className="text-2xl font-semibold text-gray-900">Laporan Aktivitas Keuangan</h1>
+          <p className="text-gray-600 mt-1">Activity Report - Standar Akuntansi Pesantren (ISAK 35)</p>
         </div>
         <div className="flex gap-2">
           <button className="flex items-center gap-2 px-4 py-2 bg-white border border-gray-300 rounded-md hover:bg-gray-50 text-sm font-medium">
@@ -199,7 +205,7 @@ export default function LaporanLabaRugi() {
       ) : data ? (
         <div className="bg-white rounded-lg shadow-sm border border-gray-200">
           <div className="p-6 border-b border-gray-200">
-            <h2 className="text-xl font-bold text-center text-gray-900">LAPORAN LABA RUGI</h2>
+            <h2 className="text-xl font-bold text-center text-gray-900">LAPORAN AKTIVITAS KEUANGAN</h2>
             <h3 className="text-lg text-center text-gray-700 mt-1">YAYASAN PONDOK PESANTREN</h3>
             <p className="text-center text-gray-600 mt-1">Periode: {data.period}</p>
           </div>
@@ -207,11 +213,11 @@ export default function LaporanLabaRugi() {
           <div className="p-6 space-y-6">
             {/* PENDAPATAN */}
             <div>
-              <h3 className="text-lg font-semibold text-gray-900 mb-3">PENDAPATAN</h3>
+              <h3 className="text-lg font-semibold text-gray-900 mb-3">PENERIMAAN</h3>
               
               {/* Pendapatan Operasional */}
               <div className="ml-4">
-                <h4 className="font-medium text-gray-800 mb-2">Pendapatan Operasional:</h4>
+                <h4 className="font-medium text-gray-800 mb-2">Penerimaan dari Santri & Lainnya:</h4>
                 <div className="ml-4 space-y-1">
                   {data.pendapatan.operasional.map((item, idx) => (
                     <div key={idx} className="flex justify-between py-1">
@@ -225,7 +231,7 @@ export default function LaporanLabaRugi() {
               {/* Pendapatan Non-Operasional */}
               {data.pendapatan.non_operasional.length > 0 && (
                 <div className="ml-4 mt-3">
-                  <h4 className="font-medium text-gray-800 mb-2">Pendapatan Non-Operasional:</h4>
+                  <h4 className="font-medium text-gray-800 mb-2">Penerimaan Lain-lain:</h4>
                   <div className="ml-4 space-y-1">
                     {data.pendapatan.non_operasional.map((item, idx) => (
                       <div key={idx} className="flex justify-between py-1">
@@ -238,18 +244,18 @@ export default function LaporanLabaRugi() {
               )}
 
               <div className="flex justify-between py-2 mt-3 border-t-2 border-gray-300 font-semibold">
-                <span className="text-gray-900">Total Pendapatan</span>
+                <span className="text-gray-900">Total Penerimaan</span>
                 <span className="text-green-600">{formatCurrency(data.pendapatan.total)}</span>
               </div>
             </div>
 
             {/* BEBAN */}
             <div>
-              <h3 className="text-lg font-semibold text-gray-900 mb-3">BEBAN</h3>
+              <h3 className="text-lg font-semibold text-gray-900 mb-3">PENGELUARAN</h3>
               
               {/* Beban Operasional */}
               <div className="ml-4">
-                <h4 className="font-medium text-gray-800 mb-2">Beban Operasional:</h4>
+                <h4 className="font-medium text-gray-800 mb-2">Pengeluaran Operasional:</h4>
                 <div className="ml-4 space-y-1">
                   {data.beban.operasional.map((item, idx) => (
                     <div key={idx} className="flex justify-between py-1">
@@ -263,7 +269,7 @@ export default function LaporanLabaRugi() {
               {/* Beban Non-Operasional */}
               {data.beban.non_operasional.length > 0 && (
                 <div className="ml-4 mt-3">
-                  <h4 className="font-medium text-gray-800 mb-2">Beban Non-Operasional:</h4>
+                  <h4 className="font-medium text-gray-800 mb-2">Pengeluaran Lain-lain:</h4>
                   <div className="ml-4 space-y-1">
                     {data.beban.non_operasional.map((item, idx) => (
                       <div key={idx} className="flex justify-between py-1">
@@ -276,17 +282,17 @@ export default function LaporanLabaRugi() {
               )}
 
               <div className="flex justify-between py-2 mt-3 border-t-2 border-gray-300 font-semibold">
-                <span className="text-gray-900">Total Beban</span>
+                <span className="text-gray-900">Total Pengeluaran</span>
                 <span className="text-red-600">{formatCurrency(data.beban.total)}</span>
               </div>
             </div>
 
-            {/* LABA/RUGI BERSIH */}
+            {/* SURPLUS/DEFISIT */}
             <div className="border-t-4 border-gray-900 pt-4">
               <div className="bg-gray-50 p-4 rounded-lg">
                 <div className="flex justify-between items-center">
                   <span className="text-xl font-bold text-gray-900">
-                    {data.laba_rugi >= 0 ? 'LABA BERSIH' : 'RUGI BERSIH'}
+                    {data.laba_rugi >= 0 ? 'SURPLUS' : 'DEFISIT'}
                   </span>
                   <span className={`text-2xl font-bold ${data.laba_rugi >= 0 ? 'text-green-600' : 'text-red-600'}`}>
                     {formatCurrency(Math.abs(data.laba_rugi))}
@@ -299,13 +305,13 @@ export default function LaporanLabaRugi() {
             <div className="bg-amber-50 border border-amber-200 rounded-lg p-4">
               <h4 className="font-semibold text-amber-900 mb-2">Catatan:</h4>
               <ul className="text-sm text-amber-800 space-y-1 ml-4 list-disc">
-                <li>Laporan ini disusun berdasarkan metode akrual (accrual basis)</li>
-                <li>Pendapatan operasional mencakup pembayaran SPP dan tagihan lainnya</li>
-                <li>Beban operasional mencakup seluruh pengeluaran rutin pesantren</li>
+                <li>Laporan ini disusun berdasarkan metode kas/akrual sesuai kebutuhan.</li>
+                <li>Penerimaan mencakup seluruh pemasukan dari santri dan sumber lainnya.</li>
+                <li>Pengeluaran mencakup seluruh beban operasional pesantren.</li>
                 <li>
                   {data.laba_rugi >= 0 
-                    ? 'Laba bersih menunjukkan kinerja keuangan yang positif pada periode ini' 
-                    : 'Rugi bersih memerlukan evaluasi lebih lanjut terhadap efisiensi operasional'}
+                    ? 'Surplus menunjukkan penerimaan melebihi pengeluaran pada periode ini.' 
+                    : 'Defisit menunjukkan pengeluaran melebihi penerimaan, evaluasi anggaran diperlukan.'}
                 </li>
               </ul>
             </div>
@@ -319,3 +325,4 @@ export default function LaporanLabaRugi() {
     </div>
   )
 }
+

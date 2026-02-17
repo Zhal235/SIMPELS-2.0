@@ -266,9 +266,8 @@ const isLunasTab = activeTab === 'lunas'
       console.debug('Unable to fetch full santri record', err)
     }
 
-    // Fetch tagihan dari backend (semua tagihan termasuk lunas)
     try {
-      // Fetch tagihan belum lunas
+      // Download tagihan belum lunas
       const resTagihanBelum = await getTagihanBySantri(santri.id)
       const tagihanBelumLunas = resTagihanBelum.data || []
       
@@ -281,37 +280,39 @@ const isLunasTab = activeTab === 'lunas'
       const pembayaranData = resPembayaran.data || []
       
       // Transform tagihan belum lunas
-      const transformedBelumLunas = tagihanBelumLunas.map((t: any) => ({
-        id: t.id,
-        bulan: t.bulan,
-        tahun: String(t.tahun),
-        jenisTagihan: t.jenis_tagihan.nama_tagihan,
-        nominal: Number(t.sisa) || 0,
-        jumlahBayar: t.dibayar,
-        tipe: t.jenis_tagihan.kategori.toLowerCase().replace(' ', '-'),
-        status: t.status,
-        sisaBayar: Number(t.sisa) || 0,
-        tglJatuhTempo: t.jatuh_tempo,
-        buku_kas_id: t.jenis_tagihan.buku_kas_id
-      }))
+      const transformedBelumLunas = tagihanBelumLunas
+        .filter((t: any) => t.jenis_tagihan) // Filter out tagihan dengan jenis_tagihan yang sudah dihapus
+        .map((t: any) => ({
+          id: t.id,
+          bulan: t.bulan,
+          tahun: String(t.tahun),
+          jenisTagihan: t.jenis_tagihan?.nama_tagihan || 'Unknown',
+          nominal: Number(t.sisa) || 0,
+          jumlahBayar: t.dibayar,
+          tipe: t.jenis_tagihan?.kategori?.toLowerCase().replace(' ', '-') || 'rutin',
+          status: t.status,
+          sisaBayar: Number(t.sisa) || 0,
+          tglJatuhTempo: t.jatuh_tempo,
+          buku_kas_id: t.jenis_tagihan?.buku_kas_id
+        }))
       
       // Transform tagihan yang sudah lunas dari pembayaran
       const transformedLunas = pembayaranData
-        .filter((p: any) => p.tagihan_santri.status === 'lunas')
+        .filter((p: any) => p.tagihan_santri && p.tagihan_santri.status === 'lunas' && p.tagihan_santri.jenis_tagihan) // Filter out tagihan dengan jenis_tagihan yang sudah dihapus
         .map((p: any) => ({
           id: p.tagihan_santri.id,
           bulan: p.tagihan_santri.bulan,
           tahun: String(p.tagihan_santri.tahun),
-          jenisTagihan: p.tagihan_santri.jenis_tagihan.nama_tagihan,
+          jenisTagihan: p.tagihan_santri.jenis_tagihan?.nama_tagihan || 'Unknown',
           nominal: Number(p.tagihan_santri.nominal) || 0,
           jumlahBayar: p.tagihan_santri.dibayar,
-          tipe: p.tagihan_santri.jenis_tagihan.kategori.toLowerCase().replace(' ', '-'),
+          tipe: p.tagihan_santri.jenis_tagihan?.kategori?.toLowerCase().replace(' ', '-') || 'rutin',
           status: 'lunas',
           sisaBayar: 0,
           tglJatuhTempo: p.tagihan_santri.jatuh_tempo,
           tglBayar: p.tanggal_bayar,
           adminPenerima: 'Admin',
-          buku_kas_id: p.tagihan_santri.jenis_tagihan.buku_kas_id
+          buku_kas_id: p.tagihan_santri.jenis_tagihan?.buku_kas_id
         }))
       
       // Gabungkan dan hilangkan duplikat

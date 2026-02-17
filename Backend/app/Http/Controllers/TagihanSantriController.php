@@ -21,6 +21,7 @@ class TagihanSantriController extends Controller
         // Groupby per santri dengan total tagihan, dibayar, dan sisa
         $tagihan = DB::table('tagihan_santri')
             ->join('santri', 'tagihan_santri.santri_id', '=', 'santri.id')
+            ->join('jenis_tagihan', 'tagihan_santri.jenis_tagihan_id', '=', 'jenis_tagihan.id') // Join jenis_tagihan to filter deleted
             ->leftJoin('kelas', 'santri.kelas_id', '=', 'kelas.id')
             ->select(
                 'santri.id as santri_id',
@@ -32,12 +33,14 @@ class TagihanSantriController extends Controller
                 DB::raw('SUM(tagihan_santri.sisa) as sisa_tagihan')
             )
             ->whereNull('tagihan_santri.deleted_at')
+            ->whereNull('jenis_tagihan.deleted_at') // Filter out deleted jenis_tagihan
             ->groupBy('santri.id', 'santri.nis', 'santri.nama_santri', 'kelas.nama_kelas')
             ->get();
 
         // Ambil detail tagihan untuk setiap santri
         $result = $tagihan->map(function ($item) {
             $detailTagihan = TagihanSantri::where('santri_id', $item->santri_id)
+                ->whereHas('jenisTagihan') // Only include tagihan with active jenisTagihan
                 ->with(['jenisTagihan', 'pembayaran' => function($query) {
                     $query->whereNull('deleted_at')
                           ->orderBy('tanggal_bayar', 'desc')
@@ -272,8 +275,29 @@ class TagihanSantriController extends Controller
         $tagihan = TagihanSantri::with(['jenisTagihan', 'pembayaran'])
             ->where('santri_id', $santriId)
             ->whereNull('deleted_at')
+            // Hanya ambil tagihan yang jenis_tagihannya masih ada (whereHas jenisTagihan)
+            ->whereHas('jenisTagihan')
             ->orderBy('tahun', 'asc')
-            ->get();
+            ->orderBy('bulan', 'asc')
+            ->get()
+            ->map(function ($t) {
+                // Tambahkan jenis_tagihan_nama untuk akses lebih mudah di frontend
+                return [
+                    'id' => $t->id,
+                    'santri_id' => $t->santri_id,
+                    'jenis_tagihan_id' => $t->jenis_tagihan_id,
+                    'bulan' => $t->bulan,
+                    'tahun' => $t->tahun,
+                    'nominal' => $t->nominal,
+                    'status' => $t->status,
+                    'dibayar' => $t->dibayar,
+                    'sisa' => $t->sisa,
+                    'jatuh_tempo' => $t->jatuh_tempo,
+                    'jenis_tagihan_nama' => $t->jenisTagihan ? $t->jenisTagihan->nama_tagihan : null,
+                    'jenis_tagihan' => $t->jenisTagihan,
+                    'pembayaran' => $t->pembayaran
+                ];
+            });
 
         return response()->json([
             'success' => true,
@@ -295,6 +319,41 @@ class TagihanSantriController extends Controller
             ], 404);
         }
 
+        // Check if we are updating nominal (manual edit feature)
+        if ($request->has('nominal')) {
+            // Only allow if no payment has been made
+            if ($tagihan->dibayar > 0) {
+                return response()->json([
+                    'success' => false,
+                    'message' => 'Tidak dapat mengubah nominal tagihan yang sudah dicicil/dibayar.'
+                ], 400);
+            }
+
+            $validator = Validator::make($request->all(), [
+                'nominal' => 'required|numeric|min:0',
+            ]);
+
+            if ($validator->fails()) {
+                return response()->json([
+                    'success' => false,
+                    'message' => 'Validation error',
+                    'errors' => $validator->errors()
+                ], 422);
+            }
+
+            $tagihan->update([
+                'nominal' => $request->nominal,
+                'sisa' => $request->nominal, // Since nothing paid, sisa = nominal
+            ]);
+
+            return response()->json([
+                'success' => true,
+                'message' => 'Nominal tagihan berhasil diperbarui',
+                'data' => $tagihan
+            ]);
+        }
+
+        // Standard payment update logic
         $validator = Validator::make($request->all(), [
             'dibayar' => 'required|numeric|min:0|max:' . $tagihan->nominal,
         ]);
@@ -588,6 +647,56 @@ class TagihanSantriController extends Controller
             return response()->json([
                 'success' => false,
                 'message' => 'Gagal memperbarui tagihan: ' . $e->getMessage()
+            ], 500);
+        }
+    }
+
+    /**
+     * Cleanup orphan tagihan (tagihan dengan jenis_tagihan yang sudah dihapus)
+     * POST /v1/keuangan/tagihan-santri/cleanup-orphan
+     */
+    public function cleanupOrphan()
+    {
+        try {
+            DB::beginTransaction();
+
+            // Cari tagihan yang jenis_tagihan_id-nya tidak ada lagi di tabel jenis_tagihan
+            $orphanCount = DB::table('tagihan_santri')
+                ->leftJoin('jenis_tagihan', 'tagihan_santri.jenis_tagihan_id', '=', 'jenis_tagihan.id')
+                ->whereNull('jenis_tagihan.id')
+                ->whereNull('tagihan_santri.deleted_at')
+                ->count();
+
+            if ($orphanCount === 0) {
+                return response()->json([
+                    'success' => true,
+                    'message' => 'Tidak ada data orphan yang perlu dibersihkan',
+                    'deleted_count' => 0
+                ]);
+            }
+
+            // Hapus tagihan orphan
+            DB::table('tagihan_santri')
+                ->leftJoin('jenis_tagihan', 'tagihan_santri.jenis_tagihan_id', '=', 'jenis_tagihan.id')
+                ->whereNull('jenis_tagihan.id')
+                ->whereNull('tagihan_santri.deleted_at')
+                ->delete();
+
+            DB::commit();
+
+            return response()->json([
+                'success' => true,
+                'message' => "{$orphanCount} tagihan orphan berhasil dihapus",
+                'deleted_count' => $orphanCount
+            ]);
+
+        } catch (\Exception $e) {
+            DB::rollBack();
+            \Log::error('Cleanup orphan error: ' . $e->getMessage());
+            
+            return response()->json([
+                'success' => false,
+                'message' => 'Gagal membersihkan data orphan: ' . $e->getMessage()
             ], 500);
         }
     }

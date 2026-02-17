@@ -134,6 +134,7 @@ Route::middleware('auth:sanctum')->group(function () {
         Route::post('tagihan-santri/tunggakan', [TagihanSantriController::class, 'createTunggakan']);
         Route::post('tagihan-santri/bulk-delete', [TagihanSantriController::class, 'bulkDelete']);
         Route::post('tagihan-santri/bulk-update-nominal', [TagihanSantriController::class, 'bulkUpdateNominal']);
+        Route::post('tagihan-santri/cleanup-orphan', [TagihanSantriController::class, 'cleanupOrphan']);
         Route::apiResource('tagihan-santri', TagihanSantriController::class);
         Route::get('tagihan-santri/santri/{santriId}', [TagihanSantriController::class, 'getBySantri']);
         
