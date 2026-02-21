@@ -248,26 +248,54 @@ class EposController extends Controller
         if (!$pool) return response()->json(['success' => false, 'message' => 'ePOS pool not found'], 404);
 
         $amount = $request->input('amount');
-        $requestedByName = $request->input('requested_by');
-        $note = $request->input('note');
-
-        // Build notes with requested_by name
-        $fullNotes = "Diminta oleh: {$requestedByName}";
-        if ($note) {
-            $fullNotes .= " | {$note}";
+        
+        // --- Auto-Approval Logic for Admin ---
+        // Since initiated by Admin/Dashboard, we auto-approve and deduct balance immediately.
+        
+        if ($pool->balance < $amount) {
+            return response()->json([
+                'success' => false,
+                'message' => 'Saldo PoolEPOS tidak mencukupi untuk penarikan ini.',
+                'data' => ['pool_balance' => $pool->balance, 'requested' => $amount]
+            ], 422);
         }
 
-        // create withdrawal request (pending) — admin will process
-        $withdrawal = WalletWithdrawal::create([
-            'pool_id' => $pool->id,
-            'amount' => $amount,
-            'status' => 'pending',
-            'requested_by' => null, // Tidak FK lagi, hanya untuk tracking
-            'processed_by' => auth()->id(), // User yang sedang login sebagai yang memproses
-            'notes' => $fullNotes
-        ]);
+        DB::beginTransaction();
+        try {
+            // Deduct from pool
+            $pool->balance -= $amount;
+            $pool->save();
 
-        return response()->json(['success' => true, 'data' => $withdrawal], 201);
+            $requestedByName = $request->input('requested_by');
+            $note = $request->input('note');
+            
+            // Generate Withdrawal Number
+            $withdrawNumber = 'WDR-' . date('Ymd') . '-' . strtoupper(uniqid());
+
+            // Create as EposWithdrawal (Unified Model) with status APPROVED/COMPLETED
+            // We use EposWithdrawal instead of WalletWithdrawal so it appears in the main list
+            $withdrawal = \App\Models\EposWithdrawal::create([
+                'withdrawal_number' => $withdrawNumber,
+                'amount' => $amount,
+                'period_start' => now(), // Default to today/now
+                'period_end' => now(),
+                'total_transactions' => 0,
+                'notes' => $note,
+                'requested_by' => $requestedByName,
+                'status' => 'approved', // Auto-approved
+                'payment_method' => 'cash', // Default to cash for now
+                'approved_at' => now(),
+                'approved_by' => auth()->id()
+            ]);
+
+            DB::commit();
+
+            return response()->json(['success' => true, 'data' => $withdrawal], 201);
+
+        } catch (\Exception $e) {
+            DB::rollBack();
+            return response()->json(['success' => false, 'message' => 'Failed to create withdrawal', 'error' => $e->getMessage()], 500);
+        }
     }
 
     public function listWithdrawals(Request $request)

@@ -20,6 +20,7 @@ export default function ManajemenKeuangan() {
   const [pool, setPool] = useState<any | null>(null)
   const [withdrawals, setWithdrawals] = useState<any[]>([])
   const [loading, setLoading] = useState(true)
+  const [pendingAmount, setPendingAmount] = useState(0)
   const [showEposModal, setShowEposModal] = useState(false)
   const [eposAmount, setEposAmount] = useState('')
   const [eposNote, setEposNote] = useState('')
@@ -51,7 +52,15 @@ export default function ManajemenKeuangan() {
       } else {
         const [pRes, wRes] = await Promise.all([getEposPool(), listEposWithdrawals()])
         if (pRes.success) setPool(pRes.data)
-        if (wRes.success) setWithdrawals(wRes.data || [])
+        if (wRes.success) {
+          const list = wRes.data || []
+          setWithdrawals(list)
+          // Calculate pending amount
+          const pending = list
+            .filter((w: any) => w.status === 'pending')
+            .reduce((sum: number, w: any) => sum + Number(w.amount), 0)
+          setPendingAmount(pending)
+        }
       }
     } catch (err) {
       console.error(err)
@@ -87,6 +96,12 @@ export default function ManajemenKeuangan() {
     const amt = Number(eposAmount)
     if (!amt || amt <= 0) { toast.error('Nominal tidak valid'); return }
     if (!requestedBy.trim()) { toast.error('Nama yang meminta tidak boleh kosong'); return }
+
+    const available = parseFloat(pool?.balance || 0) - pendingAmount
+    if (amt > available) {
+      toast.error(`Saldo tidak mencukupi (Tersedia: Rp ${available.toLocaleString('id-ID')})`)
+      return
+    }
     
     try {
       const res = await createEposWithdrawal(amt, eposNote, requestedBy)
@@ -309,20 +324,37 @@ export default function ManajemenKeuangan() {
             <div className="space-y-6">
               {/* Pool Info */}
               {pool && (
-                <div className="bg-gradient-to-br from-purple-50 to-purple-100 p-6 rounded-lg border border-purple-200">
-                  <div className="flex items-center justify-between">
+                <div className="grid grid-cols-1 md:grid-cols-3 gap-4">
+                  <div className="bg-gradient-to-br from-purple-50 to-purple-100 p-6 rounded-lg border border-purple-200">
+                    <div className="text-sm text-purple-700 mb-1">🏪 Saldo Pool EPOS (Total)</div>
+                    <div className="text-2xl font-bold text-purple-900">
+                      Rp {parseFloat(pool.balance || 0).toLocaleString('id-ID')}
+                    </div>
+                    <div className="text-xs text-purple-600 mt-2">
+                      Total akumulasi transaksi
+                    </div>
+                  </div>
+
+                  <div className="bg-gradient-to-br from-yellow-50 to-yellow-100 p-6 rounded-lg border border-yellow-200">
+                    <div className="text-sm text-yellow-700 mb-1">⏳ Sedang Proses (Pending)</div>
+                    <div className="text-2xl font-bold text-yellow-900">
+                      Rp {pendingAmount.toLocaleString('id-ID')}
+                    </div>
+                    <div className="text-xs text-yellow-600 mt-2">
+                       Menunggu persetujuan
+                    </div>
+                  </div>
+
+                  <div className="bg-white p-6 rounded-lg border border-gray-200 flex flex-col justify-between">
                     <div>
-                      <div className="text-sm text-purple-700 mb-1">🏪 Saldo Pool EPOS</div>
-                      <div className="text-3xl font-bold text-purple-900">
-                        Rp {parseFloat(pool.balance || 0).toLocaleString('id-ID')}
-                      </div>
-                      <div className="text-xs text-purple-600 mt-2">
-                        Akumulasi transaksi EPOS belum dicairkan
-                      </div>
+                         <div className="text-sm text-gray-500 mb-1">Available Balance</div>
+                         <div className="text-2xl font-bold text-gray-800">
+                           Rp {(parseFloat(pool.balance || 0) - pendingAmount).toLocaleString('id-ID')}
+                         </div>
                     </div>
                     <button
                       onClick={() => setShowEposModal(true)}
-                      className="btn btn-primary"
+                      className="btn btn-primary mt-4 w-full"
                     >
                       + Buat Permintaan Penarikan
                     </button>
