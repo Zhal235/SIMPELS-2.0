@@ -8,7 +8,7 @@
     "require": {
         "php": "^8.2",
         "intervention/image": "^3.11",
-        "laravel/framework": "^12.0",
+        "laravel/framework": "^11.0",
         "laravel/sanctum": "^4.2",
         "laravel/tinker": "^2.10.1",
         "phpoffice/phpspreadsheet": "^1.29"
@@ -69,7 +69,7 @@
     },
     "extra": {
         "branch-alias": {
-            "dev-master": "12.x-dev"
+            "dev-master": "11.x-dev"
         },
         "laravel": {
             "dont-discover": []
