@@ -27,6 +27,9 @@ class AuthController extends Controller
         $user = User::where('email', $request->email)->first();
 
         if (!$user || !Hash::check($request->password, $user->password)) {
+            // Debug failure (remove in production)
+            // \Log::info('Login failed', ['email' => $request->email, 'user_exists' => (bool)$user, 'hash_check' => Hash::check($request->password, $user->password)]);
+            
             throw ValidationException::withMessages([
                 'email' => ['Email atau password salah.'],
             ]);

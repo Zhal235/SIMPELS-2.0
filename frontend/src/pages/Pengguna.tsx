@@ -364,7 +364,14 @@ export default function Pengguna() {
           <input type="password" className="rounded border px-3 py-2" value={newUserPassword} onChange={(e) => setNewUserPassword(e.target.value)} />
 
           <label className="block text-sm">Role</label>
-          <select value={newUserRole} onChange={(e) => setNewUserRole(e.target.value)} className="rounded border px-3 py-2">
+          <select 
+            value={newUserRole} 
+            onChange={(e) => setNewUserRole(e.target.value)} 
+            className="rounded border px-3 py-2 w-full"
+            disabled={rolesLoading}
+          >
+            <option value="user">User (Default)</option>
+            <option value="admin">Super Admin</option>
             {rolesList.map(r => <option value={r.slug} key={r.id}>{r.name}</option>)}
           </select>
         </div>
@@ -569,8 +576,15 @@ export default function Pengguna() {
         </>
       )}>
         <div className="grid gap-3">
-          <label className="block text-sm">Role</label>
-          <select value={newRole} onChange={(e) => setNewRole(e.target.value)} className="rounded border px-3 py-2">
+          <label className="block text-sm">Role {rolesLoading && <span className="text-xs text-gray-400">(Memuat...)</span>}</label>
+          <select 
+            value={newRole} 
+            onChange={(e) => setNewRole(e.target.value)} 
+            className="rounded border px-3 py-2 w-full"
+            disabled={rolesLoading}
+          >
+            <option value="user">User (Default)</option>
+            <option value="admin">Super Admin</option>
             {rolesList.map(role => (
               <option value={role.slug} key={role.id}>{role.name}</option>
             ))}

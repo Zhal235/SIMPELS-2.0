@@ -4,6 +4,7 @@ namespace App\Http\Controllers;
 
 use Illuminate\Http\Request;
 use App\Models\User;
+use Illuminate\Support\Facades\Hash;
 use Illuminate\Support\Facades\Validator;
 
 class UserController extends Controller
@@ -58,7 +59,13 @@ class UserController extends Controller
 
         $u = User::find($id);
         if (!$u) return response()->json(['success' => false, 'message' => 'User not found'], 404);
+        
+        // Ensure role is updated correctly
         $u->role = $request->input('role');
+        
+        // Prevent accidental self-demotion if the admin behaves recklessly (optional safeguard)
+        // if ($u->id === $user->id && $u->role !== 'admin') { ... }
+
         $u->save();
         return response()->json(['success' => true, 'data' => $u]);
     }
