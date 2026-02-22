@@ -98,8 +98,8 @@ class RoleSeeder extends Seeder
             ]
         ]);
 
-        // Tata Usaha role - akses view only untuk kesantrian
-        Role::updateOrCreate(['slug' => 'tata usaha'], [
+        // Tata Usaha role - akses view only untuk kesantrian dan dompet settings
+        Role::updateOrCreate(['slug' => 'tata-usaha'], [
             'name' => 'Tata Usaha',
             'menus' => [
                 'dashboard',
@@ -109,6 +109,9 @@ class RoleSeeder extends Seeder
                 'kesantrian.kelas.view',
                 'kesantrian.asrama',
                 'kesantrian.asrama.view',
+                'dompet.settings',
+                'dompet.settings.view',
+                'dompet.settings.edit',
             ]
         ]);
     }

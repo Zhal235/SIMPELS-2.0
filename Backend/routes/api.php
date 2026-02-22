@@ -162,12 +162,14 @@ Route::middleware('auth:sanctum')->group(function () {
         Route::get('balances', [WalletController::class, 'getBalances']);
         
         // Wallet Settings (admin only) - MUST BE BEFORE /{santriId} route
-        Route::get('settings', [WalletSettingsController::class, 'index']);
-        Route::put('settings/global', [WalletSettingsController::class, 'updateGlobalSettings']);
-        Route::get('settings/santri/all', [WalletSettingsController::class, 'allSantriWithLimits']);
-        Route::put('settings/santri/bulk', [WalletSettingsController::class, 'bulkUpdateSantriLimits']);
-        Route::put('settings/santri/{santriId}', [WalletSettingsController::class, 'setSantriLimit']);
-        Route::delete('settings/santri/{santriId}', [WalletSettingsController::class, 'deleteSantriLimit']);
+        Route::middleware('permission:dompet.settings')->group(function () {
+            Route::get('settings', [WalletSettingsController::class, 'index']);
+            Route::put('settings/global', [WalletSettingsController::class, 'updateGlobalSettings']);
+            Route::get('settings/santri/all', [WalletSettingsController::class, 'allSantriWithLimits']);
+            Route::put('settings/santri/bulk', [WalletSettingsController::class, 'bulkUpdateSantriLimits']);
+            Route::put('settings/santri/{santriId}', [WalletSettingsController::class, 'setSantriLimit']);
+            Route::delete('settings/santri/{santriId}', [WalletSettingsController::class, 'deleteSantriLimit']);
+        });
 
         // RFID mapping
         Route::get('rfid', [RfidTagController::class, 'index']);

@@ -14,9 +14,6 @@ class WalletSettingsController extends Controller
     // get global settings and all per-santri limits
     public function index(Request $request)
     {
-        $user = $request->user();
-        if (!$user || ($user->role ?? 'user') !== 'admin') return response()->json(['success' => false, 'message' => 'Forbidden'], 403);
-
         $row = DB::table('wallet_settings')->where('key', 'min_balance_jajan')->where('scope', 'global')->first();
         $amount = 0;
         if ($row) {
@@ -44,9 +41,6 @@ class WalletSettingsController extends Controller
     // get all santri with their limits (for bulk edit)
     public function allSantriWithLimits(Request $request)
     {
-        $user = $request->user();
-        if (!$user || ($user->role ?? 'user') !== 'admin') return response()->json(['success' => false, 'message' => 'Forbidden'], 403);
-
         $santri = Santri::where('status', 'aktif')->get(['id', 'nis', 'nama_santri']);
         
         // Attach limit data for each santri
@@ -66,9 +60,6 @@ class WalletSettingsController extends Controller
     // update global settings (min_balance and global_minimum_balance)
     public function updateGlobalSettings(Request $request)
     {
-        $user = $request->user();
-        if (!$user || ($user->role ?? 'user') !== 'admin') return response()->json(['success' => false, 'message' => 'Forbidden'], 403);
-
         $v = Validator::make($request->all(), [
             'min_balance' => 'nullable|numeric|min:0',
             'global_minimum_balance' => 'nullable|numeric|min:0'
@@ -109,9 +100,6 @@ class WalletSettingsController extends Controller
     // set per-santri daily limit
     public function setSantriLimit(Request $request, $santriId)
     {
-        $user = $request->user();
-        if (!$user || ($user->role ?? 'user') !== 'admin') return response()->json(['success' => false, 'message' => 'Forbidden'], 403);
-
         $v = Validator::make($request->all(), [
             'daily_limit' => 'required|numeric|min:0'
         ]);
@@ -132,9 +120,6 @@ class WalletSettingsController extends Controller
     // delete per-santri limit (reset to global)
     public function deleteSantriLimit(Request $request, $santriId)
     {
-        $user = $request->user();
-        if (!$user || ($user->role ?? 'user') !== 'admin') return response()->json(['success' => false, 'message' => 'Forbidden'], 403);
-
         $limit = SantriTransactionLimit::where('santri_id', $santriId)->first();
         if ($limit) $limit->delete();
 
@@ -144,9 +129,6 @@ class WalletSettingsController extends Controller
     // bulk update santri limits
     public function bulkUpdateSantriLimits(Request $request)
     {
-        $user = $request->user();
-        if (!$user || ($user->role ?? 'user') !== 'admin') return response()->json(['success' => false, 'message' => 'Forbidden'], 403);
-
         $v = Validator::make($request->all(), [
             'limits' => 'required|array',
             'limits.*.santri_id' => 'required|integer',

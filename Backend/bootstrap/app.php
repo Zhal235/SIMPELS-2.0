@@ -38,6 +38,11 @@ return Application::configure(basePath: dirname(__DIR__))
             \Illuminate\Http\Middleware\HandleCors::class,
         ]);
         
+        // Register custom middleware aliases
+        $middleware->alias([
+            'permission' => \App\Http\Middleware\CheckPermission::class,
+        ]);
+        
         // Exclude storage routes and API routes from CSRF verification
         // API routes use Bearer token authentication, not CSRF tokens
         $middleware->validateCsrfTokens(except: [
