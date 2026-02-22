@@ -1,9 +1,10 @@
 [phases.setup]
-nixPkgs = ["php82", "php82Packages.composer", "nodejs_20", "unzip", "php82Extensions.pdo", "php82Extensions.pdo_mysql", "php82Extensions.bcmath", "php82Extensions.zip", "php82Extensions.intl", "php82Extensions.gd", "php82Extensions.mbstring", "php82Extensions.openssl", "php82Extensions.xml", "php82Extensions.tokenizer", "php82Extensions.curl"]
+nixPkgs = ["php82", "php82Packages.composer", "nodejs_20", "unzip", "php82Extensions.pdo", "php82Extensions.pdo_mysql", "php82Extensions.bcmath", "php82Extensions.zip", "php82Extensions.intl", "php82Extensions.gd", "php82Extensions.mbstring", "php82Extensions.openssl", "php82Extensions.xml", "php82Extensions.tokenizer", "php82Extensions.curl", "git"]
 
 [phases.install]
 cmds = [
     "mkdir -p bootstrap/cache",
+    "export COMPOSER_MEMORY_LIMIT=-1",
     "composer install --ignore-platform-reqs --no-scripts --no-interaction --prefer-dist",
     "npm install"
 ]
