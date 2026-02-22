@@ -10,23 +10,26 @@ class ApiService {
 
   /// Get base URL based on platform
   static String getBaseUrl() {
-    // For web platform, use localhost directly
+    // Get the environment-based URL from AppConfig
+    final configUrl = AppConfig.apiBaseUrl;
+    
+    // For web platform, use the URL directly
     if (kIsWeb) {
-      return AppConfig.apiBaseUrl;
+      return configUrl;
     }
 
-    // For mobile platforms, try to use Platform
+    // For mobile platforms, handle localhost conversion for Android emulator
     try {
-      // For Android emulator (development)
-      if (Platform.isAndroid) {
-        return AppConfig.apiBaseUrl.replaceFirst('localhost', '10.0.2.2');
+      // For Android emulator (development only)
+      if (Platform.isAndroid && configUrl.contains('localhost')) {
+        return configUrl.replaceFirst('localhost', '10.0.2.2');
       }
       
-      // For iOS simulator or other platforms (development)
-      return AppConfig.apiBaseUrl;
+      // For iOS simulator or production URLs, use as-is
+      return configUrl;
     } catch (e) {
-      // Fallback jika Platform tidak tersedia
-      return AppConfig.apiBaseUrl;
+      // Fallback
+      return configUrl;
     }
   }
 

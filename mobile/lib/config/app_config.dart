@@ -1,22 +1,18 @@
+import 'package:flutter/foundation.dart';
+
 class AppConfig {
-  // API Configuration - Development Mode
-  // Use local backend server for all platforms during development
-  // IMPORTANT: Do NOT include /api here because ApiService handles paths differently
-  // or checks environment.
-  // Actually, ApiService.dart seems to append /api already in some cases?
-  // Let's reset this to simple base URL without api/v1 suffix to avoid duplication issues
-  // and let ApiService handle the path construction correctly.
+  // API Configuration - Environment-based URL
+  // Automatically switches between development (localhost) and production (api-simpels.saza.sch.id)
   
-  // Checking ApiService.dart...
-  // It says: _dio = Dio(BaseOptions(baseUrl: baseUrl, ...))
-  // And baseUrl comes from getBaseUrl() which returns AppConfig.apiBaseUrl
-  
-  // But wait, the previous errors showed: :8001/api/v1/api/wali/announcements
-  // That means:
-  // BaseURL = http://localhost:8001/api/v1
-  // Endpoint requested = /api/wali/announcements (maybe?)
-  
-  static const String apiBaseUrl = 'http://localhost:8001/api/v1';
+  static String get apiBaseUrl {
+    if (kDebugMode) {
+      // Development mode - use localhost
+      return 'http://localhost:8001/api/v1';
+    } else {
+      // Production mode - use production API
+      return 'https://api-simpels.saza.sch.id/api/v1';
+    }
+  }
 
   // Endpoints
   // Note: These should be relative to apiBaseUrl
