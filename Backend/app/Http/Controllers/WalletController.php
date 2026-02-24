@@ -1191,7 +1191,10 @@ class WalletController extends Controller
             $resetCount = Wallet::whereIn('id', $walletIds)->update(['balance' => 0]);
 
             // Reset auto-increment to current MAX(id)+1 so IDs don't keep growing unbounded
-            DB::statement('ALTER TABLE wallet_transactions AUTO_INCREMENT = 1;');
+            // Only supported on MySQL/MariaDB
+            if (DB::getDriverName() === 'mysql') {
+                DB::statement('ALTER TABLE wallet_transactions AUTO_INCREMENT = 1;');
+            }
 
             DB::commit();
 

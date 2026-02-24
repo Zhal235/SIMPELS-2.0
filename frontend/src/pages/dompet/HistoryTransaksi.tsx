@@ -91,7 +91,6 @@ export default function HistoryTransaksi() {
     { key: '_no', header: 'No', render: (_v: any, _r: any, idx: number) => (
       <div className="text-xs text-gray-500 text-center">{((page - 1) * PER_PAGE) + idx + 1}</div>
     )},
-    { key: 'id', header: 'ID', render: (v: any) => <div className="text-xs font-mono text-gray-400">{String(v).substring(0, 8)}</div> },
     { key: 'santri_name', header: 'Santri', render: (_v: any, r: any) => (
       <div>
         <div className="font-medium text-sm">{r.wallet?.santri?.nama_santri || '-'}</div>
