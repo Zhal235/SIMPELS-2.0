@@ -21,10 +21,12 @@ class BackupDatabase extends Command
             $filename = 'backup_' . Carbon::now('Asia/Jakarta')->format('Ymd_His') . '.sql';
             $sql = $this->generateSqlDump();
 
-            // Ensure backup directory exists
+            // Ensure backup directory exists — fallback to /tmp if storage not writable
             $backupDir = storage_path('app' . DIRECTORY_SEPARATOR . 'backups');
             if (!is_dir($backupDir)) {
-                mkdir($backupDir, 0755, true);
+                if (!@mkdir($backupDir, 0755, true)) {
+                    $backupDir = sys_get_temp_dir();
+                }
             }
 
             // Store temporarily
@@ -102,8 +104,11 @@ class BackupDatabase extends Command
                 'name'
             );
         }
-        // MySQL / MariaDB
-        return array_column(DB::select('SHOW TABLES'), array_keys((array) DB::select('SHOW TABLES')[0] ?? [])[0] ?? 'Tables_in_' . config('database.connections.' . $driver . '.database'));
+        // MySQL / MariaDB — get table name from first column of SHOW TABLES
+        $rows = DB::select('SHOW TABLES');
+        if (empty($rows)) return [];
+        $col = array_keys((array) $rows[0])[0];
+        return array_column(array_map('get_object_vars', $rows), $col);
     }
 
     private function dumpTable(string $table, string $driver, array $connection): string
