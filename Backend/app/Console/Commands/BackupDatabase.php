@@ -11,68 +11,102 @@ use Carbon\Carbon;
 class BackupDatabase extends Command
 {
     protected $signature = 'db:backup {--email= : Override recipient email}';
-    protected $description = 'Backup database and send via email';
+    protected $description = 'Backup database: upload to R2 and send via email';
+
+    private const R2_BACKUP_DIR  = 'database-backups';
+    private const MAX_BACKUPS    = 30;
 
     public function handle(): int
     {
         $this->info('Starting database backup...');
 
         try {
-            $filename = 'backup_' . Carbon::now('Asia/Jakarta')->format('Ymd_His') . '.sql';
-            $sql = $this->generateSqlDump();
-
-            // Ensure backup directory exists — fallback to /tmp if storage not writable
-            $backupDir = storage_path('app' . DIRECTORY_SEPARATOR . 'backups');
-            if (!is_dir($backupDir)) {
-                if (!@mkdir($backupDir, 0755, true)) {
-                    $backupDir = sys_get_temp_dir();
-                }
-            }
-
-            // Store temporarily
-            $filePath = $backupDir . DIRECTORY_SEPARATOR . $filename;
-            file_put_contents($filePath, $sql);
+            $now      = Carbon::now('Asia/Jakarta');
+            $filename = 'backup_' . $now->format('Ymd_His') . '.sql';
+            $sql      = $this->generateSqlDump();
             $sizeKb   = round(strlen($sql) / 1024, 1);
 
+            // ── 1. Upload to Cloudflare R2 ──────────────────────────────
+            $r2Path = self::R2_BACKUP_DIR . '/' . $filename;
+            try {
+                Storage::disk('r2')->put($r2Path, $sql);
+                $this->pruneOldBackups();
+                $this->info("Uploaded to R2: {$r2Path} ({$sizeKb} KB)");
+            } catch (\Exception $e) {
+                \Log::warning('R2 backup upload failed: ' . $e->getMessage());
+                $this->warn('R2 upload failed: ' . $e->getMessage());
+            }
+
+            // ── 2. Send email ───────────────────────────────────────────
             $recipient = $this->option('email') ?: config('app.backup_email');
 
-            if (!$recipient) {
-                $this->warn('No BACKUP_EMAIL configured. File saved locally at: ' . $filePath);
-                return self::SUCCESS;
+            if ($recipient) {
+                // Write temp file for email attachment
+                $backupDir = storage_path('app' . DIRECTORY_SEPARATOR . 'backups');
+                if (!is_dir($backupDir) && !@mkdir($backupDir, 0755, true)) {
+                    $backupDir = sys_get_temp_dir();
+                }
+                $filePath = $backupDir . DIRECTORY_SEPARATOR . $filename;
+                file_put_contents($filePath, $sql);
+
+                try {
+                    Mail::send([], [], function ($message) use ($recipient, $filePath, $filename, $sizeKb, $now) {
+                        $appName = config('app.name', 'SIMPELS');
+                        $time    = $now->format('d/m/Y H:i');
+
+                        $message->to($recipient)
+                            ->subject("[{$appName}] Backup Database – {$time}")
+                            ->html(
+                                "<h3>Backup Database {$appName}</h3>" .
+                                "<p>Backup berhasil dibuat pada <strong>{$time} WIB</strong>.</p>" .
+                                "<ul>" .
+                                "<li>File: <code>{$filename}</code></li>" .
+                                "<li>Ukuran: <strong>{$sizeKb} KB</strong></li>" .
+                                "<li>Database: <strong>" . config('database.default') . "</strong></li>" .
+                                "<li>Tersimpan di: <strong>Cloudflare R2 › " . self::R2_BACKUP_DIR . "/</strong></li>" .
+                                "</ul>" .
+                                "<p style='color:#666;font-size:12px'>Email ini dikirim otomatis oleh sistem {$appName}.</p>"
+                            )
+                            ->attach($filePath, ['as' => $filename, 'mime' => 'application/sql']);
+                    });
+                    $this->info("Email sent to {$recipient}");
+                } catch (\Exception $e) {
+                    \Log::warning('Backup email failed: ' . $e->getMessage());
+                    $this->warn('Email failed: ' . $e->getMessage());
+                } finally {
+                    if (file_exists($filePath)) unlink($filePath);
+                }
+            } else {
+                $this->warn('BACKUP_EMAIL not configured — skipping email.');
             }
 
-            // Send email with attachment
-            Mail::send([], [], function ($message) use ($recipient, $filePath, $filename, $sizeKb) {
-                $appName = config('app.name', 'SIMPELS');
-                $now = Carbon::now('Asia/Jakarta')->format('d/m/Y H:i');
-
-                $message->to($recipient)
-                    ->subject("[{$appName}] Backup Database – {$now}")
-                    ->html(
-                        "<h3>Backup Database {$appName}</h3>" .
-                        "<p>Backup otomatis berhasil dibuat pada <strong>{$now} WIB</strong>.</p>" .
-                        "<ul>" .
-                        "<li>File: <code>{$filename}</code></li>" .
-                        "<li>Ukuran: <strong>{$sizeKb} KB</strong></li>" .
-                        "<li>Database: <strong>" . config('database.default') . "</strong></li>" .
-                        "</ul>" .
-                        "<p style='color:#666;font-size:12px'>Email ini dikirim otomatis oleh sistem {$appName}.</p>"
-                    )
-                    ->attach($filePath, ['as' => $filename, 'mime' => 'application/sql']);
-            });
-
-            // Clean up temp file
-            if (file_exists($filePath)) {
-                unlink($filePath);
-            }
-
-            $this->info("Backup sent to {$recipient} ({$sizeKb} KB)");
+            $this->info("Backup complete ({$sizeKb} KB)");
             return self::SUCCESS;
 
         } catch (\Exception $e) {
             $this->error('Backup failed: ' . $e->getMessage());
             \Log::error('DB Backup failed: ' . $e->getMessage());
             return self::FAILURE;
+        }
+    }
+
+    /** Delete oldest backups, keep only MAX_BACKUPS */
+    private function pruneOldBackups(): void
+    {
+        try {
+            $files = collect(Storage::disk('r2')->files(self::R2_BACKUP_DIR))
+                ->sort()
+                ->values();
+
+            if ($files->count() > self::MAX_BACKUPS) {
+                $toDelete = $files->slice(0, $files->count() - self::MAX_BACKUPS);
+                foreach ($toDelete as $file) {
+                    Storage::disk('r2')->delete($file);
+                }
+                $this->info('Pruned ' . $toDelete->count() . ' old backup(s) from R2.');
+            }
+        } catch (\Exception $e) {
+            \Log::warning('Backup prune failed: ' . $e->getMessage());
         }
     }
 
