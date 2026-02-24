@@ -12,8 +12,8 @@ class SystemBackupController extends Controller
     {
         // Only superadmin / admin role can trigger backup
         $user = $request->user();
-        $roles = $user->roles()->pluck('name')->toArray();
-        if (!in_array('superadmin', $roles) && !in_array('admin', $roles)) {
+        $role = $user->role ?? '';
+        if (!in_array($role, ['superadmin', 'admin'])) {
             return response()->json(['success' => false, 'message' => 'Akses ditolak'], 403);
         }
 
