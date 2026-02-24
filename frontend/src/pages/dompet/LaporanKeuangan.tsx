@@ -42,11 +42,15 @@ export default function LaporanKeuangan() {
   const totalDebitEpos = wallets.reduce((sum, w) => sum + parseFloat(w.total_debit_epos || 0), 0)
   const totalWithdrawals = cashWithdrawals.reduce((sum, w) => sum + parseFloat(w.amount || 0), 0)
   
+  // Gunakan total_credit dari backend (mencakup semua metode termasuk import)
+  const totalCredit = wallets.reduce((sum, w) => sum + parseFloat(w.total_credit || 0), 0)
+  const totalDebit = totalDebitCash + totalDebitTransfer + totalDebitEpos
+
+  // Total saldo aktual dari field balance (bukan kalkulasi transaksi)
+  const totalBalance = wallets.reduce((sum, w) => sum + parseFloat(w.balance || 0), 0)
+
   const totalCashBalance = (totalCreditCash - totalDebitCash - totalDebitEpos) + totalWithdrawals
   const totalBankBalance = (totalCreditTransfer - totalDebitTransfer) - totalWithdrawals
-  const totalBalance = totalCashBalance + totalBankBalance
-  const totalCredit = totalCreditCash + totalCreditTransfer
-  const totalDebit = totalDebitCash + totalDebitTransfer + totalDebitEpos
 
   // Detail per santri columns
   const detailColumns = [

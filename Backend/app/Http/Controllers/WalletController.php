@@ -136,9 +136,14 @@ class WalletController extends Controller
                 })
                 ->sum('amount');
             
+            // Include NULL/empty method in cash (legacy import data had method truncated to NULL)
             $wallet->total_credit_cash = WalletTransaction::where('wallet_id', $wallet->id)
                 ->where('type', 'credit')
-                ->where('method', 'cash')
+                ->where(function($q) {
+                    $q->where('method', 'cash')
+                      ->orWhereNull('method')
+                      ->orWhere('method', '');
+                })
                 ->where(function($q) {
                     $q->where('voided', '!=', 1)
                       ->orWhereNull('voided');
