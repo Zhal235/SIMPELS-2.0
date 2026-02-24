@@ -51,6 +51,10 @@ return Application::configure(basePath: dirname(__DIR__))
             '/public-storage/*',
         ]);
     })
+    ->withSchedule(function (\Illuminate\Console\Scheduling\Schedule $schedule) {
+        // Daily DB backup at 02:00 WIB
+        $schedule->command('db:backup')->dailyAt('19:00')->timezone('UTC');
+    })
     ->withExceptions(function (Exceptions $exceptions) {
         // Customize exception handling (optional)
     })

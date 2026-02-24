@@ -88,6 +88,11 @@ Route::middleware('auth:sanctum')->prefix('admin/data-corrections')->group(funct
     Route::post('{id}/reject', [\App\Http\Controllers\Admin\DataCorrectionController::class, 'reject']);
 });
 
+// System backup (admin only)
+Route::middleware('auth:sanctum')->prefix('v1/system')->group(function () {
+    Route::post('/backup', [\App\Http\Controllers\Admin\SystemBackupController::class, 'backup']);
+});
+
 // Protected routes
 Route::middleware('auth:sanctum')->group(function () {
     Route::post('/logout', [AuthController::class, 'logout']);

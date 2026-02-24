@@ -29,7 +29,7 @@ class SantriResource extends JsonResource
                 'hp_ibu' => $this->hp_ibu,
             ],
             'foto_url' => $this->foto 
-                ? (filter_var($this->foto, FILTER_VALIDATE_URL) ? $this->foto : url('storage/' . $this->foto))
+                ? (filter_var($this->foto, FILTER_VALIDATE_URL) ? $this->foto : \Illuminate\Support\Facades\Storage::disk('r2')->url($this->foto))
                 : null,
             'status' => $this->status,
         ];

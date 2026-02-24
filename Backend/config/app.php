@@ -123,4 +123,7 @@ return [
         'store' => env('APP_MAINTENANCE_STORE', 'database'),
     ],
 
+    // Email tujuan backup otomatis database
+    'backup_email' => env('BACKUP_EMAIL', null),
+
 ];

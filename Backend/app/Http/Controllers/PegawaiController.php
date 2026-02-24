@@ -54,7 +54,7 @@ class PegawaiController extends Controller
 
         // handle foto upload if exists
         if ($request->hasFile('foto_profil')) {
-            $path = $request->file('foto_profil')->store('foto-pegawai', 'public');
+            $path = $request->file('foto_profil')->store('foto-pegawai', 'r2');
             $data['foto_profil'] = $path;
         }
 
@@ -134,10 +134,10 @@ class PegawaiController extends Controller
         // handle foto upload if exists
         if ($request->hasFile('foto_profil')) {
             // Delete old photo
-            if ($pegawai->foto_profil && \Illuminate\Support\Facades\Storage::disk('public')->exists($pegawai->foto_profil)) {
-                \Illuminate\Support\Facades\Storage::disk('public')->delete($pegawai->foto_profil);
+            if ($pegawai->foto_profil && \Illuminate\Support\Facades\Storage::disk('r2')->exists($pegawai->foto_profil)) {
+                \Illuminate\Support\Facades\Storage::disk('r2')->delete($pegawai->foto_profil);
             }
-            $path = $request->file('foto_profil')->store('foto-pegawai', 'public');
+            $path = $request->file('foto_profil')->store('foto-pegawai', 'r2');
             $data['foto_profil'] = $path;
         }
 
@@ -178,8 +178,8 @@ class PegawaiController extends Controller
             return response()->json(['message' => 'Pegawai tidak ditemukan'], 404);
         }
 
-        if ($pegawai->foto_profil && \Illuminate\Support\Facades\Storage::disk('public')->exists($pegawai->foto_profil)) {
-            \Illuminate\Support\Facades\Storage::disk('public')->delete($pegawai->foto_profil);
+        if ($pegawai->foto_profil && \Illuminate\Support\Facades\Storage::disk('r2')->exists($pegawai->foto_profil)) {
+            \Illuminate\Support\Facades\Storage::disk('r2')->delete($pegawai->foto_profil);
         }
 
         $pegawai->delete();

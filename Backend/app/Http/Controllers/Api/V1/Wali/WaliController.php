@@ -187,7 +187,7 @@ class WaliController extends BaseController
                     'jenis_kelamin' => $s->jenis_kelamin,
                     'kelas' => $s->kelas->nama ?? null,
                     'asrama' => $s->asrama->nama ?? null,
-                    'foto_url' => $s->foto ? \Storage::url($s->foto) : null,
+                    'foto_url' => $s->foto ? \Storage::disk('r2')->url($s->foto) : null,
                     'saldo_dompet' => $this->getSaldoDompet($s->id),
                 ];
             });
@@ -521,7 +521,7 @@ class WaliController extends BaseController
             // Store bukti transfer
             $filePath = null;
             if ($request->hasFile('bukti')) {
-                $filePath = $request->file('bukti')->store('bukti_transfer', 'public');
+                $filePath = $request->file('bukti')->store('bukti_transfer', 'r2');
             }
 
             // Create pembayaran record dengan status 'pending' untuk verifikasi admin
@@ -586,7 +586,7 @@ class WaliController extends BaseController
             }
 
             // Store bukti transfer file
-            $filePath = $request->file('bukti')->store('bukti_transfer', 'public');
+            $filePath = $request->file('bukti')->store('bukti_transfer', 'r2');
 
             $nominalTopup = $request->input('nominal_topup', 0);
             $totalNominal = $request->total_nominal;
@@ -718,7 +718,7 @@ class WaliController extends BaseController
             }
 
             // Store bukti transfer file
-            $filePath = $request->file('bukti')->store('bukti_transfer', 'public');
+            $filePath = $request->file('bukti')->store('bukti_transfer', 'r2');
 
             // Create bukti transfer record for topup
             $buktiTransfer = \App\Models\BuktiTransfer::create([

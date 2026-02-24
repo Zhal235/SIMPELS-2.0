@@ -142,7 +142,7 @@ class SantriController extends Controller
 
             // handle foto upload if exists
             if ($request->hasFile('foto')) {
-                $path = $request->file('foto')->store('foto-santri', 'public');
+                $path = $request->file('foto')->store('foto-santri', 'r2');
                 $validated['foto'] = $path; // store relative path only
             }
 
@@ -249,7 +249,7 @@ class SantriController extends Controller
             // handle foto upload if exists
             if ($request->hasFile('foto')) {
                 // optionally delete old file - skipped here
-                $path = $request->file('foto')->store('foto-santri', 'public');
+                $path = $request->file('foto')->store('foto-santri', 'r2');
                 $validated['foto'] = $path; // store relative path only
             }
 
