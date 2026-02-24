@@ -68,7 +68,7 @@ export default function HistoryTransaksi() {
 
   async function handleDeleteImportHistory() {
     const confirmed = window.confirm(
-      'Hapus history import lama?\n\nHanya sesi import TERAKHIR yang dipertahankan (transaksi dalam 10 menit terakhir dari import terbaru).\nTindakan ini tidak dapat dibatalkan.'
+      'Hapus SEMUA history import?\n\nSeluruh transaksi MIGRATION akan dihapus permanen.\nLakukan ini sebelum upload ulang import Excel.\nTindakan ini tidak dapat dibatalkan.'
     )
     if (!confirmed) return
     setDeletingImport(true)
@@ -127,9 +127,9 @@ export default function HistoryTransaksi() {
             className="btn bg-red-100 text-red-700 hover:bg-red-200 border border-red-300 text-sm"
             onClick={handleDeleteImportHistory}
             disabled={deletingImport}
-            title="Hapus semua sesi import lama, pertahankan hanya import terbaru"
+            title="Hapus SEMUA history import Excel (MIGRATION transactions)"
           >
-            {deletingImport ? '⏳ Menghapus...' : '🗑️ Hapus History Import Lama'}
+            {deletingImport ? '⏳ Menghapus...' : '🗑️ Hapus Semua History Import'}
           </button>
           <button className="btn btn-primary" onClick={exportCSV} disabled={!transactions.length}>
             📥 Export CSV

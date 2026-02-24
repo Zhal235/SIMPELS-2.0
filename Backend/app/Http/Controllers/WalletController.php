@@ -1168,34 +1168,18 @@ class WalletController extends Controller
     }
 
     /**
-     * Delete old import history, keep only transactions from the latest import batch
+     * Delete ALL import history (MIGRATION transactions)
      * DELETE /api/v1/wallets/import-history
      */
     public function deleteImportHistory()
     {
         try {
-            // Find the latest MIGRATION transaction timestamp
-            $latestCreatedAt = WalletTransaction::where('reference', 'like', 'MIGRATION-%')
-                ->orderByDesc('created_at')
-                ->value('created_at');
-
-            if (!$latestCreatedAt) {
-                return response()->json(['success' => true, 'message' => 'Tidak ada history import untuk dihapus', 'deleted' => 0]);
-            }
-
-            // Keep transactions created within 10 minutes of the latest import (= 1 import session)
-            // Delete all MIGRATION transactions OUTSIDE that window
-            $windowStart = \Carbon\Carbon::parse($latestCreatedAt)->subMinutes(10);
-
             $deleted = WalletTransaction::where('reference', 'like', 'MIGRATION-%')
-                ->where('created_at', '<', $windowStart)
                 ->delete();
-
-            $keptDate = \Carbon\Carbon::parse($latestCreatedAt)->setTimezone('Asia/Jakarta')->format('d/m/Y H:i');
 
             return response()->json([
                 'success' => true,
-                'message' => "Berhasil menghapus {$deleted} transaksi import lama. Import terakhir ({$keptDate} WIB) dipertahankan.",
+                'message' => "Berhasil menghapus {$deleted} transaksi history import.",
                 'deleted' => $deleted,
             ]);
         } catch (\Exception $e) {
