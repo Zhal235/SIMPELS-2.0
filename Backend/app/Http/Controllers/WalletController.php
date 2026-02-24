@@ -1497,19 +1497,27 @@ class WalletController extends Controller
                 ['balance' => 0]
             );
 
-            $oldBalance = $wallet->balance;
-            
+            // Delete any previous MIGRATION transactions for this wallet
+            // (handles re-import after failed attempts where balance was saved but transaction was not)
+            WalletTransaction::where('wallet_id', $wallet->id)
+                ->where(function($q) {
+                    $q->where('reference', 'like', 'MIGRATION-%')
+                      ->orWhere('method', 'migration');
+                })
+                ->delete();
+
             // Set new balance
             $wallet->balance = $saldo;
             $wallet->save();
 
-            // Create transaction record
+            // Create transaction record with full saldo as amount (not delta)
+            // because this is an initial balance setting, not a top-up
             $reference = 'MIGRATION-' . now()->format('Ymd') . '-' . str_pad($rowNumber, 4, '0', STR_PAD_LEFT);
             
             WalletTransaction::create([
                 'wallet_id' => $wallet->id,
                 'type' => 'credit',
-                'amount' => $saldo - $oldBalance,
+                'amount' => $saldo,
                 'balance_after' => $saldo,
                 'description' => "Initial balance migration from Excel (Row {$rowNumber})",
                 'reference' => $reference,
