@@ -12,6 +12,7 @@ export default function HistoryTransaksi() {
   const [meta, setMeta] = useState<any>(null)
   const [loading, setLoading] = useState(true)
   const [deletingImport, setDeletingImport] = useState(false)
+  const [showDangerZone, setShowDangerZone] = useState(false)
   const location = useLocation()
 
   // Filters
@@ -126,13 +127,22 @@ export default function HistoryTransaksi() {
         <h2 className="text-2xl font-bold">📝 History Transaksi</h2>
         <div className="flex gap-2 flex-wrap">
           <button
-            className="btn bg-red-100 text-red-700 hover:bg-red-200 border border-red-300 text-sm"
-            onClick={handleDeleteImportHistory}
-            disabled={deletingImport}
-            title="Hapus SEMUA history import Excel (MIGRATION transactions)"
+            className="btn text-sm text-gray-400 border border-gray-200 hover:border-red-300 hover:text-red-500"
+            onClick={() => setShowDangerZone(v => !v)}
+            title="Kelola data import"
           >
-            {deletingImport ? '⏳ Menghapus...' : '🗑️ Hapus Semua History Import'}
+            ⚙️
           </button>
+          {showDangerZone && (
+            <button
+              className="btn bg-red-100 text-red-700 hover:bg-red-200 border border-red-300 text-sm"
+              onClick={handleDeleteImportHistory}
+              disabled={deletingImport}
+              title="Hapus SEMUA history import Excel (MIGRATION transactions)"
+            >
+              {deletingImport ? '⏳ Menghapus...' : '🗑️ Hapus Semua History Import'}
+            </button>
+          )}
           <button className="btn btn-primary" onClick={exportCSV} disabled={!transactions.length}>
             📥 Export CSV
           </button>

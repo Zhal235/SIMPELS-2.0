@@ -23,6 +23,7 @@ export default function Settings() {
 
   // Import Excel states
   const [showImportModal, setShowImportModal] = useState(false)
+  const [showImportSection, setShowImportSection] = useState(false)
   const [showConfirmImport, setShowConfirmImport] = useState(false)
   const [selectedFile, setSelectedFile] = useState<File | null>(null)
   const [importing, setImporting] = useState(false)
@@ -346,13 +347,26 @@ export default function Settings() {
                   <Download size={16} />
                   {downloading ? 'Download...' : 'Template Excel'}
                 </button>
-                <button 
-                  className="btn btn-success flex items-center gap-2 text-lg px-6"
-                  onClick={() => setShowImportModal(true)}
+                <button
+                  className={`btn flex items-center gap-2 text-sm ${
+                    showImportSection
+                      ? 'bg-orange-100 text-orange-700 border border-orange-300 hover:bg-orange-200'
+                      : 'bg-gray-100 text-gray-500 border border-gray-300 hover:bg-gray-200'
+                  }`}
+                  onClick={() => setShowImportSection(v => !v)}
+                  title="Tampilkan/sembunyikan tombol import"
                 >
-                  <Upload size={18} />
-                  Import Excel
+                  {showImportSection ? '🔒 Sembunyikan' : '⚙️ Aktifkan Import'}
                 </button>
+                {showImportSection && (
+                  <button 
+                    className="btn btn-success flex items-center gap-2 text-lg px-6"
+                    onClick={() => setShowImportModal(true)}
+                  >
+                    <Upload size={18} />
+                    Import Excel
+                  </button>
+                )}
               </div>
             </div>
             

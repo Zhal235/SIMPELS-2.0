@@ -47,6 +47,8 @@ export default function TagihanSantri() {
   const [showTunggakanModal, setShowTunggakanModal] = useState(false)
   const [showEditModal, setShowEditModal] = useState(false)
   const [selectedSantri, setSelectedSantri] = useState<TagihanSantri | null>(null)
+  const [currentPage, setCurrentPage] = useState(1)
+  const PAGE_SIZE = 25
 
   // Fetch data dari API
   const fetchData = async () => {
@@ -71,6 +73,10 @@ export default function TagihanSantri() {
     (item.santri_nama || '').toLowerCase().includes(searchTerm.toLowerCase()) ||
     (item.kelas || '').toLowerCase().includes(searchTerm.toLowerCase())
   )
+
+  const lastPage = Math.max(1, Math.ceil(filteredData.length / PAGE_SIZE))
+  const safePage = Math.min(currentPage, lastPage)
+  const pagedData = filteredData.slice((safePage - 1) * PAGE_SIZE, safePage * PAGE_SIZE)
 
   const handleShowDetail = (santri: TagihanSantri) => {
     setSelectedSantri(santri)
@@ -158,7 +164,7 @@ export default function TagihanSantri() {
             type="text"
             placeholder="Cari nama santri atau kelas..."
             value={searchTerm}
-            onChange={(e) => setSearchTerm(e.target.value)}
+            onChange={(e) => { setSearchTerm(e.target.value); setCurrentPage(1) }}
             className="w-full pl-10 pr-4 py-2 border border-gray-300 rounded-lg focus:ring-2 focus:ring-blue-500 focus:border-transparent"
           />
         </div>
@@ -193,9 +199,9 @@ export default function TagihanSantri() {
                   </td>
                 </tr>
               ) : (
-                filteredData.map((item, idx) => (
+                pagedData.map((item, idx) => (
                   <tr key={item.santri_id} className="hover:bg-gray-50">
-                    <td className="px-6 py-4 text-gray-900">{idx + 1}</td>
+                    <td className="px-6 py-4 text-gray-900">{(safePage - 1) * PAGE_SIZE + idx + 1}</td>
                     <td className="px-6 py-4">
                       <div className="flex items-center gap-2">
                         <User className="w-4 h-4 text-gray-400" />
@@ -227,6 +233,32 @@ export default function TagihanSantri() {
             </tbody>
           </table>
         </div>
+
+        {/* Pagination */}
+        {lastPage > 1 && (
+          <div className="flex items-center justify-between px-4 py-3 border-t bg-gray-50">
+            <p className="text-sm text-gray-500">
+              Menampilkan {(safePage - 1) * PAGE_SIZE + 1}–{Math.min(safePage * PAGE_SIZE, filteredData.length)} dari {filteredData.length} santri
+            </p>
+            <div className="flex items-center gap-1">
+              <button className="btn btn-sm" onClick={() => setCurrentPage(1)} disabled={safePage === 1}>«</button>
+              <button className="btn btn-sm" onClick={() => setCurrentPage(p => Math.max(1, p - 1))} disabled={safePage === 1}>‹</button>
+              {Array.from({ length: Math.min(5, lastPage) }, (_, i) => {
+                const start = Math.max(1, Math.min(safePage - 2, lastPage - 4))
+                const p = start + i
+                return (
+                  <button
+                    key={p}
+                    className={`btn btn-sm min-w-[2rem] ${p === safePage ? 'btn-primary' : ''}`}
+                    onClick={() => setCurrentPage(p)}
+                  >{p}</button>
+                )
+              })}
+              <button className="btn btn-sm" onClick={() => setCurrentPage(p => Math.min(lastPage, p + 1))} disabled={safePage === lastPage}>›</button>
+              <button className="btn btn-sm" onClick={() => setCurrentPage(lastPage)} disabled={safePage === lastPage}>»</button>
+            </div>
+          </div>
+        )}
       </div>
 
       {/* Modal Detail */}
@@ -948,6 +980,7 @@ function ModalEditNominal({
   const [searchTerm, setSearchTerm] = useState('')
   const [showSuggestions, setShowSuggestions] = useState(false)
   const [editedRows, setEditedRows] = useState<Record<string, number>>({})
+  const [isSubmitting, setIsSubmitting] = useState(false)
 
   // Filter santri untuk autocomplete
   const filteredSantri = searchTerm.length >= 2 
@@ -995,6 +1028,49 @@ function ModalEditNominal({
         [tagihanId]: numValue
       }))
     }
+  }
+
+  const handleSaveAll = async () => {
+    const entries = Object.entries(editedRows)
+    if (entries.length === 0) {
+      toast('Tidak ada perubahan untuk disimpan')
+      return
+    }
+
+    // Validasi: pastikan tidak ada yang sudah dibayar di list
+    const lockedEntries = entries.filter(([id]) => {
+      const tagihan = tagihanList.find((t: any) => String(t.id) === String(id))
+      return tagihan && Number(tagihan.dibayar || tagihan.jumlah_dibayar || 0) > 0
+    })
+    if (lockedEntries.length > 0) {
+      toast.error('Terdapat tagihan yang sudah dibayar, tidak dapat disimpan')
+      return
+    }
+
+    setIsSubmitting(true)
+    let successCount = 0
+    let failCount = 0
+
+    for (const [tagihanId, newNominal] of entries) {
+      try {
+        await updateTagihanSantri(tagihanId, { nominal: newNominal })
+        successCount++
+      } catch {
+        failCount++
+      }
+    }
+
+    setIsSubmitting(false)
+    setEditedRows({})
+
+    if (failCount === 0) {
+      toast.success(`${successCount} tagihan berhasil diperbarui`)
+    } else {
+      toast.error(`${successCount} berhasil, ${failCount} gagal`)
+    }
+
+    if (selectedSantri) loadTagihan(selectedSantri.santri_id)
+    onSuccess()
   }
 
   const handleSave = async (tagihanId: any, currentNominal: number, dibayar: number = 0) => {
@@ -1174,7 +1250,7 @@ function ModalEditNominal({
                     <th className="px-4 py-3 text-left font-semibold text-gray-600">Periode</th>
                     <th className="px-4 py-3 text-right font-semibold text-gray-600">Nominal Asli</th>
                     <th className="px-4 py-3 text-right font-semibold text-gray-600 w-48">Nominal Baru</th>
-                    <th className="px-4 py-3 text-center font-semibold text-gray-600 w-24">Aksi</th>
+
                   </tr>
                 </thead>
                 <tbody className="divide-y">
@@ -1234,6 +1310,7 @@ function ModalEditNominal({
                               type="text"
                               value={currentNominal}
                               onChange={(e) => handleNominalChange(tagihan.id, e.target.value)}
+                              onFocus={(e) => e.target.select()}
                               className={`w-full pl-8 pr-2 py-1.5 text-right border rounded focus:ring-2 focus:ring-blue-500 focus:outline-none transition-colors ${
                                 isEdited ? 'border-orange-500 bg-orange-50' : 'border-gray-300'
                               }`}
@@ -1245,17 +1322,7 @@ function ModalEditNominal({
                           </div>
                         )}
                       </td>
-                      <td className="px-4 py-3 text-center">
-                        {canEdit && isEdited && (
-                          <button
-                            onClick={() => handleSave(tagihan.id, tagihan.nominal, dibayar)}
-                            className="p-2 bg-green-600 text-white rounded-lg hover:bg-green-700 transition-colors shadow-sm"
-                            title="Simpan Perubahan"
-                          >
-                            <CheckCircle className="w-4 h-4" />
-                          </button>
-                        )}
-                      </td>
+
                     </tr>
                   )})}
                 </tbody>
@@ -1264,16 +1331,28 @@ function ModalEditNominal({
           )}
         </div>
 
-        <div className="p-6 border-t bg-gray-50 text-right">
-          <button
-            onClick={() => {
-              onClose()
-              onSuccess() // Refresh data ketika tutup
-            }}
-            className="px-6 py-2 bg-gray-600 text-white rounded-lg hover:bg-gray-700 font-medium transition-colors"
-          >
-            Selesai
-          </button>
+        <div className="p-4 border-t bg-gray-50 flex items-center justify-between gap-3">
+          <div className="text-sm text-gray-500">
+            {Object.keys(editedRows).length > 0 && (
+              <span className="text-orange-600 font-medium">{Object.keys(editedRows).length} tagihan diubah, belum disimpan</span>
+            )}
+          </div>
+          <div className="flex gap-2">
+            <button
+              onClick={() => { onClose(); onSuccess() }}
+              className="px-5 py-2 bg-gray-500 text-white rounded-lg hover:bg-gray-600 font-medium transition-colors"
+            >
+              Tutup
+            </button>
+            <button
+              onClick={handleSaveAll}
+              disabled={isSubmitting || Object.keys(editedRows).length === 0}
+              className="px-6 py-2 bg-green-600 text-white rounded-lg hover:bg-green-700 font-medium transition-colors disabled:opacity-50 disabled:cursor-not-allowed flex items-center gap-2"
+            >
+              <CheckCircle className="w-4 h-4" />
+              {isSubmitting ? 'Menyimpan...' : `Simpan Semua${Object.keys(editedRows).length > 0 ? ` (${Object.keys(editedRows).length})` : ''}`}
+            </button>
+          </div>
         </div>
       </div>
     </div>
