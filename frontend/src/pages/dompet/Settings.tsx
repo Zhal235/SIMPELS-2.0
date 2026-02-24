@@ -477,41 +477,81 @@ export default function Settings() {
                   </div>
                   <div>
                     <span className="font-medium">Siap Import:</span>
-                    <span className="ml-2 text-green-600">{previewData.success}</span>
+                    <span className="ml-2 text-green-600 font-semibold">{previewData.success}</span>
                   </div>
                   <div>
                     <span className="font-medium">Error:</span>
-                    <span className="ml-2 text-red-600">{previewData.errors}</span>
+                    <span className="ml-2 text-red-600 font-semibold">{previewData.errors}</span>
                   </div>
                 </div>
+                {previewData.errors > 0 && (
+                  <div className="mt-3 p-3 bg-red-50 border border-red-200 rounded-lg flex items-start gap-2">
+                    <AlertCircle size={16} className="text-red-500 mt-0.5 flex-shrink-0" />
+                    <p className="text-sm text-red-700">
+                      <strong>{previewData.errors} baris tidak dapat diimport</strong> karena terdapat error. 
+                      Lihat kolom <strong>Keterangan Error</strong> pada tabel di bawah untuk detail penyebabnya. 
+                      Baris yang error akan <strong>dilewati</strong> saat proses import.
+                    </p>
+                  </div>
+                )}
               </div>
 
               {previewData.details && previewData.details.length > 0 && (
-                <div className="max-h-64 overflow-y-auto">
-                  <Table 
-                    columns={[
-                      { key: 'row', header: 'Baris' },
-                      { key: 'status', header: 'Status', render: (v: any) => (
-                        <span className={`px-2 py-1 rounded text-xs ${
-                          v === 'ready' ? 'bg-green-100 text-green-800' : 
-                          v === 'error' ? 'bg-red-100 text-red-800' : 
-                          'bg-gray-100 text-gray-800'}`}>
-                          {v === 'ready' ? 'Siap' : v === 'error' ? 'Error' : v}
-                        </span>
-                      )},
-                      { key: 'nis', header: 'NIS' },
-                      { key: 'nama', header: 'Nama' },
-                      { key: 'saldo', header: 'Saldo' },
-                      { key: 'message', header: 'Pesan' }
-                    ]}
-                    data={previewData.details.slice(0, 20)} // Show first 20 rows
-                    getRowKey={(r) => r.row}
-                  />
-                  {previewData.details.length > 20 && (
-                    <p className="text-sm text-gray-500 mt-2 text-center">
-                      ... dan {previewData.details.length - 20} baris lainnya
+                <div>
+                  <div className="flex items-center justify-between mb-2">
+                    <p className="text-sm text-gray-600">
+                      Menampilkan semua <strong>{previewData.details.length}</strong> baris data
+                      {previewData.errors > 0 && (
+                        <span className="ml-2 text-red-600">({previewData.errors} error)</span>
+                      )}
                     </p>
-                  )}
+                  </div>
+                  <div className="max-h-80 overflow-y-auto border rounded-lg">
+                    <table className="w-full text-sm">
+                      <thead className="bg-gray-50 sticky top-0 z-10">
+                        <tr>
+                          <th className="px-3 py-2 text-left font-medium text-gray-600 border-b">Baris</th>
+                          <th className="px-3 py-2 text-left font-medium text-gray-600 border-b">Status</th>
+                          <th className="px-3 py-2 text-left font-medium text-gray-600 border-b">NIS</th>
+                          <th className="px-3 py-2 text-left font-medium text-gray-600 border-b">Nama</th>
+                          <th className="px-3 py-2 text-left font-medium text-gray-600 border-b">Saldo</th>
+                          <th className="px-3 py-2 text-left font-medium text-gray-600 border-b">Keterangan Error</th>
+                        </tr>
+                      </thead>
+                      <tbody>
+                        {previewData.details.map((r: any) => (
+                          <tr key={r.row} className={r.status === 'error' ? 'bg-red-50' : 'hover:bg-gray-50'}>
+                            <td className="px-3 py-2 border-b text-gray-600">{r.row}</td>
+                            <td className="px-3 py-2 border-b">
+                              <span className={`px-2 py-0.5 rounded text-xs font-medium ${
+                                r.status === 'ready' ? 'bg-green-100 text-green-800' :
+                                r.status === 'error' ? 'bg-red-100 text-red-800' :
+                                'bg-gray-100 text-gray-800'}`}>
+                                {r.status === 'ready' ? 'Siap' : r.status === 'error' ? 'Error' : r.status}
+                              </span>
+                            </td>
+                            <td className="px-3 py-2 border-b">{r.nis || '-'}</td>
+                            <td className="px-3 py-2 border-b">{r.nama || '-'}</td>
+                            <td className="px-3 py-2 border-b">
+                              {r.saldo !== undefined && r.saldo !== null && r.saldo !== ''
+                                ? `Rp ${parseFloat(String(r.saldo)).toLocaleString('id-ID')}`
+                                : '-'}
+                            </td>
+                            <td className="px-3 py-2 border-b">
+                              {r.status === 'error' ? (
+                                <span className="flex items-start gap-1 text-red-700">
+                                  <AlertCircle size={14} className="mt-0.5 flex-shrink-0" />
+                                  {r.message || 'Terjadi error tidak diketahui'}
+                                </span>
+                              ) : (
+                                <span className="text-green-600 text-xs">—</span>
+                              )}
+                            </td>
+                          </tr>
+                        ))}
+                      </tbody>
+                    </table>
+                  </div>
                 </div>
               )}
             </div>
@@ -520,10 +560,10 @@ export default function Settings() {
           {/* Import Results */}
           {importResults && (
             <div className="space-y-4">
-              <div className="bg-green-50 border border-green-200 rounded-lg p-4">
+              <div className={`border rounded-lg p-4 ${importResults.errors > 0 ? 'bg-yellow-50 border-yellow-200' : 'bg-green-50 border-green-200'}`}>
                 <div className="flex items-center gap-2 mb-2">
-                  <CheckCircle size={20} className="text-green-500" />
-                  <h4 className="font-medium text-green-800">Import Selesai</h4>
+                  <CheckCircle size={20} className={importResults.errors > 0 ? 'text-yellow-500' : 'text-green-500'} />
+                  <h4 className={`font-medium ${importResults.errors > 0 ? 'text-yellow-800' : 'text-green-800'}`}>Import Selesai</h4>
                 </div>
                 <div className="grid grid-cols-2 md:grid-cols-4 gap-4 text-sm">
                   <div>
@@ -532,35 +572,75 @@ export default function Settings() {
                   </div>
                   <div>
                     <span className="font-medium">Berhasil:</span>
-                    <span className="ml-2 text-green-600">{importResults.success}</span>
+                    <span className="ml-2 text-green-700 font-semibold">{importResults.success}</span>
                   </div>
                   <div>
                     <span className="font-medium">Gagal:</span>
-                    <span className="ml-2 text-red-600">{importResults.errors}</span>
+                    <span className="ml-2 text-red-600 font-semibold">{importResults.errors}</span>
                   </div>
                 </div>
+                {importResults.errors > 0 && (
+                  <div className="mt-3 p-3 bg-red-50 border border-red-200 rounded-lg flex items-start gap-2">
+                    <AlertCircle size={16} className="text-red-500 mt-0.5 flex-shrink-0" />
+                    <p className="text-sm text-red-700">
+                      <strong>{importResults.errors} baris gagal diimport.</strong> Lihat kolom <strong>Keterangan Error</strong> pada tabel di bawah untuk mengetahui penyebabnya.
+                    </p>
+                  </div>
+                )}
               </div>
 
               {importResults.details && importResults.details.length > 0 && (
-                <div className="max-h-64 overflow-y-auto">
-                  <Table 
-                    columns={[
-                      { key: 'row', header: 'Baris' },
-                      { key: 'status', header: 'Status', render: (v: any) => (
-                        <span className={`px-2 py-1 rounded text-xs ${
-                          v === 'success' ? 'bg-green-100 text-green-800' : 
-                          'bg-red-100 text-red-800'}`}>
-                          {v === 'success' ? 'Berhasil' : 'Gagal'}
-                        </span>
-                      )},
-                      { key: 'nis', header: 'NIS' },
-                      { key: 'nama', header: 'Nama' },
-                      { key: 'new_balance', header: 'Saldo Baru' },
-                      { key: 'message', header: 'Pesan' }
-                    ]}
-                    data={importResults.details}
-                    getRowKey={(r) => r.row}
-                  />
+                <div>
+                  <p className="text-sm text-gray-600 mb-2">
+                    Menampilkan semua <strong>{importResults.details.length}</strong> baris hasil import
+                    {importResults.errors > 0 && (
+                      <span className="ml-2 text-red-600">({importResults.errors} gagal)</span>
+                    )}
+                  </p>
+                  <div className="max-h-80 overflow-y-auto border rounded-lg">
+                    <table className="w-full text-sm">
+                      <thead className="bg-gray-50 sticky top-0 z-10">
+                        <tr>
+                          <th className="px-3 py-2 text-left font-medium text-gray-600 border-b">Baris</th>
+                          <th className="px-3 py-2 text-left font-medium text-gray-600 border-b">Status</th>
+                          <th className="px-3 py-2 text-left font-medium text-gray-600 border-b">NIS</th>
+                          <th className="px-3 py-2 text-left font-medium text-gray-600 border-b">Nama</th>
+                          <th className="px-3 py-2 text-left font-medium text-gray-600 border-b">Saldo Baru</th>
+                          <th className="px-3 py-2 text-left font-medium text-gray-600 border-b">Keterangan Error</th>
+                        </tr>
+                      </thead>
+                      <tbody>
+                        {importResults.details.map((r: any) => (
+                          <tr key={r.row} className={r.status !== 'success' ? 'bg-red-50' : 'hover:bg-gray-50'}>
+                            <td className="px-3 py-2 border-b text-gray-600">{r.row}</td>
+                            <td className="px-3 py-2 border-b">
+                              <span className={`px-2 py-0.5 rounded text-xs font-medium ${
+                                r.status === 'success' ? 'bg-green-100 text-green-800' : 'bg-red-100 text-red-800'}`}>
+                                {r.status === 'success' ? 'Berhasil' : 'Gagal'}
+                              </span>
+                            </td>
+                            <td className="px-3 py-2 border-b">{r.nis || '-'}</td>
+                            <td className="px-3 py-2 border-b">{r.nama || '-'}</td>
+                            <td className="px-3 py-2 border-b">
+                              {r.new_balance !== undefined && r.new_balance !== null
+                                ? `Rp ${parseFloat(String(r.new_balance)).toLocaleString('id-ID')}`
+                                : '-'}
+                            </td>
+                            <td className="px-3 py-2 border-b">
+                              {r.status !== 'success' ? (
+                                <span className="flex items-start gap-1 text-red-700">
+                                  <AlertCircle size={14} className="mt-0.5 flex-shrink-0" />
+                                  {r.message || 'Terjadi error tidak diketahui'}
+                                </span>
+                              ) : (
+                                <span className="text-green-600 text-xs">—</span>
+                              )}
+                            </td>
+                          </tr>
+                        ))}
+                      </tbody>
+                    </table>
+                  </div>
                 </div>
               )}
             </div>
