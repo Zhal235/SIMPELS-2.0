@@ -1508,7 +1508,7 @@ class WalletController extends Controller
                 'balance_after' => $saldo,
                 'description' => "Initial balance migration from Excel (Row {$rowNumber})",
                 'reference' => $reference,
-                'method' => 'migration',
+                'method' => 'cash',
                 'created_by' => auth()->id()
             ]);
 
