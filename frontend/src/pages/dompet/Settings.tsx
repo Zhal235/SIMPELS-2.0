@@ -134,7 +134,11 @@ export default function Settings() {
       toast.success('Template berhasil didownload')
     } catch (err: any) {
       console.error(err)
-      toast.error(err?.response?.data?.message || 'Gagal download template')
+      if (err?.response?.status === 404) {
+        toast.error('Endpoint belum tersedia. Silakan clear cache di server atau hubungi admin.')
+      } else {
+        toast.error(err?.response?.data?.message || 'Gagal download template')
+      }
     } finally {
       setDownloading(false)
     }
