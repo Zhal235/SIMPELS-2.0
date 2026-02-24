@@ -3,6 +3,8 @@ import Card from '../../components/Card'
 import Table from '../../components/Table'
 import Modal from '../../components/Modal'
 import { getWalletSettings, updateGlobalMinBalance, getAllSantriWithLimits, setSantriDailyLimit, bulkUpdateSantriLimits } from '../../api/walletSettings'
+import { importWalletExcel, downloadWalletTemplate } from '../../api/wallet'
+import { Upload, FileText, CheckCircle, AlertCircle, Download } from 'lucide-react'
 import toast from 'react-hot-toast'
 
 export default function Settings() {
@@ -14,6 +16,19 @@ export default function Settings() {
   const [editingValue, setEditingValue] = useState<number | ''>('')
   const [loading, setLoading] = useState(true)
   const [showEditGlobal, setShowEditGlobal] = useState(false)
+
+  // Pagination states
+  const [currentPage, setCurrentPage] = useState(1)
+  const [itemsPerPage] = useState(20)
+
+  // Import Excel states
+  const [showImportModal, setShowImportModal] = useState(false)
+  const [showConfirmImport, setShowConfirmImport] = useState(false)
+  const [selectedFile, setSelectedFile] = useState<File | null>(null)
+  const [importing, setImporting] = useState(false)
+  const [downloading, setDownloading] = useState(false)
+  const [previewData, setPreviewData] = useState<any>(null)
+  const [importResults, setImportResults] = useState<any>(null)
 
   useEffect(() => { load() }, [])
 
@@ -46,6 +61,91 @@ export default function Settings() {
       console.error(err)
       toast.error(err?.response?.data?.message || 'Gagal memperbarui saldo minimal')
     }
+  }
+
+  // Import Excel functions
+  function handleFileSelect(event: React.ChangeEvent<HTMLInputElement>) {
+    const file = event.target.files?.[0]
+    if (file) {
+      if (!file.name.match(/\.(xlsx|xls)$/)) {
+        toast.error('File harus format Excel (.xlsx atau .xls)')
+        return
+      }
+      if (file.size > 10 * 1024 * 1024) {
+        toast.error('File terlalu besar (maksimal 10MB)')
+        return
+      }
+      setSelectedFile(file)
+      setPreviewData(null)
+      setImportResults(null)
+    }
+  }
+
+  async function handlePreviewImport() {
+    if (!selectedFile) return
+    
+    setImporting(true)
+    try {
+      const res = await importWalletExcel(selectedFile, 'preview')
+      if (res.success) {
+        setPreviewData(res.data)
+        toast.success(`Preview berhasil: ${res.data.total_rows} baris data`)
+      } else {
+        toast.error(res.message || 'Gagal preview data')
+      }
+    } catch (err: any) {
+      console.error(err)
+      toast.error(err?.response?.data?.message || 'Gagal preview data')
+    } finally {
+      setImporting(false)
+    }
+  }
+
+  async function handleExecuteImport() {
+    if (!selectedFile || !previewData) return
+
+    setShowConfirmImport(false)
+    
+    setImporting(true)
+    try {
+      const res = await importWalletExcel(selectedFile, 'execute')
+      if (res.success) {
+        setImportResults(res.data)
+        setPreviewData(null)
+        toast.success(`Import selesai: ${res.data.success} berhasil, ${res.data.errors} gagal`)
+        
+        // Refresh data after import
+        load()
+      } else {
+        toast.error(res.message || 'Gagal import data')
+      }
+    } catch (err: any) {
+      console.error(err)
+      toast.error(err?.response?.data?.message || 'Gagal import data')
+    } finally {
+      setImporting(false)
+    }
+  }
+
+  async function handleDownloadTemplate() {
+    setDownloading(true)
+    try {
+      await downloadWalletTemplate()
+      toast.success('Template berhasil didownload')
+    } catch (err: any) {
+      console.error(err)
+      toast.error(err?.response?.data?.message || 'Gagal download template')
+    } finally {
+      setDownloading(false)
+    }
+  }
+
+  function resetImport() {
+    setSelectedFile(null)
+    setPreviewData(null)
+    setImportResults(null)
+    setShowImportModal(false)
+    setShowConfirmImport(false)
   }
 
   async function handleSaveSingle() {
@@ -81,6 +181,21 @@ export default function Settings() {
       console.error(err)
       toast.error(err?.response?.data?.message || 'Gagal menetapkan limit default')
     }
+  }
+
+  // Pagination logic
+  const filteredSantriLimits = santriLimits.filter(s => {
+    if (!searchQ || searchQ.trim().length < 2) return true
+    const q = searchQ.toLowerCase()
+    return String(s.nama_santri).toLowerCase().includes(q) || String(s.nis).toLowerCase().includes(q)
+  })
+  
+  const totalPages = Math.ceil(filteredSantriLimits.length / itemsPerPage)
+  const startIndex = (currentPage - 1) * itemsPerPage
+  const paginatedSantriLimits = filteredSantriLimits.slice(startIndex, startIndex + itemsPerPage)
+  
+  const goToPage = (page: number) => {
+    setCurrentPage(Math.max(1, Math.min(page, totalPages)))
   }
 
   const limitsColumns = [
@@ -123,56 +238,131 @@ export default function Settings() {
 
           {/* Per-Santri Limits Section */}
           <div>
-            <div className="flex items-center justify-between mb-3">
+            <div className="flex flex-col sm:flex-row sm:items-center sm:justify-between mb-3 gap-2">
               <div>
                 <h3 className="text-lg font-semibold">Limit Transaksi per Santri</h3>
                 <p className="text-sm text-gray-500">Limit harian read-only — gunakan kolom Aksi untuk mengubah nilai per santri</p>
               </div>
-                <div className="ml-4">
-                  <input placeholder="Cari santri (nama/NIS)" value={searchQ} onChange={(e) => setSearchQ(e.target.value)} className="rounded border px-3 py-2" />
-                </div>
+              <div className="flex items-center gap-3">
+                <input 
+                  placeholder="Cari santri (nama/NIS)" 
+                  value={searchQ} 
+                  onChange={(e) => { setSearchQ(e.target.value); setCurrentPage(1) }} 
+                  className="rounded border px-3 py-2" 
+                />
+                <button
+                  className="btn btn-primary text-sm"
+                  onClick={handleSetDefaultAll}
+                >
+                  Set Default Semua
+                </button>
+              </div>
             </div>
 
             <Card>
               {santriLimits.length === 0 ? (
                 <div className="p-6 text-center text-gray-500">Belum ada santri aktif</div>
               ) : (
-                <Table
-                  columns={limitsColumns}
-                  data={santriLimits.filter(s => {
-                  if (!searchQ || searchQ.trim().length < 2) return true
-                  const q = searchQ.toLowerCase()
-                  return String(s.nama_santri).toLowerCase().includes(q) || String(s.nis).toLowerCase().includes(q)
-                })}
-                  getRowKey={(r) => r.id}
-                  renderExpandedRow={(row:any) => (
-                    editingSantri?.id === row.id ? (
-                      <div className="p-3">
-                        <div className="grid md:grid-cols-3 gap-4 items-end">
-                          <div>
-                            <label className="block text-sm font-medium">NIS</label>
-                            <input disabled value={row.nis} className="rounded border px-3 py-2 w-full bg-gray-100" />
-                          </div>
-                          <div>
-                            <label className="block text-sm font-medium">Nama Santri</label>
-                            <input disabled value={row.nama_santri} className="rounded border px-3 py-2 w-full bg-gray-100" />
-                          </div>
-                          <div>
-                            <label className="block text-sm font-medium">Limit Harian (Rp)</label>
-                            <input type="number" value={editingValue as any} onChange={(e) => setEditingValue(e.target.value ? parseFloat(e.target.value) : '')} className="rounded border px-3 py-2 w-full" />
-                          </div>
-                          <div className="md:col-span-3 flex justify-end gap-2">
-                            <button className="btn" onClick={() => { setEditingSantri(null); setEditingValue('') }}>Batal</button>
-                            <button className="btn btn-primary" onClick={handleSaveSingle}>Simpan</button>
+                <>
+                  <Table
+                    columns={limitsColumns}
+                    data={paginatedSantriLimits}
+                    getRowKey={(r) => r.id}
+                    renderExpandedRow={(row:any) => (
+                      editingSantri?.id === row.id ? (
+                        <div className="p-3">
+                          <div className="grid md:grid-cols-3 gap-4 items-end">
+                            <div>
+                              <label className="block text-sm font-medium">NIS</label>
+                              <input disabled value={row.nis} className="rounded border px-3 py-2 w-full bg-gray-100" />
+                            </div>
+                            <div>
+                              <label className="block text-sm font-medium">Nama Santri</label>
+                              <input disabled value={row.nama_santri} className="rounded border px-3 py-2 w-full bg-gray-100" />
+                            </div>
+                            <div>
+                              <label className="block text-sm font-medium">Limit Harian (Rp)</label>
+                              <input type="number" value={editingValue as any} onChange={(e) => setEditingValue(e.target.value ? parseFloat(e.target.value) : '')} className="rounded border px-3 py-2 w-full" />
+                            </div>
+                            <div className="md:col-span-3 flex justify-end gap-2">
+                              <button className="btn" onClick={() => { setEditingSantri(null); setEditingValue('') }}>Batal</button>
+                              <button className="btn btn-primary" onClick={handleSaveSingle}>Simpan</button>
+                            </div>
                           </div>
                         </div>
+                      ) : null
+                    )}
+                  />
+                  
+                  {/* Pagination */}
+                  {totalPages > 1 && (
+                    <div className="flex items-center justify-between mt-4 p-4 border-t">
+                      <div className="text-sm text-gray-500">
+                        Menampilkan {startIndex + 1} - {Math.min(startIndex + itemsPerPage, filteredSantriLimits.length)} dari {filteredSantriLimits.length} santri
                       </div>
-                    ) : null
+                      <div className="flex items-center gap-2">
+                        <button 
+                          className="btn btn-sm" 
+                          onClick={() => goToPage(currentPage - 1)}
+                          disabled={currentPage === 1}
+                        >
+                          Previous
+                        </button>
+                        <span className="text-sm text-gray-600">
+                          Halaman {currentPage} dari {totalPages}
+                        </span>
+                        <button 
+                          className="btn btn-sm" 
+                          onClick={() => goToPage(currentPage + 1)}
+                          disabled={currentPage === totalPages}
+                        >
+                          Next
+                        </button>
+                      </div>
+                    </div>
                   )}
-                />
+                </>
               )}
             </Card>
           </div>
+
+          {/* Import Excel Section */}
+          <Card className="border-2 border-green-200 bg-green-50">
+            <div className="flex flex-col sm:flex-row sm:items-center sm:justify-between mb-4 gap-3">
+              <div>
+                <h3 className="text-lg font-semibold text-green-800">🔄 Import Saldo dari Excel</h3>
+                <p className="text-sm text-green-700">Import data saldo awal santri dari file Excel dengan mudah dan aman</p>
+              </div>
+              <div className="flex gap-2">
+                <button 
+                  className="btn flex items-center gap-2 bg-blue-600 text-white hover:bg-blue-700"
+                  onClick={handleDownloadTemplate}
+                  disabled={downloading}
+                >
+                  <Download size={16} />
+                  {downloading ? 'Download...' : 'Template Excel'}
+                </button>
+                <button 
+                  className="btn btn-success flex items-center gap-2 text-lg px-6"
+                  onClick={() => setShowImportModal(true)}
+                >
+                  <Upload size={18} />
+                  Import Excel
+                </button>
+              </div>
+            </div>
+            
+            <div className="bg-blue-50 border border-blue-200 rounded-lg p-4">
+              <h4 className="font-medium text-blue-800 mb-2">📋 Langkah-langkah Import:</h4>
+              <div className="text-sm text-blue-700 space-y-1">
+                <p><strong>1.</strong> Download template Excel dengan data santri terdaftar</p>
+                <p><strong>2.</strong> Isi kolom SALDO sesuai kebutuhan (angka saja, contoh: 50000)</p>
+                <p><strong>3.</strong> Upload file Excel dan preview hasilnya</p>
+                <p><strong>4.</strong> Jika sudah benar, lakukan import data</p>
+                <p className="mt-2 font-medium text-blue-800">⚠️ Catatan: Jangan ubah kolom NIS agar sistem dapat mengenali santri</p>
+              </div>
+            </div>
+          </Card>
         </>
       )}
 
@@ -199,6 +389,254 @@ export default function Settings() {
             className="rounded-md border px-3 py-2 w-full"
           />
           <p className="text-xs text-gray-500">Masukkan jumlah minimal saldo dalam Rupiah</p>
+        </div>
+      </Modal>
+
+      {/* Import Excel Modal */}
+      <Modal 
+        open={showImportModal} 
+        title="Import Saldo dari Excel" 
+        onClose={resetImport}
+        footer={(
+          <div className="flex justify-between w-full">
+            <button className="btn" onClick={resetImport}>Tutup</button>
+            <div className="flex gap-2">
+              {selectedFile && !previewData && (
+                <button 
+                  className="btn btn-primary flex items-center gap-2"
+                  onClick={handlePreviewImport}
+                  disabled={importing}
+                >
+                  {importing ? 'Preview...' : 'Preview Data'}
+                </button>
+              )}
+              {previewData && (
+                <button 
+                  className="btn btn-success flex items-center gap-2"
+                  onClick={() => setShowConfirmImport(true)}
+                  disabled={importing}
+                >
+                  <CheckCircle size={16} />
+                  Import {previewData.total_rows} Data
+                </button>
+              )}
+            </div>
+          </div>
+        )}
+      >
+        <div className="space-y-4">
+          {/* File Upload */}
+          {!selectedFile && (
+            <div className="border-2 border-dashed border-gray-300 rounded-lg p-8 text-center">
+              <FileText size={48} className="mx-auto text-gray-400 mb-4" />
+              <div className="space-y-2">
+                <p className="text-lg font-medium">Pilih file Excel</p>
+                <p className="text-sm text-gray-500">Format: .xlsx atau .xls, maksimal 10MB</p>
+                <input 
+                  type="file" 
+                  accept=".xlsx,.xls" 
+                  onChange={handleFileSelect}
+                  className="mt-4"
+                />
+              </div>
+            </div>
+          )}
+
+          {/* File Selected */}
+          {selectedFile && (
+            <div className="bg-gray-50 border rounded-lg p-4">
+              <div className="flex items-center gap-3">
+                <FileText size={24} className="text-blue-500" />
+                <div>
+                  <p className="font-medium">{selectedFile.name}</p>
+                  <p className="text-sm text-gray-500">{(selectedFile.size / 1024 / 1024).toFixed(2)} MB</p>
+                </div>
+                <button 
+                  className="ml-auto text-red-500 hover:text-red-700"
+                  onClick={() => setSelectedFile(null)}
+                >
+                  Hapus
+                </button>
+              </div>
+            </div>
+          )}
+
+          {/* Preview Results */}
+          {previewData && (
+            <div className="space-y-4">
+              <div className="bg-blue-50 border border-blue-200 rounded-lg p-4">
+                <h4 className="font-medium text-blue-800 mb-2">Preview Data</h4>
+                <div className="grid grid-cols-2 md:grid-cols-4 gap-4 text-sm">
+                  <div>
+                    <span className="font-medium">Total Baris:</span>
+                    <span className="ml-2">{previewData.total_rows}</span>
+                  </div>
+                  <div>
+                    <span className="font-medium">Siap Import:</span>
+                    <span className="ml-2 text-green-600">{previewData.success}</span>
+                  </div>
+                  <div>
+                    <span className="font-medium">Error:</span>
+                    <span className="ml-2 text-red-600">{previewData.errors}</span>
+                  </div>
+                </div>
+              </div>
+
+              {previewData.details && previewData.details.length > 0 && (
+                <div className="max-h-64 overflow-y-auto">
+                  <Table 
+                    columns={[
+                      { key: 'row', header: 'Baris' },
+                      { key: 'status', header: 'Status', render: (v: any) => (
+                        <span className={`px-2 py-1 rounded text-xs ${
+                          v === 'ready' ? 'bg-green-100 text-green-800' : 
+                          v === 'error' ? 'bg-red-100 text-red-800' : 
+                          'bg-gray-100 text-gray-800'}`}>
+                          {v === 'ready' ? 'Siap' : v === 'error' ? 'Error' : v}
+                        </span>
+                      )},
+                      { key: 'nis', header: 'NIS' },
+                      { key: 'nama', header: 'Nama' },
+                      { key: 'saldo', header: 'Saldo' },
+                      { key: 'message', header: 'Pesan' }
+                    ]}
+                    data={previewData.details.slice(0, 20)} // Show first 20 rows
+                    getRowKey={(r) => r.row}
+                  />
+                  {previewData.details.length > 20 && (
+                    <p className="text-sm text-gray-500 mt-2 text-center">
+                      ... dan {previewData.details.length - 20} baris lainnya
+                    </p>
+                  )}
+                </div>
+              )}
+            </div>
+          )}
+
+          {/* Import Results */}
+          {importResults && (
+            <div className="space-y-4">
+              <div className="bg-green-50 border border-green-200 rounded-lg p-4">
+                <div className="flex items-center gap-2 mb-2">
+                  <CheckCircle size={20} className="text-green-500" />
+                  <h4 className="font-medium text-green-800">Import Selesai</h4>
+                </div>
+                <div className="grid grid-cols-2 md:grid-cols-4 gap-4 text-sm">
+                  <div>
+                    <span className="font-medium">Total:</span>
+                    <span className="ml-2">{importResults.total_rows}</span>
+                  </div>
+                  <div>
+                    <span className="font-medium">Berhasil:</span>
+                    <span className="ml-2 text-green-600">{importResults.success}</span>
+                  </div>
+                  <div>
+                    <span className="font-medium">Gagal:</span>
+                    <span className="ml-2 text-red-600">{importResults.errors}</span>
+                  </div>
+                </div>
+              </div>
+
+              {importResults.details && importResults.details.length > 0 && (
+                <div className="max-h-64 overflow-y-auto">
+                  <Table 
+                    columns={[
+                      { key: 'row', header: 'Baris' },
+                      { key: 'status', header: 'Status', render: (v: any) => (
+                        <span className={`px-2 py-1 rounded text-xs ${
+                          v === 'success' ? 'bg-green-100 text-green-800' : 
+                          'bg-red-100 text-red-800'}`}>
+                          {v === 'success' ? 'Berhasil' : 'Gagal'}
+                        </span>
+                      )},
+                      { key: 'nis', header: 'NIS' },
+                      { key: 'nama', header: 'Nama' },
+                      { key: 'new_balance', header: 'Saldo Baru' },
+                      { key: 'message', header: 'Pesan' }
+                    ]}
+                    data={importResults.details}
+                    getRowKey={(r) => r.row}
+                  />
+                </div>
+              )}
+            </div>
+          )}
+        </div>
+      </Modal>
+
+      {/* Confirmation Modal */}
+      <Modal 
+        open={showConfirmImport} 
+        title="⚠️ Konfirmasi Import Data"
+        onClose={() => setShowConfirmImport(false)}
+        footer={(
+          <div className="flex justify-end gap-2">
+            <button 
+              className="btn" 
+              onClick={() => setShowConfirmImport(false)}
+              disabled={importing}
+            >
+              Batal
+            </button>
+            <button 
+              className="btn bg-red-600 text-white hover:bg-red-700 flex items-center gap-2" 
+              onClick={handleExecuteImport}
+              disabled={importing}
+            >
+              {importing ? (
+                <>
+                  <div className="animate-spin rounded-full h-4 w-4 border-2 border-white border-t-transparent"></div>
+                  Import...
+                </>
+              ) : (
+                <>
+                  <CheckCircle size={16} />
+                  Ya, Import Sekarang
+                </>
+              )}
+            </button>
+          </div>
+        )}
+      >
+        <div className="space-y-4">
+          <div className="bg-yellow-50 border border-yellow-200 rounded-lg p-4">
+            <div className="flex items-start gap-3">
+              <AlertCircle size={24} className="text-yellow-600 mt-1 flex-shrink-0" />
+              <div>
+                <h4 className="font-medium text-yellow-800 mb-2">Peringatan Penting!</h4>
+                <div className="text-sm text-yellow-700 space-y-1">
+                  <p>• Proses import akan <strong>menggantikan saldo saat ini</strong> dengan data dari Excel</p>
+                  <p>• Proses ini <strong>tidak dapat dibatalkan</strong> setelah dijalankan</p>
+                  <p>• Pastikan data di Excel sudah benar sebelum melanjutkan</p>
+                </div>
+              </div>
+            </div>
+          </div>
+
+          {previewData && (
+            <div className="bg-blue-50 border border-blue-200 rounded-lg p-4">
+              <h4 className="font-medium text-blue-800 mb-2">Data yang akan diimport:</h4>
+              <div className="grid grid-cols-2 gap-4 text-sm">
+                <div>
+                  <span className="font-medium">Total data:</span>
+                  <span className="ml-2">{previewData.total_rows}</span>
+                </div>
+                <div>
+                  <span className="font-medium">Siap import:</span>
+                  <span className="ml-2 text-green-600">{previewData.success}</span>
+                </div>
+              </div>
+              {previewData.errors > 0 && (
+                <p className="text-sm text-red-600 mt-2">
+                  ⚠️ {previewData.errors} data akan diabaikan karena error
+                </p>
+              )}
+            </div>
+          )}
+
+          <div className="text-sm text-gray-600">
+            Yakin ingin melanjutkan proses import? 
+          </div>
         </div>
       </Modal>
       

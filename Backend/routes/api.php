@@ -169,6 +169,10 @@ Route::middleware('auth:sanctum')->group(function () {
             Route::put('settings/santri/bulk', [WalletSettingsController::class, 'bulkUpdateSantriLimits']);
             Route::put('settings/santri/{santriId}', [WalletSettingsController::class, 'setSantriLimit']);
             Route::delete('settings/santri/{santriId}', [WalletSettingsController::class, 'deleteSantriLimit']);
+            
+            // Excel Import & Template untuk saldo wallet
+            Route::post('import-excel', [WalletController::class, 'importExcel']);
+            Route::get('download-template', [WalletController::class, 'downloadTemplate']);
         });
 
         // RFID mapping

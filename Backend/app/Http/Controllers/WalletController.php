@@ -10,6 +10,10 @@ use App\Models\Wallet;
 use App\Models\WalletTransaction;
 use App\Models\Santri;
 use App\Models\EposPool;
+use PhpOffice\PhpSpreadsheet\IOFactory;
+use PhpOffice\PhpSpreadsheet\Spreadsheet;
+use PhpOffice\PhpSpreadsheet\Writer\Xlsx;
+use Illuminate\Support\Facades\Storage;
 
 class WalletController extends Controller
 {
@@ -1126,5 +1130,405 @@ class WalletController extends Controller
             'timestamp' => now()->timezone('Asia/Jakarta')->toDateTimeString(),
             'version' => '2.0'
         ]);
+    }
+
+    /**
+     * Import wallet balances from Excel file
+     * POST /api/v1/wallets/import-excel
+     */
+    public function importExcel(Request $request)
+    {
+        $validator = Validator::make($request->all(), [
+            'file' => 'required|file|mimes:xlsx,xls|max:10240', // Max 10MB
+            'mode' => 'required|in:preview,execute'
+        ]);
+
+        if ($validator->fails()) {
+            return response()->json([
+                'success' => false, 
+                'message' => 'Validation error', 
+                'errors' => $validator->errors()
+            ], 422);
+        }
+
+        try {
+            $file = $request->file('file');
+            $mode = $request->input('mode', 'preview');
+            
+            // Ensure directory exists
+            $importDir = storage_path('app/imports/wallets');
+            if (!is_dir($importDir)) {
+                mkdir($importDir, 0755, true);
+            }
+            
+            // Save uploaded file temporarily with better handling
+            $fileName = 'wallet-import-' . now()->format('Y-m-d-H-i-s') . '.' . $file->getClientOriginalExtension();
+            
+            // Use move instead of storeAs for better reliability
+            $fullPath = $importDir . '/' . $fileName;
+            
+            if (!$file->move($importDir, $fileName)) {
+                throw new \Exception("Failed to upload file to: $fullPath");
+            }
+
+            // Verify file exists and is readable
+            if (!file_exists($fullPath) || !is_readable($fullPath)) {
+                throw new \Exception("File was not saved properly or is not readable: $fullPath");
+            }
+
+            // Read Excel file
+            $spreadsheet = IOFactory::load($fullPath);
+            $worksheet = $spreadsheet->getActiveSheet();
+            $data = $worksheet->toArray();
+
+            // Remove header row if exists
+            if (count($data) > 0 && $this->isHeaderRow($data[0])) {
+                array_shift($data);
+            }
+
+            // Process data
+            $results = $this->processExcelData($data, $mode);
+
+            // Clean up temporary file
+            if (file_exists($fullPath)) {
+                unlink($fullPath);
+            }
+
+            return response()->json([
+                'success' => true,
+                'mode' => $mode,
+                'data' => $results
+            ]);
+
+        } catch (\Exception $e) {
+            \Log::error('Excel import error: ' . $e->getMessage() . ' in file: ' . ($e->getFile() ?? 'unknown') . ' at line: ' . ($e->getLine() ?? 'unknown'));
+            return response()->json([
+                'success' => false,
+                'message' => 'Failed to process Excel file',
+                'error' => $e->getMessage()
+            ], 500);
+        }
+    }
+
+    /**
+     * Download Excel template with santri data
+     * GET /api/v1/wallets/download-template
+     */
+    public function downloadTemplate()
+    {
+        try {
+            // Get all active santri
+            $santriList = Santri::orderBy('nis')->get();
+
+            // Create new spreadsheet
+            $spreadsheet = new Spreadsheet();
+            $worksheet = $spreadsheet->getActiveSheet();
+
+            // Set headers
+            $worksheet->setCellValue('A1', 'NIS');
+            $worksheet->setCellValue('B1', 'NAMA_SANTRI');
+            $worksheet->setCellValue('C1', 'KELAS');
+            $worksheet->setCellValue('D1', 'SALDO');
+
+            // Style headers
+            $headerRange = 'A1:D1';
+            $worksheet->getStyle($headerRange)->getFont()->setBold(true);
+            $worksheet->getStyle($headerRange)->getFill()
+                ->setFillType(\PhpOffice\PhpSpreadsheet\Style\Fill::FILL_SOLID)
+                ->getStartColor()->setARGB('FFD9EDF7');
+
+            // Add santri data
+            $row = 2;
+            foreach ($santriList as $santri) {
+                $worksheet->setCellValue('A' . $row, $santri->nis);
+                $worksheet->setCellValue('B' . $row, $santri->nama_santri);
+                $worksheet->setCellValue('C' . $row, $santri->kelas_nama ?? 'N/A');
+                $worksheet->setCellValue('D' . $row, 0); // Default saldo 0
+                $row++;
+            }
+
+            // Auto-size columns
+            foreach (range('A', 'D') as $col) {
+                $worksheet->getColumnDimension($col)->setAutoSize(true);
+            }
+
+            // Add instructions in a separate sheet
+            $instructionSheet = $spreadsheet->createSheet();
+            $instructionSheet->setTitle('Petunjuk');
+            
+            $instructions = [
+                'PETUNJUK PENGGUNAAN TEMPLATE IMPORT SALDO DOMPET',
+                '',
+                '1. Sheet "Sheet" berisi data santri yang terdaftar di sistem',
+                '2. Kolom yang tersedia:',
+                '   - NIS: Nomor Induk Santri (WAJIB, jangan diubah)',
+                '   - NAMA_SANTRI: Nama lengkap santri (referensi saja)',
+                '   - KELAS: Kelas santri (referensi saja)',
+                '   - SALDO: Isi dengan nominal saldo awal (WAJIB)',
+                '',
+                '3. Cara mengisi:',
+                '   - Hanya ubah kolom SALDO sesuai kebutuhan',
+                '   - Isi dengan angka saja, tanpa format (contoh: 50000)',
+                '   - Jangan hapus atau ubah data NIS',
+                '   - Jangan hapus header (baris pertama)',
+                '',
+                '4. Simpan file dalam format Excel (.xlsx)',
+                '5. Upload file di halaman Pengaturan Dompet > Import Excel',
+                '',
+                'PERHATIAN:',
+                '- Pastikan NIS tidak diubah agar sistem dapat mengenali santri',
+                '- Saldo yang diimport akan menggantikan saldo saat ini',
+                '- Lakukan preview terlebih dahulu sebelum import'
+            ];
+
+            $instrRow = 1;
+            foreach ($instructions as $instruction) {
+                $instructionSheet->setCellValue('A' . $instrRow, $instruction);
+                if ($instrRow === 1) {
+                    $instructionSheet->getStyle('A' . $instrRow)->getFont()->setBold(true);
+                }
+                $instrRow++;
+            }
+            $instructionSheet->getColumnDimension('A')->setWidth(80);
+
+            // Set active sheet back to data sheet
+            $spreadsheet->setActiveSheetIndex(0);
+
+            // Generate filename
+            $filename = 'template_import_saldo_' . now()->format('Y-m-d_H-i-s') . '.xlsx';
+
+            // Save to temp file
+            $tempPath = storage_path('app/temp/' . $filename);
+            if (!is_dir(dirname($tempPath))) {
+                mkdir(dirname($tempPath), 0755, true);
+            }
+
+            $writer = new Xlsx($spreadsheet);
+            $writer->save($tempPath);
+
+            return response()->download($tempPath, $filename, [
+                'Content-Type' => 'application/vnd.openxmlformats-officedocument.spreadsheetml.sheet',
+            ])->deleteFileAfterSend(true);
+
+        } catch (\Exception $e) {
+            \Log::error('Template download error: ' . $e->getMessage());
+            return response()->json([
+                'success' => false,
+                'message' => 'Failed to generate template',
+                'error' => $e->getMessage()
+            ], 500);
+        }
+    }
+
+    /**
+     * Check if first row is header row
+     */
+    private function isHeaderRow($row)
+    {
+        if (!is_array($row) || count($row) < 4) return false;
+        
+        $firstCell = strtoupper(trim($row[0] ?? ''));
+        return in_array($firstCell, ['NIS', 'NO', 'NOMOR']);
+    }
+
+    /**
+     * Process Excel data for import
+     */
+    private function processExcelData($data, $mode)
+    {
+        $results = [
+            'total_rows' => count($data),
+            'processed' => 0,
+            'success' => 0,
+            'errors' => 0,
+            'details' => []
+        ];
+
+        if ($mode === 'execute') {
+            DB::beginTransaction();
+        }
+
+        try {
+            foreach ($data as $rowIndex => $row) {
+                $rowNumber = $rowIndex + 2; // +2 because of 0-based index and potential header
+                $results['processed']++;
+
+                // Validate row structure
+                if (!is_array($row) || count($row) < 4) {
+                    $results['errors']++;
+                    $results['details'][] = [
+                        'row' => $rowNumber,
+                        'status' => 'error',
+                        'message' => 'Invalid row structure (need 4 columns: NIS, NAMA, KELAS, SALDO)'
+                    ];
+                    continue;
+                }
+
+                $nis = trim($row[0] ?? '');
+                $nama = trim($row[1] ?? '');
+                $kelas = trim($row[2] ?? '');
+                $saldo = $this->parseSaldoAmount($row[3] ?? '');
+
+                // Validate data
+                $validation = $this->validateImportRow($nis, $nama, $kelas, $saldo, $rowNumber);
+                if (!$validation['valid']) {
+                    $results['errors']++;
+                    $results['details'][] = $validation;
+                    continue;
+                }
+
+                $santri = $validation['santri'];
+
+                if ($mode === 'preview') {
+                    // Preview mode - just validate without executing
+                    $results['success']++;
+                    $results['details'][] = [
+                        'row' => $rowNumber,
+                        'status' => 'ready',
+                        'nis' => $nis,
+                        'nama' => $santri->nama_santri,
+                        'kelas' => $santri->kelas_nama,
+                        'saldo' => number_format($saldo, 0, ',', '.'),
+                        'message' => "Will import Rp " . number_format($saldo, 0, ',', '.')
+                    ];
+                } else {
+                    // Execute mode - actually import the data
+                    $importResult = $this->executeWalletImport($santri, $saldo, $rowNumber);
+                    if ($importResult['status'] === 'success') {
+                        $results['success']++;
+                    } else {
+                        $results['errors']++;
+                    }
+                    $results['details'][] = $importResult;
+                }
+            }
+
+            if ($mode === 'execute') {
+                DB::commit();
+            }
+
+        } catch (\Exception $e) {
+            if ($mode === 'execute') {
+                DB::rollBack();
+            }
+            throw $e;
+        }
+
+        return $results;
+    }
+
+    /**
+     * Parse saldo amount from various formats
+     */
+    private function parseSaldoAmount($saldo)
+    {
+        if (is_numeric($saldo)) {
+            return floatval($saldo);
+        }
+
+        // Remove common formatting
+        $cleaned = preg_replace('/[^\d,.]/', '', $saldo);
+        $cleaned = str_replace(',', '', $cleaned);
+        
+        return floatval($cleaned);
+    }
+
+    /**
+     * Validate import row data
+     */
+    private function validateImportRow($nis, $nama, $kelas, $saldo, $rowNumber)
+    {
+        // Check if NIS is provided
+        if (empty($nis)) {
+            return [
+                'valid' => false,
+                'row' => $rowNumber,
+                'status' => 'error',
+                'message' => 'NIS is required'
+            ];
+        }
+
+        // Check if saldo is valid
+        if (!is_numeric($saldo) || $saldo < 0) {
+            return [
+                'valid' => false,
+                'row' => $rowNumber,
+                'status' => 'error',
+                'message' => 'Invalid saldo amount: ' . $saldo
+            ];
+        }
+
+        // Find santri by NIS
+        $santri = Santri::where('nis', $nis)->first();
+        if (!$santri) {
+            return [
+                'valid' => false,
+                'row' => $rowNumber,
+                'status' => 'error',
+                'message' => "Santri with NIS {$nis} not found"
+            ];
+        }
+
+        // Optional: Check if nama matches (warning, not error)
+        $namaMatch = empty($nama) || stripos($santri->nama_santri, $nama) !== false || stripos($nama, $santri->nama_santri) !== false;
+        
+        return [
+            'valid' => true,
+            'santri' => $santri,
+            'nama_match' => $namaMatch,
+            'warning' => !$namaMatch ? "Name mismatch: Excel '{$nama}' vs DB '{$santri->nama_santri}'" : null
+        ];
+    }
+
+    /**
+     * Execute wallet import for a santri
+     */
+    private function executeWalletImport($santri, $saldo, $rowNumber)
+    {
+        try {
+            // Get or create wallet
+            $wallet = Wallet::firstOrCreate(
+                ['santri_id' => $santri->id], 
+                ['balance' => 0]
+            );
+
+            $oldBalance = $wallet->balance;
+            
+            // Set new balance
+            $wallet->balance = $saldo;
+            $wallet->save();
+
+            // Create transaction record
+            $reference = 'MIGRATION-' . now()->format('Ymd') . '-' . str_pad($rowNumber, 4, '0', STR_PAD_LEFT);
+            
+            WalletTransaction::create([
+                'wallet_id' => $wallet->id,
+                'type' => 'credit',
+                'amount' => $saldo - $oldBalance,
+                'balance_after' => $saldo,
+                'description' => "Initial balance migration from Excel (Row {$rowNumber})",
+                'reference' => $reference,
+                'method' => 'migration',
+                'created_by' => auth()->id()
+            ]);
+
+            return [
+                'row' => $rowNumber,
+                'status' => 'success',
+                'nis' => $santri->nis,
+                'nama' => $santri->nama_santri,
+                'old_balance' => number_format($oldBalance, 0, ',', '.'),
+                'new_balance' => number_format($saldo, 0, ',', '.'),
+                'message' => "Successfully imported balance Rp " . number_format($saldo, 0, ',', '.')
+            ];
+
+        } catch (\Exception $e) {
+            return [
+                'row' => $rowNumber,
+                'status' => 'error',
+                'nis' => $santri->nis ?? '',
+                'message' => 'Import failed: ' . $e->getMessage()
+            ];
+        }
     }
 }

@@ -1,10 +1,11 @@
+// Check if this is working in web builds
 import 'package:flutter/foundation.dart';
 
 class AppConfig {
-  // API Configuration - Force production for web builds
+  // Force production mode for web builds (temporary fix)
   static String get apiBaseUrl {
     if (kIsWeb) {
-      // Always use production for web builds regardless of debug mode
+      // Always use production for web builds
       return 'https://api-simpels.saza.sch.id/api/v1';
     } else if (kDebugMode) {
       // Development mode for mobile apps only  
@@ -16,7 +17,6 @@ class AppConfig {
   }
 
   // Endpoints
-  // Note: These should be relative to apiBaseUrl
   static const String loginEndpoint = '/auth/login';
   static const String waliSantriEndpoint = '/wali/santri';
   static const String waliWalletEndpoint = '/wali/wallet';

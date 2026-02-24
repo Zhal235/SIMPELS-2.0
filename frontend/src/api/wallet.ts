@@ -118,6 +118,38 @@ export async function getCollectivePayment(id: number | string) {
   return res.data
 }
 
+// Excel Import
+export async function importWalletExcel(file: File, mode: 'preview' | 'execute' = 'preview') {
+  const formData = new FormData()
+  formData.append('file', file)
+  formData.append('mode', mode)
+  
+  const res = await api.post('/v1/wallets/import-excel', formData, {
+    headers: {
+      'Content-Type': 'multipart/form-data'
+    }
+  })
+  return res.data
+}
+
+export async function downloadWalletTemplate() {
+  const res = await api.get('/v1/wallets/download-template', {
+    responseType: 'blob'
+  })
+  
+  // Create download link
+  const url = window.URL.createObjectURL(new Blob([res.data]))
+  const link = document.createElement('a')
+  link.href = url
+  link.download = `template_import_saldo_${new Date().getFullYear()}-${String(new Date().getMonth() + 1).padStart(2, '0')}-${String(new Date().getDate()).padStart(2, '0')}.xlsx`
+  document.body.appendChild(link)
+  link.click()
+  document.body.removeChild(link)
+  window.URL.revokeObjectURL(url)
+  
+  return true
+}
+
 export async function createCollectivePayment(payload: {
   title: string
   description?: string

@@ -71,6 +71,11 @@ class ApiService {
 
   ApiService() {
     final baseUrl = getBaseUrl();
+    
+    // Debug logging to verify URL in web builds
+    debugPrint('🔗 [ApiService] Base URL: $baseUrl');
+    debugPrint('📱 [ApiService] Platform - kIsWeb: $kIsWeb, kDebugMode: $kDebugMode');
+    
     _dio = Dio(BaseOptions(
       baseUrl: baseUrl,
       connectTimeout: AppConfig.connectTimeout,
@@ -109,6 +114,7 @@ class ApiService {
 
   // Auth
   Future<Response> login(String noHp, String password) async {
+    debugPrint('🔐 [ApiService] Attempting login to: ${_dio.options.baseUrl}${AppConfig.loginEndpoint}');
     return await _dio.post(AppConfig.loginEndpoint, data: {
       'no_hp': noHp,
       'password': password,
