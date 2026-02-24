@@ -119,6 +119,11 @@ export async function getCollectivePayment(id: number | string) {
 }
 
 // Excel Import
+export async function deleteImportHistory() {
+  const res = await api.delete('/v1/wallets/import-history')
+  return res.data
+}
+
 export async function importWalletExcel(file: File, mode: 'preview' | 'execute' = 'preview') {
   const formData = new FormData()
   formData.append('file', file)

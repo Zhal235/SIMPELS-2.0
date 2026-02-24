@@ -1138,6 +1138,41 @@ class WalletController extends Controller
     }
 
     /**
+     * Delete old import history, keep only transactions from the latest import batch
+     * DELETE /api/v1/wallets/import-history
+     */
+    public function deleteImportHistory()
+    {
+        try {
+            // Find the date of the latest MIGRATION batch
+            $latestRef = WalletTransaction::where('reference', 'like', 'MIGRATION-%')
+                ->orderByDesc('created_at')
+                ->value('reference');
+
+            if (!$latestRef) {
+                return response()->json(['success' => true, 'message' => 'Tidak ada history import untuk dihapus', 'deleted' => 0]);
+            }
+
+            // Extract date from reference e.g. MIGRATION-20260224-0001 → 20260224
+            $latestDate = substr($latestRef, 10, 8); // "YYYYMMDD"
+
+            // Delete all MIGRATION transactions NOT from the latest date
+            $deleted = WalletTransaction::where('reference', 'like', 'MIGRATION-%')
+                ->where('reference', 'not like', "MIGRATION-{$latestDate}-%")
+                ->delete();
+
+            return response()->json([
+                'success' => true,
+                'message' => "Berhasil menghapus {$deleted} transaksi import lama. Import tanggal {$latestDate} dipertahankan.",
+                'deleted' => $deleted,
+                'kept_date' => $latestDate,
+            ]);
+        } catch (\Exception $e) {
+            return response()->json(['success' => false, 'message' => $e->getMessage()], 500);
+        }
+    }
+
+    /**
      * Import wallet balances from Excel file
      * POST /api/v1/wallets/import-excel
      */

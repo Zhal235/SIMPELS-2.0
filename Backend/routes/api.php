@@ -172,6 +172,7 @@ Route::middleware('auth:sanctum')->group(function () {
             
             // Excel Import untuk saldo wallet (perlu permission tinggi)
             Route::post('import-excel', [WalletController::class, 'importExcel']);
+            Route::delete('import-history', [WalletController::class, 'deleteImportHistory']);
         });
 
         // Template download - accessible untuk semua user yang bisa akses wallet

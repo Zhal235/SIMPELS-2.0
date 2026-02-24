@@ -1,13 +1,14 @@
 import React, { useEffect, useState } from 'react'
 import Card from '../../components/Card'
 import Table from '../../components/Table'
-import { listWalletTransactions } from '../../api/wallet'
+import { listWalletTransactions, deleteImportHistory } from '../../api/wallet'
 import { useLocation } from 'react-router-dom'
 import toast from 'react-hot-toast'
 
 export default function HistoryTransaksi() {
   const [transactions, setTransactions] = useState<any[]>([])
   const [loading, setLoading] = useState(true)
+  const [deletingImport, setDeletingImport] = useState(false)
   const location = useLocation()
 
   useEffect(() => { load() }, [location.search])
@@ -41,6 +42,27 @@ export default function HistoryTransaksi() {
     a.click()
     URL.revokeObjectURL(url)
     toast.success('Data berhasil diexport')
+  }
+
+  async function handleDeleteImportHistory() {
+    const confirmed = window.confirm(
+      'Hapus history import lama?\n\nHanya import terbaru yang akan dipertahankan. Tindakan ini tidak dapat dibatalkan.'
+    )
+    if (!confirmed) return
+    setDeletingImport(true)
+    try {
+      const res = await deleteImportHistory()
+      if (res.success) {
+        toast.success(res.message)
+        load()
+      } else {
+        toast.error(res.message || 'Gagal menghapus history import')
+      }
+    } catch (err: any) {
+      toast.error(err?.response?.data?.message || 'Gagal menghapus history import')
+    } finally {
+      setDeletingImport(false)
+    }
   }
 
   const columns = [
@@ -81,9 +103,19 @@ export default function HistoryTransaksi() {
     <div className="space-y-4">
       <div className="flex items-center justify-between">
         <h2 className="text-2xl font-bold">📝 History Transaksi</h2>
-        <button className="btn btn-primary" onClick={exportCSV} disabled={!transactions.length}>
-          📥 Export CSV
-        </button>
+        <div className="flex gap-2">
+          <button
+            className="btn bg-red-100 text-red-700 hover:bg-red-200 border border-red-300 text-sm"
+            onClick={handleDeleteImportHistory}
+            disabled={deletingImport}
+            title="Hapus history import lama, pertahankan hanya import terbaru"
+          >
+            {deletingImport ? '⏳ Menghapus...' : '🗑️ Hapus History Import Lama'}
+          </button>
+          <button className="btn btn-primary" onClick={exportCSV} disabled={!transactions.length}>
+            📥 Export CSV
+          </button>
+        </div>
       </div>
 
       <Card>
