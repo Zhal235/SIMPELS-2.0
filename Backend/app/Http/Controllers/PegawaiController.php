@@ -26,6 +26,14 @@ class PegawaiController extends Controller
 
         $pegawai = $query->with('jabatan')->latest()->paginate(10);
 
+        // Add foto_url for each pegawai
+        $pegawai->getCollection()->transform(function ($p) {
+            $p->foto_url = $p->foto_profil
+                ? (str_starts_with($p->foto_profil, 'http') ? $p->foto_profil : \Illuminate\Support\Facades\Storage::disk('r2')->url($p->foto_profil))
+                : null;
+            return $p;
+        });
+
         return response()->json($pegawai);
     }
 
@@ -89,6 +97,10 @@ class PegawaiController extends Controller
         if (!$pegawai) {
             return response()->json(['message' => 'Pegawai tidak ditemukan'], 404);
         }
+
+        $pegawai->foto_url = $pegawai->foto_profil
+            ? (str_starts_with($pegawai->foto_profil, 'http') ? $pegawai->foto_profil : \Illuminate\Support\Facades\Storage::disk('r2')->url($pegawai->foto_profil))
+            : null;
 
         return response()->json($pegawai);
     }

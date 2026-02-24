@@ -112,8 +112,7 @@ class WaliController extends BaseController
                 if (str_starts_with($s->foto, 'http://') || str_starts_with($s->foto, 'https://')) {
                     $fotoUrl = $s->foto;
                 } else {
-                    // Use public-storage route for CORS support (needed for Flutter web)
-                    $fotoUrl = url('public-storage/' . $s->foto);
+                    $fotoUrl = \Storage::disk('r2')->url($s->foto);
                 }
             }
             
@@ -452,7 +451,7 @@ class WaliController extends BaseController
                     'jumlah' => $p->jumlah,
                     'metode_pembayaran' => $p->metode_pembayaran ?? 'Cash',
                     'status' => $p->status ?? 'lunas',
-                    'bukti_url' => $p->bukti ? url('storage/' . $p->bukti) : null,
+                    'bukti_url' => $p->bukti ? \Storage::disk('r2')->url($p->bukti) : null,
                 ];
             });
 

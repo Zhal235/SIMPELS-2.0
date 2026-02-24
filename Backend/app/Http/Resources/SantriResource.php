@@ -49,7 +49,7 @@ class SantriResource extends JsonResource
             'pekerjaan_ibu' => $this->pekerjaan_ibu,
             'hp_ibu' => $this->hp_ibu,
             'jenis_penerimaan' => $this->jenis_penerimaan,
-            'foto' => $this->foto ? '/storage/' . $this->foto : null,
+            'foto' => $this->foto ? \Illuminate\Support\Facades\Storage::disk('r2')->url($this->foto) : null,
             'created_at' => $this->created_at?->format('Y-m-d H:i:s'),
             // RFID tag information
             'rfid_tag' => $this->rfid_tag ? [

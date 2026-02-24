@@ -93,7 +93,7 @@ class AdminBuktiTransferController extends Controller
                         'status' => $bukti->status,
                         'catatan_wali' => $bukti->catatan_wali,
                         'catatan_admin' => $bukti->catatan_admin,
-                        'bukti_url' => $bukti->bukti_path ? url('storage/' . $bukti->bukti_path) : null,
+                        'bukti_url' => $bukti->bukti_path ? \Storage::disk('r2')->url($bukti->bukti_path) : null,
                         'uploaded_at' => $bukti->uploaded_at->format('Y-m-d H:i:s'),
                         'processed_at' => $bukti->processed_at ? $bukti->processed_at->format('Y-m-d H:i:s') : null,
                         'processed_by' => $bukti->processedBy ? $bukti->processedBy->name : null,
