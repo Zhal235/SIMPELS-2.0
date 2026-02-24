@@ -572,8 +572,38 @@ class WalletController extends Controller
             $q->whereBetween('created_at', [$request->query('start'), $request->query('end')]);
         }
 
-        $items = $q->with(['wallet.santri','author'])->orderBy('created_at', 'desc')->get();
-        return response()->json(['success' => true, 'data' => $items]);
+        if ($request->has('method') && $request->query('method') !== '') {
+            $q->where('method', $request->query('method'));
+        }
+
+        if ($request->has('search') && $request->query('search') !== '') {
+            $search = $request->query('search');
+            $q->whereHas('wallet.santri', function($sq) use ($search) {
+                $sq->where('nama_santri', 'like', "%{$search}%")
+                   ->orWhere('nis', 'like', "%{$search}%");
+            });
+        }
+
+        $perPage = min((int)($request->query('per_page', 25)), 100);
+        $page = max((int)($request->query('page', 1)), 1);
+
+        $total = $q->count();
+        $items = $q->with(['wallet.santri','author'])
+            ->orderBy('created_at', 'desc')
+            ->offset(($page - 1) * $perPage)
+            ->limit($perPage)
+            ->get();
+
+        return response()->json([
+            'success' => true,
+            'data' => $items,
+            'meta' => [
+                'total' => $total,
+                'page' => $page,
+                'per_page' => $perPage,
+                'last_page' => (int)ceil($total / $perPage),
+            ]
+        ]);
     }
 
     /**
@@ -1144,28 +1174,29 @@ class WalletController extends Controller
     public function deleteImportHistory()
     {
         try {
-            // Find the date of the latest MIGRATION batch
-            $latestRef = WalletTransaction::where('reference', 'like', 'MIGRATION-%')
+            // Find the latest MIGRATION transaction timestamp
+            $latestCreatedAt = WalletTransaction::where('reference', 'like', 'MIGRATION-%')
                 ->orderByDesc('created_at')
-                ->value('reference');
+                ->value('created_at');
 
-            if (!$latestRef) {
+            if (!$latestCreatedAt) {
                 return response()->json(['success' => true, 'message' => 'Tidak ada history import untuk dihapus', 'deleted' => 0]);
             }
 
-            // Extract date from reference e.g. MIGRATION-20260224-0001 → 20260224
-            $latestDate = substr($latestRef, 10, 8); // "YYYYMMDD"
+            // Keep transactions created within 10 minutes of the latest import (= 1 import session)
+            // Delete all MIGRATION transactions OUTSIDE that window
+            $windowStart = \Carbon\Carbon::parse($latestCreatedAt)->subMinutes(10);
 
-            // Delete all MIGRATION transactions NOT from the latest date
             $deleted = WalletTransaction::where('reference', 'like', 'MIGRATION-%')
-                ->where('reference', 'not like', "MIGRATION-{$latestDate}-%")
+                ->where('created_at', '<', $windowStart)
                 ->delete();
+
+            $keptDate = \Carbon\Carbon::parse($latestCreatedAt)->setTimezone('Asia/Jakarta')->format('d/m/Y H:i');
 
             return response()->json([
                 'success' => true,
-                'message' => "Berhasil menghapus {$deleted} transaksi import lama. Import tanggal {$latestDate} dipertahankan.",
+                'message' => "Berhasil menghapus {$deleted} transaksi import lama. Import terakhir ({$keptDate} WIB) dipertahankan.",
                 'deleted' => $deleted,
-                'kept_date' => $latestDate,
             ]);
         } catch (\Exception $e) {
             return response()->json(['success' => false, 'message' => $e->getMessage()], 500);
