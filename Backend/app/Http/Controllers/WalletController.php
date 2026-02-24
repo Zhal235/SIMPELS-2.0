@@ -1168,21 +1168,41 @@ class WalletController extends Controller
     }
 
     /**
-     * Delete ALL import history (MIGRATION transactions)
+     * Delete ALL import history (MIGRATION transactions) AND reset wallet balances to 0
+     * so the next import starts completely fresh.
      * DELETE /api/v1/wallets/import-history
      */
     public function deleteImportHistory()
     {
         try {
+            DB::beginTransaction();
+
+            // Get wallet IDs that have MIGRATION transactions
+            $walletIds = WalletTransaction::where('reference', 'like', 'MIGRATION-%')
+                ->distinct()
+                ->pluck('wallet_id');
+
+            // Delete all MIGRATION transactions
             $deleted = WalletTransaction::where('reference', 'like', 'MIGRATION-%')
                 ->delete();
 
+            // Reset wallet balances to 0 for those wallets
+            // so re-import starts from a clean state
+            $resetCount = Wallet::whereIn('id', $walletIds)->update(['balance' => 0]);
+
+            // Reset auto-increment to current MAX(id)+1 so IDs don't keep growing unbounded
+            DB::statement('ALTER TABLE wallet_transactions AUTO_INCREMENT = 1;');
+
+            DB::commit();
+
             return response()->json([
                 'success' => true,
-                'message' => "Berhasil menghapus {$deleted} transaksi history import.",
+                'message' => "Berhasil menghapus {$deleted} transaksi import dan mereset {$resetCount} saldo dompet ke 0. Silakan upload ulang file Excel.",
                 'deleted' => $deleted,
+                'wallets_reset' => $resetCount,
             ]);
         } catch (\Exception $e) {
+            DB::rollBack();
             return response()->json(['success' => false, 'message' => $e->getMessage()], 500);
         }
     }

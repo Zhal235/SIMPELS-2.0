@@ -68,7 +68,7 @@ export default function HistoryTransaksi() {
 
   async function handleDeleteImportHistory() {
     const confirmed = window.confirm(
-      'Hapus SEMUA history import?\n\nSeluruh transaksi MIGRATION akan dihapus permanen.\nLakukan ini sebelum upload ulang import Excel.\nTindakan ini tidak dapat dibatalkan.'
+      'Hapus SEMUA history import?\n\n• Seluruh transaksi MIGRATION dihapus permanen\n• Saldo semua dompet direset ke 0\n\nLakukan ini sebelum upload ulang Excel agar tidak duplikat.\nTindakan ini TIDAK DAPAT dibatalkan.'
     )
     if (!confirmed) return
     setDeletingImport(true)
@@ -88,6 +88,9 @@ export default function HistoryTransaksi() {
   }
 
   const columns = [
+    { key: '_no', header: 'No', render: (_v: any, _r: any, idx: number) => (
+      <div className="text-xs text-gray-500 text-center">{((page - 1) * PER_PAGE) + idx + 1}</div>
+    )},
     { key: 'id', header: 'ID', render: (v: any) => <div className="text-xs font-mono text-gray-400">{String(v).substring(0, 8)}</div> },
     { key: 'santri_name', header: 'Santri', render: (_v: any, r: any) => (
       <div>
