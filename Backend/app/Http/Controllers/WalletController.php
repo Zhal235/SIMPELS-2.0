@@ -1530,7 +1530,6 @@ class WalletController extends Controller
                 'status' => 'success',
                 'nis' => $santri->nis,
                 'nama' => $santri->nama_santri,
-                'old_balance' => number_format($oldBalance, 0, ',', '.'),
                 'new_balance' => number_format($saldo, 0, ',', '.'),
                 'message' => "Successfully imported balance Rp " . number_format($saldo, 0, ',', '.')
             ];
