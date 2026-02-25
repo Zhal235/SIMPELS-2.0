@@ -9,8 +9,7 @@ import { useAuthStore, hasAccess } from '../../stores/useAuthStore'
 import toast from 'react-hot-toast'
 
 export default function DompetSantri() {
-  // wallets list is no longer shown globally — we only load wallet per selected santri
-  const [loading, setLoading] = useState(true)
+  const [loading, setLoading] = useState(false)
   const [santriList, setSantriList] = useState<any[]>([])
   const [searchQuery, setSearchQuery] = useState('')
   const [showSearchResults, setShowSearchResults] = useState(false)
@@ -80,23 +79,24 @@ export default function DompetSantri() {
     }
   }
 
-  useEffect(() => { loadInitial() }, [])
-
-  async function loadInitial() {
-    try {
-      setLoading(true)
-      const santriRes = await listSantri(1, 200)
-      if (santriRes?.status === 'success') {
-        const santriData = santriRes.data || []
-        // Debug foto - cek santri pertama yang punya foto
-        const withFoto = santriData.find((s: any) => s.foto)
-        setSantriList(santriData)
+  useEffect(() => {
+    if (searchQuery.length < 2) {
+      setSantriList([])
+      return
+    }
+    setLoading(true)
+    const timer = setTimeout(async () => {
+      try {
+        const res = await listSantri(1, 50, { q: searchQuery })
+        if (res?.status === 'success') setSantriList(res.data || [])
+      } catch (err) {
+        console.error(err)
+      } finally {
+        setLoading(false)
       }
-    } catch (err) {
-      console.error(err)
-      toast.error('Gagal memuat data')
-    } finally { setLoading(false) }
-  }
+    }, 300)
+    return () => clearTimeout(timer)
+  }, [searchQuery])
 
   // openTopup not used after removing global wallet list
 
@@ -242,7 +242,12 @@ export default function DompetSantri() {
 
             {showSearchResults && searchQuery.length >= 2 && (
               <div className="absolute top-full left-0 right-0 mt-2 bg-white border border-gray-300 rounded-lg shadow-lg z-10 max-h-64 overflow-y-auto">
-                {santriList.filter(s => (s.nama_santri || '').toLowerCase().includes(searchQuery.toLowerCase()) || (s.nis || '').includes(searchQuery)).map(s => (
+                {loading ? (
+                  <div className="px-4 py-3 text-sm text-gray-500">Mencari...</div>
+                ) : santriList.length === 0 ? (
+                  <div className="px-4 py-3 text-sm text-gray-500">Santri tidak ditemukan</div>
+                ) : (
+                  santriList.map(s => (
                   <button key={s.id} onClick={() => handleSelectSantri(s)} className="w-full text-left px-4 py-3 hover:bg-blue-50 border-b border-gray-100 last:border-b-0 transition-colors flex items-center gap-3">
                     <img 
                       src={getFotoUrl(s) || 'data:image/svg+xml,%3Csvg xmlns="http://www.w3.org/2000/svg" viewBox="0 0 24 24" fill="none" stroke="currentColor"%3E%3Cpath d="M20 21v-2a4 4 0 0 0-4-4H8a4 4 0 0 0-4 4v2"/%3E%3Ccircle cx="12" cy="7" r="4"/%3E%3C/svg%3E'} 
@@ -258,7 +263,8 @@ export default function DompetSantri() {
                       <p className="text-xs text-gray-500">NIS: {s.nis} • {s.kelas || 'N/A'}</p>
                     </div>
                   </button>
-                ))}
+                  ))
+                )}
               </div>
             )}
           </div>
