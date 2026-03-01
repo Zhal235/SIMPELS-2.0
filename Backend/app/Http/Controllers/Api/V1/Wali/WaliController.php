@@ -282,6 +282,35 @@ class WaliController extends BaseController
      * environment you may want to add authorization checks to ensure the caller
      * is in fact the guardian of the requested santri.
      */
+    public function getSantriWalletHistory(Request $request, $santriId)
+    {
+        $wallet = Wallet::where('santri_id', $santriId)->first();
+
+        if (!$wallet) {
+            return response()->json(['success' => true, 'data' => []]);
+        }
+
+        $transactions = \DB::table('wallet_transactions')
+            ->where('wallet_id', $wallet->id)
+            ->orderBy('created_at', 'desc')
+            ->get()
+            ->map(function ($t) {
+                $tanggal = $t->created_at
+                    ? \Carbon\Carbon::parse($t->created_at)->toIso8601String()
+                    : now()->toIso8601String();
+                return [
+                    'id'         => (string) $t->id,
+                    'tanggal'    => $tanggal,
+                    'keterangan' => $t->description ?? '',
+                    'jumlah'     => is_numeric($t->amount) ? (float) $t->amount : 0.0,
+                    'tipe'       => $t->type ?? 'credit',
+                    'saldo_akhir'=> is_numeric($t->balance_after) ? (float) $t->balance_after : 0.0,
+                ];
+            })->values();
+
+        return response()->json(['success' => true, 'data' => $transactions]);
+    }
+
     public function setSantriDailyLimit(Request $request, $santriId)
     {
         $request->validate([
@@ -559,6 +588,7 @@ class WaliController extends BaseController
             'tagihan_ids.*' => 'required|integer|exists:tagihan_santri,id',
             'total_nominal' => 'required|numeric|min:1',
             'nominal_topup' => 'nullable|numeric|min:0',
+            'nominal_tabungan' => 'nullable|numeric|min:0',
             'selected_bank_id' => 'nullable|integer|exists:bank_accounts,id',
             'bukti' => 'required|file|mimes:jpeg,jpg,png|max:5120',
             'catatan' => 'nullable|string|max:500',
@@ -588,14 +618,19 @@ class WaliController extends BaseController
             $filePath = $request->file('bukti')->store('bukti_transfer', 'r2');
 
             $nominalTopup = $request->input('nominal_topup', 0);
+            $nominalTabungan = $request->input('nominal_tabungan', 0);
             $totalNominal = $request->total_nominal;
             
             // Determine transaction type
             $jenisTransaksi = 'pembayaran';
             if (empty($tagihanIds) && $nominalTopup > 0) {
                 $jenisTransaksi = 'topup';
+            } else if ($nominalTopup > 0 && $nominalTabungan > 0) {
+                $jenisTransaksi = 'pembayaran_topup_tabungan';
             } else if ($nominalTopup > 0) {
                 $jenisTransaksi = 'pembayaran_topup';
+            } else if ($nominalTabungan > 0) {
+                $jenisTransaksi = 'pembayaran_tabungan';
             }
 
             // Create bukti transfer record
@@ -620,6 +655,17 @@ class WaliController extends BaseController
                 $nominalPembayaran = $totalNominal - $nominalTopup;
                 $catatanAdmin = "Pembayaran tagihan: Rp " . number_format($nominalPembayaran, 0, ',', '.') . "\n";
                 $catatanAdmin .= "Top-up dompet: Rp " . number_format($nominalTopup, 0, ',', '.');
+                $buktiTransfer->update(['catatan_admin' => $catatanAdmin]);
+            } else if ($jenisTransaksi === 'pembayaran_tabungan') {
+                $nominalPembayaran = $totalNominal - $nominalTabungan;
+                $catatanAdmin = "Pembayaran tagihan: Rp " . number_format($nominalPembayaran, 0, ',', '.') . "\n";
+                $catatanAdmin .= "Setor tabungan: Rp " . number_format($nominalTabungan, 0, ',', '.');
+                $buktiTransfer->update(['catatan_admin' => $catatanAdmin]);
+            } else if ($jenisTransaksi === 'pembayaran_topup_tabungan') {
+                $nominalPembayaran = $totalNominal - $nominalTopup - $nominalTabungan;
+                $catatanAdmin = "Pembayaran tagihan: Rp " . number_format($nominalPembayaran, 0, ',', '.') . "\n";
+                $catatanAdmin .= "Top-up dompet: Rp " . number_format($nominalTopup, 0, ',', '.') . "\n";
+                $catatanAdmin .= "Setor tabungan: Rp " . number_format($nominalTabungan, 0, ',', '.');
                 $buktiTransfer->update(['catatan_admin' => $catatanAdmin]);
             }
 

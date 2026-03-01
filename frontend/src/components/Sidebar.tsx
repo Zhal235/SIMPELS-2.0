@@ -3,7 +3,7 @@ import { useUIStore } from '../stores/useUIStore'
 import { 
   LayoutDashboard, Users, Wallet, UserCog, Settings, Building2, Home, 
   ArrowDownUp, LogIn, LogOut, GraduationCap, CreditCard, Receipt, 
-  BookOpen, FileText, AlertCircle, ListChecks, DollarSign, Calendar, CheckCircle, Briefcase, Megaphone
+  BookOpen, FileText, AlertCircle, ListChecks, DollarSign, Calendar, CheckCircle, Briefcase, Megaphone, PiggyBank
 } from 'lucide-react'
 import { motion, AnimatePresence } from 'framer-motion'
 import { useAuthStore, hasAccess } from '../stores/useAuthStore'
@@ -408,6 +408,20 @@ export default function Sidebar() {
                     >
                       <CreditCard className="w-5 h-5" />
                       {sidebarOpen && <span>Rekening Bank</span>}
+                    </NavLink>)}
+                  </li>
+
+                  {/* Tabungan Santri */}
+                  <li>
+                    {hasAccess('keuangan.tabungan') && (
+                    <NavLink
+                      to="/keuangan/tabungan"
+                      className={({ isActive }) =>
+                        `flex items-center gap-3 rounded-md px-3 py-2 text-sm ${isActive || location.pathname.startsWith('/keuangan/tabungan') ? 'bg-white text-brand shadow-sm' : 'text-gray-700 hover:bg-white'}`
+                      }
+                    >
+                      <PiggyBank className="w-5 h-5" />
+                      {sidebarOpen && <span>Tabungan Santri</span>}
                     </NavLink>)}
                   </li>
                   

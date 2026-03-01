@@ -23,14 +23,14 @@ class _WalletFullHistoryScreenState extends State<WalletFullHistoryScreen> {
   Future<void> _load() async {
     setState(() => _loading = true);
     try {
-      final res = await _api.getWalletTransactions(widget.santriId,
-          page: 1, limit: 200);
+      final res = await _api.getWalletHistory(widget.santriId);
       if (res.statusCode == 200 && res.data['success'] == true) {
-        final data = res.data['data'] as List<dynamic>;
+        final raw = res.data['data'];
+        final data = raw is List ? raw : [];
         setState(() {
           _items = data
               .map((d) =>
-                  WalletTransaction.fromJson(Map<String, dynamic>.from(d)))
+                  WalletTransaction.fromJson(Map<String, dynamic>.from(d as Map)))
               .toList();
         });
       }

@@ -135,16 +135,25 @@ class ApiService {
     return await _dio.get('${AppConfig.waliWalletEndpoint}/$santriId');
   }
 
-  /// Get wallet transactions (full history) using admin-style endpoint
+  /// Get tabungan (savings) info for a santri (read-only for wali)
+  Future<Response> getTabunganInfo(String santriId) async {
+    return await _dio.get('/wali/tabungan/$santriId');
+  }
+
+  /// Get tabungan transaction history for a santri (read-only for wali)
+  Future<Response> getTabunganHistory(String santriId) async {
+    return await _dio.get('/wali/tabungan/$santriId/history');
+  }
+
+  /// Get wallet transactions for wali (uses the wali wallet endpoint)
   Future<Response> getWalletTransactions(String santriId,
       {int page = 1, int limit = 50}) async {
-    // Note: This endpoint might need refactoring to V1 structure
-    // For now we assume /v1 is handled by base URL
-    return await _dio
-        .get('/admin/wallet/$santriId/transactions', queryParameters: {
-      'page': page,
-      'limit': limit,
-    });
+    return await _dio.get('${AppConfig.waliWalletEndpoint}/$santriId');
+  }
+
+  /// Get full wallet transaction history for wali (dedicated endpoint)
+  Future<Response> getWalletHistory(String santriId) async {
+    return await _dio.get('${AppConfig.waliWalletEndpoint}/$santriId/history');
   }
 
   Future<Response> getWaliPembayaran(int santriId) async {
@@ -198,6 +207,7 @@ class ApiService {
     Uint8List? buktiBytes,
     String? catatan,
     double? nominalTopup,
+    double? nominalTabungan,
     int? selectedBankId,
   }) async {
     MultipartFile multipartFile;
@@ -235,6 +245,11 @@ class ApiService {
       formFields['nominal_topup'] = nominalTopup.toString();
     }
 
+    // Add tabungan nominal if provided
+    if (nominalTabungan != null && nominalTabungan > 0) {
+      formFields['nominal_tabungan'] = nominalTabungan.toString();
+    }
+
     // Add array items individually with [] notation for Laravel
     for (int i = 0; i < tagihanIds.length; i++) {
       formFields['tagihan_ids[$i]'] = tagihanIds[i].toString();
@@ -246,6 +261,7 @@ class ApiService {
     debugPrint('[API] Tagihan IDs: $tagihanIds');
     debugPrint('[API] Total: $totalNominal');
     if (nominalTopup != null) debugPrint('[API] Topup: $nominalTopup');
+    if (nominalTabungan != null) debugPrint('[API] Tabungan: $nominalTabungan');
 
     return await _dio.post(
       '/wali/upload-bukti/$santriId',

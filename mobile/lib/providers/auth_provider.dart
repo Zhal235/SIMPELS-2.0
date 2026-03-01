@@ -1,3 +1,4 @@
+import 'package:dio/dio.dart';
 import 'package:flutter/foundation.dart';
 import 'package:flutter/material.dart';
 import '../services/api_service.dart';
@@ -98,7 +99,22 @@ class AuthProvider with ChangeNotifier {
       notifyListeners();
       return null;
     } catch (e) {
-      _errorMessage = 'Terjadi kesalahan: ${e.toString()}';
+      if (e is DioException && e.response != null) {
+        final data = e.response!.data;
+        // Extract Laravel validation errors (422)
+        if (data is Map && data['errors'] != null) {
+          final errors = data['errors'] as Map;
+          final firstError = errors.values.first;
+          _errorMessage = firstError is List ? firstError.first.toString() : firstError.toString();
+        } else if (data is Map && data['message'] != null) {
+          _errorMessage = data['message'].toString();
+        } else {
+          _errorMessage = 'Login gagal (${e.response!.statusCode})';
+        }
+        debugPrint('[AuthProvider] Login error: ${e.response!.data}');
+      } else {
+        _errorMessage = 'Tidak dapat terhubung ke server';
+      }
       _isLoading = false;
       notifyListeners();
       return null;

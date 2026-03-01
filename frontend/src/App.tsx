@@ -47,6 +47,8 @@ const LaporanPerBukuKas = lazy(() => import('./pages/keuangan/LaporanPerBukuKas'
 const LaporanDetailTransaksi = lazy(() => import('./pages/keuangan/LaporanDetailTransaksi'))
 const LaporanRingkasan = lazy(() => import('./pages/keuangan/Ringkasan'))
 const LaporanByCategory = lazy(() => import('./pages/keuangan/PengeluaranKategori'))
+const TabunganSantri = lazy(() => import('./pages/keuangan/TabunganSantri'))
+const TabunganDetail = lazy(() => import('./pages/keuangan/TabunganDetail'))
 // Dompet Digital subpages
 const DompetSantri = lazy(() => import('./pages/dompet/DompetSantri'))
 const DompetRFID = lazy(() => import('./pages/dompet/RFID'))
@@ -339,6 +341,22 @@ export default function App() {
               <ProtectedRoute>
                 <AppLayout>
                   <LaporanByCategory />
+                </AppLayout>
+              </ProtectedRoute>
+            } />
+
+            {/* tabungan santri */}
+            <Route path="/keuangan/tabungan" element={
+              <ProtectedRoute>
+                <AppLayout>
+                  <TabunganSantri />
+                </AppLayout>
+              </ProtectedRoute>
+            } />
+            <Route path="/keuangan/tabungan/:santriId" element={
+              <ProtectedRoute>
+                <AppLayout>
+                  <TabunganDetail />
                 </AppLayout>
               </ProtectedRoute>
             } />

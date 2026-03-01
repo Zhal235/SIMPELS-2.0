@@ -20,15 +20,27 @@ class WalletHistoryScreen extends StatefulWidget {
 class _WalletHistoryScreenState extends State<WalletHistoryScreen> {
   bool _loading = true;
   Map<String, dynamic>? _walletData;
+  List<dynamic> _allTransactions = [];
   final ApiService _api = ApiService();
 
   Future<void> _loadWallet() async {
     setState(() => _loading = true);
     try {
-      final res = await _api.getWaliWallet(widget.santriId);
-      if (res.statusCode == 200 && res.data['success'] == true) {
+      // Load wallet info and full transaction history in parallel
+      final results = await Future.wait([
+        _api.getWaliWallet(widget.santriId),
+        _api.getWalletHistory(widget.santriId),
+      ]);
+      final walletRes = results[0];
+      final histRes = results[1];
+
+      if (walletRes.statusCode == 200 && walletRes.data['success'] == true) {
         setState(() =>
-            _walletData = Map<String, dynamic>.from(res.data['data'] ?? {}));
+            _walletData = Map<String, dynamic>.from(walletRes.data['data'] ?? {}));
+      }
+      if (histRes.statusCode == 200 && histRes.data['success'] == true) {
+        final raw = histRes.data['data'];
+        setState(() => _allTransactions = raw is List ? raw : []);
       }
     } catch (e) {
       debugPrint('Load wallet error: $e');
@@ -296,19 +308,6 @@ class _WalletHistoryScreenState extends State<WalletHistoryScreen> {
                                       onPressed: _showTopupDialog,
                                       icon: const Icon(Icons.add),
                                       label: const Text('Top-up')),
-                                  const SizedBox(width: 8),
-                                  OutlinedButton.icon(
-                                    onPressed: () {
-                                      Navigator.pushNamed(
-                                          context, '/wallet-full-history',
-                                          arguments: {
-                                            'santriId': widget.santriId,
-                                            'santriName': widget.santriName,
-                                          });
-                                    },
-                                    icon: const Icon(Icons.list),
-                                    label: const Text('Lihat Semua'),
-                                  ),
                                 ],
                               )
                             ],
@@ -316,45 +315,54 @@ class _WalletHistoryScreenState extends State<WalletHistoryScreen> {
                         ),
                       ),
                       const SizedBox(height: 16),
-                      const Text('Riwayat Terakhir',
+                      const Text('Riwayat Transaksi',
                           style: TextStyle(fontWeight: FontWeight.bold)),
                       const SizedBox(height: 8),
-                      if ((_walletData?['transaksi_terakhir'] ?? []).isEmpty)
+                      if (_allTransactions.isEmpty)
                         const Center(
                             child: Padding(
                                 padding: EdgeInsets.symmetric(vertical: 32),
                                 child: Text('Belum ada transaksi')))
                       else
-                        ...(_walletData?['transaksi_terakhir'] ?? [])
-                            .map<Widget>((t) {
-                          final txn = WalletTransaction.fromJson(
-                              Map<String, dynamic>.from(t));
-                          final isCredit = txn.tipe == 'credit';
-                          // Format tanggal: 30/11/2025, 11:41
-                          final formattedDate =
-                              '${txn.tanggal.day.toString().padLeft(2, '0')}/${txn.tanggal.month.toString().padLeft(2, '0')}/${txn.tanggal.year}, ${txn.tanggal.hour.toString().padLeft(2, '0')}:${txn.tanggal.minute.toString().padLeft(2, '0')}';
-
-                          return Card(
-                            margin: const EdgeInsets.symmetric(vertical: 6),
-                            child: ListTile(
-                              title: Text(txn.keterangan.isNotEmpty
-                                  ? txn.keterangan
-                                  : (isCredit ? 'Top-up' : 'Pembayaran')),
-                              subtitle: Text(formattedDate),
-                              trailing: Text(
-                                  '${isCredit ? '+' : '-'} Rp ${_formatCurrency(txn.jumlah)}',
-                                  style: TextStyle(
-                                      color:
-                                          isCredit ? Colors.green : Colors.red,
-                                      fontWeight: FontWeight.bold)),
-                            ),
-                          );
-                        }).toList(),
+                        ..._buildTransactionCards(),
                     ],
                   ),
                 ),
               ),
       ),
     );
+  }
+
+  List<Widget> _buildTransactionCards() {
+    return _allTransactions.map<Widget>((t) {
+      final txn = WalletTransaction.fromJson(
+          Map<String, dynamic>.from(t as Map));
+      final isCredit = txn.tipe == 'credit';
+      final formattedDate =
+          '${txn.tanggal.day.toString().padLeft(2, '0')}/${txn.tanggal.month.toString().padLeft(2, '0')}/${txn.tanggal.year}, ${txn.tanggal.hour.toString().padLeft(2, '0')}:${txn.tanggal.minute.toString().padLeft(2, '0')}';
+      return Card(
+        margin: const EdgeInsets.symmetric(vertical: 6),
+        child: ListTile(
+          leading: CircleAvatar(
+            backgroundColor:
+                isCredit ? Colors.green.shade100 : Colors.red.shade100,
+            child: Icon(
+              isCredit ? Icons.add : Icons.remove,
+              color: isCredit ? Colors.green : Colors.red,
+            ),
+          ),
+          title: Text(txn.keterangan.isNotEmpty
+              ? txn.keterangan
+              : (isCredit ? 'Top-up' : 'Pembayaran')),
+          subtitle: Text(formattedDate),
+          trailing: Text(
+            '${isCredit ? '+' : '-'} Rp ${_formatCurrency(txn.jumlah)}',
+            style: TextStyle(
+                color: isCredit ? Colors.green : Colors.red,
+                fontWeight: FontWeight.bold),
+          ),
+        ),
+      );
+    }).toList();
   }
 }

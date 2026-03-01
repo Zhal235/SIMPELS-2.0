@@ -94,4 +94,12 @@ class Santri extends Model
     {
         return $this->hasManyThrough(WalletTransaction::class, Wallet::class, 'santri_id', 'wallet_id');
     }
+
+    /**
+     * Relasi ke tabungan santri (satu santri -> satu tabungan, opsional)
+     */
+    public function tabungan()
+    {
+        return $this->hasOne(SantriTabungan::class, 'santri_id');
+    }
 }

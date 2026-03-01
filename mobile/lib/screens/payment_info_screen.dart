@@ -34,16 +34,22 @@ class _PaymentInfoScreenState extends State<PaymentInfoScreen> {
   bool _loading = true;
   bool _includeTopup = false;
   final TextEditingController _topupController = TextEditingController();
+  // Tabungan
+  bool _includeTabungan = false;
+  bool _hasTabungan = false;
+  final TextEditingController _tabunganController = TextEditingController();
 
   @override
   void initState() {
     super.initState();
     _loadBankAccounts();
+    _loadTabunganStatus();
   }
 
   @override
   void dispose() {
     _topupController.dispose();
+    _tabunganController.dispose();
     super.dispose();
   }
 
@@ -83,6 +89,24 @@ class _PaymentInfoScreenState extends State<PaymentInfoScreen> {
         );
   }
 
+  Future<void> _loadTabunganStatus() async {
+    final authProvider = Provider.of<AuthProvider>(context, listen: false);
+    final santriId = authProvider.activeSantri?.id;
+    if (santriId == null) return;
+    try {
+      final res = await ApiService().getTabunganInfo(santriId);
+      if (mounted) {
+        setState(() {
+          _hasTabungan = res.statusCode == 200 &&
+              res.data['success'] == true &&
+              res.data['data']?['status'] == 'aktif';
+        });
+      }
+    } catch (_) {
+      // silently ignore
+    }
+  }
+
   double _calculateTotal() {
     double total = 0;
 
@@ -99,6 +123,13 @@ class _PaymentInfoScreenState extends State<PaymentInfoScreen> {
                 .replaceAll(',', '')) ??
             0;
         total += topupAmount;
+      }
+      if (_includeTabungan) {
+        final tabunganAmount = double.tryParse(_tabunganController.text
+                .replaceAll('.', '')
+                .replaceAll(',', '')) ??
+            0;
+        total += tabunganAmount;
       }
     }
 
@@ -203,6 +234,11 @@ class _PaymentInfoScreenState extends State<PaymentInfoScreen> {
                       .replaceAll('.', '')
                       .replaceAll(',', ''))
                   : null),
+          tabunganNominal: _includeTabungan
+              ? double.tryParse(_tabunganController.text
+                  .replaceAll('.', '')
+                  .replaceAll(',', ''))
+              : null,
           santriName: widget.santriName,
           shouldIncludeTopup: _includeTopup,
           selectedBankId: _selectedBank!.id,
@@ -317,6 +353,11 @@ class _PaymentInfoScreenState extends State<PaymentInfoScreen> {
                                   _buildInfoRow('Top-up Dompet',
                                       'Rp ${_formatCurrency(double.tryParse(_topupController.text.replaceAll('.', '').replaceAll(',', '')) ?? 0)}'),
                                 ],
+                                if (_includeTabungan) ...[
+                                  const SizedBox(height: 8),
+                                  _buildInfoRow('Setor Tabungan',
+                                      'Rp ${_formatCurrency(double.tryParse(_tabunganController.text.replaceAll('.', '').replaceAll(',', '')) ?? 0)}'),
+                                ],
                               ],
                             ),
                           ),
@@ -353,6 +394,38 @@ class _PaymentInfoScreenState extends State<PaymentInfoScreen> {
                             onChanged: (_) =>
                                 setState(() {}), // Rebuild untuk update total
                           ),
+                        ],
+                        // Setor tabungan option
+                        if (_hasTabungan) ...[
+                          const SizedBox(height: 8),
+                          CheckboxListTile(
+                            value: _includeTabungan,
+                            onChanged: (val) =>
+                                setState(() => _includeTabungan = val ?? false),
+                            title: const Text('Sekaligus setor tabungan'),
+                            subtitle: const Text('Tambah saldo tabungan santri'),
+                            controlAffinity: ListTileControlAffinity.leading,
+                            contentPadding: EdgeInsets.zero,
+                            activeColor: Colors.teal,
+                          ),
+                          if (_includeTabungan) ...[
+                            const SizedBox(height: 8),
+                            TextField(
+                              controller: _tabunganController,
+                              keyboardType: TextInputType.number,
+                              decoration: InputDecoration(
+                                labelText: 'Jumlah Setor Tabungan (Rp)',
+                                hintText: 'Masukkan nominal',
+                                border: OutlineInputBorder(
+                                  borderRadius: BorderRadius.circular(8),
+                                ),
+                                prefixText: 'Rp ',
+                                filled: true,
+                                fillColor: Colors.teal.shade50,
+                              ),
+                              onChanged: (_) => setState(() {}),
+                            ),
+                          ],
                         ],
                       ],
 

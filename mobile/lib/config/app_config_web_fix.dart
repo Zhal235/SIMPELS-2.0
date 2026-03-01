@@ -2,16 +2,13 @@
 import 'package:flutter/foundation.dart';
 
 class AppConfig {
-  // Force production mode for web builds (temporary fix)
+  // API Configuration
   static String get apiBaseUrl {
-    if (kIsWeb) {
-      // Always use production for web builds
-      return 'https://api-simpels.saza.sch.id/api/v1';
-    } else if (kDebugMode) {
-      // Development mode for mobile apps only  
+    if (kDebugMode) {
+      // Development mode (mobile & web)
       return 'http://localhost:8001/api/v1';
     } else {
-      // Production mode for mobile apps
+      // Production mode
       return 'https://api-simpels.saza.sch.id/api/v1';
     }
   }

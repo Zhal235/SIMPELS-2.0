@@ -3,6 +3,7 @@ import { useSearchParams } from 'react-router-dom'
 import { Search, User, Home, Building2, Phone, Users, CheckCircle, XCircle, X, Printer } from 'lucide-react'
 import { listSantri, getSantri } from '../../api/santri'
 import { getTagihanBySantri, prosesPembayaran, listPembayaran, getHistoryPembayaran } from '../../api/pembayaran'
+import { setorTabungan, getTabungan } from '../../api/tabungan'
 import { useAuthStore } from '../../stores/useAuthStore'
 import toast from 'react-hot-toast'
 
@@ -1041,7 +1042,16 @@ const isLunasTab = activeTab === 'lunas'
   function ModalBayarLunas() {
     const [nominalBayar, setNominalBayar] = useState('')
     const [metodeBayar, setMetodeBayar] = useState<'cash' | 'transfer'>('cash')
-    const [opsiKembalian, setOpsiKembalian] = useState<'tunai' | 'dompet'>('tunai')
+    const [opsiKembalian, setOpsiKembalian] = useState<'tunai' | 'dompet' | 'tabungan'>('tunai')
+    const [hasTabungan, setHasTabungan] = useState(false)
+    
+    useEffect(() => {
+      if (selectedSantri?.id) {
+        getTabungan(String(selectedSantri.id))
+          .then(res => setHasTabungan(res?.data?.status === 'aktif'))
+          .catch(() => setHasTabungan(false))
+      }
+    }, [selectedSantri?.id])
     
     const totalTagihan = getTotalSelected()
     const kembalian = Math.max(0, Number(nominalBayar) - totalTagihan)
@@ -1110,6 +1120,20 @@ const isLunasTab = activeTab === 'lunas'
         
         toast.success('Pembayaran berhasil!')
         
+        // Jika kembalian disimpan ke tabungan santri, lakukan setoran
+        if (opsiKembalian === 'tabungan' && kembalian > 0 && selectedSantri?.id) {
+          try {
+            await setorTabungan(String(selectedSantri.id), {
+              amount: kembalian,
+              description: `Kembalian pembayaran ${tagihanTerpilih.map(t => `${t.jenisTagihan} ${t.bulan} ${t.tahun}`).join(', ')}`,
+              method: metodeBayar,
+            })
+            toast.success(`Kembalian ${formatRupiah(kembalian)} berhasil disetorkan ke tabungan`)
+          } catch {
+            toast.error('Pembayaran berhasil, tapi gagal menyetor ke tabungan — lakukan manual')
+          }
+        }
+        
         // Set data kwitansi dan tampilkan
         setKwitansiData({
           type: 'lunas',
@@ -1119,6 +1143,7 @@ const isLunasTab = activeTab === 'lunas'
           totalBayar: totalTagihan,
           nominalBayar: Number(nominalBayar),
           kembalian: kembalian,
+          opsiKembalian: opsiKembalian,
           metodeBayar: metodeBayar,
           tanggal: tanggalWIB,
           jam: jamWIB,
@@ -1238,7 +1263,7 @@ const isLunasTab = activeTab === 'lunas'
                 </div>
                 
                 <p className="text-sm font-medium text-gray-700 mb-2">Opsi Kembalian:</p>
-                <div className="flex gap-3">
+                <div className="flex gap-3 flex-wrap">
                   <button
                     onClick={() => setOpsiKembalian('tunai')}
                     className={`flex-1 px-4 py-3 rounded-lg border-2 transition-colors ${
@@ -1259,6 +1284,18 @@ const isLunasTab = activeTab === 'lunas'
                   >
                     Masukkan ke Dompet Santri
                   </button>
+                  {hasTabungan && (
+                  <button
+                    onClick={() => setOpsiKembalian('tabungan')}
+                    className={`flex-1 px-4 py-3 rounded-lg border-2 transition-colors ${
+                      opsiKembalian === 'tabungan'
+                        ? 'border-green-600 bg-green-50 text-green-700'
+                        : 'border-gray-300 hover:border-gray-400'
+                    }`}
+                  >
+                    🐷 Simpan ke Tabungan
+                  </button>
+                  )}
                 </div>
               </div>
             )}
@@ -1725,6 +1762,8 @@ const isLunasTab = activeTab === 'lunas'
                     <span className="text-xs">
                       {kwitansiData.opsiKembalian === 'dompet' 
                         ? '✓ Masukkan ke Dompet Santri' 
+                        : kwitansiData.opsiKembalian === 'tabungan'
+                        ? '✓ Simpan ke Tabungan Santri'
                         : '✓ Kembalian Tunai'}
                     </span>
                   </div>

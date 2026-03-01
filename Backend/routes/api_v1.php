@@ -31,6 +31,7 @@ Route::prefix('wali')->middleware('auth:sanctum')->group(function () {
     
     // Wallet
     Route::get('wallet/{santri_id}', [WaliController::class, 'getWallet']);
+    Route::get('wallet/{santri_id}/history', [WaliController::class, 'getSantriWalletHistory']);
     Route::put('wallet/{santri_id}/limit', [WaliController::class, 'setSantriDailyLimit']);
     
     // Keuangan
@@ -58,6 +59,10 @@ Route::prefix('wali')->middleware('auth:sanctum')->group(function () {
     Route::get('announcements/unread-count', [\App\Http\Controllers\Api\AnnouncementController::class, 'unreadCount']);
     Route::get('announcements/{id}', [\App\Http\Controllers\Api\AnnouncementController::class, 'show']);
     Route::post('announcements/{id}/mark-read', [\App\Http\Controllers\Api\AnnouncementController::class, 'markAsRead']);
+
+    // Tabungan (read-only untuk wali)
+    Route::get('tabungan/{santri_id}', [\App\Http\Controllers\TabunganController::class, 'show']);
+    Route::get('tabungan/{santri_id}/history', [\App\Http\Controllers\TabunganController::class, 'history']);
 });
 
 // Admin Routes

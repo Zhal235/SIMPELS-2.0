@@ -17,6 +17,7 @@ use App\Http\Controllers\EposController;
 use App\Http\Controllers\WalletSettingsController;
 use App\Http\Controllers\Api\V1\Wali\WaliController;
 use App\Http\Controllers\BankAccountController;
+use App\Http\Controllers\TabunganController;
 
 // Load V1 Routes
 Route::prefix('v1')->group(base_path('routes/api_v1.php'));
@@ -161,8 +162,21 @@ Route::middleware('auth:sanctum')->group(function () {
         Route::post('bank-accounts/{id}/toggle-active', [BankAccountController::class, 'toggleActive']);
     });
 
-    // API v1 endpoints untuk Dompet Digital / Wallets (protected)
-    Route::prefix('v1/wallets')->group(function () {
+        // API v1 endpoints untuk Tabungan Santri
+        Route::prefix('v1/tabungan')->group(function () {
+            Route::get('laporan/summary', [TabunganController::class, 'laporan']);
+            Route::get('/', [TabunganController::class, 'index']);
+            Route::post('/', [TabunganController::class, 'store']);
+            $uuidConstraint = '[0-9a-fA-F\-]{36}';
+            Route::get('/{santriId}', [TabunganController::class, 'show'])->where('santriId', $uuidConstraint);
+            Route::patch('/{santriId}', [TabunganController::class, 'update'])->where('santriId', $uuidConstraint);
+            Route::post('/{santriId}/setor', [TabunganController::class, 'setor'])->where('santriId', $uuidConstraint);
+            Route::post('/{santriId}/tarik', [TabunganController::class, 'tarik'])->where('santriId', $uuidConstraint);
+            Route::get('/{santriId}/history', [TabunganController::class, 'history'])->where('santriId', $uuidConstraint);
+        });
+
+        // API v1 endpoints untuk Dompet Digital / Wallets (protected)
+        Route::prefix('v1/wallets')->group(function () {
         // Get cash & bank balances
         Route::get('balances', [WalletController::class, 'getBalances']);
         

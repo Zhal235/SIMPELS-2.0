@@ -11,6 +11,7 @@ import 'notification_screen.dart';
 import 'unified_payment_screen.dart';
 import 'bukti_history_screen.dart';
 import 'data_santri_screen.dart';
+import 'tabungan_screen.dart';
 import '../widgets/dashboard_announcement_card.dart';
 
 class HomeScreen extends StatefulWidget {
@@ -518,28 +519,88 @@ class DashboardTab extends StatelessWidget {
                 ),
               ),
 
-              const SizedBox(height: 24),
+              const SizedBox(height: 12),
 
-              // Menu Cepat
+              // Saldo Tabungan Card
               Padding(
                 padding: const EdgeInsets.symmetric(horizontal: 16),
-                child: Row(
-                  mainAxisAlignment: MainAxisAlignment.spaceAround,
+                child: _TabunganCard(santri: santri),
+              ),
+
+              const SizedBox(height: 24),
+
+              // Menu Cepat (2 rows of 3)
+              Padding(
+                padding: const EdgeInsets.symmetric(horizontal: 16),
+                child: Column(
                   children: [
+                    Row(
+                      mainAxisAlignment: MainAxisAlignment.spaceAround,
+                      children: [
+                        _buildQuickMenu(
+                          context,
+                          icon: Icons.school,
+                          title: 'Data Santri',
+                          color: Colors.teal,
+                          onTap: () {
+                            Navigator.push(
+                              context,
+                              MaterialPageRoute(
+                                builder: (_) => const DataSantriScreen(),
+                              ),
+                            );
+                          },
+                        ),
                     _buildQuickMenu(
                       context,
-                      icon: Icons.school,
-                      title: 'Data Santri',
-                      color: Colors.teal,
+                      icon: Icons.account_balance_wallet,
+                      title: 'Dompet',
+                      color: Colors.blue,
                       onTap: () {
-                        Navigator.push(
-                          context,
-                          MaterialPageRoute(
-                            builder: (_) => const DataSantriScreen(),
-                          ),
-                        );
+                        final santri =
+                            Provider.of<AuthProvider>(context, listen: false)
+                                .activeSantri;
+                        if (santri != null) {
+                          Navigator.push(
+                            context,
+                            MaterialPageRoute(
+                              builder: (_) => WalletHistoryScreen(
+                                santriId: santri.id,
+                                santriName: santri.nama,
+                              ),
+                            ),
+                          );
+                        }
                       },
                     ),
+                    _buildQuickMenu(
+                      context,
+                      icon: Icons.account_balance,
+                      title: 'Tabungan',
+                      color: Colors.indigo,
+                      onTap: () {
+                        final santri =
+                            Provider.of<AuthProvider>(context, listen: false)
+                                .activeSantri;
+                        if (santri != null) {
+                          Navigator.push(
+                            context,
+                            MaterialPageRoute(
+                              builder: (_) => TabunganScreen(
+                                santriId: santri.id,
+                                santriName: santri.nama,
+                              ),
+                            ),
+                          );
+                        }
+                      },
+                    ),
+                  ],
+                ),
+                const SizedBox(height: 12),
+                Row(
+                  mainAxisAlignment: MainAxisAlignment.spaceAround,
+                  children: [
                     _buildQuickMenu(
                       context,
                       icon: Icons.receipt_long,
@@ -568,8 +629,6 @@ class DashboardTab extends StatelessWidget {
                       title: 'Riwayat',
                       color: Colors.purple,
                       onTap: () {
-                        // Navigate to Riwayat tab (index 2)
-                        debugPrint('QuickMenu: Riwayat tapped');
                         if (onNavigateToTab != null) {
                           onNavigateToTab!(2);
                         } else {
@@ -593,33 +652,10 @@ class DashboardTab extends StatelessWidget {
                     ),
                     _buildQuickMenu(
                       context,
-                      icon: Icons.account_balance_wallet,
-                      title: 'Dompet',
-                      color: Colors.blue,
-                      onTap: () {
-                        final santri =
-                            Provider.of<AuthProvider>(context, listen: false)
-                                .activeSantri;
-                        if (santri != null) {
-                          Navigator.push(
-                            context,
-                            MaterialPageRoute(
-                              builder: (_) => WalletHistoryScreen(
-                                santriId: santri.id,
-                                santriName: santri.nama,
-                              ),
-                            ),
-                          );
-                        }
-                      },
-                    ),
-                    _buildQuickMenu(
-                      context,
                       icon: Icons.payment,
                       title: 'Bayar',
                       color: Colors.green,
                       onTap: () {
-                        debugPrint('QuickMenu: Bayar tapped');
                         if (onNavigateToTab != null) {
                           onNavigateToTab!(1);
                         } else {
@@ -643,19 +679,21 @@ class DashboardTab extends StatelessWidget {
                     ),
                   ],
                 ),
-              ),
-              
-              const SizedBox(height: 24),
-              
-              // Pengumuman Section
-              const DashboardAnnouncementCard(),
-
-              const SizedBox(height: 24),
-            ],
+              ],
+            ),
           ),
-        ),
+          
+          const SizedBox(height: 24),
+          
+          // Pengumuman Section
+          const DashboardAnnouncementCard(),
+
+          const SizedBox(height: 24),
+        ],
       ),
-    );
+    ),
+  ),
+);
   }
 
   Widget _buildQuickMenu(
@@ -698,6 +736,122 @@ class DashboardTab extends StatelessWidget {
           RegExp(r'(\d{1,3})(?=(\d{3})+(?!\d))'),
           (Match m) => '${m[1]}.',
         );
+  }
+}
+
+// ─── Tabungan Card ────────────────────────────────────────────────────────────
+
+class _TabunganCard extends StatefulWidget {
+  final dynamic santri; // SantriModel or null
+
+  const _TabunganCard({this.santri});
+
+  @override
+  State<_TabunganCard> createState() => _TabunganCardState();
+}
+
+class _TabunganCardState extends State<_TabunganCard> {
+  bool _loading = true;
+  bool _hasTabungan = false;
+  double _saldo = 0;
+  final ApiService _api = ApiService();
+
+  @override
+  void initState() {
+    super.initState();
+    _load();
+  }
+
+  @override
+  void didUpdateWidget(_TabunganCard oldWidget) {
+    super.didUpdateWidget(oldWidget);
+    if (oldWidget.santri?.id != widget.santri?.id) _load();
+  }
+
+  Future<void> _load() async {
+    if (widget.santri == null) { setState(() { _loading = false; _hasTabungan = false; }); return; }
+    setState(() => _loading = true);
+    try {
+      final res = await _api.getTabunganInfo(widget.santri!.id);
+      if (res.statusCode == 200 && res.data['success'] == true) {
+        _hasTabungan = true;
+        _saldo = double.tryParse(res.data['data']['saldo'].toString()) ?? 0;
+      } else {
+        _hasTabungan = false;
+      }
+    } catch (_) {
+      _hasTabungan = false;
+    } finally {
+      if (mounted) setState(() => _loading = false);
+    }
+  }
+
+  String _fmt(double v) => v.toStringAsFixed(0).replaceAllMapped(
+    RegExp(r'(\d{1,3})(?=(\d{3})+(?!\d))'), (m) => '${m[1]}.',
+  );
+
+  @override
+  Widget build(BuildContext context) {
+    if (_loading) {
+      return Container(
+        height: 64,
+        decoration: BoxDecoration(
+          color: Colors.teal.shade50,
+          borderRadius: BorderRadius.circular(12),
+          border: Border.all(color: Colors.teal.shade100),
+        ),
+        child: const Center(child: SizedBox(width: 18, height: 18, child: CircularProgressIndicator(strokeWidth: 2))),
+      );
+    }
+    if (!_hasTabungan) return const SizedBox.shrink();
+
+    return GestureDetector(
+      onTap: () {
+        if (widget.santri != null) {
+          Navigator.push(
+            context,
+            MaterialPageRoute(
+              builder: (_) => TabunganScreen(
+                santriId: widget.santri!.id,
+                santriName: widget.santri!.nama,
+              ),
+            ),
+          ).then((_) => _load());
+        }
+      },
+      child: Container(
+        padding: const EdgeInsets.symmetric(horizontal: 16, vertical: 14),
+        decoration: BoxDecoration(
+          color: Colors.teal.shade50,
+          borderRadius: BorderRadius.circular(12),
+          border: Border.all(color: Colors.teal.shade200),
+        ),
+        child: Row(
+          children: [
+            Container(
+              width: 36,
+              height: 36,
+              decoration: BoxDecoration(
+                color: Colors.teal.shade100,
+                borderRadius: BorderRadius.circular(8),
+              ),
+              child: Icon(Icons.savings, color: Colors.teal.shade700, size: 20),
+            ),
+            const SizedBox(width: 12),
+            Expanded(
+              child: Column(
+                crossAxisAlignment: CrossAxisAlignment.start,
+                children: [
+                  Text('Saldo Tabungan', style: TextStyle(fontSize: 12, color: Colors.teal.shade600)),
+                  Text('Rp ${_fmt(_saldo)}', style: TextStyle(fontSize: 18, fontWeight: FontWeight.bold, color: Colors.teal.shade800)),
+                ],
+              ),
+            ),
+            Icon(Icons.arrow_forward_ios, size: 14, color: Colors.teal.shade400),
+          ],
+        ),
+      ),
+    );
   }
 }
 
@@ -1755,27 +1909,29 @@ class _RiwayatTabState extends State<RiwayatTab>
 
       final apiService = ApiService();
 
-      // Get wallet transactions
-      final walletResponse = await apiService.getWalletTransactions(santri.id);
-      final walletData = walletResponse.data['data'] ?? [];
+      // Get wallet transactions (dedicated history endpoint)
+      final walletResponse = await apiService.getWalletHistory(santri.id);
+      final rawWalletData = walletResponse.data['data'];
+      final walletData = rawWalletData is List ? rawWalletData : [];
 
       // Get bukti transfer history
       final buktiResponse = await apiService.getBuktiHistory(santri.id);
-      final buktiData = buktiResponse.data['data'] ?? [];
+      final rawBuktiData = buktiResponse.data['data'];
+      final buktiData = rawBuktiData is List ? rawBuktiData : [];
 
       // Separate data into 3 categories
       final walletList = <Map<String, dynamic>>[];
       final buktiList = <Map<String, dynamic>>[];
 
-      // Process wallet transactions
+      // Process wallet transactions (fields: tanggal, keterangan, jumlah, tipe, saldo_akhir)
       for (var item in walletData) {
         walletList.add({
           'type': 'wallet',
-          'date': item['created_at'] ?? '',
-          'description': item['description'] ?? '',
-          'amount': item['amount'] ?? 0,
-          'transaction_type': item['type'] ?? 'credit',
-          'balance_after': item['balance_after'] ?? 0,
+          'date': item['tanggal'] ?? item['created_at'] ?? '',
+          'description': item['keterangan'] ?? item['description'] ?? '',
+          'amount': item['jumlah'] ?? item['amount'] ?? 0,
+          'transaction_type': item['tipe'] ?? item['type'] ?? 'credit',
+          'balance_after': item['saldo_akhir'] ?? item['balance_after'] ?? 0,
         });
       }
 

@@ -19,6 +19,7 @@ class UnifiedPaymentScreen extends StatefulWidget {
   final Map<String, dynamic>? tagihan;
   final bool isTopupOnly;
   final double? topupNominal;
+  final double? tabunganNominal;
   final String? santriName;
   final bool shouldIncludeTopup;
   final int? selectedBankId;
@@ -35,6 +36,7 @@ class UnifiedPaymentScreen extends StatefulWidget {
     this.tagihan,
     this.isTopupOnly = false,
     this.topupNominal,
+    this.tabunganNominal,
     this.santriName,
     this.shouldIncludeTopup = false,
     this.selectedBankId,
@@ -57,6 +59,7 @@ class _UnifiedPaymentScreenState extends State<UnifiedPaymentScreen> {
 
   double _paymentAmount = 0;
   double _topupAmount = 0;
+  double _tabunganAmount = 0;
   String? _draftKey;
 
   @override
@@ -93,6 +96,9 @@ class _UnifiedPaymentScreenState extends State<UnifiedPaymentScreen> {
           _topupAmount = widget.topupNominal!;
           debugPrint('[UnifiedPayment] Topup amount: $_topupAmount');
         }
+        if (widget.tabunganNominal != null && widget.tabunganNominal! > 0) {
+          _tabunganAmount = widget.tabunganNominal!;
+        }
       } else if (widget.isTopupOnly && widget.topupNominal != null) {
         _topupAmount = widget.topupNominal!;
       } else if (widget.tagihan != null) {
@@ -100,6 +106,9 @@ class _UnifiedPaymentScreenState extends State<UnifiedPaymentScreen> {
             double.tryParse(widget.tagihan!['sisa']?.toString() ?? '0') ?? 0;
         if (widget.topupNominal != null && widget.topupNominal! > 0) {
           _topupAmount = widget.topupNominal!;
+        }
+        if (widget.tabunganNominal != null && widget.tabunganNominal! > 0) {
+          _tabunganAmount = widget.tabunganNominal!;
         }
       }
     });
@@ -420,7 +429,7 @@ class _UnifiedPaymentScreenState extends State<UnifiedPaymentScreen> {
       final apiService = ApiService();
 
       // Calculate total nominal
-      final totalNominal = (paymentAmount ?? 0) + (topupAmount ?? 0);
+      final totalNominal = (paymentAmount ?? 0) + (topupAmount ?? 0) + _tabunganAmount;
 
       // Upload bukti transfer menggunakan endpoint yang sudah ada
       final response = await apiService.uploadBuktiTransfer(
@@ -431,6 +440,7 @@ class _UnifiedPaymentScreenState extends State<UnifiedPaymentScreen> {
         buktiBytes: _webImage,
         catatan: _buildCatatan(paymentAmount, topupAmount),
         nominalTopup: topupAmount,
+        nominalTabungan: _tabunganAmount > 0 ? _tabunganAmount : null,
         selectedBankId: widget.selectedBankId,
       );
 
@@ -757,11 +767,16 @@ class _UnifiedPaymentScreenState extends State<UnifiedPaymentScreen> {
                           'Rp ${_formatCurrency(_topupAmount)}'),
                       const SizedBox(height: 8),
                     ],
+                    if (_tabunganAmount > 0) ...[
+                      _buildInfoRow('Setor Tabungan',
+                          'Rp ${_formatCurrency(_tabunganAmount)}'),
+                      const SizedBox(height: 8),
+                    ],
                     const Divider(),
                     const SizedBox(height: 8),
                     _buildInfoRow(
                       'TOTAL TRANSFER',
-                      'Rp ${_formatCurrency(_paymentAmount + _topupAmount)}',
+                      'Rp ${_formatCurrency(_paymentAmount + _topupAmount + _tabunganAmount)}',
                       isBold: true,
                     ),
                   ],
