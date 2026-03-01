@@ -323,11 +323,20 @@ class WalletController extends Controller
             return response()->json(['success' => true, 'data' => []]);
         }
 
-        $txns = WalletTransaction::where('wallet_id', $wallet->id)
+        $query = WalletTransaction::where('wallet_id', $wallet->id)
             ->with('author')
-            ->orderBy('created_at', 'desc')
-            ->get()
-            ->map(function ($t) {
+            ->orderBy('created_at', 'desc');
+
+        // ?view=wali → sembunyikan transaksi voided dan entri reversal admin
+        // Digunakan oleh mobile / tampilan wali santri agar riwayat tetap bersih
+        $isWaliView = request()->query('view') === 'wali';
+        if ($isWaliView) {
+            $query->where(function ($q) {
+                $q->where('voided', '!=', 1)->orWhereNull('voided');
+            })->whereNotIn('method', ['admin-void', 'admin-reverse']);
+        }
+
+        $txns = $query->get()->map(function ($t) {
                 // Use the 'type' field from database, fallback to amount sign
                 $tipe = $t->type ?? (($t->amount ?? 0) < 0 ? 'debit' : 'credit');
                 
@@ -388,6 +397,13 @@ class WalletController extends Controller
                         'name' => $authorName,
                     ],
                     'voided' => $t->voided ?? false,
+                    'void_reason' => $t->void_reason,
+                    // Audit edit
+                    'edited_at' => $t->edited_at ? $t->edited_at->toIso8601String() : null,
+                    'edited_by' => $t->edited_by,
+                    'original_amount' => $t->original_amount,
+                    'original_method' => $t->original_method,
+                    'original_description' => $t->original_description,
                 ];
             });
             
@@ -404,8 +420,9 @@ class WalletController extends Controller
     }
 
     /**
-     * Update a transaction: reverse original and apply new transaction
-     * Only admin allowed
+     * Update a transaction: edit in place and save original values as audit trail.
+     * No reversal entry is created — history remains clean for wali santri.
+     * Only admin allowed.
      */
     public function updateTransaction(Request $request, $id)
     {
@@ -414,81 +431,65 @@ class WalletController extends Controller
         }
 
         $validator = Validator::make($request->all(), [
-            'amount' => 'required|numeric|min:0.01',
+            'amount'      => 'required|numeric|min:0.01',
             'description' => 'string|nullable',
-            'method' => 'nullable|in:cash,transfer,epos',
-            'type' => 'nullable|in:credit,debit,epos_in,epos_out,withdraw'
+            'method'      => 'nullable|in:cash,transfer,epos',
+            'type'        => 'nullable|in:credit,debit,epos_in,epos_out,withdraw'
         ]);
 
         if ($validator->fails()) return response()->json(['success' => false, 'message' => 'Validation error', 'errors' => $validator->errors()], 422);
 
-        $newAmount = $request->input('amount');
+        $newAmount      = $request->input('amount');
         $newDescription = $request->input('description');
-        $newMethod = $request->input('method', null);
-        $newType = $request->input('type', null);
+        $newMethod      = $request->input('method', null);
+        $newType        = $request->input('type', null);
 
         DB::beginTransaction();
         try {
-            $orig = WalletTransaction::find($id);
-            if (!$orig) return response()->json(['success' => false, 'message' => 'Transaction not found'], 404);
-            if ($orig->voided) return response()->json(['success' => false, 'message' => 'Transaction already voided'], 422);
+            $txn = WalletTransaction::find($id);
+            if (!$txn)          return response()->json(['success' => false, 'message' => 'Transaction not found'], 404);
+            if ($txn->voided)   return response()->json(['success' => false, 'message' => 'Transaction already voided'], 422);
 
-            $wallet = Wallet::find($orig->wallet_id);
+            $wallet = Wallet::find($txn->wallet_id);
             if (!$wallet) return response()->json(['success' => false, 'message' => 'Wallet not found'], 404);
 
-            // create reversal transaction (opposite of original)
-            $reverseType = $orig->type === 'credit' ? 'debit' : ($orig->type === 'debit' ? 'credit' : 'debit');
-
-            // adjust wallet balance for reversal
-            if ($reverseType === 'debit') {
-                $wallet->balance -= $orig->amount;
-            } else {
-                $wallet->balance += $orig->amount;
+            // Audit: simpan nilai lama hanya untuk edit pertama kali
+            if (is_null($txn->original_amount)) {
+                $txn->original_amount      = $txn->amount;
+                $txn->original_method      = $txn->method;
+                $txn->original_description = $txn->description;
             }
-            $wallet->save();
 
-            $refReverse = 'REV-' . now()->format('YmdHis') . '-' . Str::upper(Str::random(6));
-            $revTx = WalletTransaction::create([
-                'wallet_id' => $wallet->id,
-                'type' => $reverseType,
-                'amount' => $orig->amount,
-                'balance_after' => $wallet->balance,
-                'description' => 'Reversal for ' . ($orig->reference ?? ('txn:' . $orig->id)),
-                'reference' => $refReverse,
-                'method' => 'admin-reverse',
-                'created_by' => $request->user()->id,
-                'reversed_of' => $orig->id
-            ]);
-
-            // mark original voided
-            $orig->voided = true;
-            $orig->voided_by = $request->user()->id;
-            $orig->save();
-
-            // now apply new transaction (same type as original unless overridden)
-            $finalType = $newType ?: $orig->type;
+            // Sesuaikan saldo: balik efek lama, terapkan efek baru
+            $finalType = $newType ?: $txn->type;
+            if ($txn->type === 'credit') {
+                $wallet->balance -= $txn->amount;   // balik lama
+            } else {
+                $wallet->balance += $txn->amount;
+            }
             if ($finalType === 'credit') {
-                $wallet->balance += $newAmount;
+                $wallet->balance += $newAmount;     // terapkan baru
             } else {
                 $wallet->balance -= $newAmount;
             }
             $wallet->save();
 
-            $newRef = 'WAL-' . now()->format('YmdHis') . '-' . Str::upper(Str::random(6));
-            $newTxn = WalletTransaction::create([
-                'wallet_id' => $wallet->id,
-                'type' => $finalType,
-                'amount' => $newAmount,
-                'balance_after' => $wallet->balance,
-                'description' => $newDescription,
-                'reference' => $newRef,
-                'method' => $newMethod ?? $orig->method,
-                'created_by' => $request->user()->id
-            ]);
+            // Update transaksi asli — TIDAK membuat entri baru
+            // timestamps = false agar created_at dan updated_at tidak berubah
+            $txn->timestamps = false;
+            $txn->amount       = $newAmount;
+            $txn->description  = $newDescription;
+            $txn->method       = $newMethod ?? $txn->method;
+            $txn->type         = $finalType;
+            $txn->balance_after = $wallet->balance;
+            $txn->edited_at    = now();
+            $txn->edited_by    = $request->user()->id;
+            $txn->save();
+            $txn->timestamps = true;
 
             DB::commit();
 
-            return response()->json(['success' => true, 'data' => ['wallet' => $wallet, 'reversal' => $revTx, 'transaction' => $newTxn]]);
+            return response()->json(['success' => true, 'data' => ['wallet' => $wallet, 'transaction' => $txn]]);
 
         } catch (\Exception $e) {
             DB::rollBack();
@@ -498,13 +499,24 @@ class WalletController extends Controller
     }
 
     /**
-     * Void (delete) a transaction by creating a reversal and marking original as voided
+     * Void (delete) a transaction: buat reversal dan tandai transaksi asli sebagai voided.
+     * Alasan void wajib diisi admin agar wali santri dapat memahami konteksnya.
      */
     public function voidTransaction(Request $request, $id)
     {
         if (!$this->ensureAdmin($request)) {
             return response()->json(['success' => false, 'message' => 'Forbidden'], 403);
         }
+
+        $validator = Validator::make($request->all(), [
+            'reason' => 'required|string|max:255',
+        ]);
+
+        if ($validator->fails()) {
+            return response()->json(['success' => false, 'message' => 'Alasan hapus transaksi wajib diisi', 'errors' => $validator->errors()], 422);
+        }
+
+        $reason = $request->input('reason');
 
         DB::beginTransaction();
         try {
@@ -527,19 +539,20 @@ class WalletController extends Controller
 
             $refReverse = 'REV-' . now()->format('YmdHis') . '-' . Str::upper(Str::random(6));
             $revTx = WalletTransaction::create([
-                'wallet_id' => $wallet->id,
-                'type' => $reverseType,
-                'amount' => $orig->amount,
+                'wallet_id'   => $wallet->id,
+                'type'        => $reverseType,
+                'amount'      => $orig->amount,
                 'balance_after' => $wallet->balance,
-                'description' => 'Void reversal for ' . ($orig->reference ?? ('txn:' . $orig->id)),
-                'reference' => $refReverse,
-                'method' => 'admin-void',
-                'created_by' => $request->user()->id,
-                'reversed_of' => $orig->id
+                'description' => 'Koreksi admin: ' . $reason,
+                'reference'   => $refReverse,
+                'method'      => 'admin-void',
+                'created_by'  => $request->user()->id,
+                'reversed_of' => $orig->id,
             ]);
 
-            $orig->voided = true;
-            $orig->voided_by = $request->user()->id;
+            $orig->voided     = true;
+            $orig->voided_by  = $request->user()->id;
+            $orig->void_reason = $reason;
             $orig->save();
 
             DB::commit();

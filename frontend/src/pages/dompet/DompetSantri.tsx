@@ -22,6 +22,7 @@ export default function DompetSantri() {
   const [editDesc, setEditDesc] = useState('')
   const [editMethod, setEditMethod] = useState<'cash' | 'transfer' | 'epos' | null>('cash')
   const [showVoidConfirm, setShowVoidConfirm] = useState(false)
+  const [voidReason, setVoidReason] = useState('')
 
   // Topup / Tarik states
   const [showTopup, setShowTopup] = useState(false)
@@ -33,6 +34,8 @@ export default function DompetSantri() {
   const currentUser = useAuthStore((s) => s.user)
   const roles = useAuthStore((s) => s.roles)
   const currentRole = roles?.find((r: any) => (r.slug === (currentUser?.role)))
+
+  const formatRupiah = (val: string) => val ? Number(val).toLocaleString('id-ID') : ''
 
   const getBackendOrigin = () => {
     // Get API URL from env - remove /api suffix if present
@@ -199,8 +202,9 @@ export default function DompetSantri() {
 
   async function confirmVoidTransaction() {
     if (!editingTxn || !selectedSantri) return
+    if (!voidReason.trim()) { toast.error('Alasan hapus transaksi wajib diisi'); return }
     try {
-      const res = await voidTransaction(editingTxn.id)
+      const res = await voidTransaction(editingTxn.id, voidReason.trim())
       if (res.success) {
         toast.success('Transaksi berhasil dihapus (void)')
         const w = await getWallet(selectedSantri.id)
@@ -209,6 +213,7 @@ export default function DompetSantri() {
         if (t.success) setTransactions(t.data || [])
         setShowVoidConfirm(false)
         setEditingTxn(null)
+        setVoidReason('')
       }
     } catch (err:any) {
       console.error(err)
@@ -343,7 +348,13 @@ export default function DompetSantri() {
                     }
                   }
                 },
-                { key: 'keterangan', header: 'Keterangan', render: (v: any, r: any) => String(v || r.description || '-') },
+                { key: 'keterangan', header: 'Keterangan', render: (v: any, r: any) => (
+                  <div>
+                    <span>{String(v || r.description || '-')}</span>
+                    {r.edited_at && <span className="ml-2 text-xs bg-yellow-100 text-yellow-700 px-1.5 py-0.5 rounded">Diubah</span>}
+                    {r.voided && r.void_reason && <span className="ml-2 text-xs bg-red-100 text-red-600 px-1.5 py-0.5 rounded" title={r.void_reason}>Dihapus</span>}
+                  </div>
+                ) },
                 { key: 'tipe', header: 'Tipe', render: (v: any, r: any) => (v || r.type || '-') },
                 { key: 'metode', header: 'Metode', render: (v: any, r: any) => (v || r.method || '-') },
                 { 
@@ -379,7 +390,7 @@ export default function DompetSantri() {
       )}>
         <form onSubmit={submitTopup} className="grid grid-cols-1 gap-3">
           <label className="block text-sm">Nominal (Rp)</label>
-          <input value={amount} onChange={(e) => setAmount(e.target.value.replace(/\D/g, ''))} className="rounded-md border px-3 py-2" placeholder="Contoh: 50000" />
+          <input value={formatRupiah(amount)} onChange={(e) => setAmount(e.target.value.replace(/\./g, '').replace(/\D/g, ''))} className="rounded-md border px-3 py-2" placeholder="Contoh: 50.000" />
           <label className="block text-sm">Metode</label>
           <div className="flex gap-2 mb-2">
             <button type="button" onClick={() => setMethod('cash')} className={`px-3 py-2 rounded-lg border ${method === 'cash' ? 'border-blue-600 bg-blue-50' : 'border-gray-200'}`}>Cash</button>
@@ -399,7 +410,7 @@ export default function DompetSantri() {
       )}>
         <form onSubmit={submitWithdraw} className="grid grid-cols-1 gap-3">
           <label className="block text-sm">Nominal (Rp)</label>
-          <input value={amount} onChange={(e) => setAmount(e.target.value.replace(/\D/g, ''))} className="rounded-md border px-3 py-2" placeholder="Contoh: 50000" />
+          <input value={formatRupiah(amount)} onChange={(e) => setAmount(e.target.value.replace(/\./g, '').replace(/\D/g, ''))} className="rounded-md border px-3 py-2" placeholder="Contoh: 50.000" />
           <div className="text-xs text-gray-500 bg-blue-50 p-2 rounded">
             💵 Penarikan tunai menggunakan metode Cash
           </div>
@@ -417,7 +428,7 @@ export default function DompetSantri() {
       )}>
         <form onSubmit={submitEditTransaction} className="grid grid-cols-1 gap-3">
           <label className="block text-sm">Nominal (Rp)</label>
-          <input value={editAmount} onChange={(e) => setEditAmount(e.target.value.replace(/\D/g, ''))} className="rounded-md border px-3 py-2" />
+          <input value={formatRupiah(editAmount)} onChange={(e) => setEditAmount(e.target.value.replace(/\./g, '').replace(/\D/g, ''))} className="rounded-md border px-3 py-2" />
 
           <label className="block text-sm">Metode</label>
           <div className="flex gap-2 mb-2">
@@ -431,14 +442,23 @@ export default function DompetSantri() {
         </form>
       </Modal>
 
-      {/* Void confirmation modal */}
-      <Modal open={showVoidConfirm} title={`Hapus Transaksi: ${editingTxn?.reference ?? ''}`} onClose={() => setShowVoidConfirm(false)} footer={(
+      <Modal open={showVoidConfirm} title={`Hapus Transaksi: ${editingTxn?.reference ?? ''}`} onClose={() => { setShowVoidConfirm(false); setVoidReason('') }} footer={
         <>
-          <button className="btn" onClick={() => setShowVoidConfirm(false)}>Batal</button>
-          <button className="btn btn-danger" onClick={confirmVoidTransaction}>Konfirmasi Hapus</button>
+          <button className="btn" onClick={() => { setShowVoidConfirm(false); setVoidReason('') }}>Batal</button>
+          <button className="btn btn-danger" onClick={confirmVoidTransaction} disabled={!voidReason.trim()}>Konfirmasi Hapus</button>
         </>
-      )}>
-        <div>Anda yakin akan menghapus (void) transaksi ini? Aksi ini akan membuat transaksi pembalikan dan menandai transaksi asli sebagai voided.</div>
+      }>
+        <div className="space-y-3">
+          <p>Anda yakin akan menghapus (void) transaksi ini? Aksi ini akan membuat transaksi pembalikan dan menandai transaksi asli sebagai voided.</p>
+          <label className="block text-sm font-medium text-gray-700">Alasan Penghapusan <span className="text-red-500">*</span></label>
+          <input
+            value={voidReason}
+            onChange={(e) => setVoidReason(e.target.value)}
+            className="w-full rounded-md border px-3 py-2 text-sm"
+            placeholder="Contoh: Kesalahan input nominal"
+          />
+          <p className="text-xs text-gray-500">Alasan ini akan ditampilkan di riwayat transaksi sebagai keterangan koreksi.</p>
+        </div>
       </Modal>
     </div>
   )

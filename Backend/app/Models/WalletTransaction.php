@@ -12,7 +12,15 @@ class WalletTransaction extends Model
     protected $table = 'wallet_transactions';
 
     protected $fillable = [
-        'wallet_id', 'type', 'amount', 'balance_after', 'description', 'reference', 'created_by', 'method', 'voided', 'voided_by', 'reversed_of'
+        'wallet_id', 'type', 'amount', 'balance_after', 'description', 'reference',
+        'created_by', 'method', 'voided', 'voided_by', 'reversed_of',
+        'original_amount', 'original_method', 'original_description',
+        'edited_at', 'edited_by', 'void_reason',
+    ];
+
+    protected $casts = [
+        'edited_at' => 'datetime',
+        'voided'    => 'boolean',
     ];
 
     public function wallet()

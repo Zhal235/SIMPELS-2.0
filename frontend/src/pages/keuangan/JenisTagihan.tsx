@@ -696,10 +696,10 @@ function ModalFormTagihan({
               {tipeNominal === 'sama' && (
                 <div className="ml-6">
                   <input
-                    type="number"
+                    type="text"
                     placeholder="Masukkan nominal"
-                    value={nominalSama || ''}
-                    onChange={(e) => setNominalSama(Number(e.target.value))}
+                    value={nominalSama ? nominalSama.toLocaleString('id-ID') : ''}
+                    onChange={(e) => setNominalSama(Number(e.target.value.replace(/\./g, '').replace(/\D/g, '')))}
                     className="w-full px-4 py-2 border border-gray-300 rounded-lg focus:ring-2 focus:ring-blue-500 focus:border-transparent"
                   />
                 </div>
@@ -744,10 +744,10 @@ function ModalFormTagihan({
                         <div className="col-span-5 text-sm">{kelasNama}</div>
                         <div className="col-span-6">
                           <input
-                            type="number"
+                            type="text"
                             placeholder="0"
-                            value={nominalValue || ''}
-                            onChange={(e) => handleKelasNominalChange(kelasNama, Number(e.target.value))}
+                            value={nominalValue ? nominalValue.toLocaleString('id-ID') : ''}
+                            onChange={(e) => handleKelasNominalChange(kelasNama, Number(e.target.value.replace(/\./g, '').replace(/\D/g, '')))}
                             disabled={!isChecked}
                             className="w-full px-3 py-1 border border-gray-300 rounded text-sm disabled:bg-gray-100"
                           />
@@ -784,10 +784,10 @@ function ModalFormTagihan({
                             <div className="text-sm font-medium">{item.santriNama}</div>
                           </div>
                           <input
-                            type="number"
+                            type="text"
                             placeholder="Nominal"
-                            value={item.nominal || ''}
-                            onChange={(e) => handleEditNominalSantri(item.santriId, Number(e.target.value))}
+                            value={item.nominal ? item.nominal.toLocaleString('id-ID') : ''}
+                            onChange={(e) => handleEditNominalSantri(item.santriId, Number(e.target.value.replace(/\./g, '').replace(/\D/g, '')))}
                             className="w-32 px-3 py-1 border border-gray-300 rounded text-sm"
                           />
                           <button
@@ -1045,10 +1045,10 @@ function ModalTambahSantri({
                 Nominal untuk {santriTerpilih.length} santri
               </label>
               <input
-                type="number"
+                type="text"
                 placeholder="Masukkan nominal"
-                value={nominal || ''}
-                onChange={(e) => setNominal(Number(e.target.value))}
+                value={nominal ? nominal.toLocaleString('id-ID') : ''}
+                onChange={(e) => setNominal(Number(e.target.value.replace(/\./g, '').replace(/\D/g, '')))}
                 className="w-full px-3 py-2 border rounded-lg text-sm focus:ring-2 focus:ring-blue-500"
               />
               {nominal > 0 && (
@@ -1635,15 +1635,12 @@ function ModalBulkActions({
                 Nominal Baru
               </label>
               <input
-                type="number"
-                value={newNominal}
-                onChange={(e) => setNewNominal(Number(e.target.value))}
+                type="text"
+                value={newNominal ? newNominal.toLocaleString('id-ID') : ''}
+                onChange={(e) => setNewNominal(Number(e.target.value.replace(/\./g, '').replace(/\D/g, '')))}
                 className="w-full px-3 py-2 border border-gray-300 rounded-lg focus:ring-2 focus:ring-purple-500 focus:border-transparent"
                 placeholder="Masukkan nominal baru"
               />
-              <p className="text-sm text-gray-500 mt-1">
-                Rp {newNominal.toLocaleString('id-ID')}
-              </p>
             </div>
           )}
         </div>

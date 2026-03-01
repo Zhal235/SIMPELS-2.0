@@ -35,8 +35,8 @@ export async function updateTransaction(txnId: string | number, payload: { amoun
   return res.data
 }
 
-export async function voidTransaction(txnId: string | number) {
-  const res = await api.delete(`/v1/wallets/transactions/${txnId}`)
+export async function voidTransaction(txnId: string | number, reason: string) {
+  const res = await api.delete(`/v1/wallets/transactions/${txnId}`, { data: { reason } })
   return res.data
 }
 
