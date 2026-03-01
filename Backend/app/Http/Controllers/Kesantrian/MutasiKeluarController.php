@@ -7,6 +7,7 @@ use Illuminate\Http\Request;
 use App\Models\MutasiKeluar;
 use App\Models\Santri;
 use App\Models\TagihanSantri;
+use App\Models\Wallet;
 use Illuminate\Support\Facades\DB;
 use Illuminate\Support\Carbon;
 
@@ -70,9 +71,23 @@ class MutasiKeluarController extends Controller
                 }
             }
 
+            // Hapus seluruh transaksi dan dompet santri yang dimutasi
+            $wallet = Wallet::where('santri_id', $santri->id)->first();
+            $returnedBalance = 0;
+            if ($wallet) {
+                $returnedBalance = $wallet->balance;
+                $wallet->transactions()->delete(); // hapus semua transaksi
+                $wallet->delete();                 // hapus dompet
+            }
+
             DB::commit();
 
-            return response()->json(['success' => true, 'message' => 'Mutasi keluar berhasil disimpan', 'data' => $mutasi], 201);
+            return response()->json([
+                'success' => true,
+                'message' => 'Mutasi keluar berhasil disimpan' . ($returnedBalance > 0 ? '. Saldo dompet Rp ' . number_format($returnedBalance, 0, ',', '.') . ' telah dihapus dari sistem.' : '.'),
+                'data' => $mutasi,
+                'returned_balance' => $returnedBalance,
+            ], 201);
         } catch (\Exception $e) {
             DB::rollBack();
             \Log::error('MutasiKeluar store error: ' . $e->getMessage());
