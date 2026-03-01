@@ -323,12 +323,14 @@ export default function ManajemenKeuangan() {
           ) : (
             <div className="space-y-6">
               {/* Pool Info */}
-              {pool && (
+              {(() => {
+                const poolData = pool || { balance: 0 }
+                return (
                 <div className="grid grid-cols-1 md:grid-cols-3 gap-4">
                   <div className="bg-gradient-to-br from-purple-50 to-purple-100 p-6 rounded-lg border border-purple-200">
                     <div className="text-sm text-purple-700 mb-1">🏪 Saldo Pool EPOS (Total)</div>
                     <div className="text-2xl font-bold text-purple-900">
-                      Rp {parseFloat(pool.balance || 0).toLocaleString('id-ID')}
+                      Rp {parseFloat(poolData.balance || 0).toLocaleString('id-ID')}
                     </div>
                     <div className="text-xs text-purple-600 mt-2">
                       Total akumulasi transaksi
@@ -349,7 +351,7 @@ export default function ManajemenKeuangan() {
                     <div>
                          <div className="text-sm text-gray-500 mb-1">Available Balance</div>
                          <div className="text-2xl font-bold text-gray-800">
-                           Rp {(parseFloat(pool.balance || 0) - pendingAmount).toLocaleString('id-ID')}
+                           Rp {(parseFloat(poolData.balance || 0) - pendingAmount).toLocaleString('id-ID')}
                          </div>
                     </div>
                     <button
@@ -360,7 +362,8 @@ export default function ManajemenKeuangan() {
                     </button>
                   </div>
                 </div>
-              )}
+                )
+              })()}
 
               {/* Withdrawals List */}
               <div>
@@ -438,14 +441,12 @@ export default function ManajemenKeuangan() {
         )}
       >
         <form onSubmit={handleCreateEpos} className="space-y-3">
-          {pool && (
-            <div className="bg-purple-50 border border-purple-200 rounded p-3 text-sm">
-              <div className="font-medium text-purple-900 mb-1">Saldo Pool EPOS</div>
-              <div className="text-2xl font-bold text-purple-700">
-                Rp {parseFloat(pool.balance || 0).toLocaleString('id-ID')}
-              </div>
+          <div className="bg-purple-50 border border-purple-200 rounded p-3 text-sm">
+            <div className="font-medium text-purple-900 mb-1">Saldo Pool EPOS</div>
+            <div className="text-2xl font-bold text-purple-700">
+              Rp {parseFloat(pool?.balance || 0).toLocaleString('id-ID')}
             </div>
-          )}
+          </div>
 
           <div>
             <label className="block text-sm font-medium mb-1">Nominal (Rp) *</label>

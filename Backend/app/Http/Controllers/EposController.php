@@ -189,7 +189,7 @@ class EposController extends Controller
 
     public function pool()
     {
-        $pool = EposPool::where('name', 'epos_main')->first();
+        $pool = EposPool::firstOrCreate(['name' => 'epos_main'], ['balance' => 0]);
         return response()->json(['success' => true, 'data' => $pool]);
     }
 
