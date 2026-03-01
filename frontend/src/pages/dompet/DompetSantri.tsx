@@ -355,7 +355,13 @@ export default function DompetSantri() {
                     {r.voided && r.void_reason && <span className="ml-2 text-xs bg-red-100 text-red-600 px-1.5 py-0.5 rounded" title={r.void_reason}>Dihapus</span>}
                   </div>
                 ) },
-                { key: 'tipe', header: 'Tipe', render: (v: any, r: any) => (v || r.type || '-') },
+                { key: 'tipe', header: 'Tipe', render: (v: any, r: any) => {
+                    const type = v || r.type || ''
+                    if (type === 'credit' || type === 'epos_in') return <span className="inline-flex items-center gap-1 text-green-600 font-medium">↑ Masuk</span>
+                    if (type === 'debit' || type === 'epos_out' || type === 'withdraw') return <span className="inline-flex items-center gap-1 text-red-500 font-medium">↓ Keluar</span>
+                    return <span className="text-gray-400">—</span>
+                  }
+                },
                 { key: 'metode', header: 'Metode', render: (v: any, r: any) => (v || r.method || '-') },
                 { 
                   key: 'jumlah', 

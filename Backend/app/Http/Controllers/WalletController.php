@@ -197,7 +197,16 @@ class WalletController extends Controller
         $wallet = Wallet::where('santri_id', $santriId)->with('santri')->first();
 
         if (!$wallet) {
-            return response()->json(['success' => false, 'message' => 'Wallet not found'], 404);
+            // Wallet belum dibuat — kembalikan objek kosong agar frontend tidak error
+            return response()->json([
+                'success' => true,
+                'data' => [
+                    'id' => null,
+                    'santri_id' => $santriId,
+                    'balance' => 0,
+                    'updated_at' => null,
+                ]
+            ]);
         }
 
         return response()->json(['success' => true, 'data' => $wallet]);

@@ -13,6 +13,9 @@ export default function LaporanKeuangan() {
   const [eposPool, setEposPool] = useState<any>(null)
   const [loading, setLoading] = useState(true)
   const [dateRange, setDateRange] = useState({ start: '', end: '' })
+  const [detailSearch, setDetailSearch] = useState('')
+  const [detailPage, setDetailPage] = useState(1)
+  const DETAIL_PER_PAGE = 25
 
   useEffect(() => { load() }, [])
 
@@ -83,6 +86,20 @@ export default function LaporanKeuangan() {
   
   // Top 10 santri dengan belanja terbanyak
   const topBelanja = [...wallets].sort((a, b) => parseFloat(b.total_debit_epos || 0) - parseFloat(a.total_debit_epos || 0)).slice(0, 10)
+
+  // Detail tab: filter + pagination
+  const filteredWallets = wallets.filter(w => {
+    if (!detailSearch.trim()) return true
+    const q = detailSearch.toLowerCase()
+    return (
+      (w.santri?.nama_santri || '').toLowerCase().includes(q) ||
+      (w.santri?.nis || '').toLowerCase().includes(q) ||
+      (w.santri?.kelas || '').toLowerCase().includes(q)
+    )
+  })
+  const detailLastPage = Math.max(1, Math.ceil(filteredWallets.length / DETAIL_PER_PAGE))
+  const detailSafePage = Math.min(detailPage, detailLastPage)
+  const pagedWallets = filteredWallets.slice((detailSafePage - 1) * DETAIL_PER_PAGE, detailSafePage * DETAIL_PER_PAGE)
 
   function exportExcel() {
     toast.success('Export Excel coming soon!')
@@ -280,17 +297,72 @@ export default function LaporanKeuangan() {
           {/* Tab: Detail Santri */}
           {activeTab === 'detail' && (
             <Card>
-              <div className="mb-4">
-                <h3 className="text-lg font-semibold">Rincian per Santri</h3>
-                <p className="text-sm text-gray-500">Daftar {wallets.length} santri dengan detail saldo dan transaksi</p>
+              <div className="mb-4 flex items-center justify-between gap-4">
+                <div>
+                  <h3 className="text-lg font-semibold">Rincian per Santri</h3>
+                  <p className="text-sm text-gray-500">
+                    {filteredWallets.length} dari {wallets.length} santri
+                  </p>
+                </div>
+                <input
+                  type="text"
+                  placeholder="Cari nama, NIS, atau kelas..."
+                  value={detailSearch}
+                  onChange={(e) => { setDetailSearch(e.target.value); setDetailPage(1) }}
+                  className="w-72 px-3 py-2 border border-gray-300 rounded-lg text-sm focus:ring-2 focus:ring-blue-500 focus:border-transparent"
+                />
               </div>
-              {wallets.length === 0 ? (
+              {pagedWallets.length === 0 ? (
                 <div className="p-8 text-center text-gray-400">
                   <div className="text-4xl mb-2">📭</div>
-                  <div>Belum ada data dompet</div>
+                  <div>{detailSearch ? 'Santri tidak ditemukan' : 'Belum ada data dompet'}</div>
                 </div>
               ) : (
-                <Table columns={detailColumns} data={wallets} getRowKey={(r) => r.id} />
+                <>
+                  <Table columns={detailColumns} data={pagedWallets} getRowKey={(r) => r.id} />
+                  {detailLastPage > 1 && (
+                    <div className="flex items-center justify-between mt-4 pt-4 border-t">
+                      <div className="text-sm text-gray-500">
+                        Halaman {detailSafePage} dari {detailLastPage} &nbsp;·&nbsp; {filteredWallets.length} data
+                      </div>
+                      <div className="flex gap-1">
+                        <button
+                          onClick={() => setDetailPage(1)}
+                          disabled={detailSafePage === 1}
+                          className="px-2 py-1 text-sm border rounded disabled:opacity-40 hover:bg-gray-50"
+                        >«</button>
+                        <button
+                          onClick={() => setDetailPage(p => Math.max(1, p - 1))}
+                          disabled={detailSafePage === 1}
+                          className="px-3 py-1 text-sm border rounded disabled:opacity-40 hover:bg-gray-50"
+                        >‹ Prev</button>
+                        {Array.from({ length: Math.min(5, detailLastPage) }, (_, i) => {
+                          const start = Math.max(1, Math.min(detailSafePage - 2, detailLastPage - 4))
+                          const p = start + i
+                          return (
+                            <button
+                              key={p}
+                              onClick={() => setDetailPage(p)}
+                              className={`px-3 py-1 text-sm border rounded ${
+                                p === detailSafePage ? 'bg-blue-600 text-white border-blue-600' : 'hover:bg-gray-50'
+                              }`}
+                            >{p}</button>
+                          )
+                        })}
+                        <button
+                          onClick={() => setDetailPage(p => Math.min(detailLastPage, p + 1))}
+                          disabled={detailSafePage === detailLastPage}
+                          className="px-3 py-1 text-sm border rounded disabled:opacity-40 hover:bg-gray-50"
+                        >Next ›</button>
+                        <button
+                          onClick={() => setDetailPage(detailLastPage)}
+                          disabled={detailSafePage === detailLastPage}
+                          className="px-2 py-1 text-sm border rounded disabled:opacity-40 hover:bg-gray-50"
+                        >»</button>
+                      </div>
+                    </div>
+                  )}
+                </>
               )}
             </Card>
           )}
