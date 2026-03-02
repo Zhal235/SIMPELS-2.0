@@ -1,6 +1,6 @@
 import { useEffect, useState, useCallback } from 'react'
 import { useNavigate } from 'react-router-dom'
-import { Search, PiggyBank, TrendingUp, TrendingDown, Users, Plus, ArrowUpCircle, ArrowDownCircle, Eye, X, CheckCircle } from 'lucide-react'
+import { Search, Wallet, TrendingUp, TrendingDown, Users, Plus, ArrowUpCircle, ArrowDownCircle, Eye, X, CheckCircle } from 'lucide-react'
 import { listTabungan, getLaporanTabungan, bukaTabungan, setorTabungan, tarikTabungan, updateTabungan } from '../../api/tabungan'
 import { listSantri } from '../../api/santri'
 import toast from 'react-hot-toast'
@@ -194,7 +194,7 @@ export default function TabunganSantri() {
       {/* Summary Cards */}
       <div className="grid grid-cols-2 lg:grid-cols-4 gap-4">
         <SummaryCard
-          icon={<PiggyBank className="w-6 h-6 text-blue-600" />}
+          icon={<Wallet className="w-6 h-6 text-blue-600" />}
           label="Total Saldo Tabungan"
           value={formatRupiah(summary?.total_saldo)}
           bg="bg-blue-50"
@@ -250,7 +250,7 @@ export default function TabunganSantri() {
           </div>
         ) : data.length === 0 ? (
           <div className="flex flex-col items-center justify-center py-16 text-gray-400">
-            <PiggyBank className="w-12 h-12 mb-3" />
+            <Wallet className="w-12 h-12 mb-3" />
             <p className="font-medium">Belum ada data tabungan</p>
             <p className="text-sm mt-1">Klik "Buka Tabungan" untuk menambah</p>
           </div>

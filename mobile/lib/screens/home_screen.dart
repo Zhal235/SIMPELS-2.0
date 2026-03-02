@@ -835,7 +835,7 @@ class _TabunganCardState extends State<_TabunganCard> {
                 color: Colors.teal.shade100,
                 borderRadius: BorderRadius.circular(8),
               ),
-              child: Icon(Icons.savings, color: Colors.teal.shade700, size: 20),
+              child: Icon(Icons.account_balance_wallet, color: Colors.teal.shade700, size: 20),
             ),
             const SizedBox(width: 12),
             Expanded(

@@ -92,7 +92,7 @@ class _TabunganScreenState extends State<TabunganScreen> {
       child: Column(
         mainAxisAlignment: MainAxisAlignment.center,
         children: [
-          Icon(Icons.savings_outlined, size: 64, color: Colors.grey.shade400),
+          Icon(Icons.account_balance_wallet_outlined, size: 64, color: Colors.grey.shade400),
           const SizedBox(height: 16),
           Text(
             'Belum memiliki tabungan',
@@ -152,7 +152,7 @@ class _TabunganScreenState extends State<TabunganScreen> {
                 children: [
                   Row(
                     children: [
-                      Icon(Icons.savings, color: Colors.white.withAlpha(230), size: 20),
+                      Icon(Icons.account_balance_wallet, color: Colors.white.withAlpha(230), size: 20),
                       const SizedBox(width: 8),
                       Text(
                         'Saldo Tabungan',

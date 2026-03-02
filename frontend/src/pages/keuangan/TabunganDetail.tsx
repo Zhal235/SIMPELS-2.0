@@ -1,6 +1,6 @@
 import { useEffect, useState } from 'react'
 import { useParams, useNavigate } from 'react-router-dom'
-import { ArrowLeft, ArrowUpCircle, ArrowDownCircle, PiggyBank } from 'lucide-react'
+import { ArrowLeft, ArrowUpCircle, ArrowDownCircle, Wallet } from 'lucide-react'
 import { getTabungan, getTabunganHistory, setorTabungan, tarikTabungan } from '../../api/tabungan'
 import toast from 'react-hot-toast'
 
@@ -114,7 +114,7 @@ export default function TabunganDetail() {
           {/* Info Card */}
           <div className="bg-gradient-to-br from-blue-500 to-blue-700 rounded-2xl p-6 text-white shadow-lg">
             <div className="flex items-center gap-2 mb-2 opacity-80">
-              <PiggyBank className="w-5 h-5" />
+              <Wallet className="w-5 h-5" />
               <span className="text-sm font-medium">Saldo Tabungan</span>
             </div>
             <p className="text-4xl font-bold">{formatRupiah(tabungan.saldo)}</p>

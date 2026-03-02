@@ -4,6 +4,7 @@ import { Search, User, Home, Building2, Phone, Users, CheckCircle, XCircle, X, P
 import { listSantri, getSantri } from '../../api/santri'
 import { getTagihanBySantri, prosesPembayaran, listPembayaran, getHistoryPembayaran } from '../../api/pembayaran'
 import { setorTabungan, getTabungan } from '../../api/tabungan'
+import { topupWallet } from '../../api/wallet'
 import { useAuthStore } from '../../stores/useAuthStore'
 import toast from 'react-hot-toast'
 
@@ -1120,6 +1121,21 @@ const isLunasTab = activeTab === 'lunas'
         
         toast.success('Pembayaran berhasil!')
         
+        // Jika kembalian disimpan ke dompet santri, lakukan topup wallet
+        if (opsiKembalian === 'dompet' && kembalian > 0 && selectedSantri?.id) {
+          try {
+            await topupWallet(
+              String(selectedSantri.id),
+              kembalian,
+              `Kembalian pembayaran ${tagihanTerpilih.map(t => `${t.jenisTagihan} ${t.bulan} ${t.tahun}`).join(', ')}`,
+              metodeBayar,
+            )
+            toast.success(`Kembalian ${formatRupiah(kembalian)} berhasil disimpan ke dompet santri`)
+          } catch {
+            toast.error('Pembayaran berhasil, tapi gagal menyimpan ke dompet — lakukan manual')
+          }
+        }
+
         // Jika kembalian disimpan ke tabungan santri, lakukan setoran
         if (opsiKembalian === 'tabungan' && kembalian > 0 && selectedSantri?.id) {
           try {
@@ -1293,7 +1309,7 @@ const isLunasTab = activeTab === 'lunas'
                         : 'border-gray-300 hover:border-gray-400'
                     }`}
                   >
-                    🐷 Simpan ke Tabungan
+                    � Simpan ke Tabungan
                   </button>
                   )}
                 </div>
@@ -1326,8 +1342,19 @@ const isLunasTab = activeTab === 'lunas'
     const [nominalBayar, setNominalBayar] = useState('')
     const [metodeBayar, setMetodeBayar] = useState<'cash' | 'transfer'>('cash')
     const [distribusiOtomatis, setDistribusiOtomatis] = useState(true)
-    
+    const [opsiKembalian, setOpsiKembalian] = useState<'tunai' | 'dompet' | 'tabungan'>('tunai')
+    const [hasTabungan, setHasTabungan] = useState(false)
+
+    useEffect(() => {
+      if (selectedSantri?.id) {
+        getTabungan(String(selectedSantri.id))
+          .then(res => setHasTabungan(res?.data?.status === 'aktif'))
+          .catch(() => setHasTabungan(false))
+      }
+    }, [selectedSantri?.id])
+
     const totalTagihan = getTotalSelected()
+    const kembalian = Math.max(0, Number(nominalBayar) - totalTagihan)
     const tagihanTerpilih = tagihan.filter(t => {
       const tIdStr = String(t.id)
       return selectedTagihan.includes(tIdStr)
@@ -1462,6 +1489,35 @@ const isLunasTab = activeTab === 'lunas'
         }
         
         toast.success('Pembayaran sebagian berhasil!')
+
+        // Jika kembalian disimpan ke dompet santri
+        if (opsiKembalian === 'dompet' && kembalian > 0 && selectedSantri?.id) {
+          try {
+            await topupWallet(
+              String(selectedSantri.id),
+              kembalian,
+              `Kembalian pembayaran sebagian ${tagihanTerpilih.map(t => `${t.jenisTagihan} ${t.bulan} ${t.tahun}`).join(', ')}`,
+              metodeBayar,
+            )
+            toast.success(`Kembalian ${formatRupiah(kembalian)} berhasil disimpan ke dompet santri`)
+          } catch {
+            toast.error('Pembayaran berhasil, tapi gagal menyimpan ke dompet — lakukan manual')
+          }
+        }
+
+        // Jika kembalian disimpan ke tabungan santri
+        if (opsiKembalian === 'tabungan' && kembalian > 0 && selectedSantri?.id) {
+          try {
+            await setorTabungan(String(selectedSantri.id), {
+              amount: kembalian,
+              description: `Kembalian pembayaran sebagian ${tagihanTerpilih.map(t => `${t.jenisTagihan} ${t.bulan} ${t.tahun}`).join(', ')}`,
+              method: metodeBayar,
+            })
+            toast.success(`Kembalian ${formatRupiah(kembalian)} berhasil disetorkan ke tabungan`)
+          } catch {
+            toast.error('Pembayaran berhasil, tapi gagal menyetor ke tabungan — lakukan manual')
+          }
+        }
         
         // Set data kwitansi dan tampilkan
         const paymentDetails: { [key: string]: number } = {}
@@ -1476,13 +1532,15 @@ const isLunasTab = activeTab === 'lunas'
           totalTagihan: totalTagihan,
           totalBayar: totalBayar,
           nominalBayar: nominal,
+          kembalian: kembalian,
+          opsiKembalian: opsiKembalian,
           paymentDetails: paymentDetails,
           metodeBayar: metodeBayar,
           tanggal: tanggalWIB,
           jam: jamWIB,
           admin: user?.name || 'Admin'
         })
-        
+
         setShowKwitansi(true)
         setShowModalSebagian(false)
         setSelectedTagihan([])
@@ -1566,6 +1624,54 @@ const isLunasTab = activeTab === 'lunas'
                 </p>
               )}
             </div>
+
+            {/* Kembalian */}
+            {kembalian > 0 && (
+              <div className="mb-6">
+                <div className="p-4 bg-green-50 rounded-lg mb-3">
+                  <p className="text-sm text-gray-700 mb-1">Kembalian:</p>
+                  <p className="text-xl font-bold text-green-600">
+                    {formatRupiah(kembalian)}
+                  </p>
+                </div>
+
+                <p className="text-sm font-medium text-gray-700 mb-2">Opsi Kembalian:</p>
+                <div className="flex gap-3 flex-wrap">
+                  <button
+                    onClick={() => setOpsiKembalian('tunai')}
+                    className={`flex-1 px-4 py-3 rounded-lg border-2 transition-colors ${
+                      opsiKembalian === 'tunai'
+                        ? 'border-blue-600 bg-blue-50 text-blue-700'
+                        : 'border-gray-300 hover:border-gray-400'
+                    }`}
+                  >
+                    Kembalian Tunai
+                  </button>
+                  <button
+                    onClick={() => setOpsiKembalian('dompet')}
+                    className={`flex-1 px-4 py-3 rounded-lg border-2 transition-colors ${
+                      opsiKembalian === 'dompet'
+                        ? 'border-blue-600 bg-blue-50 text-blue-700'
+                        : 'border-gray-300 hover:border-gray-400'
+                    }`}
+                  >
+                    Masukkan ke Dompet Santri
+                  </button>
+                  {hasTabungan && (
+                  <button
+                    onClick={() => setOpsiKembalian('tabungan')}
+                    className={`flex-1 px-4 py-3 rounded-lg border-2 transition-colors ${
+                      opsiKembalian === 'tabungan'
+                        ? 'border-green-600 bg-green-50 text-green-700'
+                        : 'border-gray-300 hover:border-gray-400'
+                    }`}
+                  >
+                    💰 Simpan ke Tabungan
+                  </button>
+                  )}
+                </div>
+              </div>
+            )}
 
             {/* Rekomendasi Pembayaran */}
             {nominalBayar && Number(nominalBayar) > 0 && (
