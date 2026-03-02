@@ -5,6 +5,9 @@ return [
     'allowed_methods' => ['GET', 'HEAD', 'PUT', 'PATCH', 'POST', 'DELETE', 'OPTIONS'],
     'allowed_origins' => [
         'https://simpels.saza.sch.id',
+        'https://api-simpels.saza.sch.id',
+        'https://app-simpels.saza.sch.id',
+        'https://mobilesimpels.saza.sch.id',
         'https://api.saza.sch.id',
         'https://mobile.saza.sch.id',
         'http://localhost:5173',
