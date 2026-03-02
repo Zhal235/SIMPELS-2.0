@@ -1,4 +1,5 @@
 import 'package:flutter/material.dart';
+import 'package:flutter/foundation.dart';
 import 'package:provider/provider.dart';
 import 'dart:convert';
 import 'package:shared_preferences/shared_preferences.dart';
@@ -269,11 +270,9 @@ class DashboardTab extends StatelessWidget {
                             currentSantri!.fotoUrl!.isNotEmpty;
 
                         if (hasFoto) {
-                          debugPrint(
-                              '[HomeScreen] Loading foto from: ${currentSantri.fotoUrl}');
+                          if (kDebugMode) debugPrint('[HomeScreen] Loading foto from: ${currentSantri.fotoUrl}');
                         } else {
-                          debugPrint(
-                              '[HomeScreen] No foto URL available for ${currentSantri?.nama}');
+                          if (kDebugMode) debugPrint('[HomeScreen] No foto URL available for ${currentSantri?.nama}');
                         }
 
                         return CircleAvatar(
@@ -573,28 +572,7 @@ class DashboardTab extends StatelessWidget {
                         }
                       },
                     ),
-                    _buildQuickMenu(
-                      context,
-                      icon: Icons.account_balance,
-                      title: 'Tabungan',
-                      color: Colors.indigo,
-                      onTap: () {
-                        final santri =
-                            Provider.of<AuthProvider>(context, listen: false)
-                                .activeSantri;
-                        if (santri != null) {
-                          Navigator.push(
-                            context,
-                            MaterialPageRoute(
-                              builder: (_) => TabunganScreen(
-                                santriId: santri.id,
-                                santriName: santri.nama,
-                              ),
-                            ),
-                          );
-                        }
-                      },
-                    ),
+                    const _ConditionalTabunganMenu(),
                   ],
                 ),
                 const SizedBox(height: 12),
@@ -848,6 +826,139 @@ class _TabunganCardState extends State<_TabunganCard> {
               ),
             ),
             Icon(Icons.arrow_forward_ios, size: 14, color: Colors.teal.shade400),
+          ],
+        ),
+      ),
+    );
+  }
+}
+
+// ─── Conditional Tabungan Menu ──────────────────────────────────────────────────
+
+class _ConditionalTabunganMenu extends StatefulWidget {
+  const _ConditionalTabunganMenu();
+  
+  @override
+  State<_ConditionalTabunganMenu> createState() => _ConditionalTabunganMenuState();
+}
+
+class _ConditionalTabunganMenuState extends State<_ConditionalTabunganMenu> {
+  bool _loading = true;
+  bool _hasTabungan = false;
+  final ApiService _api = ApiService();
+
+  @override
+  void initState() {
+    super.initState();
+    _checkTabunganStatus();
+  }
+
+  Future<void> _checkTabunganStatus() async {
+    final authProvider = Provider.of<AuthProvider>(context, listen: false);
+    final santri = authProvider.activeSantri;
+    
+    if (santri == null) {
+      setState(() {
+        _loading = false;
+        _hasTabungan = false;
+      });
+      return;
+    }
+
+    setState(() => _loading = true);
+    try {
+      final res = await _api.getTabunganInfo(santri.id);
+      setState(() {
+        _hasTabungan = res.statusCode == 200 && res.data['success'] == true;
+        _loading = false;
+      });
+    } catch (_) {
+      setState(() {
+        _hasTabungan = false;
+        _loading = false;
+      });
+    }
+  }
+
+  @override
+  Widget build(BuildContext context) {
+    if (_loading) {
+      // Return placeholder during loading to maintain layout
+      return Container(
+        height: 80,
+        width: 80,
+        decoration: BoxDecoration(
+          color: Colors.grey.shade50,
+          borderRadius: BorderRadius.circular(12),
+        ),
+        child: const Center(
+          child: SizedBox(
+            width: 16,
+            height: 16,
+            child: CircularProgressIndicator(strokeWidth: 2),
+          ),
+        ),
+      );
+    }
+    
+    if (!_hasTabungan) {
+      return const SizedBox.shrink(); // Hide completely if no tabungan
+    }
+
+    return _buildQuickMenu(
+      context,
+      icon: Icons.account_balance,
+      title: 'Tabungan',
+      color: Colors.indigo,
+      onTap: () {
+        final authProvider = Provider.of<AuthProvider>(context, listen: false);
+        final santri = authProvider.activeSantri;
+        if (santri != null) {
+          Navigator.push(
+            context,
+            MaterialPageRoute(
+              builder: (_) => TabunganScreen(
+                santriId: santri.id,
+                santriName: santri.nama,
+              ),
+            ),
+          );
+        }
+      },
+    );
+  }
+
+  Widget _buildQuickMenu(
+    BuildContext context, {
+    required IconData icon,
+    required String title,
+    required Color color,
+    required VoidCallback onTap,
+  }) {
+    return GestureDetector(
+      onTap: onTap,
+      child: Container(
+        width: 80,
+        height: 80,
+        decoration: BoxDecoration(
+          color: color.withAlpha(30),
+          borderRadius: BorderRadius.circular(12),
+          border: Border.all(color: color.withAlpha(100), width: 1),
+        ),
+        child: Column(
+          mainAxisAlignment: MainAxisAlignment.center,
+          children: [
+            Icon(icon, color: color, size: 28),
+            const SizedBox(height: 6),
+            Text(
+              title,
+              style: TextStyle(
+                color: color,
+                fontSize: 12,
+                fontWeight: FontWeight.w500,
+              ),
+              textAlign: TextAlign.center,
+            ),
           ],
         ),
       ),

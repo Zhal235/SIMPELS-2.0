@@ -438,7 +438,7 @@ class _UnifiedPaymentScreenState extends State<UnifiedPaymentScreen> {
         totalNominal: totalNominal,
         buktiFile: _selectedFile,
         buktiBytes: _webImage,
-        catatan: _buildCatatan(paymentAmount, topupAmount),
+        catatan: _buildCatatan(paymentAmount, topupAmount, _tabunganAmount),
         nominalTopup: topupAmount,
         nominalTabungan: _tabunganAmount > 0 ? _tabunganAmount : null,
         selectedBankId: widget.selectedBankId,
@@ -549,21 +549,30 @@ class _UnifiedPaymentScreenState extends State<UnifiedPaymentScreen> {
     }
   }
 
-  String _buildCatatan(double? paymentAmount, double? topupAmount) {
+  String _buildCatatan(double? paymentAmount, double? topupAmount, double? tabunganAmount) {
     String catatan = _catatanController.text.trim();
+    
     if (widget.isTopupOnly) {
       return catatan.isEmpty
           ? 'Top-up dompet sebesar Rp ${_formatCurrency(topupAmount ?? 0)}'
           : 'Top-up: Rp ${_formatCurrency(topupAmount ?? 0)}. $catatan';
-    } else if (topupAmount != null && topupAmount > 0) {
-      return catatan.isEmpty
-          ? 'Pembayaran tagihan: Rp ${_formatCurrency(paymentAmount ?? 0)} + Top-up dompet: Rp ${_formatCurrency(topupAmount)}'
-          : 'Pembayaran: Rp ${_formatCurrency(paymentAmount ?? 0)} + Top-up: Rp ${_formatCurrency(topupAmount)}. $catatan';
-    } else {
-      return catatan.isEmpty
-          ? 'Pembayaran tagihan sebesar Rp ${_formatCurrency(paymentAmount ?? 0)}'
-          : 'Pembayaran: Rp ${_formatCurrency(paymentAmount ?? 0)}. $catatan';
     }
+
+    // Build combined transaction description
+    List<String> parts = [];
+    if (paymentAmount != null && paymentAmount > 0) {
+      parts.add('Pembayaran: Rp ${_formatCurrency(paymentAmount)}');
+    }
+    if (topupAmount != null && topupAmount > 0) {
+      parts.add('Top-up: Rp ${_formatCurrency(topupAmount)}');
+    }
+    if (tabunganAmount != null && tabunganAmount > 0) {
+      parts.add('Setor tabungan: Rp ${_formatCurrency(tabunganAmount)}');
+    }
+    
+    String transactionDesc = parts.join(' + ');
+    
+    return catatan.isEmpty ? transactionDesc : '$transactionDesc. $catatan';
   }
 
   String _formatCurrency(double amount) {

@@ -12,6 +12,8 @@ class SplashScreen extends StatefulWidget {
 }
 
 class _SplashScreenState extends State<SplashScreen> {
+  static const Color _brandColor = Color(0xFF1ABC9C);
+
   @override
   void initState() {
     super.initState();
@@ -20,9 +22,12 @@ class _SplashScreenState extends State<SplashScreen> {
 
   Future<void> _checkLoginStatus() async {
     final authProvider = Provider.of<AuthProvider>(context, listen: false);
-    await authProvider.checkLoginStatus();
 
-    await Future.delayed(const Duration(seconds: 2));
+    // Run API check and minimum display timer in parallel for faster startup
+    await Future.wait([
+      authProvider.checkLoginStatus(),
+      Future.delayed(const Duration(seconds: 2)),
+    ]);
 
     if (mounted) {
       if (authProvider.isAuthenticated) {
@@ -43,12 +48,12 @@ class _SplashScreenState extends State<SplashScreen> {
   @override
   Widget build(BuildContext context) {
     return Scaffold(
-      backgroundColor: Theme.of(context).colorScheme.primary,
+      backgroundColor: _brandColor,
       body: Center(
         child: Column(
           mainAxisAlignment: MainAxisAlignment.center,
           children: [
-            // SIMPELS Logo
+            // SIMPELS Logo - same icon as frontend
             Container(
               width: 120,
               height: 120,
@@ -65,13 +70,9 @@ class _SplashScreenState extends State<SplashScreen> {
               ),
               child: ClipRRect(
                 borderRadius: BorderRadius.circular(20),
-                child: Padding(
-                  padding: const EdgeInsets.all(16),
-                  child: Icon(
-                    Icons.school,
-                    size: 60,
-                    color: Theme.of(context).colorScheme.primary,
-                  ),
+                child: Image.asset(
+                  'assets/images/logo.png',
+                  fit: BoxFit.contain,
                 ),
               ),
             ),

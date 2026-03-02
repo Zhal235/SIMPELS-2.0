@@ -54,6 +54,11 @@ class ApiService {
       return '$baseUrl/$path';
     }
 
+    // If already a full https:// URL (e.g., Cloudflare R2), return as is
+    if (relativePath.startsWith('https://')) {
+      return relativePath;
+    }
+
     // If already full URL with correct local domain, return as is
     if (relativePath.startsWith('http://')) {
       return relativePath;
@@ -72,9 +77,11 @@ class ApiService {
   ApiService() {
     final baseUrl = getBaseUrl();
     
-    // Debug logging to verify URL in web builds
-    debugPrint('🔗 [ApiService] Base URL: $baseUrl');
-    debugPrint('📱 [ApiService] Platform - kIsWeb: $kIsWeb, kDebugMode: $kDebugMode');
+    // Debug logging to verify URL in web builds only in debug mode
+    if (kDebugMode) {
+      debugPrint('🔗 [ApiService] Base URL: $baseUrl');
+      debugPrint('📱 [ApiService] Platform - kIsWeb: $kIsWeb, kDebugMode: $kDebugMode');
+    }
     
     _dio = Dio(BaseOptions(
       baseUrl: baseUrl,
@@ -93,17 +100,16 @@ class ApiService {
         final token = await StorageHelper.getToken();
         if (token != null && token.isNotEmpty) {
           options.headers['Authorization'] = 'Bearer $token';
-          debugPrint('[API] Request to: ${options.path} with token');
+          if (kDebugMode) debugPrint('[API] Request to: ${options.path} with token');
         } else {
-          debugPrint(
-              '[API] WARNING: Request to ${options.path} without token!');
+          if (kDebugMode) debugPrint('[API] WARNING: Request to ${options.path} without token!');
         }
         return handler.next(options);
       },
       onError: (error, handler) async {
         // Handle 401 Unauthorized
         if (error.response?.statusCode == 401) {
-          debugPrint('[API] 401 Unauthorized - Clearing session');
+          if (kDebugMode) debugPrint('[API] 401 Unauthorized - Clearing session');
           // Clear all storage to force re-login
           await StorageHelper.clearAll();
         }
@@ -114,7 +120,7 @@ class ApiService {
 
   // Auth
   Future<Response> login(String noHp, String password) async {
-    debugPrint('🔐 [ApiService] Attempting login to: ${_dio.options.baseUrl}${AppConfig.loginEndpoint}');
+    if (kDebugMode) debugPrint('🔐 [ApiService] Attempting login to: ${_dio.options.baseUrl}${AppConfig.loginEndpoint}');
     return await _dio.post(AppConfig.loginEndpoint, data: {
       'no_hp': noHp,
       'password': password,
@@ -168,10 +174,10 @@ class ApiService {
     try {
       final response =
           await _dio.get('${AppConfig.waliTagihanEndpoint}/$santriId');
-      debugPrint('getAllTagihan raw response: ${response.data.runtimeType}');
+      if (kDebugMode) debugPrint('getAllTagihan raw response: ${response.data.runtimeType}');
       return response;
     } catch (e) {
-      debugPrint('getAllTagihan error: $e');
+      if (kDebugMode) debugPrint('getAllTagihan error: $e');
       rethrow;
     }
   }
@@ -257,11 +263,13 @@ class ApiService {
 
     final formData = FormData.fromMap(formFields);
 
-    debugPrint('[API] Uploading bukti to: /wali/upload-bukti/$santriId');
-    debugPrint('[API] Tagihan IDs: $tagihanIds');
-    debugPrint('[API] Total: $totalNominal');
-    if (nominalTopup != null) debugPrint('[API] Topup: $nominalTopup');
-    if (nominalTabungan != null) debugPrint('[API] Tabungan: $nominalTabungan');
+    if (kDebugMode) {
+      debugPrint('[API] Uploading bukti to: /wali/upload-bukti/$santriId');
+      debugPrint('[API] Tagihan IDs: $tagihanIds');
+      debugPrint('[API] Total: $totalNominal');
+      if (nominalTopup != null) debugPrint('[API] Topup: $nominalTopup');
+      if (nominalTabungan != null) debugPrint('[API] Tabungan: $nominalTabungan');
+    }
 
     return await _dio.post(
       '/wali/upload-bukti/$santriId',
@@ -354,9 +362,10 @@ class ApiService {
 
     final formData = FormData.fromMap(formFields);
 
-    debugPrint(
-        '[API] Uploading bukti topup to: /wali/upload-bukti-topup/$santriId');
-    debugPrint('[API] Nominal: $nominal');
+    if (kDebugMode) {
+      debugPrint('[API] Uploading bukti topup to: /wali/upload-bukti-topup/$santriId');
+      debugPrint('[API] Nominal: $nominal');
+    }
 
     return await _dio.post(
       '/wali/upload-bukti-topup/$santriId',

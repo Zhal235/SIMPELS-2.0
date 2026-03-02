@@ -6,7 +6,7 @@ import toast from 'react-hot-toast';
 
 interface BuktiTransfer {
   id: number;
-  jenis_transaksi?: 'pembayaran' | 'topup' | 'pembayaran_topup';
+  jenis_transaksi?: 'pembayaran' | 'topup' | 'pembayaran_topup' | 'pembayaran_tabungan' | 'pembayaran_topup_tabungan';
   santri: {
     id: string;
     nis: string;
@@ -20,7 +20,8 @@ interface BuktiTransfer {
     account_name: string;
   } | null;
   total_nominal: number;
-  nominal_topup?: number; // Topup amount
+  nominal_topup?: number;
+  nominal_tabungan?: number;
   status: 'pending' | 'approved' | 'rejected';
   catatan_wali: string | null;
   catatan_admin: string | null;
@@ -52,6 +53,8 @@ export default function BuktiTransfer() {
   const [processing, setProcessing] = useState(false);
   const [activeTab, setActiveTab] = useState<'pending' | 'history'>('pending');
   const [historyFilter, setHistoryFilter] = useState<'all' | 'approved' | 'rejected'>('all');
+  const [showApproveModal, setShowApproveModal] = useState(false);
+  const [approveForm, setApproveForm] = useState<{ nominalTopup: number; nominalTabungan: number; catatan: string }>({ nominalTopup: 0, nominalTabungan: 0, catatan: '' });
 
   useEffect(() => {
     loadBuktiTransfer();
@@ -84,10 +87,40 @@ export default function BuktiTransfer() {
   };
 
   const handleAction = (bukti: BuktiTransfer, type: 'approve' | 'reject') => {
+    if (type === 'approve') {
+      handleOpenApproveModal(bukti);
+      return;
+    }
     setSelectedBukti(bukti);
     setActionType(type);
     setCatatan('');
     setShowModal(true);
+  };
+
+  const handleOpenApproveModal = (bukti: BuktiTransfer) => {
+    setSelectedBukti(bukti);
+    setApproveForm({ nominalTopup: bukti.nominal_topup || 0, nominalTabungan: bukti.nominal_tabungan || 0, catatan: '' });
+    setShowApproveModal(true);
+  };
+
+  const submitApprove = async () => {
+    if (!selectedBukti) return;
+    try {
+      setProcessing(true);
+      await api.post(`/admin/bukti-transfer/${selectedBukti.id}/approve`, {
+        catatan: approveForm.catatan,
+        nominal_topup: approveForm.nominalTopup,
+        nominal_tabungan: approveForm.nominalTabungan,
+      });
+      toast.success('Bukti transfer berhasil disetujui');
+      setShowApproveModal(false);
+      setShowImageModal(false);
+      loadBuktiTransfer();
+    } catch (error: any) {
+      toast.error(error.response?.data?.message || 'Gagal menyetujui bukti');
+    } finally {
+      setProcessing(false);
+    }
   };
 
   const submitAction = async () => {
@@ -119,40 +152,14 @@ export default function BuktiTransfer() {
     }
   };
 
-  // Approve immediately from image modal (no extra confirmation)
-  const handleApproveDirect = async (bukti: BuktiTransfer) => {
-    try {
-      setProcessing(true);
-      await api.post(`/admin/bukti-transfer/${bukti.id}/approve`, { catatan: '' });
-      toast.success('Bukti transfer berhasil disetujui');
-      setShowImageModal(false);
-      loadBuktiTransfer();
-    } catch (error: any) {
-      toast.error(error.response?.data?.message || 'Gagal menyetujui bukti');
-    } finally {
-      setProcessing(false);
-    }
-  };
+  // Approve from image modal — opens breakdown modal
 
-  // Reject from image modal — ask for reason then submit
-  const handleRejectDirect = async (bukti: BuktiTransfer) => {
-    const reason = window.prompt('Alasan penolakan (wajib):');
-    if (!reason || !reason.trim()) {
-      toast.error('Alasan penolakan wajib diisi');
-      return;
-    }
-
-    try {
-      setProcessing(true);
-      await api.post(`/admin/bukti-transfer/${bukti.id}/reject`, { catatan: reason.trim() });
-      toast.success('Bukti transfer berhasil ditolak');
-      setShowImageModal(false);
-      loadBuktiTransfer();
-    } catch (error: any) {
-      toast.error(error.response?.data?.message || 'Gagal menolak bukti');
-    } finally {
-      setProcessing(false);
-    }
+  // Reject from image modal — opens reject confirmation modal
+  const handleRejectDirect = (bukti: BuktiTransfer) => {
+    setSelectedBukti(bukti);
+    setActionType('reject');
+    setCatatan('');
+    setShowModal(true);
   };
 
   const formatCurrency = (amount: number) => {
@@ -362,12 +369,24 @@ export default function BuktiTransfer() {
                   </div>
                   
                   {/* Show topup amount if exists */}
-                  {(bukti.jenis_transaksi === 'pembayaran_topup' || bukti.jenis_transaksi === 'topup') && bukti.nominal_topup && bukti.nominal_topup > 0 && (
+                  {bukti.nominal_topup != null && bukti.nominal_topup > 0 && (
                     <div className="mt-3 pt-3 border-t">
                       <div className="flex justify-between text-sm">
                         <span className="text-gray-700">Top-up Dompet</span>
                         <span className="font-medium text-blue-600">
                           {formatCurrency(bukti.nominal_topup)}
+                        </span>
+                      </div>
+                    </div>
+                  )}
+
+                  {/* Show tabungan amount if exists */}
+                  {bukti.nominal_tabungan != null && bukti.nominal_tabungan > 0 && (
+                    <div className={`mt-3 ${(bukti.nominal_topup ?? 0) > 0 ? '' : 'pt-3 border-t'}`}>
+                      <div className="flex justify-between text-sm">
+                        <span className="text-gray-700">Setor Tabungan</span>
+                        <span className="font-medium text-teal-600">
+                          {formatCurrency(bukti.nominal_tabungan)}
                         </span>
                       </div>
                     </div>
@@ -427,6 +446,143 @@ export default function BuktiTransfer() {
               </div>
             </div>
           ))}
+        </div>
+      )}
+
+      {/* Modal konfirmasi persetujuan dengan breakdown & edit nominal */}
+      {showApproveModal && selectedBukti && (
+        <div className="fixed inset-0 bg-black bg-opacity-50 flex items-center justify-center p-4 z-50">
+          <div className="bg-white rounded-lg shadow-xl max-w-lg w-full max-h-[90vh] overflow-y-auto">
+            <div className="p-6">
+              <h3 className="text-lg font-bold mb-1">Konfirmasi Persetujuan</h3>
+              <p className="text-sm text-gray-500 mb-5">{selectedBukti.santri.nama} · {formatCurrency(selectedBukti.total_nominal)}</p>
+
+              {/* Tagihan breakdown */}
+              {selectedBukti.tagihan.length > 0 && (
+                <div className="mb-4">
+                  <p className="text-sm font-semibold mb-2 text-gray-700">Tagihan yang akan dilunasi:</p>
+                  <div className="bg-gray-50 rounded-lg p-3 space-y-1.5">
+                    {selectedBukti.tagihan.map((t, i) => (
+                      <div key={i} className="flex justify-between text-sm">
+                        <span className="text-gray-600">{t.jenis}{t.bulan ? ` - ${t.bulan} ${t.tahun}` : ''}</span>
+                        <span className="font-medium">{formatCurrency(t.nominal_bayar || t.sisa)}</span>
+                      </div>
+                    ))}
+                  </div>
+                </div>
+              )}
+
+              {/* Topup dompet — selalu tampil jika ada, editable */}
+              {(selectedBukti.jenis_transaksi === 'topup' || selectedBukti.jenis_transaksi === 'pembayaran_topup' || selectedBukti.jenis_transaksi === 'pembayaran_topup_tabungan' || approveForm.nominalTopup > 0) && (
+                <div className="mb-4">
+                  <label className="block text-sm font-semibold text-blue-700 mb-1">
+                    Top-up Dompet Santri
+                  </label>
+                  <div className="flex items-center gap-2">
+                    <span className="text-sm text-gray-500 shrink-0">Rp</span>
+                    <input
+                      type="number"
+                      value={approveForm.nominalTopup}
+                      onChange={(e) => setApproveForm(f => ({ ...f, nominalTopup: Number(e.target.value) }))}
+                      className="flex-1 px-3 py-2 border rounded-lg focus:ring-2 focus:ring-blue-500 text-sm"
+                      min={0}
+                    />
+                  </div>
+                  <p className="text-xs text-gray-400 mt-1">Edit jika nominal tidak sesuai dengan yang dikirim wali</p>
+                </div>
+              )}
+
+              {/* Setor tabungan — selalu tampil jika ada, editable */}
+              {(selectedBukti.jenis_transaksi === 'pembayaran_tabungan' || selectedBukti.jenis_transaksi === 'pembayaran_topup_tabungan' || approveForm.nominalTabungan > 0) && (
+                <div className="mb-4">
+                  <label className="block text-sm font-semibold text-teal-700 mb-1">
+                    Setor Tabungan Santri
+                  </label>
+                  <div className="flex items-center gap-2">
+                    <span className="text-sm text-gray-500 shrink-0">Rp</span>
+                    <input
+                      type="number"
+                      value={approveForm.nominalTabungan}
+                      onChange={(e) => setApproveForm(f => ({ ...f, nominalTabungan: Number(e.target.value) }))}
+                      className="flex-1 px-3 py-2 border rounded-lg focus:ring-2 focus:ring-teal-500 text-sm"
+                      min={0}
+                    />
+                  </div>
+                  <p className="text-xs text-gray-400 mt-1">Edit jika nominal tidak sesuai dengan yang dikirim wali</p>
+                </div>
+              )}
+
+              {/* Jika tidak ada topup, tampilkan opsi tambah topup manual */}
+              {!['topup','pembayaran_topup','pembayaran_tabungan','pembayaran_topup_tabungan'].includes(selectedBukti.jenis_transaksi ?? '') && approveForm.nominalTopup === 0 && approveForm.nominalTabungan === 0 && (
+                <div className="mb-4 flex gap-3">
+                  <button
+                    onClick={() => setApproveForm(f => ({ ...f, nominalTopup: 1 }))}
+                    className="text-xs text-blue-600 underline"
+                    type="button"
+                  >
+                    + Tambah top-up dompet
+                  </button>
+                  <button
+                    onClick={() => setApproveForm(f => ({ ...f, nominalTabungan: 1 }))}
+                    className="text-xs text-teal-600 underline"
+                    type="button"
+                  >
+                    + Tambah setor tabungan
+                  </button>
+                </div>
+              )}
+
+              {/* Total summary */}
+              <div className="mb-4 p-3 bg-blue-50 rounded-lg border border-blue-100">
+                <div className="flex justify-between">
+                  <span className="text-sm font-semibold">Total Transfer dari Wali</span>
+                  <span className="font-bold text-blue-700">{formatCurrency(selectedBukti.total_nominal)}</span>
+                </div>
+                {approveForm.nominalTopup > 0 && (
+                  <div className="flex justify-between mt-1.5 pt-1.5 border-t border-blue-200">
+                    <span className="text-xs text-gray-500">Ditambahkan ke dompet</span>
+                    <span className="text-xs font-semibold text-blue-600">+{formatCurrency(approveForm.nominalTopup)}</span>
+                  </div>
+                )}
+                {approveForm.nominalTabungan > 0 && (
+                  <div className="flex justify-between mt-1.5 pt-1.5 border-t border-blue-200">
+                    <span className="text-xs text-gray-500">Ditambahkan ke tabungan</span>
+                    <span className="text-xs font-semibold text-teal-600">+{formatCurrency(approveForm.nominalTabungan)}</span>
+                  </div>
+                )}
+              </div>
+
+              {/* Catatan admin */}
+              <div className="mb-5">
+                <label className="block text-sm font-medium mb-1">Catatan Admin <span className="text-gray-400 font-normal">(opsional)</span></label>
+                <textarea
+                  value={approveForm.catatan}
+                  onChange={(e) => setApproveForm(f => ({ ...f, catatan: e.target.value }))}
+                  className="w-full px-3 py-2 border rounded-lg focus:ring-2 focus:ring-blue-500 text-sm"
+                  rows={2}
+                  placeholder="Catatan untuk wali santri..."
+                />
+              </div>
+
+              <div className="flex gap-3">
+                <button
+                  onClick={() => setShowApproveModal(false)}
+                  disabled={processing}
+                  className="flex-1 px-4 py-2 border border-gray-300 rounded-lg hover:bg-gray-50 transition-colors"
+                >
+                  Batal
+                </button>
+                <button
+                  onClick={submitApprove}
+                  disabled={processing}
+                  className="flex-1 flex items-center justify-center gap-2 px-4 py-2 bg-green-600 hover:bg-green-700 text-white rounded-lg font-medium disabled:opacity-50 transition-colors"
+                >
+                  <CheckCircle className="h-4 w-4" />
+                  {processing ? 'Memproses...' : 'Setujui'}
+                </button>
+              </div>
+            </div>
+          </div>
         </div>
       )}
 
@@ -496,7 +652,7 @@ export default function BuktiTransfer() {
               <div className="w-full flex gap-3">
                 <button
                   disabled={processing}
-                  onClick={() => handleApproveDirect(selectedBukti)}
+                  onClick={() => handleOpenApproveModal(selectedBukti)}
                   className="flex-1 flex items-center justify-center gap-2 px-4 py-2 bg-green-600 hover:bg-green-700 text-white rounded-lg transition-colors"
                 >
                   <CheckCircle className="h-4 w-4" />

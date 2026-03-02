@@ -380,6 +380,80 @@ class _BuktiHistoryScreenState extends State<BuktiHistoryScreen>
                           )),
                     ],
 
+                    // Top-up Dompet breakdown
+                    if (bukti.nominalTopup > 0) ...[
+                      const SizedBox(height: 8),
+                      Container(
+                        padding: const EdgeInsets.all(12),
+                        decoration: BoxDecoration(
+                          color: Colors.blue.shade50,
+                          borderRadius: BorderRadius.circular(12),
+                          border: Border.all(color: Colors.blue.shade200),
+                        ),
+                        child: Row(
+                          children: [
+                            Icon(Icons.account_balance_wallet, color: Colors.blue.shade600, size: 20),
+                            const SizedBox(width: 10),
+                            Expanded(
+                              child: Text(
+                                'Top-up Dompet',
+                                style: TextStyle(
+                                  fontWeight: FontWeight.w600,
+                                  fontSize: 14,
+                                  color: Colors.blue.shade700,
+                                ),
+                              ),
+                            ),
+                            Text(
+                              _formatCurrency(bukti.nominalTopup),
+                              style: TextStyle(
+                                fontWeight: FontWeight.bold,
+                                fontSize: 14,
+                                color: Colors.blue.shade700,
+                              ),
+                            ),
+                          ],
+                        ),
+                      ),
+                    ],
+
+                    // Setor Tabungan breakdown
+                    if (bukti.nominalTabungan > 0) ...[
+                      const SizedBox(height: 8),
+                      Container(
+                        padding: const EdgeInsets.all(12),
+                        decoration: BoxDecoration(
+                          color: Colors.teal.shade50,
+                          borderRadius: BorderRadius.circular(12),
+                          border: Border.all(color: Colors.teal.shade200),
+                        ),
+                        child: Row(
+                          children: [
+                            Icon(Icons.savings, color: Colors.teal.shade600, size: 20),
+                            const SizedBox(width: 10),
+                            Expanded(
+                              child: Text(
+                                'Setor Tabungan',
+                                style: TextStyle(
+                                  fontWeight: FontWeight.w600,
+                                  fontSize: 14,
+                                  color: Colors.teal.shade700,
+                                ),
+                              ),
+                            ),
+                            Text(
+                              _formatCurrency(bukti.nominalTabungan),
+                              style: TextStyle(
+                                fontWeight: FontWeight.bold,
+                                fontSize: 14,
+                                color: Colors.teal.shade700,
+                              ),
+                            ),
+                          ],
+                        ),
+                      ),
+                    ],
+
                     const SizedBox(height: 20),
 
                     // Bukti Transfer Image
@@ -889,6 +963,56 @@ class _BuktiHistoryScreenState extends State<BuktiHistoryScreen>
                               color: Theme.of(context).colorScheme.primary,
                             ),
                           ),
+                          // Chips ringkasan topup & tabungan
+                          if (bukti.nominalTopup > 0 || bukti.nominalTabungan > 0) ...[
+                            const SizedBox(height: 6),
+                            Wrap(
+                              spacing: 6,
+                              runSpacing: 4,
+                              children: [
+                                if (bukti.nominalTopup > 0)
+                                  Container(
+                                    padding: const EdgeInsets.symmetric(horizontal: 8, vertical: 3),
+                                    decoration: BoxDecoration(
+                                      color: Colors.blue.shade50,
+                                      borderRadius: BorderRadius.circular(8),
+                                      border: Border.all(color: Colors.blue.shade200),
+                                    ),
+                                    child: Row(
+                                      mainAxisSize: MainAxisSize.min,
+                                      children: [
+                                        Icon(Icons.account_balance_wallet, size: 11, color: Colors.blue.shade600),
+                                        const SizedBox(width: 4),
+                                        Text(
+                                          'Topup ${_formatCurrency(bukti.nominalTopup)}',
+                                          style: TextStyle(fontSize: 11, color: Colors.blue.shade700, fontWeight: FontWeight.w500),
+                                        ),
+                                      ],
+                                    ),
+                                  ),
+                                if (bukti.nominalTabungan > 0)
+                                  Container(
+                                    padding: const EdgeInsets.symmetric(horizontal: 8, vertical: 3),
+                                    decoration: BoxDecoration(
+                                      color: Colors.teal.shade50,
+                                      borderRadius: BorderRadius.circular(8),
+                                      border: Border.all(color: Colors.teal.shade200),
+                                    ),
+                                    child: Row(
+                                      mainAxisSize: MainAxisSize.min,
+                                      children: [
+                                        Icon(Icons.savings, size: 11, color: Colors.teal.shade600),
+                                        const SizedBox(width: 4),
+                                        Text(
+                                          'Tabungan ${_formatCurrency(bukti.nominalTabungan)}',
+                                          style: TextStyle(fontSize: 11, color: Colors.teal.shade700, fontWeight: FontWeight.w500),
+                                        ),
+                                      ],
+                                    ),
+                                  ),
+                              ],
+                            ),
+                          ],
                         ],
                       ),
                     ),

@@ -697,9 +697,29 @@ class WaliController extends BaseController
                     // Get tagihan details (if not topup-only)
                     $tagihans = collect([]);
                     if ($bukti->tagihan_ids && count($bukti->tagihan_ids) > 0) {
-                        $tagihans = TagihanSantri::whereIn('id', $bukti->tagihan_ids)->get();
+                        $tagihans = TagihanSantri::whereIn('id', $bukti->tagihan_ids)
+                            ->with('jenisTagihan')
+                            ->get();
                     }
-                    
+
+                    // Parse nominal_topup and nominal_tabungan from catatan_admin
+                    $nominalTopup = 0;
+                    $nominalTabungan = 0;
+                    $catatan = $bukti->catatan_admin ?? '';
+
+                    if ($bukti->jenis_transaksi === 'topup') {
+                        $nominalTopup = (float) $bukti->total_nominal;
+                    } elseif (in_array($bukti->jenis_transaksi, ['pembayaran_topup', 'pembayaran_topup_tabungan'])) {
+                        if (preg_match('/Top-up dompet[:\s]+Rp\s*([\d.,]+)/i', $catatan, $m)) {
+                            $nominalTopup = (float) str_replace(['.', ','], ['', '.'], $m[1]);
+                        }
+                    }
+                    if (in_array($bukti->jenis_transaksi, ['pembayaran_tabungan', 'pembayaran_topup_tabungan'])) {
+                        if (preg_match('/Setor tabungan[:\s]+Rp\s*([\d.,]+)/i', $catatan, $m)) {
+                            $nominalTabungan = (float) str_replace(['.', ','], ['', '.'], $m[1]);
+                        }
+                    }
+
                     return [
                         'id' => $bukti->id,
                         'jenis_transaksi' => $bukti->jenis_transaksi ?? 'pembayaran',
@@ -710,6 +730,8 @@ class WaliController extends BaseController
                             'account_name' => $bukti->selectedBank->account_name,
                         ] : null,
                         'total_nominal' => (float) $bukti->total_nominal,
+                        'nominal_topup' => $nominalTopup,
+                        'nominal_tabungan' => $nominalTabungan,
                         'status' => $bukti->status,
                         'catatan_wali' => $bukti->catatan_wali,
                         'catatan_admin' => $bukti->catatan_admin,

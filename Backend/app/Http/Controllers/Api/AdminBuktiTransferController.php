@@ -8,6 +8,8 @@ use App\Models\TagihanSantri;
 use App\Models\Pembayaran;
 use App\Models\TransaksiKas;
 use App\Models\Wallet;
+use App\Models\SantriTabungan;
+use App\Models\SantriTabunganTransaction;
 use Illuminate\Http\Request;
 use Illuminate\Support\Facades\DB;
 use Illuminate\Support\Facades\Auth;
@@ -58,21 +60,24 @@ class AdminBuktiTransferController extends Controller
                         }
                     }
                     
-                    // Calculate topup amount
-                    $nominalTopup = 0;
+                    // Parse nominal_topup and nominal_tabungan from catatan_admin
+                    $nominalTopup    = 0;
+                    $nominalTabungan = 0;
+                    $catatan         = $bukti->catatan_admin ?? '';
+
                     if ($bukti->jenis_transaksi === 'topup') {
-                        $nominalTopup = $bukti->total_nominal;
-                    } else if ($bukti->jenis_transaksi === 'pembayaran_topup') {
-                        // Extract from catatan_admin or calculate from total - tagihan
-                        if ($bukti->catatan_admin && preg_match('/Top-up dompet[:\s]+Rp\s*([\d.,]+)/', $bukti->catatan_admin, $matches)) {
-                            $nominalTopup = (float) str_replace(['.', ','], ['', '.'], $matches[1]);
-                        } else {
-                            // Fallback: calculate from total - sum of payments
-                            $totalPembayaran = $tagihans->sum('nominal_bayar');
-                            $nominalTopup = $bukti->total_nominal - $totalPembayaran;
+                        $nominalTopup = (float) $bukti->total_nominal;
+                    } elseif (in_array($bukti->jenis_transaksi, ['pembayaran_topup', 'pembayaran_topup_tabungan'])) {
+                        if (preg_match('/Top-up dompet[:\s]+Rp[\s]*([\d.,]+)/i', $catatan, $m)) {
+                            $nominalTopup = (float) str_replace(['.', ','], ['', '.'], $m[1]);
                         }
                     }
-                    
+                    if (in_array($bukti->jenis_transaksi, ['pembayaran_tabungan', 'pembayaran_topup_tabungan'])) {
+                        if (preg_match('/Setor tabungan[:\s]+Rp[\s]*([\d.,]+)/i', $catatan, $m)) {
+                            $nominalTabungan = (float) str_replace(['.', ','], ['', '.'], $m[1]);
+                        }
+                    }
+
                     return [
                         'id' => $bukti->id,
                         'jenis_transaksi' => $bukti->jenis_transaksi ?? 'pembayaran',
@@ -90,6 +95,7 @@ class AdminBuktiTransferController extends Controller
                         ] : null,
                         'total_nominal' => $bukti->total_nominal,
                         'nominal_topup' => $nominalTopup,
+                        'nominal_tabungan' => $nominalTabungan,
                         'status' => $bukti->status,
                         'catatan_wali' => $bukti->catatan_wali,
                         'catatan_admin' => $bukti->catatan_admin,
@@ -134,7 +140,9 @@ class AdminBuktiTransferController extends Controller
     public function approve(Request $request, $id)
     {
         $request->validate([
-            'catatan' => 'nullable|string|max:500',
+            'catatan'          => 'nullable|string|max:500',
+            'nominal_topup'    => 'nullable|numeric|min:0',
+            'nominal_tabungan' => 'nullable|numeric|min:0',
         ]);
 
         try {
@@ -148,31 +156,42 @@ class AdminBuktiTransferController extends Controller
                 ], 400);
             }
 
-            // Check if this is topup-only or combined transaction
-            $isTopupOnly = $bukti->jenis_transaksi === 'topup';
-            $isPembayaranTopup = $bukti->jenis_transaksi === 'pembayaran_topup';
-            
-            // Extract topup amount from catatan_admin if combined
-            $nominalTopup = 0;
-            $nominalPembayaran = $bukti->total_nominal;
-            
-            if ($isPembayaranTopup && $bukti->catatan_admin) {
-                // Parse catatan_admin to get topup amount
-                if (preg_match('/Top-up dompet: Rp ([0-9.,]+)/', $bukti->catatan_admin, $matches)) {
-                    $nominalTopup = (float) str_replace(['.', ','], ['', '.'], $matches[1]);
-                    // Pembayaran amount is total minus topup
-                    if (preg_match('/Pembayaran tagihan: Rp ([0-9.,]+)/', $bukti->catatan_admin, $matchesPembayaran)) {
-                        $nominalPembayaran = (float) str_replace(['.', ','], ['', '.'], $matchesPembayaran[1]);
-                    }
+            $isTopupOnly   = $bukti->jenis_transaksi === 'topup';
+            $catatanAdmin  = $bukti->catatan_admin ?? '';
+
+            // ── Resolve nominal_topup ──────────────────────────────────────────
+            if ($request->has('nominal_topup') && $request->nominal_topup !== null) {
+                $nominalTopup = (float) $request->nominal_topup;
+            } elseif ($isTopupOnly) {
+                $nominalTopup = (float) $bukti->total_nominal;
+            } elseif (in_array($bukti->jenis_transaksi, ['pembayaran_topup', 'pembayaran_topup_tabungan'])) {
+                if (preg_match('/Top-up dompet[:\s]+Rp[\s]*([\d.,]+)/i', $catatanAdmin, $m)) {
+                    $nominalTopup = (float) str_replace(['.', ','], ['', '.'], $m[1]);
+                } else {
+                    $nominalTopup = 0;
                 }
-            } else if ($isTopupOnly) {
-                $nominalTopup = $bukti->total_nominal;
-                $nominalPembayaran = 0;
+            } else {
+                $nominalTopup = 0;
             }
 
+            // ── Resolve nominal_tabungan ───────────────────────────────────────
+            if ($request->has('nominal_tabungan') && $request->nominal_tabungan !== null) {
+                $nominalTabungan = (float) $request->nominal_tabungan;
+            } elseif (in_array($bukti->jenis_transaksi, ['pembayaran_tabungan', 'pembayaran_topup_tabungan'])) {
+                if (preg_match('/Setor tabungan[:\s]+Rp[\s]*([\d.,]+)/i', $catatanAdmin, $m)) {
+                    $nominalTabungan = (float) str_replace(['.', ','], ['', '.'], $m[1]);
+                } else {
+                    $nominalTabungan = 0;
+                }
+            } else {
+                $nominalTabungan = 0;
+            }
+
+            $nominalPembayaran = $isTopupOnly ? 0 : max(0, $bukti->total_nominal - $nominalTopup - $nominalTabungan);
+
             // Get santri name for keterangan
-            $santri = \App\Models\Santri::find($bukti->santri_id);
-            $namaSantri = $santri ? $santri->nama_lengkap : 'Santri';
+            $santri     = \App\Models\Santri::find($bukti->santri_id);
+            $namaSantri = $santri ? ($santri->nama_santri ?? $santri->nama_lengkap ?? 'Santri') : 'Santri';
 
             // Process tagihan if not topup-only
             if (!$isTopupOnly && $bukti->tagihan_ids && count($bukti->tagihan_ids) > 0) {
@@ -295,51 +314,114 @@ class AdminBuktiTransferController extends Controller
                 }
 
                 // Add topup to wallet
-                $oldBalance = $wallet->balance;
                 $wallet->balance += $nominalTopup;
                 $wallet->save();
 
                 // Create wallet transaction record
                 \DB::table('wallet_transactions')->insert([
-                    'wallet_id' => (int)$wallet->id,
-                    'amount' => (float)$nominalTopup,
-                    'type' => 'credit',
-                    'method' => 'transfer', // Top-up via mobile selalu transfer bank
-                    'description' => 'Top-up via SIMPELS Mobile - Disetujui oleh ' . (Auth::user()?->name ?? 'Admin'),
-                    'balance_after' => (float)$wallet->balance,
-                    'created_by' => Auth::id(),
-                    'created_at' => now(),
-                    'updated_at' => now(),
+                    'wallet_id'     => (int) $wallet->id,
+                    'amount'        => (float) $nominalTopup,
+                    'type'          => 'credit',
+                    'method'        => 'transfer',
+                    'description'   => 'Top-up via SIMPELS Mobile - Disetujui oleh ' . (Auth::user()?->name ?? 'Admin'),
+                    'balance_after' => (float) $wallet->balance,
+                    'created_by'    => Auth::id(),
+                    'created_at'    => now(),
+                    'updated_at'    => now(),
                 ]);
-                
-                \Log::info('Wallet transaction created', [
-                    'wallet_id' => $wallet->id,
-                    'amount' => $nominalTopup,
-                    'balance_after' => $wallet->balance,
-                ]);
+
+                \Log::info('Wallet topup created', ['wallet_id' => $wallet->id, 'amount' => $nominalTopup, 'balance_after' => $wallet->balance]);
             }
 
-            // Update bukti transfer status
-            $catatan = $request->catatan ?? '';
-            if ($nominalTopup > 0 && $nominalPembayaran > 0) {
-                $catatan = "Pembayaran tagihan (Rp " . number_format($nominalPembayaran, 0, ',', '.') . ") dan Top-up dompet (Rp " . number_format($nominalTopup, 0, ',', '.') . ") telah diproses. " . $catatan;
-            } else if ($nominalTopup > 0) {
-                $catatan = "Top-up dompet (Rp " . number_format($nominalTopup, 0, ',', '.') . ") telah diproses. " . $catatan;
+            // ── Process tabungan setor ─────────────────────────────────────────
+            if ($nominalTabungan > 0) {
+                $tabungan = \App\Models\SantriTabungan::where('santri_id', $bukti->santri_id)->first();
+
+                if (!$tabungan) {
+                    $tabungan = \App\Models\SantriTabungan::create([
+                        'santri_id' => $bukti->santri_id,
+                        'saldo'     => 0,
+                        'status'    => 'active',
+                        'opened_at' => now(),
+                    ]);
+                }
+
+                $tabungan->saldo += $nominalTabungan;
+                $tabungan->save();
+
+                \App\Models\SantriTabunganTransaction::create([
+                    'tabungan_id' => $tabungan->id,
+                    'santri_id'   => $bukti->santri_id,
+                    'type'        => 'setor',
+                    'amount'      => (float) $nominalTabungan,
+                    'saldo_after' => (float) $tabungan->saldo,
+                    'description' => 'Setor tabungan via SIMPELS Mobile - Disetujui oleh ' . (Auth::user()?->name ?? 'Admin'),
+                    'method'      => 'transfer',
+                    'recorded_by' => Auth::id(),
+                ]);
+
+                \Log::info('Tabungan setor created', ['tabungan_id' => $tabungan->id, 'amount' => $nominalTabungan, 'saldo_after' => $tabungan->saldo]);
+            }
+
+            // ── Update bukti transfer status ───────────────────────────────────
+            // Only set catatan_admin if admin explicitly provides notes OR made corrections
+            $catatanAdmin = null;
+            $adaCatatanManual = !empty($request->catatan);
+
+            // Check if admin made actual corrections by comparing with original values
+            $originalTopup = 0;
+            $originalTabungan = 0;
+            $catatanOriginal = $bukti->catatan_admin ?? '';
+
+            // Parse original values from catatan_admin
+            if ($isTopupOnly) {
+                $originalTopup = (float) $bukti->total_nominal;
+            } elseif (in_array($bukti->jenis_transaksi, ['pembayaran_topup', 'pembayaran_topup_tabungan'])) {
+                if (preg_match('/Top-up dompet[:\s]+Rp[\s]*([\d.,]+)/i', $catatanOriginal, $m)) {
+                    $originalTopup = (float) str_replace(['.', ','], ['', '.'], $m[1]);
+                }
+            }
+            if (in_array($bukti->jenis_transaksi, ['pembayaran_tabungan', 'pembayaran_topup_tabungan'])) {
+                if (preg_match('/Setor tabungan[:\s]+Rp[\s]*([\d.,]+)/i', $catatanOriginal, $m)) {
+                    $originalTabungan = (float) str_replace(['.', ','], ['', '.'], $m[1]);
+                }
+            }
+
+            $adaKoreksiTopup = $request->has('nominal_topup') && $nominalTopup != $originalTopup;
+            $adaKoreksiTabungan = $request->has('nominal_tabungan') && $nominalTabungan != $originalTabungan;
+            
+            if ($adaCatatanManual || $adaKoreksiTopup || $adaKoreksiTabungan) {
+                $ringkasan = [];
+                if ($adaKoreksiTopup || $adaKoreksiTabungan) {
+                    $ringkasan[] = 'Dikoreksi admin:';
+                    if ($nominalPembayaran > 0) $ringkasan[] = 'Tagihan Rp ' . number_format($nominalPembayaran, 0, ',', '.');
+                    if ($nominalTopup > 0)      $ringkasan[] = 'Top-up dompet Rp ' . number_format($nominalTopup, 0, ',', '.');
+                    if ($nominalTabungan > 0)   $ringkasan[] = 'Setor tabungan Rp ' . number_format($nominalTabungan, 0, ',', '.');
+                    $catatanAdmin = implode(' ', $ringkasan);
+                }
+                if ($adaCatatanManual) {
+                    $catatanAdmin = ($catatanAdmin ? $catatanAdmin . ' ' : '') . trim($request->catatan);
+                }
             }
 
             $bukti->update([
-                'status' => 'approved',
-                'catatan_admin' => $catatan,
-                'processed_at' => now(),
-                'processed_by' => Auth::id(),
+                'status'        => 'approved',
+                'catatan_admin' => $catatanAdmin,
+                'processed_at'  => now(),
+                'processed_by'  => Auth::id(),
             ]);
 
             DB::commit();
 
-            // Send notification to wali
+            // Notification
+            $jenisLabel = implode(' + ', array_filter([
+                $nominalPembayaran > 0 ? 'Pembayaran' : null,
+                $nominalTopup > 0 ? 'Top-up' : null,
+                $nominalTabungan > 0 ? 'Tabungan' : null,
+            ]));
             \App\Services\NotificationService::paymentApproved(
                 $bukti->santri_id,
-                $nominalPembayaran > 0 && $nominalTopup > 0 ? 'Pembayaran + Top-up' : ($nominalTopup > 0 ? 'Top-up' : 'Pembayaran'),
+                $jenisLabel ?: 'Pembayaran',
                 $bukti->total_nominal
             );
 

@@ -1,7 +1,9 @@
 class BuktiTransfer {
   final int id;
-  final String jenisTransaksi; // 'pembayaran', 'topup', 'pembayaran_topup'
+  final String jenisTransaksi; // 'pembayaran', 'topup', 'pembayaran_topup', 'pembayaran_tabungan', 'pembayaran_topup_tabungan'
   final double totalNominal;
+  final double nominalTopup;
+  final double nominalTabungan;
   final String status; // 'pending', 'approved', 'rejected'
   final String? catatanWali;
   final String? catatanAdmin;
@@ -15,6 +17,8 @@ class BuktiTransfer {
     required this.id,
     required this.jenisTransaksi,
     required this.totalNominal,
+    this.nominalTopup = 0,
+    this.nominalTabungan = 0,
     required this.status,
     this.catatanWali,
     this.catatanAdmin,
@@ -31,6 +35,8 @@ class BuktiTransfer {
         id: _parseInt(json['id']),
         jenisTransaksi: json['jenis_transaksi'] as String? ?? 'pembayaran',
         totalNominal: _parseDouble(json['total_nominal']),
+        nominalTopup: _parseDouble(json['nominal_topup']),
+        nominalTabungan: _parseDouble(json['nominal_tabungan']),
         status: json['status'] as String? ?? 'pending',
         catatanWali: json['catatan_wali'] as String?,
         catatanAdmin: json['catatan_admin'] as String?,
@@ -82,7 +88,11 @@ class BuktiTransfer {
       case 'topup':
         return 'Top-up Dompet';
       case 'pembayaran_topup':
-        return 'Pembayaran + Top-up';
+        return 'Pembayaran + Top-up Dompet';
+      case 'pembayaran_tabungan':
+        return 'Pembayaran + Setor Tabungan';
+      case 'pembayaran_topup_tabungan':
+        return 'Pembayaran + Top-up + Tabungan';
       default:
         return jenisTransaksi;
     }

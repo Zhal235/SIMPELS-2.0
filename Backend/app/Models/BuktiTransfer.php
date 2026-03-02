@@ -52,12 +52,11 @@ class BuktiTransfer extends Model
         return $this->belongsTo(BankAccount::class, 'selected_bank_id');
     }
 
-    // Accessor untuk URL bukti transfer
+    // Accessor untuk URL bukti transfer - menggunakan Cloudflare R2 langsung
     public function getBuktiUrlAttribute()
     {
         if ($this->bukti_path) {
-            // Use API route for CORS support (no CSRF issues)
-            return '/api/storage/' . $this->bukti_path;
+            return \Storage::disk('r2')->url($this->bukti_path);
         }
         return null;
     }
