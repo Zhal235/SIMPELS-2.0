@@ -8,7 +8,7 @@ class AppConfig {
       return 'http://localhost:8001/api/v1';
     } else {
       // Production mode
-      return 'https://simpels.saza.sch.id/api/api/v1';
+      return 'https://api-simpels.saza.sch.id/api/v1';
     }
   }
 
