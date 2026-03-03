@@ -1,5 +1,8 @@
 /.phpunit.cache
 /node_modules
+*.swp
+*.swo
+..env.swp
 /public/build
 /public/hot
 /public/storage

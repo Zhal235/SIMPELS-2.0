@@ -254,7 +254,7 @@ Route::prefix('v1/wallets')->group(function () {
 });
 
 // API v1 endpoints untuk modul Kepegawaian
-Route::prefix('v1/kepegawaian')->group(function () {
+Route::middleware('auth:sanctum')->prefix('v1/kepegawaian')->group(function () {
     Route::apiResource('pegawai', \App\Http\Controllers\PegawaiController::class);
     Route::apiResource('departments', \App\Http\Controllers\DepartmentController::class);
     Route::apiResource('jabatan', \App\Http\Controllers\JabatanController::class);
@@ -264,7 +264,7 @@ Route::prefix('v1/kepegawaian')->group(function () {
 });
 
 // API v1 endpoints untuk modul Akademik
-Route::prefix('v1/akademik')->group(function () {
+Route::middleware('auth:sanctum')->prefix('v1/akademik')->group(function () {
     Route::apiResource('tahun-ajaran', TahunAjaranController::class);
 
     // Wizard Pindah Tahun Ajaran
@@ -278,7 +278,7 @@ Route::prefix('v1/akademik')->group(function () {
 
 // Modul Kelas
 // Backward-compatible routes: /api/kelas
-Route::prefix('kelas')->group(function () {
+Route::middleware('auth:sanctum')->prefix('kelas')->group(function () {
     Route::get('/', [KelasController::class, 'index']);
     Route::post('/', [KelasController::class, 'store']);
     Route::put('/{id}', [KelasController::class, 'update']);
@@ -290,7 +290,7 @@ Route::prefix('kelas')->group(function () {
 });
 
 // Namespaced routes for Kesantrian module: /api/v1/kesantrian/kelas
-Route::prefix('v1/kesantrian')->group(function () {
+Route::middleware('auth:sanctum')->prefix('v1/kesantrian')->group(function () {
     Route::prefix('kelas')->group(function () {
         Route::get('/', [KelasController::class, 'index']);
         Route::post('/', [KelasController::class, 'store']);
