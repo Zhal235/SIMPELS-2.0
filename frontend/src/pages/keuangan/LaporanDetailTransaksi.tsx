@@ -1,5 +1,6 @@
 import { useState, useEffect } from 'react'
 import api from '../../api/index'
+import toast from 'react-hot-toast'
 import { 
   Download, 
   Filter,
@@ -95,9 +96,24 @@ export default function LaporanDetailTransaksi() {
     fetchTransactions()
   }
 
-  const handleExportExcel = () => {
-    // TODO: Implement Excel export
-    alert('Export Excel akan diimplementasikan')
+  const handleExportExcel = async () => {
+    try {
+      const params: any = {}
+      if (filterJenis !== 'all') params.jenis = filterJenis
+      if (startDate) params.start_date = startDate
+      if (endDate) params.end_date = endDate
+      const res = await api.get('/v1/keuangan/transaksi-kas', { params })
+      let rows: Transaksi[] = Array.isArray(res.data.data) ? res.data.data : []
+      if (search) { const s = search.toLowerCase(); rows = rows.filter(t => t.no_transaksi?.toLowerCase().includes(s)||t.kategori?.toLowerCase().includes(s)||t.keterangan?.toLowerCase().includes(s)) }
+      if (filterMetode !== 'all') rows = rows.filter(t => t.metode?.toLowerCase() === filterMetode)
+      const header = 'No. Transaksi,Tanggal,Buku Kas,Jenis,Kategori,Metode,Nominal,Keterangan'
+      const csv = [header, ...rows.map(t => [`"${t.no_transaksi}"`,`"${formatDate(t.tanggal)}"`,`"${t.buku_kas?.nama_kas||''}"`,`"${t.jenis==='pemasukan'?'Pemasukan':'Pengeluaran'}"`,`"${t.kategori||""}"`,`"${t.metode}"`,t.nominal,`"${(t.keterangan||'').replace(/"/g,'""')}"`].join(','))].join('\n')
+      const blob = new Blob(['\uFEFF'+csv], { type: 'text/csv;charset=utf-8' })
+      const url = URL.createObjectURL(blob)
+      const a = document.createElement('a')
+      a.href = url; a.download = `detail-transaksi-${new Date().toISOString().split('T')[0]}.csv`; a.click()
+      URL.revokeObjectURL(url)
+    } catch { toast.error('Gagal mengekspor data') }
   }
 
   const formatCurrency = (value: number) => {

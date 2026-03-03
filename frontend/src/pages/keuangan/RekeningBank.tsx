@@ -3,6 +3,7 @@ import { CreditCard, Plus, Edit2, Trash2, Power, PowerOff } from 'lucide-react'
 import Modal from '../../components/Modal'
 import api from '../../api'
 import { hasAccess } from '../../stores/useAuthStore'
+import toast from 'react-hot-toast'
 
 interface BankAccount {
   id: number
@@ -39,7 +40,7 @@ export default function RekeningBank() {
       }
     } catch (error) {
       console.error('Error loading bank accounts:', error)
-      alert('Gagal memuat data rekening bank')
+      toast.error('Gagal memuat data rekening bank')
     } finally {
       setLoading(false)
     }
@@ -52,7 +53,7 @@ export default function RekeningBank() {
         // Update
         const res = await api.put(`/v1/keuangan/bank-accounts/${editingAccount.id}`, formData)
         if (res.data.success) {
-          alert('Rekening bank berhasil diperbarui')
+          toast.success('Rekening bank berhasil diperbarui')
           loadAccounts()
           closeModal()
         }
@@ -60,14 +61,14 @@ export default function RekeningBank() {
         // Create
         const res = await api.post('/v1/keuangan/bank-accounts', formData)
         if (res.data.success) {
-          alert('Rekening bank berhasil ditambahkan')
+          toast.success('Rekening bank berhasil ditambahkan')
           loadAccounts()
           closeModal()
         }
       }
     } catch (error: any) {
       console.error('Error saving bank account:', error)
-      alert(error.response?.data?.message || 'Gagal menyimpan rekening bank')
+      toast.error(error.response?.data?.message || 'Gagal menyimpan rekening bank')
     }
   }
 
@@ -77,12 +78,12 @@ export default function RekeningBank() {
     try {
       const res = await api.delete(`/v1/keuangan/bank-accounts/${id}`)
       if (res.data.success) {
-        alert('Rekening bank berhasil dihapus')
+        toast.success('Rekening bank berhasil dihapus')
         loadAccounts()
       }
     } catch (error: any) {
       console.error('Error deleting bank account:', error)
-      alert(error.response?.data?.message || 'Gagal menghapus rekening bank')
+      toast.error(error.response?.data?.message || 'Gagal menghapus rekening bank')
     }
   }
 
@@ -94,7 +95,7 @@ export default function RekeningBank() {
       }
     } catch (error) {
       console.error('Error toggling active status:', error)
-      alert('Gagal mengubah status rekening bank')
+      toast.error('Gagal mengubah status rekening bank')
     }
   }
 

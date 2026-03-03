@@ -60,7 +60,6 @@ export default function Withdrawals() {
   function openApproveModal(withdrawal: any) {
     setSelectedWithdrawal(withdrawal)
     setPaymentMethod('cash')
-    // TODO: Fetch actual cash & bank balance from API
     setShowApproveModal(true)
   }
 
