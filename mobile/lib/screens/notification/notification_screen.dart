@@ -1,6 +1,6 @@
 import 'package:flutter/material.dart';
-import '../services/api_service.dart';
-import '../models/notification.dart' as app_notif;
+import 'package:simpels_mobile/services/api_service.dart';
+import 'package:simpels_mobile/models/notification.dart' as app_notif;
 
 class NotificationScreen extends StatefulWidget {
   final String santriId;

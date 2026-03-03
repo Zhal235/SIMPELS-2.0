@@ -1,9 +1,9 @@
 import 'package:flutter/material.dart';
 import 'package:dio/dio.dart';
-import '../models/announcement.dart';
-import '../services/announcement_service.dart';
-import '../services/api_service.dart';
-import '../utils/storage_helper.dart';
+import 'package:simpels_mobile/models/announcement.dart';
+import 'package:simpels_mobile/services/announcement_service.dart';
+import 'package:simpels_mobile/services/api_service.dart';
+import 'package:simpels_mobile/utils/storage_helper.dart';
 
 class AnnouncementsScreen extends StatefulWidget {
   const AnnouncementsScreen({super.key});

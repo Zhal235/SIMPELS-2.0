@@ -5,10 +5,10 @@ import 'package:image_picker/image_picker.dart';
 import 'dart:io';
 import 'dart:convert';
 import 'package:shared_preferences/shared_preferences.dart';
-import '../providers/auth_provider.dart';
-import '../services/api_service.dart';
-import '../widgets/announcement_badge.dart';
-import 'bukti_history_screen.dart';
+import 'package:simpels_mobile/providers/auth_provider.dart';
+import 'package:simpels_mobile/services/api_service.dart';
+import 'package:simpels_mobile/widgets/common/announcement_badge.dart';
+import 'package:simpels_mobile/screens/bukti/bukti_history_screen.dart';
 
 /// Unified screen untuk:
 /// 1. Pembayaran tagihan saja

@@ -1,5 +1,5 @@
 import 'package:dio/dio.dart';
-import '../models/announcement.dart';
+import 'package:simpels_mobile/models/announcement.dart';
 
 class AnnouncementService {
   final Dio _dio;

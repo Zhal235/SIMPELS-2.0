@@ -3,9 +3,9 @@ import 'package:flutter/services.dart';
 import 'package:shared_preferences/shared_preferences.dart';
 import 'dart:convert';
 import 'package:provider/provider.dart';
-import '../models/bank_account.dart';
-import '../services/api_service.dart';
-import '../providers/auth_provider.dart';
+import 'package:simpels_mobile/models/bank_account.dart';
+import 'package:simpels_mobile/services/api_service.dart';
+import 'package:simpels_mobile/providers/auth_provider.dart';
 
 /// Screen untuk menampilkan informasi pembayaran MULTIPLE tagihan
 class MultiplePaymentInfoScreen extends StatefulWidget {

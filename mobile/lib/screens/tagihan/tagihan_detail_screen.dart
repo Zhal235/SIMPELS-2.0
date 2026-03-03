@@ -1,5 +1,5 @@
 import 'package:flutter/material.dart';
-import 'payment_info_screen.dart';
+import 'package:simpels_mobile/screens/pembayaran/payment_info_screen.dart';
 
 /// Wrapper untuk backward compatibility
 /// Redirect ke PaymentInfoScreen untuk menampilkan info rekening bank dulu

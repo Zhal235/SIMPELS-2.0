@@ -1,7 +1,7 @@
 import 'package:flutter/material.dart';
 import 'package:provider/provider.dart';
-import '../providers/auth_provider.dart';
-import '../services/api_service.dart';
+import 'package:simpels_mobile/providers/auth_provider.dart';
+import 'package:simpels_mobile/services/api_service.dart';
 
 class DataSantriScreen extends StatefulWidget {
   const DataSantriScreen({super.key});

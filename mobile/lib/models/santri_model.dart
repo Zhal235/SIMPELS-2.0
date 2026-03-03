@@ -1,4 +1,4 @@
-import '../services/api_service.dart';
+import 'package:simpels_mobile/services/api_service.dart';
 
 class SantriModel {
   final String id; // UUID

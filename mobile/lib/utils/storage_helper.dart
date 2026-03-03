@@ -1,6 +1,6 @@
 import 'package:shared_preferences/shared_preferences.dart';
 import 'dart:convert';
-import '../config/app_config.dart';
+import 'package:simpels_mobile/config/app_config.dart';
 
 class StorageHelper {
   static Future<void> saveToken(String token) async {

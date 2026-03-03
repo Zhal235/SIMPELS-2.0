@@ -1,13 +1,13 @@
 import 'package:flutter/material.dart';
 import 'package:provider/provider.dart';
-import 'screens/splash_screen.dart';
-import 'screens/payment_info_screen.dart';
-import 'screens/wallet_full_history_screen.dart';
-import 'screens/change_password_screen.dart';
-import 'screens/multiple_payment_info_screen.dart';
-import 'screens/unified_payment_screen.dart';
-import 'providers/auth_provider.dart';
-import 'config/app_theme.dart';
+import 'package:simpels_mobile/screens/auth/splash_screen.dart';
+import 'package:simpels_mobile/screens/pembayaran/payment_info_screen.dart';
+import 'package:simpels_mobile/screens/wallet/wallet_full_history_screen.dart';
+import 'package:simpels_mobile/screens/auth/change_password_screen.dart';
+import 'package:simpels_mobile/screens/pembayaran/multiple_payment_info_screen.dart';
+import 'package:simpels_mobile/screens/pembayaran/unified_payment_screen.dart';
+import 'package:simpels_mobile/providers/auth_provider.dart';
+import 'package:simpels_mobile/config/app_theme.dart';
 
 void main() {
   runApp(const SimpleMobileApp());

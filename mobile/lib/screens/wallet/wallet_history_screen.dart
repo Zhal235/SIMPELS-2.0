@@ -1,10 +1,10 @@
 import 'package:flutter/material.dart';
 import 'package:provider/provider.dart';
-import '../providers/auth_provider.dart';
-import '../services/api_service.dart';
-import '../models/wallet_transaction.dart';
-import 'payment_info_screen.dart';
-import 'bukti_history_screen.dart';
+import 'package:simpels_mobile/providers/auth_provider.dart';
+import 'package:simpels_mobile/services/api_service.dart';
+import 'package:simpels_mobile/models/wallet_transaction.dart';
+import 'package:simpels_mobile/screens/pembayaran/payment_info_screen.dart';
+import 'package:simpels_mobile/screens/bukti/bukti_history_screen.dart';
 
 class WalletHistoryScreen extends StatefulWidget {
   final String santriId;

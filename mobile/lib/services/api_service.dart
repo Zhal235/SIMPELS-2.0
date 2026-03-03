@@ -2,8 +2,8 @@ import 'package:dio/dio.dart';
 import 'package:flutter/foundation.dart';
 import 'dart:io';
 // typed data provided by foundation import
-import '../config/app_config.dart';
-import '../utils/storage_helper.dart';
+import 'package:simpels_mobile/config/app_config.dart';
+import 'package:simpels_mobile/utils/storage_helper.dart';
 
 class ApiService {
   late Dio _dio;

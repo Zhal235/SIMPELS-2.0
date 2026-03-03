@@ -2,7 +2,7 @@ import 'dart:io';
 import 'package:flutter/material.dart';
 import 'package:flutter/foundation.dart';
 import 'package:image_picker/image_picker.dart';
-import '../services/api_service.dart';
+import 'package:simpels_mobile/services/api_service.dart';
 
 /// DEPRECATED: Use UnifiedPaymentScreen instead
 /// This screen is kept for backward compatibility only

@@ -1,6 +1,6 @@
 import 'package:flutter/material.dart';
-import '../services/api_service.dart';
-import '../models/wallet_transaction.dart';
+import 'package:simpels_mobile/services/api_service.dart';
+import 'package:simpels_mobile/models/wallet_transaction.dart';
 
 class WalletFullHistoryScreen extends StatefulWidget {
   final String santriId;

@@ -1,8 +1,8 @@
 import 'package:flutter/material.dart';
 import 'package:provider/provider.dart';
-import '../providers/auth_provider.dart';
-import '../models/santri_model.dart';
-import 'home_screen.dart';
+import 'package:simpels_mobile/providers/auth_provider.dart';
+import 'package:simpels_mobile/models/santri_model.dart';
+import 'package:simpels_mobile/screens/home/home_screen.dart';
 
 class SelectAccountScreen extends StatelessWidget {
   const SelectAccountScreen({super.key});

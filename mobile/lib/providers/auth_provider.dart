@@ -1,10 +1,10 @@
 import 'package:dio/dio.dart';
 import 'package:flutter/foundation.dart';
 import 'package:flutter/material.dart';
-import '../services/api_service.dart';
-import '../models/wali_model.dart';
-import '../models/santri_model.dart';
-import '../utils/storage_helper.dart';
+import 'package:simpels_mobile/services/api_service.dart';
+import 'package:simpels_mobile/models/wali_model.dart';
+import 'package:simpels_mobile/models/santri_model.dart';
+import 'package:simpels_mobile/utils/storage_helper.dart';
 
 class AuthProvider with ChangeNotifier {
   final ApiService _apiService = ApiService();

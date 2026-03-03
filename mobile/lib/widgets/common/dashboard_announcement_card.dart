@@ -1,10 +1,10 @@
 import 'package:flutter/material.dart';
 import 'package:dio/dio.dart';
-import '../services/announcement_service.dart';
-import '../services/api_service.dart';
-import '../utils/storage_helper.dart';
-import '../models/announcement.dart';
-import '../screens/announcements_screen.dart';
+import 'package:simpels_mobile/services/announcement_service.dart';
+import 'package:simpels_mobile/services/api_service.dart';
+import 'package:simpels_mobile/utils/storage_helper.dart';
+import 'package:simpels_mobile/models/announcement.dart';
+import 'package:simpels_mobile/screens/announcement/announcements_screen.dart';
 
 class DashboardAnnouncementCard extends StatefulWidget {
   const DashboardAnnouncementCard({super.key});

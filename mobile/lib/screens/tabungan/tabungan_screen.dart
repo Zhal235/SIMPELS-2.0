@@ -1,5 +1,5 @@
 import 'package:flutter/material.dart';
-import '../services/api_service.dart';
+import 'package:simpels_mobile/services/api_service.dart';
 
 class TabunganScreen extends StatefulWidget {
   final String santriId;
