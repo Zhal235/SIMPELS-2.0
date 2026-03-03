@@ -10,7 +10,6 @@ import { getCurrentUser } from './api/auth'
 import { listRoles } from './api/roles'
 
 const Dashboard = lazy(() => import('./pages/Dashboard'))
-const SantriLegacy = lazy(() => import('./pages/Santri'))
 const Pengguna = lazy(() => import('./pages/Pengguna'))
 const Pengaturan = lazy(() => import('./pages/Pengaturan'))
 const Pengumuman = lazy(() => import('./pages/Pengumuman'))

@@ -51,3 +51,36 @@ lib/
     notification_bell_widget.dart
     tabungan_card.dart
 ```
+
+---
+
+## 🔴 ATURAN WAJIB: Batas Maksimal 300 Baris Per File (Frontend)
+
+**Setiap file TypeScript/React di folder `frontend/src/` TIDAK BOLEH melebihi 300 baris.**
+
+### Cara Menegakkan Aturan Ini
+
+Sebelum membuat atau mengedit file `.tsx`/`.ts` apapun di `frontend/src/`:
+1. Hitung estimasi jumlah baris setelah perubahan.
+2. Jika file melebihi 300 baris, **wajib extract** component/hook/logic ke file terpisah.
+3. Setelah setiap sesi coding, cek dengan perintah:
+   ```powershell
+   Get-ChildItem "frontend\src" -Recurse -Include "*.tsx","*.ts" | ForEach-Object { $lines = (Get-Content $_.FullName | Measure-Object -Line).Lines; if ($lines -gt 300) { Write-Output "$lines - $($_.Name)" } }
+   ```
+
+### Strategi Ekstraksi Frontend
+
+| Tipe | Lokasi | Contoh |
+|------|--------|--------|
+| Sub-komponen UI | `components/[feature]/` | `SantriTable.tsx`, `SantriForm.tsx` |
+| Custom hook | `hooks/` | `useSantri.ts`, `usePagination.ts` |
+| Tipe/interface | `types/` | `santri.types.ts` |
+| Helper/utils | `utils/` | `formatCurrency.ts` |
+| Kolom tabel | `components/[feature]/columns.tsx` | `santriColumns.tsx` |
+
+### Aturan Tambahan Frontend
+
+- **Tidak boleh ada inline comment** — kode harus self-explanatory tanpa komentar.
+- **Tidak boleh ada TODO sebagai placeholder** — implementasi langsung.
+- **Tidak boleh ada file backup** (seperti `*_old.tsx`) — gunakan git.
+- **Selalu jalankan build check** setelah refactoring: `npm run build` di folder `frontend/`.
