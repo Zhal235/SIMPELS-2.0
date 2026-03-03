@@ -270,9 +270,15 @@ class DashboardTab extends StatelessWidget {
                             currentSantri!.fotoUrl!.isNotEmpty;
 
                         if (hasFoto) {
-                          if (kDebugMode) debugPrint('[HomeScreen] Loading foto from: ${currentSantri.fotoUrl}');
+                          if (kDebugMode) {
+                            debugPrint(
+                                '[HomeScreen] Loading foto from: ${currentSantri.fotoUrl}');
+                          }
                         } else {
-                          if (kDebugMode) debugPrint('[HomeScreen] No foto URL available for ${currentSantri?.nama}');
+                          if (kDebugMode) {
+                            debugPrint(
+                                '[HomeScreen] No foto URL available for ${currentSantri?.nama}');
+                          }
                         }
 
                         return CircleAvatar(
@@ -528,186 +534,27 @@ class DashboardTab extends StatelessWidget {
 
               const SizedBox(height: 24),
 
-              // Menu Cepat (2 rows of 3)
+              // Menu Cepat - Responsive layout with Show All feature
               Padding(
                 padding: const EdgeInsets.symmetric(horizontal: 16),
-                child: Column(
-                  children: [
-                    Row(
-                      mainAxisAlignment: MainAxisAlignment.spaceAround,
-                      children: [
-                        _buildQuickMenu(
-                          context,
-                          icon: Icons.school,
-                          title: 'Data Santri',
-                          color: Colors.teal,
-                          onTap: () {
-                            Navigator.push(
-                              context,
-                              MaterialPageRoute(
-                                builder: (_) => const DataSantriScreen(),
-                              ),
-                            );
-                          },
-                        ),
-                    _buildQuickMenu(
-                      context,
-                      icon: Icons.account_balance_wallet,
-                      title: 'Dompet',
-                      color: Colors.blue,
-                      onTap: () {
-                        final santri =
-                            Provider.of<AuthProvider>(context, listen: false)
-                                .activeSantri;
-                        if (santri != null) {
-                          Navigator.push(
-                            context,
-                            MaterialPageRoute(
-                              builder: (_) => WalletHistoryScreen(
-                                santriId: santri.id,
-                                santriName: santri.nama,
-                              ),
-                            ),
-                          );
-                        }
-                      },
-                    ),
-                    const _ConditionalTabunganMenu(),
-                  ],
+                child: _QuickMenuGrid(
+                  onNavigateToTab: onNavigateToTab,
                 ),
-                const SizedBox(height: 12),
-                Row(
-                  mainAxisAlignment: MainAxisAlignment.spaceAround,
-                  children: [
-                    _buildQuickMenu(
-                      context,
-                      icon: Icons.receipt_long,
-                      title: 'Bukti TF',
-                      color: Colors.orange,
-                      onTap: () {
-                        final santri =
-                            Provider.of<AuthProvider>(context, listen: false)
-                                .activeSantri;
-                        if (santri != null) {
-                          Navigator.push(
-                            context,
-                            MaterialPageRoute(
-                              builder: (_) => BuktiHistoryScreen(
-                                santriId: santri.id,
-                                santriName: santri.nama,
-                              ),
-                            ),
-                          );
-                        }
-                      },
-                    ),
-                    _buildQuickMenu(
-                      context,
-                      icon: Icons.history,
-                      title: 'Riwayat',
-                      color: Colors.purple,
-                      onTap: () {
-                        if (onNavigateToTab != null) {
-                          onNavigateToTab!(2);
-                        } else {
-                          final homeState = context
-                              .findAncestorStateOfType<_HomeScreenState>();
-                          if (homeState != null) {
-                            homeState.navigateTo(2);
-                          } else if (HomeScreen.homeKey.currentState != null) {
-                            HomeScreen.navigateToTab(2);
-                          } else {
-                            Navigator.pushReplacement(
-                              context,
-                              MaterialPageRoute(
-                                  builder: (_) => HomeScreen(
-                                      key: HomeScreen.homeKey,
-                                      initialIndex: 2)),
-                            );
-                          }
-                        }
-                      },
-                    ),
-                    _buildQuickMenu(
-                      context,
-                      icon: Icons.payment,
-                      title: 'Bayar',
-                      color: Colors.green,
-                      onTap: () {
-                        if (onNavigateToTab != null) {
-                          onNavigateToTab!(1);
-                        } else {
-                          final homeState = context
-                              .findAncestorStateOfType<_HomeScreenState>();
-                          if (homeState != null) {
-                            homeState.navigateTo(1);
-                          } else if (HomeScreen.homeKey.currentState != null) {
-                            HomeScreen.navigateToTab(1);
-                          } else {
-                            Navigator.pushReplacement(
-                              context,
-                              MaterialPageRoute(
-                                  builder: (_) => HomeScreen(
-                                      key: HomeScreen.homeKey,
-                                      initialIndex: 1)),
-                            );
-                          }
-                        }
-                      },
-                    ),
-                  ],
-                ),
-              ],
-            ),
-          ),
-          
-          const SizedBox(height: 24),
-          
-          // Pengumuman Section
-          const DashboardAnnouncementCard(),
+              ),
 
-          const SizedBox(height: 24),
-        ],
-      ),
-    ),
-  ),
-);
-  }
+              const SizedBox(height: 24),
 
-  Widget _buildQuickMenu(
-    BuildContext context, {
-    required IconData icon,
-    required String title,
-    required Color color,
-    required VoidCallback onTap,
-  }) {
-    return InkWell(
-      onTap: onTap,
-      borderRadius: BorderRadius.circular(12),
-      child: Column(
-        mainAxisSize: MainAxisSize.min,
-        children: [
-          Container(
-            width: 60,
-            height: 60,
-            decoration: BoxDecoration(
-              color: color.withAlpha(26),
-              borderRadius: BorderRadius.circular(12),
-            ),
-            child: Icon(icon, size: 30, color: color),
+              // Pengumuman Section
+              const DashboardAnnouncementCard(),
+
+              const SizedBox(height: 24),
+            ],
           ),
-          const SizedBox(height: 8),
-          Text(
-            title,
-            style: const TextStyle(
-              fontSize: 12,
-              fontWeight: FontWeight.w500,
-            ),
-          ),
-        ],
+        ),
       ),
     );
   }
+
 
   String _formatCurrency(double amount) {
     return amount.toStringAsFixed(0).replaceAllMapped(
@@ -747,7 +594,13 @@ class _TabunganCardState extends State<_TabunganCard> {
   }
 
   Future<void> _load() async {
-    if (widget.santri == null) { setState(() { _loading = false; _hasTabungan = false; }); return; }
+    if (widget.santri == null) {
+      setState(() {
+        _loading = false;
+        _hasTabungan = false;
+      });
+      return;
+    }
     setState(() => _loading = true);
     try {
       final res = await _api.getTabunganInfo(widget.santri!.id);
@@ -765,8 +618,9 @@ class _TabunganCardState extends State<_TabunganCard> {
   }
 
   String _fmt(double v) => v.toStringAsFixed(0).replaceAllMapped(
-    RegExp(r'(\d{1,3})(?=(\d{3})+(?!\d))'), (m) => '${m[1]}.',
-  );
+        RegExp(r'(\d{1,3})(?=(\d{3})+(?!\d))'),
+        (m) => '${m[1]}.',
+      );
 
   @override
   Widget build(BuildContext context) {
@@ -778,7 +632,11 @@ class _TabunganCardState extends State<_TabunganCard> {
           borderRadius: BorderRadius.circular(12),
           border: Border.all(color: Colors.teal.shade100),
         ),
-        child: const Center(child: SizedBox(width: 18, height: 18, child: CircularProgressIndicator(strokeWidth: 2))),
+        child: const Center(
+            child: SizedBox(
+                width: 18,
+                height: 18,
+                child: CircularProgressIndicator(strokeWidth: 2))),
       );
     }
     if (!_hasTabungan) return const SizedBox.shrink();
@@ -813,19 +671,27 @@ class _TabunganCardState extends State<_TabunganCard> {
                 color: Colors.teal.shade100,
                 borderRadius: BorderRadius.circular(8),
               ),
-              child: Icon(Icons.account_balance_wallet, color: Colors.teal.shade700, size: 20),
+              child: Icon(Icons.account_balance_wallet,
+                  color: Colors.teal.shade700, size: 20),
             ),
             const SizedBox(width: 12),
             Expanded(
               child: Column(
                 crossAxisAlignment: CrossAxisAlignment.start,
                 children: [
-                  Text('Saldo Tabungan', style: TextStyle(fontSize: 12, color: Colors.teal.shade600)),
-                  Text('Rp ${_fmt(_saldo)}', style: TextStyle(fontSize: 18, fontWeight: FontWeight.bold, color: Colors.teal.shade800)),
+                  Text('Saldo Tabungan',
+                      style:
+                          TextStyle(fontSize: 12, color: Colors.teal.shade600)),
+                  Text('Rp ${_fmt(_saldo)}',
+                      style: TextStyle(
+                          fontSize: 18,
+                          fontWeight: FontWeight.bold,
+                          color: Colors.teal.shade800)),
                 ],
               ),
             ),
-            Icon(Icons.arrow_forward_ios, size: 14, color: Colors.teal.shade400),
+            Icon(Icons.arrow_forward_ios,
+                size: 14, color: Colors.teal.shade400),
           ],
         ),
       ),
@@ -833,16 +699,19 @@ class _TabunganCardState extends State<_TabunganCard> {
   }
 }
 
-// ─── Conditional Tabungan Menu ──────────────────────────────────────────────────
+// ─── Quick Menu Grid with Show All Feature ────────────────────────────────────
 
-class _ConditionalTabunganMenu extends StatefulWidget {
-  const _ConditionalTabunganMenu();
-  
+class _QuickMenuGrid extends StatefulWidget {
+  final Function(int)? onNavigateToTab;
+
+  const _QuickMenuGrid({this.onNavigateToTab});
+
   @override
-  State<_ConditionalTabunganMenu> createState() => _ConditionalTabunganMenuState();
+  State<_QuickMenuGrid> createState() => _QuickMenuGridState();
 }
 
-class _ConditionalTabunganMenuState extends State<_ConditionalTabunganMenu> {
+class _QuickMenuGridState extends State<_QuickMenuGrid> {
+  bool _showAll = false;
   bool _loading = true;
   bool _hasTabungan = false;
   final ApiService _api = ApiService();
@@ -856,7 +725,7 @@ class _ConditionalTabunganMenuState extends State<_ConditionalTabunganMenu> {
   Future<void> _checkTabunganStatus() async {
     final authProvider = Provider.of<AuthProvider>(context, listen: false);
     final santri = authProvider.activeSantri;
-    
+
     if (santri == null) {
       setState(() {
         _loading = false;
@@ -880,44 +749,39 @@ class _ConditionalTabunganMenuState extends State<_ConditionalTabunganMenu> {
     }
   }
 
-  @override
-  Widget build(BuildContext context) {
-    if (_loading) {
-      // Return placeholder during loading to maintain layout
-      return Container(
-        height: 80,
-        width: 80,
-        decoration: BoxDecoration(
-          color: Colors.grey.shade50,
-          borderRadius: BorderRadius.circular(12),
-        ),
-        child: const Center(
-          child: SizedBox(
-            width: 16,
-            height: 16,
-            child: CircularProgressIndicator(strokeWidth: 2),
-          ),
-        ),
-      );
-    }
-    
-    if (!_hasTabungan) {
-      return const SizedBox.shrink(); // Hide completely if no tabungan
-    }
+  List<Widget> _buildAllMenuItems() {
+    final items = <Widget>[];
 
-    return _buildQuickMenu(
+    // Data Santri
+    items.add(_buildQuickMenu(
       context,
-      icon: Icons.account_balance,
-      title: 'Tabungan',
-      color: Colors.indigo,
+      icon: Icons.school,
+      title: 'Data Santri',
+      color: Colors.teal,
       onTap: () {
-        final authProvider = Provider.of<AuthProvider>(context, listen: false);
-        final santri = authProvider.activeSantri;
+        Navigator.push(
+          context,
+          MaterialPageRoute(
+            builder: (_) => const DataSantriScreen(),
+          ),
+        );
+      },
+    ));
+
+    // Dompet
+    items.add(_buildQuickMenu(
+      context,
+      icon: Icons.account_balance_wallet,
+      title: 'Dompet',
+      color: Colors.blue,
+      onTap: () {
+        final santri =
+            Provider.of<AuthProvider>(context, listen: false).activeSantri;
         if (santri != null) {
           Navigator.push(
             context,
             MaterialPageRoute(
-              builder: (_) => TabunganScreen(
+              builder: (_) => WalletHistoryScreen(
                 santriId: santri.id,
                 santriName: santri.nama,
               ),
@@ -925,6 +789,215 @@ class _ConditionalTabunganMenuState extends State<_ConditionalTabunganMenu> {
           );
         }
       },
+    ));
+
+    // Tabungan (conditional)
+    if (_hasTabungan) {
+      items.add(_buildQuickMenu(
+        context,
+        icon: Icons.account_balance,
+        title: 'Tabungan',
+        color: Colors.indigo,
+        onTap: () {
+          final authProvider =
+              Provider.of<AuthProvider>(context, listen: false);
+          final santri = authProvider.activeSantri;
+          if (santri != null) {
+            Navigator.push(
+              context,
+              MaterialPageRoute(
+                builder: (_) => TabunganScreen(
+                  santriId: santri.id,
+                  santriName: santri.nama,
+                ),
+              ),
+            );
+          }
+        },
+      ));
+    }
+
+    // Bayar
+    items.add(_buildQuickMenu(
+      context,
+      icon: Icons.payment,
+      title: 'Bayar',
+      color: Colors.green,
+      onTap: () {
+        if (widget.onNavigateToTab != null) {
+          widget.onNavigateToTab!(1);
+        } else {
+          final homeState = context.findAncestorStateOfType<_HomeScreenState>();
+          if (homeState != null) {
+            homeState.navigateTo(1);
+          } else if (HomeScreen.homeKey.currentState != null) {
+            HomeScreen.navigateToTab(1);
+          } else {
+            Navigator.pushReplacement(
+              context,
+              MaterialPageRoute(
+                builder: (_) => HomeScreen(
+                  key: HomeScreen.homeKey,
+                  initialIndex: 1,
+                ),
+              ),
+            );
+          }
+        }
+      },
+    ));
+
+    // Bukti Transfer
+    items.add(_buildQuickMenu(
+      context,
+      icon: Icons.receipt_long,
+      title: 'Bukti TF',
+      color: Colors.orange,
+      onTap: () {
+        final santri =
+            Provider.of<AuthProvider>(context, listen: false).activeSantri;
+        if (santri != null) {
+          Navigator.push(
+            context,
+            MaterialPageRoute(
+              builder: (_) => BuktiHistoryScreen(
+                santriId: santri.id,
+                santriName: santri.nama,
+              ),
+            ),
+          );
+        }
+      },
+    ));
+
+    // Riwayat
+    items.add(_buildQuickMenu(
+      context,
+      icon: Icons.history,
+      title: 'Riwayat',
+      color: Colors.purple,
+      onTap: () {
+        if (widget.onNavigateToTab != null) {
+          widget.onNavigateToTab!(2);
+        } else {
+          final homeState = context.findAncestorStateOfType<_HomeScreenState>();
+          if (homeState != null) {
+            homeState.navigateTo(2);
+          } else if (HomeScreen.homeKey.currentState != null) {
+            HomeScreen.navigateToTab(2);
+          } else {
+            Navigator.pushReplacement(
+              context,
+              MaterialPageRoute(
+                builder: (_) => HomeScreen(
+                  key: HomeScreen.homeKey,
+                  initialIndex: 2,
+                ),
+              ),
+            );
+          }
+        }
+      },
+    ));
+
+    return items;
+  }
+
+  @override
+  Widget build(BuildContext context) {
+    if (_loading) {
+      return const SizedBox(
+        height: 100,
+        child: Center(
+          child: SizedBox(
+            width: 20,
+            height: 20,
+            child: CircularProgressIndicator(strokeWidth: 2),
+          ),
+        ),
+      );
+    }
+
+    final allItems = _buildAllMenuItems();
+    final itemsToShow = _showAll ? allItems : allItems.take(4).toList();
+    final hasMore = allItems.length > 4;
+
+    return Column(
+      children: [
+        // Main grid - always show 4 items per row
+        GridView.builder(
+          shrinkWrap: true,
+          physics: const NeverScrollableScrollPhysics(),
+          gridDelegate: const SliverGridDelegateWithFixedCrossAxisCount(
+            crossAxisCount: 4,
+            childAspectRatio: 1.0,
+            crossAxisSpacing: 8,
+            mainAxisSpacing: 8,
+          ),
+          itemCount: itemsToShow.length + (hasMore && !_showAll ? 1 : 0),
+          itemBuilder: (context, index) {
+            if (index < itemsToShow.length) {
+              return itemsToShow[index];
+            } else if (hasMore && !_showAll) {
+              // Show "Lihat Semua" button
+              return _buildShowAllMenu();
+            }
+            return const SizedBox.shrink();
+          },
+        ),
+        if (_showAll && hasMore) ...[
+          const SizedBox(height: 12),
+          TextButton.icon(
+            onPressed: () {
+              setState(() {
+                _showAll = false;
+              });
+            },
+            icon: const Icon(Icons.keyboard_arrow_up),
+            label: const Text('Tampilkan Lebih Sedikit'),
+            style: TextButton.styleFrom(
+              foregroundColor: Colors.grey[600],
+            ),
+          ),
+        ],
+      ],
+    );
+  }
+
+  Widget _buildShowAllMenu() {
+    return InkWell(
+      onTap: () {
+        setState(() {
+          _showAll = true;
+        });
+      },
+      borderRadius: BorderRadius.circular(12),
+      child: Container(
+        decoration: BoxDecoration(
+          color: Colors.grey.shade100,
+          borderRadius: BorderRadius.circular(12),
+          border: Border.all(color: Colors.grey.shade300),
+        ),
+        child: Column(
+          mainAxisAlignment: MainAxisAlignment.center,
+          children: [
+            Icon(
+              Icons.apps,
+              size: 30,
+              color: Colors.grey.shade600,
+            ),
+            const SizedBox(height: 8),
+            Text(
+              'Semua',
+              style: TextStyle(
+                fontSize: 12,
+                fontWeight: FontWeight.w500,
+                color: Colors.grey.shade600,
+              ),
+            ),
+          ],
+        ),
+      ),
     );
   }
 
@@ -935,25 +1008,22 @@ class _ConditionalTabunganMenuState extends State<_ConditionalTabunganMenu> {
     required Color color,
     required VoidCallback onTap,
   }) {
-    return GestureDetector(
+    return InkWell(
       onTap: onTap,
+      borderRadius: BorderRadius.circular(12),
       child: Container(
-        width: 80,
-        height: 80,
         decoration: BoxDecoration(
-          color: color.withAlpha(30),
+          color: color.withAlpha(26),
           borderRadius: BorderRadius.circular(12),
-          border: Border.all(color: color.withAlpha(100), width: 1),
         ),
         child: Column(
           mainAxisAlignment: MainAxisAlignment.center,
           children: [
-            Icon(icon, color: color, size: 28),
-            const SizedBox(height: 6),
+            Icon(icon, size: 30, color: color),
+            const SizedBox(height: 8),
             Text(
               title,
-              style: TextStyle(
-                color: color,
+              style: const TextStyle(
                 fontSize: 12,
                 fontWeight: FontWeight.w500,
               ),
@@ -980,7 +1050,8 @@ class _PembayaranTabState extends State<PembayaranTab>
   bool _isLoading = true;
   Map<String, dynamic>? _tagihanData;
   final Set<int> _selectedTagihanIds = {};
-  bool _showFutureTagihan = false; // Toggle untuk menampilkan tagihan bulan depan
+  bool _showFutureTagihan =
+      false; // Toggle untuk menampilkan tagihan bulan depan
   // Selection mode is active when any tagihan is selected
   bool get _isSelectionMode => _selectedTagihanIds.isNotEmpty;
 
@@ -1028,7 +1099,7 @@ class _PembayaranTabState extends State<PembayaranTab>
     try {
       // Gabungkan semua tagihan dari semua kategori
       final List<dynamic> allTagihan = [];
-      
+
       final data = _tagihanData!['data'];
       if (data != null && data is Map) {
         // Ambil dari semua kategori: semua, lunas, belum_bayar
@@ -1042,7 +1113,7 @@ class _PembayaranTabState extends State<PembayaranTab>
           allTagihan.addAll(data['belum_bayar']);
         }
       }
-      
+
       // Remove duplicates by ID
       final Map<int, Map<String, dynamic>> uniqueTagihan = {};
       for (var item in allTagihan) {
@@ -1092,7 +1163,7 @@ class _PembayaranTabState extends State<PembayaranTab>
             });
           }
           debugPrint('[_loadTagihan] Data loaded successfully');
-          
+
           // Clean up drafts for approved/rejected payments
           _cleanupApprovedDrafts(santriId);
         } else {
@@ -1116,33 +1187,37 @@ class _PembayaranTabState extends State<PembayaranTab>
     try {
       final prefs = await SharedPreferences.getInstance();
       final apiService = ApiService();
-      
+
       // Get bukti history to check approved payments
       final response = await apiService.getBuktiHistory(santriId);
-      
+
       if (response.statusCode == 200) {
         final responseData = response.data;
         if (responseData['success'] == true) {
           final buktiList = responseData['data'] as List;
-          
+
           // Get all approved/rejected bukti
-          final processedBukti = buktiList.where((b) => 
-            b['status'] == 'approved' || b['status'] == 'rejected'
-          ).toList();
-          
+          final processedBukti = buktiList
+              .where(
+                  (b) => b['status'] == 'approved' || b['status'] == 'rejected')
+              .toList();
+
           for (final bukti in processedBukti) {
             final tagihanIds = (bukti['tagihan'] as List?)
                 ?.map((t) => t['id'] as int?)
                 .where((id) => id != null)
                 .toSet();
-            
+
             if (tagihanIds == null || tagihanIds.isEmpty) continue;
-            
+
             // Find and remove matching drafts
-            final draftKeys = prefs.getKeys().where((key) => 
-              key.startsWith('payment_draft_') && key.contains('_$santriId')
-            ).toList();
-            
+            final draftKeys = prefs
+                .getKeys()
+                .where((key) =>
+                    key.startsWith('payment_draft_') &&
+                    key.contains('_$santriId'))
+                .toList();
+
             for (final key in draftKeys) {
               if (key.contains('payment_draft_multiple_')) {
                 // Check multiple payment draft
@@ -1155,9 +1230,9 @@ class _PembayaranTabState extends State<PembayaranTab>
                           .map((t) => t is Map ? t['id'] as int? : null)
                           .where((id) => id != null)
                           .toSet();
-                      
+
                       // If draft matches approved payment, remove it
-                      if (draftTagihanIds.length == tagihanIds.length && 
+                      if (draftTagihanIds.length == tagihanIds.length &&
                           draftTagihanIds.containsAll(tagihanIds)) {
                         await prefs.remove(key);
                         debugPrint('[Cleanup] Removed approved draft: $key');
@@ -1169,7 +1244,8 @@ class _PembayaranTabState extends State<PembayaranTab>
                 }
               } else {
                 // Check single payment draft
-                final match = RegExp(r'payment_draft_\d+_(\d+)').firstMatch(key);
+                final match =
+                    RegExp(r'payment_draft_\d+_(\d+)').firstMatch(key);
                 if (match != null) {
                   final tagihanId = int.tryParse(match.group(1)!);
                   if (tagihanId != null && tagihanIds.contains(tagihanId)) {
@@ -1403,11 +1479,11 @@ class _PembayaranTabState extends State<PembayaranTab>
     // Group tagihan by month-year and separate current/past from future
     Map<String, List<dynamic>> currentAndPastTagihan = {};
     Map<String, List<dynamic>> futureTagihan = {};
-    
+
     for (var item in tagihan) {
       final bulan = item['bulan'];
       final tahun = item['tahun'];
-      
+
       // Create key for grouping
       String key;
       if (bulan != null && bulan.toString().isNotEmpty) {
@@ -1419,7 +1495,7 @@ class _PembayaranTabState extends State<PembayaranTab>
       } else {
         key = 'Tanpa Bulan';
       }
-      
+
       // Determine if this is a future month
       bool isFuture = false;
       if (bulan != null && tahun != null) {
@@ -1428,15 +1504,15 @@ class _PembayaranTabState extends State<PembayaranTab>
         if (monthIndex != -1) {
           final itemYear = int.tryParse(tahun.toString()) ?? currentYear;
           final itemMonth = monthIndex + 1;
-          
+
           // Compare dates
-          if (itemYear > currentYear || 
+          if (itemYear > currentYear ||
               (itemYear == currentYear && itemMonth > currentMonth)) {
             isFuture = true;
           }
         }
       }
-      
+
       final targetMap = isFuture ? futureTagihan : currentAndPastTagihan;
       if (!targetMap.containsKey(key)) {
         targetMap[key] = [];
@@ -1445,7 +1521,8 @@ class _PembayaranTabState extends State<PembayaranTab>
     }
 
     // Sort keys by month order (Juli -> Juni)
-    final sortedCurrentKeys = _sortMonthKeys(currentAndPastTagihan.keys.toList());
+    final sortedCurrentKeys =
+        _sortMonthKeys(currentAndPastTagihan.keys.toList());
     final sortedFutureKeys = _sortMonthKeys(futureTagihan.keys.toList());
 
     return ListView(
@@ -1457,7 +1534,7 @@ class _PembayaranTabState extends State<PembayaranTab>
           final items = currentAndPastTagihan[monthKey]!;
           return _buildMonthGroup(monthKey, items, isFuture: false);
         }),
-        
+
         // Future months section
         if (futureTagihan.isNotEmpty) ...[
           // Toggle button
@@ -1506,7 +1583,8 @@ class _PembayaranTabState extends State<PembayaranTab>
                     ),
                   ),
                   Container(
-                    padding: const EdgeInsets.symmetric(horizontal: 8, vertical: 4),
+                    padding:
+                        const EdgeInsets.symmetric(horizontal: 8, vertical: 4),
                     decoration: BoxDecoration(
                       color: Colors.blue.shade700,
                       borderRadius: BorderRadius.circular(12),
@@ -1524,7 +1602,7 @@ class _PembayaranTabState extends State<PembayaranTab>
               ),
             ),
           ),
-          
+
           // Future months (shown if toggle is on)
           if (_showFutureTagihan) ...[
             ...sortedFutureKeys.map((monthKey) {
@@ -1539,44 +1617,69 @@ class _PembayaranTabState extends State<PembayaranTab>
 
   int _getMonthIndex(String monthName) {
     const months = [
-      'Januari', 'Februari', 'Maret', 'April', 'Mei', 'Juni',
-      'Juli', 'Agustus', 'September', 'Oktober', 'November', 'Desember'
+      'Januari',
+      'Februari',
+      'Maret',
+      'April',
+      'Mei',
+      'Juni',
+      'Juli',
+      'Agustus',
+      'September',
+      'Oktober',
+      'November',
+      'Desember'
     ];
     return months.indexOf(monthName);
   }
 
   List<String> _sortMonthKeys(List<String> keys) {
     final monthOrder = [
-      'Juli', 'Agustus', 'September', 'Oktober', 'November', 'Desember',
-      'Januari', 'Februari', 'Maret', 'April', 'Mei', 'Juni', 'Tanpa Bulan'
+      'Juli',
+      'Agustus',
+      'September',
+      'Oktober',
+      'November',
+      'Desember',
+      'Januari',
+      'Februari',
+      'Maret',
+      'April',
+      'Mei',
+      'Juni',
+      'Tanpa Bulan'
     ];
-    
-    return keys..sort((a, b) {
-      final monthA = a.split(' ')[0];
-      final monthB = b.split(' ')[0];
-      final indexA = monthOrder.indexOf(monthA);
-      final indexB = monthOrder.indexOf(monthB);
-      
-      if (indexA == -1 && indexB == -1) return a.compareTo(b);
-      if (indexA == -1) return 1;
-      if (indexB == -1) return -1;
-      
-      // If same month, sort by year
-      if (indexA == indexB) {
-        final yearA = a.split(' ').length > 1 ? int.tryParse(a.split(' ')[1]) ?? 0 : 0;
-        final yearB = b.split(' ').length > 1 ? int.tryParse(b.split(' ')[1]) ?? 0 : 0;
-        return yearB.compareTo(yearA); // Descending year
-      }
-      
-      return indexA.compareTo(indexB);
-    });
+
+    return keys
+      ..sort((a, b) {
+        final monthA = a.split(' ')[0];
+        final monthB = b.split(' ')[0];
+        final indexA = monthOrder.indexOf(monthA);
+        final indexB = monthOrder.indexOf(monthB);
+
+        if (indexA == -1 && indexB == -1) return a.compareTo(b);
+        if (indexA == -1) return 1;
+        if (indexB == -1) return -1;
+
+        // If same month, sort by year
+        if (indexA == indexB) {
+          final yearA =
+              a.split(' ').length > 1 ? int.tryParse(a.split(' ')[1]) ?? 0 : 0;
+          final yearB =
+              b.split(' ').length > 1 ? int.tryParse(b.split(' ')[1]) ?? 0 : 0;
+          return yearB.compareTo(yearA); // Descending year
+        }
+
+        return indexA.compareTo(indexB);
+      });
   }
 
-  Widget _buildMonthGroup(String monthKey, List<dynamic> items, {required bool isFuture}) {
+  Widget _buildMonthGroup(String monthKey, List<dynamic> items,
+      {required bool isFuture}) {
     // Calculate totals for this month
     double totalSisa = 0;
     int countBelumBayar = 0;
-    
+
     for (var item in items) {
       final sisa = double.tryParse(item['sisa']?.toString() ?? '0') ?? 0;
       totalSisa += sisa;
@@ -1584,7 +1687,7 @@ class _PembayaranTabState extends State<PembayaranTab>
         countBelumBayar++;
       }
     }
-    
+
     return Column(
       crossAxisAlignment: CrossAxisAlignment.start,
       children: [
@@ -1703,16 +1806,16 @@ class _PembayaranTabState extends State<PembayaranTab>
     if (santriId == null) return false;
 
     final prefs = await SharedPreferences.getInstance();
-    
+
     // Check single payment draft
     final draftKey = 'payment_draft_${santriId}_$tagihanId';
     if (prefs.containsKey(draftKey)) return true;
-    
+
     // Check multiple payment drafts
-    final keys = prefs.getKeys().where((key) => 
-      key.startsWith('payment_draft_multiple_$santriId')
-    );
-    
+    final keys = prefs
+        .getKeys()
+        .where((key) => key.startsWith('payment_draft_multiple_$santriId'));
+
     for (final key in keys) {
       final draftJson = prefs.getString(key);
       if (draftJson != null) {
@@ -1731,7 +1834,7 @@ class _PembayaranTabState extends State<PembayaranTab>
         }
       }
     }
-    
+
     return false;
   }
 
@@ -2587,14 +2690,15 @@ class _DraftPembayaranListState extends State<_DraftPembayaranList> {
         try {
           final draft = json.decode(draftJson);
           draft['key'] = key; // Store key for deletion
-          
+
           // Debug info
           if (draft['isMultiple'] == true) {
             debugPrint('[Load Draft] Multiple payment draft found');
-            debugPrint('[Load Draft] Tagihan count: ${draft['tagihan']?.length ?? 0}');
+            debugPrint(
+                '[Load Draft] Tagihan count: ${draft['tagihan']?.length ?? 0}');
             debugPrint('[Load Draft] Topup: ${draft['topupAmount']}');
           }
-          
+
           drafts.add(draft);
         } catch (e) {
           debugPrint('Error parsing draft: $e');
@@ -2683,29 +2787,31 @@ class _DraftPembayaranListState extends State<_DraftPembayaranList> {
         itemBuilder: (context, index) {
           final draft = _drafts[index];
           final isMultiple = draft['isMultiple'] == true;
-          
+
           // For multiple payment
-          final List<dynamic>? multipleTagihan = isMultiple ? draft['tagihan'] : null;
-          
+          final List<dynamic>? multipleTagihan =
+              isMultiple ? draft['tagihan'] : null;
+
           // For single payment
           final paymentAmount = draft['paymentAmount'] ?? 0.0;
           final topupAmount = draft['topupAmount'] ?? 0.0;
-          
+
           double total;
           String title;
           String subtitle = '';
-          
+
           if (isMultiple && multipleTagihan != null) {
             // Multiple payment draft
             double tagihanTotal = 0;
             for (var t in multipleTagihan) {
               if (t is Map) {
-                tagihanTotal += double.tryParse(t['sisa']?.toString() ?? '0') ?? 0;
+                tagihanTotal +=
+                    double.tryParse(t['sisa']?.toString() ?? '0') ?? 0;
               }
             }
             final topup = draft['topupAmount'] ?? 0.0;
             total = tagihanTotal + topup;
-            
+
             title = '${multipleTagihan.length} Tagihan';
             if (topup > 0) {
               subtitle = '+ Top-up Dompet';
@@ -2714,7 +2820,7 @@ class _DraftPembayaranListState extends State<_DraftPembayaranList> {
             // Single payment draft
             total = paymentAmount + topupAmount;
             title = draft['jenisTagihan'] ?? 'Tagihan';
-            
+
             final bulan = draft['bulan'];
             final tahun = draft['tahun'];
             if (bulan != null && tahun != null) {
@@ -2724,7 +2830,7 @@ class _DraftPembayaranListState extends State<_DraftPembayaranList> {
               subtitle += subtitle.isEmpty ? 'Top-up Dompet' : ' + Top-up';
             }
           }
-          
+
           final catatan = draft['catatan'] ?? '';
           final timestamp = draft['timestamp'] ?? '';
           final totalTagihan = draft['totalTagihan'] ?? 0.0;
@@ -2737,16 +2843,20 @@ class _DraftPembayaranListState extends State<_DraftPembayaranList> {
                 // Navigate to upload screen with draft data
                 debugPrint('[Draft Tap] ===== START =====');
                 debugPrint('[Draft Tap] Draft data: ${draft.toString()}');
-                debugPrint('[Draft Tap] isMultiple from draft: ${draft['isMultiple']}');
-                debugPrint('[Draft Tap] tagihan from draft: ${draft['tagihan']}');
-                
+                debugPrint(
+                    '[Draft Tap] isMultiple from draft: ${draft['isMultiple']}');
+                debugPrint(
+                    '[Draft Tap] tagihan from draft: ${draft['tagihan']}');
+
                 final isMultipleTap = draft['isMultiple'] == true;
-                final multipleTagihanTap = isMultipleTap ? draft['tagihan'] as List<dynamic>? : null;
-                
+                final multipleTagihanTap =
+                    isMultipleTap ? draft['tagihan'] as List<dynamic>? : null;
+
                 debugPrint('[Draft Tap] isMultiple: $isMultipleTap');
-                debugPrint('[Draft Tap] multipleTagihan: ${multipleTagihanTap?.length}');
+                debugPrint(
+                    '[Draft Tap] multipleTagihan: ${multipleTagihanTap?.length}');
                 debugPrint('[Draft Tap] topupAmount: ${draft['topupAmount']}');
-                
+
                 if (isMultipleTap && multipleTagihanTap != null) {
                   // Multiple payment draft
                   final tagihanIds = multipleTagihanTap
@@ -2754,19 +2864,23 @@ class _DraftPembayaranListState extends State<_DraftPembayaranList> {
                       .where((id) => id != null)
                       .cast<int>()
                       .toList();
-                  
-                  debugPrint('[Draft Tap] Navigating to multiple payment with ${tagihanIds.length} tagihan');
-                  debugPrint('[Draft Tap] Arguments: isMultiplePayment=true, fromDraft=true');
-                  
+
+                  debugPrint(
+                      '[Draft Tap] Navigating to multiple payment with ${tagihanIds.length} tagihan');
+                  debugPrint(
+                      '[Draft Tap] Arguments: isMultiplePayment=true, fromDraft=true');
+
                   // Convert multipleTagihan to proper List<Map<String, dynamic>>
                   final selectedTagihan = multipleTagihanTap
-                      .map((t) => t is Map ? Map<String, dynamic>.from(t) : null)
+                      .map(
+                          (t) => t is Map ? Map<String, dynamic>.from(t) : null)
                       .where((t) => t != null)
                       .cast<Map<String, dynamic>>()
                       .toList();
-                  
-                  debugPrint('[Draft Tap] selectedTagihan prepared: ${selectedTagihan.length} items');
-                  
+
+                  debugPrint(
+                      '[Draft Tap] selectedTagihan prepared: ${selectedTagihan.length} items');
+
                   Navigator.push(
                     context,
                     MaterialPageRoute(
@@ -2795,7 +2909,7 @@ class _DraftPembayaranListState extends State<_DraftPembayaranList> {
                     'nominal': totalTagihan,
                     'dibayar': sudahDibayar,
                   };
-                  
+
                   Navigator.push(
                     context,
                     MaterialPageRoute(
@@ -2829,7 +2943,9 @@ class _DraftPembayaranListState extends State<_DraftPembayaranList> {
                             borderRadius: BorderRadius.circular(8),
                           ),
                           child: Icon(
-                            isMultiple ? Icons.receipt_long : Icons.pending_actions,
+                            isMultiple
+                                ? Icons.receipt_long
+                                : Icons.pending_actions,
                             color: Colors.orange.shade700,
                             size: 20,
                           ),
@@ -3073,35 +3189,43 @@ class _DraftPembayaranListState extends State<_DraftPembayaranList> {
                               if (santriId == null) return;
 
                               // Check if this is a multiple payment draft
-                              final isMultipleDraft = draft['isMultiple'] == true;
-                              
+                              final isMultipleDraft =
+                                  draft['isMultiple'] == true;
+
                               if (isMultipleDraft) {
                                 // Multiple payment draft
-                                final multipleTagihanDraft = draft['tagihan'] as List<dynamic>?;
-                                
+                                final multipleTagihanDraft =
+                                    draft['tagihan'] as List<dynamic>?;
+
                                 if (multipleTagihanDraft != null) {
                                   final selectedTagihan = multipleTagihanDraft
-                                      .map((t) => t is Map ? Map<String, dynamic>.from(t) : null)
+                                      .map((t) => t is Map
+                                          ? Map<String, dynamic>.from(t)
+                                          : null)
                                       .where((t) => t != null)
                                       .cast<Map<String, dynamic>>()
                                       .toList();
-                                  
-                                  debugPrint('[Upload Bukti Button] Multiple payment - ${selectedTagihan.length} tagihan');
-                                  
+
+                                  debugPrint(
+                                      '[Upload Bukti Button] Multiple payment - ${selectedTagihan.length} tagihan');
+
                                   final result = await Navigator.push(
                                     context,
                                     MaterialPageRoute(
                                       builder: (_) => UnifiedPaymentScreen(
                                         isMultiplePayment: true,
                                         multipleTagihan: selectedTagihan,
-                                        selectedBankId: draft['selectedBankId'] as int?,
-                                        shouldIncludeTopup: (draft['topupAmount'] ?? 0.0) > 0,
-                                        topupNominal: (draft['topupAmount'] ?? 0.0) as double?,
+                                        selectedBankId:
+                                            draft['selectedBankId'] as int?,
+                                        shouldIncludeTopup:
+                                            (draft['topupAmount'] ?? 0.0) > 0,
+                                        topupNominal: (draft['topupAmount'] ??
+                                            0.0) as double?,
                                         fromDraft: true,
                                       ),
                                     ),
                                   );
-                                  
+
                                   if (result == true) {
                                     _loadDrafts();
                                     if (context.mounted) {
