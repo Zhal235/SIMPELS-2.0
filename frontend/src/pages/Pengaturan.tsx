@@ -4,11 +4,14 @@ import { useAuthStore } from '../stores/useAuthStore'
 import { triggerBackup } from '../api/system'
 import { useState } from 'react'
 import toast from 'react-hot-toast'
+import { useInstansiSetting } from '../hooks/useInstansiSetting'
+import ProfilInstansiCard from './pengaturan/ProfilInstansiCard'
 
 export default function Pengaturan() {
   const { user } = useAuthStore()
   const [backingUp, setBackingUp] = useState(false)
   const [backupEmail, setBackupEmail] = useState('')
+  const { setting, loading: loadingSetting, refresh: refreshSetting } = useInstansiSetting()
 
   async function handleBackup() {
     if (!backupEmail.trim()) {
@@ -32,6 +35,11 @@ export default function Pengaturan() {
       <h1 className="text-2xl font-bold text-gray-900 mb-6">Pengaturan</h1>
 
       <div className="grid grid-cols-1 md:grid-cols-2 gap-6">
+        {/* Profil Instansi */}
+        {!loadingSetting && setting && (
+          <ProfilInstansiCard setting={setting} onSaved={refreshSetting} />
+        )}
+
         {/* User Profile Card */}
         <div className="bg-white rounded-lg shadow p-6">
           <div className="flex items-center gap-4 mb-4">

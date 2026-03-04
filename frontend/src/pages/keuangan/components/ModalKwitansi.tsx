@@ -1,4 +1,5 @@
 import { formatRupiah } from '../../../utils/pembayaranHelpers'
+import { useInstansiSetting } from '../../../hooks/useInstansiSetting'
 
 interface Props {
   kwitansiData: any
@@ -6,6 +7,7 @@ interface Props {
 }
 
 export default function ModalKwitansi({ kwitansiData, onClose }: Props) {
+  const { setting } = useInstansiSetting()
   const kwitansiNumber = kwitansiData.noKwitansi || Math.random().toString(36).substr(2, 9).toUpperCase()
   const statusLabel = kwitansiData.type === 'lunas' ? 'LUNAS' : 'BAYAR SEBAGIAN'
   const totalSisa = kwitansiData.sisaSesudah !== undefined
@@ -24,7 +26,7 @@ export default function ModalKwitansi({ kwitansiData, onClose }: Props) {
       try { return Array.from(sheet.cssRules).map(rule => rule.cssText).join('\n') } catch { return '' }
     }).join('\n')
     const printWindow = window.open('', '', 'height=400,width=800')
-    printWindow?.document.write(`<!DOCTYPE html><html><head><meta charset="UTF-8"><title>Kwitansi Pembayaran</title><style>@page{size:210mm 150mm portrait;margin:8mm 10mm;}@media print{html,body{width:210mm;height:150mm;margin:0;padding:0;overflow:hidden;}#kwitansi{width:100%;height:100%;margin:0!important;padding:8mm!important;box-sizing:border-box!important;overflow:hidden!important;}.no-print{display:none!important;}}${styles}</style></head><body>${kwitansiElement.outerHTML}</body></html>`)
+    printWindow?.document.write(`<!DOCTYPE html><html><head><meta charset="UTF-8"><title>Kwitansi Pembayaran</title><style>@page{size:210mm 150mm portrait;margin:8mm 10mm;}@media print{html,body{width:210mm;height:150mm;margin:0;padding:0;overflow:hidden;}#kwitansi{width:100%;height:100%;margin:0!important;padding:8mm!important;box-sizing:border-box!important;overflow:hidden!important;}.no-print{display:none!important;}table{border-collapse:collapse!important;}th,td{padding:10px 15px!important;border:1px solid #000!important;font-size:11px!important;line-height:1.4!important;}.bg-gray-100{padding:8px 12px!important;}.flex.justify-between{padding:2px 8px!important;}}${styles}</style></head><body>${kwitansiElement.outerHTML}</body></html>`)
     printWindow?.document.close()
     printWindow?.focus()
     setTimeout(() => { printWindow?.print() }, 250)
@@ -36,8 +38,16 @@ export default function ModalKwitansi({ kwitansiData, onClose }: Props) {
       <div className="relative z-10 bg-white rounded-lg shadow-lg" style={{ width: '210mm', maxHeight: '90vh', overflow: 'auto' }}>
         <div id="kwitansi" className="relative" style={{ width: '210mm', height: '150mm', display: 'flex', flexDirection: 'column', padding: '8mm', boxSizing: 'border-box', overflow: 'hidden' }}>
           <div className="text-center mb-2 pb-2 border-b border-gray-800">
-            <h1 className="text-xl font-bold tracking-wider">KWITANSI PEMBAYARAN</h1>
-            <p className="text-gray-700 text-xs mt-0.5">Bukti Pembayaran Tagihan</p>
+            {setting?.kop_surat_url ? (
+              <img src={setting.kop_surat_url} alt="Kop Surat" className="w-full object-contain object-top mb-1" style={{ maxHeight: '50px' }} />
+            ) : (
+              <>
+                <p className="text-xs text-gray-600">{setting?.nama_yayasan || 'Yayasan Pondok Pesantren'}</p>
+                <h1 className="text-lg font-bold tracking-wider">{setting?.nama_pesantren || 'PONDOK PESANTREN'}</h1>
+                {setting?.alamat && <p className="text-xs text-gray-600">{setting.alamat}</p>}
+              </>
+            )}
+            <h3 className="text-sm font-bold tracking-wider mt-1">KWITANSI PEMBAYARAN</h3>
           </div>
           <div className="flex gap-3 mb-1.5 text-xs">
             <div className="flex-1">
@@ -58,10 +68,10 @@ export default function ModalKwitansi({ kwitansiData, onClose }: Props) {
             <table className="w-full text-xs border-collapse border border-gray-800">
               <thead>
                 <tr className="bg-gray-200">
-                  <th className="border border-gray-800 px-6 py-3 text-left font-bold">Jenis Tagihan</th>
-                  <th className="border border-gray-800 px-6 py-3 text-left font-bold">Bulan</th>
-                  <th className="border border-gray-800 px-6 py-3 text-right font-bold">Nominal</th>
-                  {kwitansiData.type === 'sebagian' && (<><th className="border border-gray-800 px-6 py-3 text-right font-bold">Dibayar</th><th className="border border-gray-800 px-6 py-3 text-right font-bold">Sisa</th></>)}
+                  <th className="border border-gray-800 px-3 py-2 text-left font-bold">Jenis Tagihan</th>
+                  <th className="border border-gray-800 px-3 py-2 text-left font-bold">Bulan</th>
+                  <th className="border border-gray-800 px-3 py-2 text-right font-bold">Nominal</th>
+                  {kwitansiData.type === 'sebagian' && (<><th className="border border-gray-800 px-3 py-2 text-right font-bold">Dibayar</th><th className="border border-gray-800 px-3 py-2 text-right font-bold">Sisa</th></>)}
                 </tr>
               </thead>
               <tbody>
@@ -71,32 +81,32 @@ export default function ModalKwitansi({ kwitansiData, onClose }: Props) {
                   const sisa = kwitansiData.sisaSesudah !== undefined ? kwitansiData.sisaSesudah : (nominalTagihan - dibayar)
                   return (
                     <tr key={idx}>
-                      <td className="border border-gray-800 px-6 py-3">{t.jenisTagihan || t.jenis_tagihan}</td>
-                      <td className="border border-gray-800 px-6 py-3">{t.bulan} {t.tahun}</td>
-                      <td className="border border-gray-800 px-6 py-3 text-right">{formatRupiah(nominalTagihan)}</td>
-                      {kwitansiData.type === 'sebagian' && (<><td className="border border-gray-800 px-6 py-3 text-right">{formatRupiah(dibayar)}</td><td className="border border-gray-800 px-6 py-3 text-right font-semibold">{formatRupiah(sisa)}</td></>)}
+                      <td className="border border-gray-800 px-3 py-2">{t.jenisTagihan || t.jenis_tagihan}</td>
+                      <td className="border border-gray-800 px-3 py-2">{t.bulan} {t.tahun}</td>
+                      <td className="border border-gray-800 px-3 py-2 text-right">{formatRupiah(nominalTagihan)}</td>
+                      {kwitansiData.type === 'sebagian' && (<><td className="border border-gray-800 px-3 py-2 text-right">{formatRupiah(dibayar)}</td><td className="border border-gray-800 px-3 py-2 text-right font-semibold">{formatRupiah(sisa)}</td></>)}
                     </tr>
                   )
                 })}
               </tbody>
             </table>
           </div>
-          <div className="mb-1 bg-gray-100 p-3 border border-gray-800 text-xs">
-            <div className="flex justify-between mb-0.5 px-2"><span className="font-semibold">Total Tagihan:</span><span>{formatRupiah(kwitansiData.sisaSebelum || kwitansiData.totalTagihan || kwitansiData.totalBayar)}</span></div>
-            <div className="flex justify-between px-2"><span className="font-semibold">Nominal Bayar:</span><span>{formatRupiah(kwitansiData.nominalBayar)}</span></div>
+          <div className="mb-1 bg-gray-100 p-2 border border-gray-800 text-xs">
+            <div className="flex justify-between mb-0.5 px-1"><span className="font-semibold">Total Tagihan:</span><span>{formatRupiah(kwitansiData.sisaSebelum || kwitansiData.totalTagihan || kwitansiData.totalBayar)}</span></div>
+            <div className="flex justify-between px-1"><span className="font-semibold">Nominal Bayar:</span><span>{formatRupiah(kwitansiData.nominalBayar)}</span></div>
             {kwitansiData.kembalian > 0 && (
               <>
-                <div className="flex justify-between border-t pt-0.5 mt-0.5 px-2"><span className="font-semibold">Kembalian:</span><span>{formatRupiah(kwitansiData.kembalian)}</span></div>
-                <div className="flex justify-between pt-0.5 px-2"><span className="font-semibold">Opsi:</span><span className="text-xs">{kwitansiData.opsiKembalian === 'dompet' ? '✓ Masukkan ke Dompet Santri' : kwitansiData.opsiKembalian === 'tabungan' ? '✓ Simpan ke Tabungan Santri' : '✓ Kembalian Tunai'}</span></div>
+                <div className="flex justify-between border-t pt-0.5 mt-0.5 px-1"><span className="font-semibold">Kembalian:</span><span>{formatRupiah(kwitansiData.kembalian)}</span></div>
+                <div className="flex justify-between pt-0.5 px-1"><span className="font-semibold">Opsi:</span><span className="text-xs">{kwitansiData.opsiKembalian === 'dompet' ? '✓ Masukkan ke Dompet Santri' : kwitansiData.opsiKembalian === 'tabungan' ? '✓ Simpan ke Tabungan Santri' : '✓ Kembalian Tunai'}</span></div>
               </>
             )}
             {kwitansiData.type === 'sebagian' && totalSisa > 0 && (
-              <div className="flex justify-between border-t pt-0.5 mt-0.5 px-2"><span className="font-semibold">Sisa Tagihan:</span><span className="font-bold text-blue-600">{formatRupiah(totalSisa)}</span></div>
+              <div className="flex justify-between border-t pt-0.5 mt-0.5 px-1"><span className="font-semibold">Sisa Tagihan:</span><span className="font-bold text-blue-600">{formatRupiah(totalSisa)}</span></div>
             )}
           </div>
           <div className="flex-1 flex items-end">
             <div className="w-full text-center">
-              <div className="border-b border-gray-800" style={{ height: '35px', marginBottom: '4px' }}></div>
+              <div className="border-b border-gray-800" style={{ height: '20px', marginBottom: '2px' }}></div>
               <p className="text-xs font-semibold">{kwitansiData.admin}</p>
             </div>
           </div>

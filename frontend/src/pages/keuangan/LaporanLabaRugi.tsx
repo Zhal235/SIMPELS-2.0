@@ -1,6 +1,7 @@
 import { useState, useEffect } from 'react'
 import api from '../../api/index'
 import { Download, Printer } from 'lucide-react'
+import { useInstansiSetting } from '../../hooks/useInstansiSetting'
 
 interface IncomeStatementData {
   period: string
@@ -18,6 +19,7 @@ interface IncomeStatementData {
 }
 
 export default function LaporanLabaRugi() {
+  const { setting } = useInstansiSetting()
   const [period, setPeriod] = useState<'month' | 'quarter' | 'year' | 'custom'>('month')
   const [startDate, setStartDate] = useState('')
   const [endDate, setEndDate] = useState('')
@@ -206,7 +208,8 @@ export default function LaporanLabaRugi() {
         <div className="bg-white rounded-lg shadow-sm border border-gray-200">
           <div className="p-6 border-b border-gray-200">
             <h2 className="text-xl font-bold text-center text-gray-900">LAPORAN AKTIVITAS KEUANGAN</h2>
-            <h3 className="text-lg text-center text-gray-700 mt-1">YAYASAN PONDOK PESANTREN</h3>
+            <p className="text-sm text-center text-gray-600 mt-0.5">{setting?.nama_yayasan || 'Yayasan Pondok Pesantren'}</p>
+            <h3 className="text-lg font-bold text-center text-gray-900 mt-1">{setting?.nama_pesantren || 'PONDOK PESANTREN'}</h3>
             <p className="text-center text-gray-600 mt-1">Periode: {data.period}</p>
           </div>
 

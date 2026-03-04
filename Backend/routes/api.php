@@ -19,6 +19,8 @@ use App\Http\Controllers\Api\V1\Wali\WaliController;
 use App\Http\Controllers\BankAccountController;
 use App\Http\Controllers\TabunganController;
 
+use App\Http\Controllers\InstansiSettingController;
+
 // Load V1 Routes
 Route::prefix('v1')->group(base_path('routes/api_v1.php'));
 
@@ -92,6 +94,14 @@ Route::middleware('auth:sanctum')->prefix('admin/data-corrections')->group(funct
 // System backup (admin only)
 Route::middleware('auth:sanctum')->prefix('v1/system')->group(function () {
     Route::post('/backup', [\App\Http\Controllers\Admin\SystemBackupController::class, 'backup']);
+});
+
+// Instansi Settings (public GET, protected PUT/POST)
+Route::get('/v1/instansi', [InstansiSettingController::class, 'index']);
+Route::middleware('auth:sanctum')->prefix('v1/instansi')->group(function () {
+    Route::put('/', [InstansiSettingController::class, 'update']);
+    Route::post('/upload-kop', [InstansiSettingController::class, 'uploadKopSurat']);
+    Route::delete('/kop-surat', [InstansiSettingController::class, 'deleteKopSurat']);
 });
 
 // Protected routes
