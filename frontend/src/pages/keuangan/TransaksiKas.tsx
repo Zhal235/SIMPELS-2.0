@@ -31,6 +31,8 @@ export default function TransaksiKas() {
   const [filterOperator, setFilterOperator] = useState<number|'all'>('all')
   const [startDate, setStartDate] = useState('')
   const [endDate, setEndDate] = useState('')
+  const [currentPage, setCurrentPage] = useState(1)
+  const ITEMS_PER_PAGE = 20
   const [formData, setFormData] = useState({ buku_kas_id: '', tanggal: new Date().toISOString().split('T')[0], kategori: '', kategori_id: '', nominal: '', keterangan: '', nama_pemohon: '', metode: 'cash' as 'cash'|'transfer' })
 
   useEffect(() => { loadData() }, [])
@@ -118,6 +120,11 @@ export default function TransaksiKas() {
   const totalPengeluaran = filtered.filter(t => t.jenis === 'pengeluaran' && !t.kategori.includes('Transfer Internal')).reduce((s,t) => s+Number(t.nominal), 0)
   const saldo = totalPemasukan - totalPengeluaran
 
+  const totalPages = Math.ceil(filtered.length / ITEMS_PER_PAGE)
+  const paginated = filtered.slice((currentPage - 1) * ITEMS_PER_PAGE, currentPage * ITEMS_PER_PAGE)
+
+  useEffect(() => { setCurrentPage(1) }, [searchQuery, filterJenis, filterBukuKas, filterOperator, startDate, endDate])
+
   if (loading) return <div className="p-6 flex items-center justify-center min-h-screen"><div className="text-center"><div className="animate-spin rounded-full h-12 w-12 border-b-2 border-blue-600 mx-auto mb-4"></div><p className="text-gray-600">Memuat data...</p></div></div>
 
   return (
@@ -160,7 +167,7 @@ export default function TransaksiKas() {
             <tbody className="bg-white divide-y divide-gray-200">
               {filtered.length === 0 ? (
                 <tr><td colSpan={10} className="px-6 py-12 text-center text-gray-500"><div className="flex flex-col items-center"><Search className="w-12 h-12 text-gray-400 mb-3" /><p>Tidak ada data transaksi</p></div></td></tr>
-              ) : filtered.map(t => (
+              ) : paginated.map(t => (
                 <tr key={t.id} className="hover:bg-gray-50">
                   <td className="px-6 py-4 text-sm font-medium">{t.no_transaksi}</td>
                   <td className="px-6 py-4 text-sm text-gray-600">{formatTanggal(t.tanggal)}</td>
@@ -182,7 +189,28 @@ export default function TransaksiKas() {
             </tbody>
           </table>
         </div>
-        {filtered.length > 0 && <div className="bg-gray-50 px-6 py-3 border-t"><p className="text-sm text-gray-600">Menampilkan {filtered.length} dari {transaksiList.length} transaksi</p></div>}
+        {filtered.length > 0 && (
+          <div className="bg-gray-50 px-6 py-3 border-t flex items-center justify-between flex-wrap gap-3">
+            <p className="text-sm text-gray-600">Menampilkan {(currentPage - 1) * ITEMS_PER_PAGE + 1}–{Math.min(currentPage * ITEMS_PER_PAGE, filtered.length)} dari {filtered.length} transaksi</p>
+            {totalPages > 1 && (
+              <div className="flex items-center gap-1">
+                <button onClick={() => setCurrentPage(1)} disabled={currentPage === 1} className="px-2 py-1 text-sm rounded border border-gray-300 bg-white hover:bg-gray-100 disabled:opacity-40">«</button>
+                <button onClick={() => setCurrentPage(p => Math.max(1, p - 1))} disabled={currentPage === 1} className="px-3 py-1 text-sm rounded border border-gray-300 bg-white hover:bg-gray-100 disabled:opacity-40">‹</button>
+                {Array.from({ length: totalPages }, (_, i) => i + 1).filter(p => p === 1 || p === totalPages || Math.abs(p - currentPage) <= 2).reduce<(number|'...')[]>((acc, p, idx, arr) => {
+                  if (idx > 0 && (p as number) - (arr[idx - 1] as number) > 1) acc.push('...')
+                  acc.push(p)
+                  return acc
+                }, []).map((p, i) => p === '...' ? (
+                  <span key={`ellipsis-${i}`} className="px-2 text-gray-400">…</span>
+                ) : (
+                  <button key={p} onClick={() => setCurrentPage(p as number)} className={`px-3 py-1 text-sm rounded border ${currentPage === p ? 'bg-blue-600 text-white border-blue-600' : 'border-gray-300 bg-white hover:bg-gray-100'}`}>{p}</button>
+                ))}
+                <button onClick={() => setCurrentPage(p => Math.min(totalPages, p + 1))} disabled={currentPage === totalPages} className="px-3 py-1 text-sm rounded border border-gray-300 bg-white hover:bg-gray-100 disabled:opacity-40">›</button>
+                <button onClick={() => setCurrentPage(totalPages)} disabled={currentPage === totalPages} className="px-2 py-1 text-sm rounded border border-gray-300 bg-white hover:bg-gray-100 disabled:opacity-40">»</button>
+              </div>
+            )}
+          </div>
+        )}
       </div>
 
       {showModal && (
