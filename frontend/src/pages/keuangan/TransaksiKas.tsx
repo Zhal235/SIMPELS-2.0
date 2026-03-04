@@ -85,7 +85,9 @@ export default function TransaksiKas() {
     const matchJenis = filterJenis === 'all' || t.jenis === filterJenis
     const matchBK = filterBukuKas === 'all' || t.buku_kas_id === filterBukuKas
     let matchDate = true
-    if (startDate && endDate) { const d = new Date(t.tanggal); matchDate = d >= new Date(startDate) && d <= new Date(endDate) }
+    const tgl = (t.tanggal || '').slice(0, 10)
+    if (startDate) matchDate = matchDate && tgl >= startDate
+    if (endDate) matchDate = matchDate && tgl <= endDate
     return matchSearch && matchJenis && matchBK && matchDate
   }).sort((a, b) => { const diff = new Date(b.created_at).getTime()-new Date(a.created_at).getTime(); return diff !== 0 ? diff : b.id - a.id })
 
