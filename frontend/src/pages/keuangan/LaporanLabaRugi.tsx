@@ -2,6 +2,8 @@ import { useState, useEffect } from 'react'
 import api from '../../api/index'
 import { Download, Printer } from 'lucide-react'
 import { useInstansiSetting } from '../../hooks/useInstansiSetting'
+import { exportToExcel } from '../../utils/exportExcel'
+import { printLabaRugi } from '../../utils/printLaporan'
 
 interface IncomeStatementData {
   period: string
@@ -119,6 +121,30 @@ export default function LaporanLabaRugi() {
     }).format(value)
   }
 
+  const handlePrint = () => {
+    if (!data) return
+    printLabaRugi(data, { namaYayasan: setting?.nama_yayasan, namaPesantren: setting?.nama_pesantren, kopSuratUrl: setting?.kop_surat_url })
+  }
+
+  const handleExportExcel = () => {
+    if (!data) return
+    const rows: Record<string, any>[] = [
+      { kategori: 'PENERIMAAN', keterangan: '', nominal: '' },
+      ...data.pendapatan.operasional.map(p => ({ kategori: p.nama, keterangan: 'Operasional', nominal: p.jumlah })),
+      ...data.pendapatan.non_operasional.map(p => ({ kategori: p.nama, keterangan: 'Non-Operasional', nominal: p.jumlah })),
+      { kategori: 'Total Penerimaan', keterangan: '', nominal: data.pendapatan.total },
+      { kategori: '', keterangan: '', nominal: '' },
+      { kategori: 'PENGELUARAN', keterangan: '', nominal: '' },
+      ...data.beban.operasional.map(b => ({ kategori: b.nama, keterangan: 'Operasional', nominal: b.jumlah })),
+      ...data.beban.non_operasional.map(b => ({ kategori: b.nama, keterangan: 'Non-Operasional', nominal: b.jumlah })),
+      { kategori: 'Total Pengeluaran', keterangan: '', nominal: data.beban.total },
+      { kategori: '', keterangan: '', nominal: '' },
+      { kategori: data.laba_rugi >= 0 ? 'SURPLUS' : 'DEFISIT', keterangan: '', nominal: data.laba_rugi },
+    ]
+    exportToExcel(rows, { kategori: 'Keterangan', keterangan: 'Jenis', nominal: 'Nominal (Rp)' },
+      `laporan-aktivitas-keuangan-${new Date().toISOString().split('T')[0]}`, 'Aktivitas Keuangan')
+  }
+
   return (
     <div className="space-y-6">
       {/* Header */}
@@ -128,13 +154,13 @@ export default function LaporanLabaRugi() {
           <p className="text-gray-600 mt-1">Activity Report - Standar Akuntansi Pesantren (ISAK 35)</p>
         </div>
         <div className="flex gap-2">
-          <button className="flex items-center gap-2 px-4 py-2 bg-white border border-gray-300 rounded-md hover:bg-gray-50 text-sm font-medium">
+          <button onClick={handlePrint} className="flex items-center gap-2 px-4 py-2 bg-white border border-gray-300 rounded-md hover:bg-gray-50 text-sm font-medium">
             <Printer className="h-4 w-4" />
             Cetak
           </button>
-          <button className="flex items-center gap-2 px-4 py-2 bg-green-600 text-white rounded-md hover:bg-green-700 text-sm font-medium">
+          <button onClick={handleExportExcel} className="flex items-center gap-2 px-4 py-2 bg-green-600 text-white rounded-md hover:bg-green-700 text-sm font-medium">
             <Download className="h-4 w-4" />
-            Export PDF
+            Export Excel
           </button>
         </div>
       </div>

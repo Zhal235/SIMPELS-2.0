@@ -1,6 +1,9 @@
 import { useState, useEffect } from 'react'
 import api from '../../api/index'
 import { Download, Printer, AlertTriangle, Clock } from 'lucide-react'
+import { exportToExcel } from '../../utils/exportExcel'
+import { printTunggakanSantri } from '../../utils/printLaporan'
+import { useInstansiSetting } from '../../hooks/useInstansiSetting'
 
 interface TunggakanSantri {
   santri_id: number
@@ -34,6 +37,7 @@ interface TunggakanSantri {
 }
 
 export default function LaporanTunggakanSantri() {
+  const { setting } = useInstansiSetting()
   const [data, setData] = useState<TunggakanSantri[]>([])
   const [loading, setLoading] = useState(false)
   const [sortBy, setSortBy] = useState<'nama' | 'total' | 'tertua'>('total')
@@ -199,6 +203,40 @@ export default function LaporanTunggakanSantri() {
     return { label: 'Baru', color: 'bg-blue-100 text-blue-800' }
   }
 
+  const handlePrint = () => {
+    printTunggakanSantri(data, summary, { namaYayasan: setting?.nama_yayasan, namaPesantren: setting?.nama_pesantren, kopSuratUrl: setting?.kop_surat_url })
+  }
+
+  const handleExportExcel = () => {
+    const rows: Record<string, any>[] = []
+    data.forEach((santri, si) => {
+      santri.tagihan.forEach((t, ti) => {
+        rows.push({
+          no: ti === 0 ? si + 1 : '',
+          nama: ti === 0 ? santri.santri.nama : '',
+          nis: ti === 0 ? santri.santri.nis : '',
+          kelas: ti === 0 ? (santri.santri.kelas?.nama_kelas || '') : '',
+          jenis_tagihan: t.jenis_tagihan?.nama_tagihan || '',
+          bulan: `${getBulanName(t.bulan)} ${t.tahun}`,
+          nominal: t.nominal,
+          sisa: t.sisa,
+          umur: getUmurTunggakanLabel(t.umur_tunggakan_hari),
+        })
+      })
+    })
+    exportToExcel(rows, {
+      no: 'No',
+      nama: 'Nama Santri',
+      nis: 'NIS',
+      kelas: 'Kelas',
+      jenis_tagihan: 'Jenis Tagihan',
+      bulan: 'Bulan',
+      nominal: 'Nominal (Rp)',
+      sisa: 'Sisa Tunggakan (Rp)',
+      umur: 'Umur Tunggakan',
+    }, `laporan-tunggakan-santri-${new Date().toISOString().split('T')[0]}`, 'Tunggakan Santri')
+  }
+
   return (
     <div className="space-y-6">
       {/* Header */}
@@ -211,11 +249,11 @@ export default function LaporanTunggakanSantri() {
           <p className="text-gray-600 mt-1">Daftar santri dengan tagihan yang sudah jatuh tempo</p>
         </div>
         <div className="flex gap-2">
-          <button className="flex items-center gap-2 px-4 py-2 bg-white border border-gray-300 rounded-md hover:bg-gray-50 text-sm font-medium">
+          <button onClick={handlePrint} className="flex items-center gap-2 px-4 py-2 bg-white border border-gray-300 rounded-md hover:bg-gray-50 text-sm font-medium">
             <Printer className="h-4 w-4" />
             Cetak
           </button>
-          <button className="flex items-center gap-2 px-4 py-2 bg-green-600 text-white rounded-md hover:bg-green-700 text-sm font-medium">
+          <button onClick={handleExportExcel} className="flex items-center gap-2 px-4 py-2 bg-green-600 text-white rounded-md hover:bg-green-700 text-sm font-medium">
             <Download className="h-4 w-4" />
             Export Excel
           </button>

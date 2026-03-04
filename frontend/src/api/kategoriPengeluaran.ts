@@ -9,3 +9,13 @@ export async function createKategoriPengeluaran(data: Record<string, any>) {
   const res = await api.post('/v1/keuangan/kategori-pengeluaran', data)
   return res.data
 }
+
+export async function deleteKategoriPengeluaran(id: number) {
+  const res = await api.delete(`/v1/keuangan/kategori-pengeluaran/${id}`)
+  return res.data
+}
+
+export async function updateKategoriPengeluaran(id: number, data: Record<string, any>) {
+  const res = await api.put(`/v1/keuangan/kategori-pengeluaran/${id}`, data)
+  return res.data
+}

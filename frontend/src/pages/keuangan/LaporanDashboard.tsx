@@ -1,16 +1,31 @@
 import { useState, useEffect } from 'react'
 import api from '../../api/index'
-import { 
-  TrendingUp, 
+import {
+  TrendingUp,
   TrendingDown,
   Banknote,
   Scale
 } from 'lucide-react'
+import { BarChart, Bar, XAxis, YAxis, CartesianGrid, Tooltip, ResponsiveContainer, Cell } from 'recharts'
 
 interface SummaryData {
   total_receipts: number
   total_expenses: number
   net: number
+}
+
+interface KategoriData {
+  kategori_name: string
+  total: number
+}
+
+interface RecentTranaksi {
+  id: number
+  no_transaksi: string
+  tanggal: string
+  jenis: string
+  kategori: string
+  nominal: number
 }
 
 interface MetricCardProps {
@@ -51,6 +66,8 @@ export default function LaporanDashboard() {
   const [endDate, setEndDate] = useState('')
   const [summary, setSummary] = useState<SummaryData | null>(null)
   const [loading, setLoading] = useState(false)
+  const [topKategori, setTopKategori] = useState<KategoriData[]>([])
+  const [recentTransaksi, setRecentTransaksi] = useState<RecentTranaksi[]>([])
 
   const getDateRange = () => {
     const now = new Date()
@@ -97,6 +114,20 @@ export default function LaporanDashboard() {
         }
       })
       setSummary(response.data.data)
+
+      const [expRes, transaksiRes] = await Promise.all([
+        api.get('/v1/keuangan/reports/expenses-by-category', { params: { start: range.start, end: range.end } }),
+        api.get('/v1/keuangan/transaksi-kas', { params: { start_date: range.start, end_date: range.end, per_page: 5 } }),
+      ])
+      const expData = Array.isArray(expRes.data.data) ? expRes.data.data : []
+      setTopKategori(
+        expData
+          .map((e: any) => ({ kategori_name: e.kategori_name || e.kategori || 'Lain-lain', total: parseFloat(e.total) }))
+          .sort((a: KategoriData, b: KategoriData) => b.total - a.total)
+          .slice(0, 5)
+      )
+      const transaksiData = Array.isArray(transaksiRes.data.data) ? transaksiRes.data.data : []
+      setRecentTransaksi(transaksiData.slice(0, 5))
     } catch (error) {
       console.error('Error fetching summary:', error)
     } finally {
@@ -229,18 +260,26 @@ export default function LaporanDashboard() {
         </div>
       )}
 
-      {/* Chart Placeholder */}
+      {/* Chart */}
       <div className="bg-white rounded-lg shadow-sm border border-gray-200 p-6">
-        <h2 className="text-lg font-semibold text-gray-900 mb-4">Tren Keuangan</h2>
-        <div className="h-64 flex items-center justify-center bg-gray-50 rounded-lg border-2 border-dashed border-gray-300">
-          <div className="text-center">
-            <svg className="mx-auto h-12 w-12 text-gray-400" fill="none" viewBox="0 0 24 24" stroke="currentColor">
-              <path strokeLinecap="round" strokeLinejoin="round" strokeWidth={2} d="M9 19v-6a2 2 0 00-2-2H5a2 2 0 00-2 2v6a2 2 0 002 2h2a2 2 0 002-2zm0 0V9a2 2 0 012-2h2a2 2 0 012 2v10m-6 0a2 2 0 002 2h2a2 2 0 002-2m0 0V5a2 2 0 012-2h2a2 2 0 012 2v14a2 2 0 01-2 2h-2a2 2 0 01-2-2z" />
-            </svg>
-            <p className="mt-2 text-sm text-gray-500">Grafik tren akan ditampilkan di sini</p>
-            <p className="text-xs text-gray-400">(Implementasi dengan Chart.js atau Recharts)</p>
-          </div>
-        </div>
+        <h2 className="text-lg font-semibold text-gray-900 mb-4">Top Pengeluaran per Kategori</h2>
+        {topKategori.length > 0 ? (
+          <ResponsiveContainer width="100%" height={240}>
+            <BarChart data={topKategori} margin={{ top: 4, right: 16, left: 16, bottom: 40 }}>
+              <CartesianGrid strokeDasharray="3 3" />
+              <XAxis dataKey="kategori_name" tick={{ fontSize: 11 }} angle={-25} textAnchor="end" interval={0} />
+              <YAxis tick={{ fontSize: 11 }} tickFormatter={(v) => `${(v / 1000000).toFixed(1)}jt`} />
+              <Tooltip formatter={(v: number) => new Intl.NumberFormat('id-ID', { style: 'currency', currency: 'IDR', minimumFractionDigits: 0 }).format(v)} />
+              <Bar dataKey="total" radius={[4, 4, 0, 0]}>
+                {topKategori.map((_, i) => (
+                  <Cell key={i} fill={['#3b82f6','#ef4444','#f59e0b','#10b981','#8b5cf6'][i % 5]} />
+                ))}
+              </Bar>
+            </BarChart>
+          </ResponsiveContainer>
+        ) : (
+          <div className="h-40 flex items-center justify-center text-gray-400 text-sm">Tidak ada data pengeluaran</div>
+        )}
       </div>
 
       {/* Quick Stats */}
@@ -248,27 +287,33 @@ export default function LaporanDashboard() {
         <div className="bg-white rounded-lg shadow-sm border border-gray-200 p-6">
           <h3 className="text-lg font-semibold text-gray-900 mb-4">Top 5 Kategori Pengeluaran</h3>
           <div className="space-y-3">
-            {[1, 2, 3, 4, 5].map((i) => (
+            {topKategori.length > 0 ? topKategori.map((k, i) => (
               <div key={i} className="flex items-center justify-between py-2 border-b border-gray-100 last:border-0">
-                <span className="text-sm text-gray-600">Kategori {i}</span>
-                <span className="text-sm font-semibold text-gray-900">Rp 0</span>
+                <span className="text-sm text-gray-600">{k.kategori_name}</span>
+                <span className="text-sm font-semibold text-gray-900">{new Intl.NumberFormat('id-ID', { style: 'currency', currency: 'IDR', minimumFractionDigits: 0 }).format(k.total)}</span>
               </div>
-            ))}
+            )) : (
+              <p className="text-sm text-gray-400 text-center py-4">Tidak ada data pengeluaran</p>
+            )}
           </div>
         </div>
 
         <div className="bg-white rounded-lg shadow-sm border border-gray-200 p-6">
           <h3 className="text-lg font-semibold text-gray-900 mb-4">Transaksi Terbaru</h3>
           <div className="space-y-3">
-            {[1, 2, 3, 4, 5].map((i) => (
-              <div key={i} className="flex items-center justify-between py-2 border-b border-gray-100 last:border-0">
+            {recentTransaksi.length > 0 ? recentTransaksi.map((t) => (
+              <div key={t.id} className="flex items-center justify-between py-2 border-b border-gray-100 last:border-0">
                 <div>
-                  <p className="text-sm font-medium text-gray-900">Transaksi {i}</p>
-                  <p className="text-xs text-gray-500">24 Nov 2025</p>
+                  <p className="text-sm font-medium text-gray-900">{t.kategori || t.no_transaksi}</p>
+                  <p className="text-xs text-gray-500">{new Date(t.tanggal).toLocaleDateString('id-ID', { day: '2-digit', month: 'short', year: 'numeric' })}</p>
                 </div>
-                <span className="text-sm font-semibold text-gray-900">Rp 0</span>
+                <span className={`text-sm font-semibold ${t.jenis === 'pemasukan' ? 'text-green-600' : 'text-red-600'}`}>
+                  {t.jenis === 'pemasukan' ? '+' : '-'}{new Intl.NumberFormat('id-ID', { style: 'currency', currency: 'IDR', minimumFractionDigits: 0 }).format(t.nominal)}
+                </span>
               </div>
-            ))}
+            )) : (
+              <p className="text-sm text-gray-400 text-center py-4">Tidak ada transaksi</p>
+            )}
           </div>
         </div>
       </div>
