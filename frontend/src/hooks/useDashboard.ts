@@ -1,6 +1,6 @@
 import { useEffect, useState } from 'react'
 import { apiFetch } from '../api'
-import type { DashboardKpi, TagihanSummaryItem, TrendItem, RecentPaymentItem } from '../types/dashboard.types'
+import type { DashboardKpi, TagihanSummaryItem, TrendItem, RecentPaymentItem, KasKeuangan } from '../types/dashboard.types'
 
 export function useDashboardKpi(bulan?: string, tahun?: number) {
   const [data, setData] = useState<DashboardKpi | null>(null)
@@ -65,6 +65,24 @@ export function useRecentPayments() {
       .catch(() => {})
       .finally(() => setLoading(false))
   }, [])
+
+  return { data, loading }
+}
+
+export function useKasKeuangan(bulan?: string, tahun?: number) {
+  const [data, setData] = useState<KasKeuangan | null>(null)
+  const [loading, setLoading] = useState(false)
+
+  useEffect(() => {
+    const params = new URLSearchParams()
+    if (bulan) params.set('bulan', bulan)
+    if (tahun) params.set('tahun', String(tahun))
+    setLoading(true)
+    apiFetch<KasKeuangan>(`/dashboard/kas-keuangan?${params}`, 'GET')
+      .then(setData)
+      .catch(() => {})
+      .finally(() => setLoading(false))
+  }, [bulan, tahun])
 
   return { data, loading }
 }

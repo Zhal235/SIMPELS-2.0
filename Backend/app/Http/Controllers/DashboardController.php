@@ -9,6 +9,8 @@ use App\Models\TagihanSantri;
 use App\Models\JenisTagihan;
 use App\Models\TahunAjaran;
 use App\Models\Pembayaran;
+use App\Models\BukuKas;
+use App\Models\TransaksiKas;
 use Illuminate\Support\Facades\DB;
 
 class DashboardController extends Controller
@@ -164,6 +166,53 @@ class DashboardController extends Controller
             return response()->json([
                 'success' => false,
                 'message' => 'Gagal mengambil data pembayaran terbaru',
+                'error' => $e->getMessage(),
+            ], 500);
+        }
+    }
+
+    public function kasKeuangan(Request $request)
+    {
+        try {
+            $bulan = $request->query('bulan');
+            $tahun = $request->query('tahun');
+
+            $bukuKasList = BukuKas::all();
+
+            $perBukuKas = $bukuKasList->map(function ($bk) use ($bulan, $tahun) {
+                $query = TransaksiKas::where('buku_kas_id', $bk->id);
+
+                if ($bulan && $tahun) {
+                    $bulanIndex = array_search($bulan, self::BULAN_ORDER) + 1;
+                    $query->whereYear('tanggal', $tahun)->whereMonth('tanggal', $bulanIndex);
+                } elseif ($tahun) {
+                    $query->whereYear('tanggal', $tahun);
+                }
+
+                $pemasukan = (float) (clone $query)->where('jenis', 'pemasukan')->sum('nominal');
+                $pengeluaran = (float) (clone $query)->where('jenis', 'pengeluaran')->sum('nominal');
+                $saldoAwal = (float) $bk->saldo_cash_awal + (float) $bk->saldo_bank_awal;
+
+                return [
+                    'id' => $bk->id,
+                    'namaKas' => $bk->nama_kas,
+                    'saldoAwal' => $saldoAwal,
+                    'pemasukan' => $pemasukan,
+                    'pengeluaran' => $pengeluaran,
+                    'saldoBerjalan' => $saldoAwal + $pemasukan - $pengeluaran,
+                ];
+            });
+
+            return response()->json([
+                'totalPemasukan' => $perBukuKas->sum('pemasukan'),
+                'totalPengeluaran' => $perBukuKas->sum('pengeluaran'),
+                'totalSaldoBerjalan' => $perBukuKas->sum('saldoBerjalan'),
+                'perBukuKas' => $perBukuKas->values(),
+            ]);
+        } catch (\Exception $e) {
+            return response()->json([
+                'success' => false,
+                'message' => 'Gagal mengambil data kas keuangan',
                 'error' => $e->getMessage(),
             ], 500);
         }

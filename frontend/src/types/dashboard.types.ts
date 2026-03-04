@@ -45,3 +45,19 @@ export type RecentPaymentItem = {
   tanggalBayar: string
   metodePembayaran: string
 }
+
+export type BukuKasSummary = {
+  id: number
+  namaKas: string
+  saldoAwal: number
+  pemasukan: number
+  pengeluaran: number
+  saldoBerjalan: number
+}
+
+export type KasKeuangan = {
+  totalPemasukan: number
+  totalPengeluaran: number
+  totalSaldoBerjalan: number
+  perBukuKas: BukuKasSummary[]
+}

@@ -1,7 +1,7 @@
 import React, { useEffect, useState } from 'react'
 import Card from '../../components/Card'
 import Table from '../../components/Table'
-import { listWalletTransactions, deleteImportHistory } from '../../api/wallet'
+import { listWalletTransactions, deleteImportHistory, listUsers } from '../../api/wallet'
 import { useLocation } from 'react-router-dom'
 import toast from 'react-hot-toast'
 
@@ -13,6 +13,7 @@ export default function HistoryTransaksi() {
   const [loading, setLoading] = useState(true)
   const [deletingImport, setDeletingImport] = useState(false)
   const [showDangerZone, setShowDangerZone] = useState(false)
+  const [users, setUsers] = useState<Array<{ id: number; name: string }>>([])  
   const location = useLocation()
 
   // Filters
@@ -21,10 +22,15 @@ export default function HistoryTransaksi() {
   const [filterMethod, setFilterMethod] = useState('')
   const [filterStart, setFilterStart] = useState('')
   const [filterEnd, setFilterEnd] = useState('')
+  const [filterOperator, setFilterOperator] = useState('')
   const [page, setPage] = useState(1)
 
-  useEffect(() => { setPage(1) }, [search, filterType, filterMethod, filterStart, filterEnd])
-  useEffect(() => { load() }, [page, search, filterType, filterMethod, filterStart, filterEnd, location.search])
+  useEffect(() => { setPage(1) }, [search, filterType, filterMethod, filterStart, filterEnd, filterOperator])
+  useEffect(() => { load() }, [page, search, filterType, filterMethod, filterStart, filterEnd, filterOperator, location.search])
+
+  useEffect(() => {
+    listUsers().then((res) => { if (res.success) setUsers(res.data ?? []) }).catch(() => {})
+  }, [])
 
   async function load() {
     try {
@@ -37,6 +43,7 @@ export default function HistoryTransaksi() {
       if (filterMethod) params.method = filterMethod
       if (filterStart) params.start = filterStart
       if (filterEnd) params.end = filterEnd + ' 23:59:59'
+      if (filterOperator) params.created_by = filterOperator
       const res = await listWalletTransactions(params)
       if (res.success) {
         setTransactions(res.data || [])
@@ -49,7 +56,7 @@ export default function HistoryTransaksi() {
   }
 
   function resetFilters() {
-    setSearch(''); setFilterType(''); setFilterMethod(''); setFilterStart(''); setFilterEnd(''); setPage(1)
+    setSearch(''); setFilterType(''); setFilterMethod(''); setFilterStart(''); setFilterEnd(''); setFilterOperator(''); setPage(1)
   }
 
   function exportCSV() {
@@ -111,6 +118,11 @@ export default function HistoryTransaksi() {
         {v === 'cash' ? '💵 Cash' : v === 'transfer' ? '🏦 Transfer' : v === 'epos' ? '🏪 EPOS' : v || '-'}
       </span>
     )},
+    { key: 'operator', header: 'Operator', render: (_v: any, r: any) => {
+      const name = r.author?.name
+      if (!name || name === 'System') return <span className="text-xs text-gray-400">System</span>
+      return <span className="text-xs text-gray-700 font-medium">{name}</span>
+    }},
     { key: 'created_at', header: 'Waktu', render: (v: any) => <div className="text-xs text-gray-500">{new Date(v).toLocaleString('id-ID')}</div> },
     { key: 'voided', header: 'Status', render: (v: any) => v
       ? <span className="text-xs text-red-600 font-medium bg-red-50 px-2 py-0.5 rounded">VOID</span>
@@ -151,7 +163,7 @@ export default function HistoryTransaksi() {
 
       {/* Filters */}
       <Card>
-        <div className="grid grid-cols-1 sm:grid-cols-2 lg:grid-cols-5 gap-3">
+        <div className="grid grid-cols-1 sm:grid-cols-2 lg:grid-cols-6 gap-3">
           <input
             placeholder="🔍 Cari nama / NIS santri"
             value={search}
@@ -168,6 +180,10 @@ export default function HistoryTransaksi() {
             <option value="cash">💵 Cash</option>
             <option value="transfer">🏦 Transfer</option>
             <option value="epos">🏪 EPOS</option>
+          </select>
+          <select value={filterOperator} onChange={e => setFilterOperator(e.target.value)} className="border rounded px-3 py-2 text-sm">
+            <option value="">Semua Operator</option>
+            {users.map(u => <option key={u.id} value={u.id}>{u.name}</option>)}
           </select>
           <div className="flex items-center gap-1 text-sm">
             <input type="date" value={filterStart} onChange={e => setFilterStart(e.target.value)} className="border rounded px-2 py-2 flex-1 text-sm" />

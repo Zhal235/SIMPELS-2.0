@@ -103,6 +103,7 @@ Route::middleware('auth:sanctum')->group(function () {
     Route::get('/dashboard/tagihan-summary', [\App\Http\Controllers\DashboardController::class, 'tagihanSummary']);
     Route::get('/dashboard/trend', [\App\Http\Controllers\DashboardController::class, 'trend']);
     Route::get('/dashboard/recent-payments', [\App\Http\Controllers\DashboardController::class, 'recentPayments']);
+    Route::get('/dashboard/kas-keuangan', [\App\Http\Controllers\DashboardController::class, 'kasKeuangan']);
     // Admin: manage users
     Route::get('/v1/users', [\App\Http\Controllers\UserController::class, 'index']);
     Route::post('/v1/users', [\App\Http\Controllers\UserController::class, 'store']);

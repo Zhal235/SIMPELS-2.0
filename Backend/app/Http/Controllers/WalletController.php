@@ -620,6 +620,10 @@ class WalletController extends Controller
             });
         }
 
+        if ($request->has('created_by') && $request->query('created_by') !== '') {
+            $q->where('created_by', $request->query('created_by'));
+        }
+
         $perPage = min((int)($request->query('per_page', 25)), 100);
         $page = max((int)($request->query('page', 1)), 1);
 

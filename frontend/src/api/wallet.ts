@@ -25,6 +25,11 @@ export async function listWalletTransactions(params?: any) {
   return res.data
 }
 
+export async function listUsers() {
+  const res = await api.get('/v1/users')
+  return res.data
+}
+
 export async function getWalletTransactions(santriId: string | number) {
   const res = await api.get(`/v1/wallets/${santriId}/transactions`)
   return res.data

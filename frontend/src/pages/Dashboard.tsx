@@ -3,11 +3,13 @@ import KpiCards from './dashboard/KpiCards'
 import TagihanSummaryTable from './dashboard/TagihanSummaryTable'
 import TrendChart from './dashboard/TrendChart'
 import RecentPayments from './dashboard/RecentPayments'
+import KasKeuanganCard from './dashboard/KasKeuanganCard'
 import {
   useDashboardKpi,
   useTagihanSummary,
   useDashboardTrend,
   useRecentPayments,
+  useKasKeuangan,
 } from '../hooks/useDashboard'
 import type { TahunAjaranAktif } from '../types/dashboard.types'
 
@@ -39,6 +41,7 @@ export default function Dashboard() {
   const { data: tagihanSummary, loading: summaryLoading } = useTagihanSummary(selectedBulan, selectedTahun)
   const { data: trend, loading: trendLoading } = useDashboardTrend(kpi?.tahunAjaranAktif?.id)
   const { data: recentPayments, loading: recentLoading } = useRecentPayments()
+  const { data: kasKeuangan, loading: kasLoading } = useKasKeuangan(selectedBulan, selectedTahun)
 
   const monthOptions = useMemo(() => {
     if (!kpi?.tahunAjaranAktif) return []
@@ -86,6 +89,7 @@ export default function Dashboard() {
 
       <KpiCards data={kpi} loading={kpiLoading} />
       <TagihanSummaryTable data={tagihanSummary} loading={summaryLoading} />
+      <KasKeuanganCard data={kasKeuangan} loading={kasLoading} />
 
       <div className="grid grid-cols-1 gap-6 lg:grid-cols-3">
         <div className="lg:col-span-2">
