@@ -38,6 +38,7 @@ const RekeningBank = lazy(() => import('./pages/keuangan/RekeningBank'))
 // Laporan Keuangan
 const LaporanIndex = lazy(() => import('./pages/keuangan/LaporanIndex'))
 const LaporanDashboard = lazy(() => import('./pages/keuangan/LaporanDashboard'))
+const LaporanKeuanganLengkap = lazy(() => import('./pages/keuangan/LaporanKeuanganLengkap'))
 const LaporanTagihanSantri = lazy(() => import('./pages/keuangan/LaporanTagihanSantri'))
 const LaporanTunggakanSantri = lazy(() => import('./pages/keuangan/LaporanTunggakanSantri'))
 const LaporanArusKas = lazy(() => import('./pages/keuangan/LaporanArusKas'))
@@ -284,6 +285,13 @@ export default function App() {
               <ProtectedRoute>
                 <AppLayout>
                   <LaporanDashboard />
+                </AppLayout>
+              </ProtectedRoute>
+            } />
+            <Route path="/keuangan/laporan/keuangan-lengkap" element={
+              <ProtectedRoute>
+                <AppLayout>
+                  <LaporanKeuanganLengkap />
                 </AppLayout>
               </ProtectedRoute>
             } />
