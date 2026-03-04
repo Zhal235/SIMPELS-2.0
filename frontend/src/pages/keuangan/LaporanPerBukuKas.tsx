@@ -1,6 +1,9 @@
 import { useState, useEffect } from 'react'
 import api from '../../api/index'
 import { Download, Printer } from 'lucide-react'
+import { exportToExcel } from '../../utils/exportExcel'
+import { printPerBukuKas } from '../../utils/printLaporan'
+import { useInstansiSetting } from '../../hooks/useInstansiSetting'
 
 interface BukuKas {
   id: number
@@ -23,6 +26,7 @@ interface KasMutasi {
 }
 
 export default function LaporanPerBukuKas() {
+  const { setting } = useInstansiSetting()
   const [period, setPeriod] = useState<'month' | 'quarter' | 'year' | 'custom'>('month')
   const [startDate, setStartDate] = useState('')
   const [endDate, setEndDate] = useState('')
@@ -150,6 +154,41 @@ export default function LaporanPerBukuKas() {
     return data.reduce((sum, kas) => sum + kas.total_saldo_akhir, 0)
   }
 
+  const handlePrint = () => {
+    const range = getDateRange()
+    const periodeStr = range ? `${range.start} s/d ${range.end}` : ''
+    printPerBukuKas(data, periodeStr, { namaYayasan: setting?.nama_yayasan, namaPesantren: setting?.nama_pesantren, kopSuratUrl: setting?.kop_surat_url })
+  }
+
+  const handleExportExcel = () => {
+    const rows = data.map((kas, i) => ({
+      no: i + 1,
+      nama_kas: kas.buku_kas.nama_kas,
+      saldo_awal_cash: kas.saldo_awal_cash,
+      saldo_awal_bank: kas.saldo_awal_bank,
+      masuk_cash: kas.mutasi_masuk_cash,
+      masuk_bank: kas.mutasi_masuk_bank,
+      keluar_cash: kas.mutasi_keluar_cash,
+      keluar_bank: kas.mutasi_keluar_bank,
+      akhir_cash: kas.saldo_akhir_cash,
+      akhir_bank: kas.saldo_akhir_bank,
+      total: kas.total_saldo_akhir,
+    }))
+    exportToExcel(rows, {
+      no: 'No',
+      nama_kas: 'Nama Buku Kas',
+      saldo_awal_cash: 'Saldo Awal Cash (Rp)',
+      saldo_awal_bank: 'Saldo Awal Bank (Rp)',
+      masuk_cash: 'Masuk Cash (Rp)',
+      masuk_bank: 'Masuk Bank (Rp)',
+      keluar_cash: 'Keluar Cash (Rp)',
+      keluar_bank: 'Keluar Bank (Rp)',
+      akhir_cash: 'Saldo Akhir Cash (Rp)',
+      akhir_bank: 'Saldo Akhir Bank (Rp)',
+      total: 'Total Saldo (Rp)',
+    }, `laporan-per-buku-kas-${new Date().toISOString().split('T')[0]}`, 'Per Buku Kas')
+  }
+
   return (
     <div className="space-y-6">
       {/* Header */}
@@ -159,11 +198,11 @@ export default function LaporanPerBukuKas() {
           <p className="text-gray-600 mt-1">Saldo dan mutasi kas per buku kas</p>
         </div>
         <div className="flex gap-2">
-          <button className="flex items-center gap-2 px-4 py-2 bg-white border border-gray-300 rounded-md hover:bg-gray-50 text-sm font-medium">
+          <button onClick={handlePrint} className="flex items-center gap-2 px-4 py-2 bg-white border border-gray-300 rounded-md hover:bg-gray-50 text-sm font-medium">
             <Printer className="h-4 w-4" />
             Cetak
           </button>
-          <button className="flex items-center gap-2 px-4 py-2 bg-green-600 text-white rounded-md hover:bg-green-700 text-sm font-medium">
+          <button onClick={handleExportExcel} className="flex items-center gap-2 px-4 py-2 bg-green-600 text-white rounded-md hover:bg-green-700 text-sm font-medium">
             <Download className="h-4 w-4" />
             Export Excel
           </button>

@@ -2,6 +2,9 @@ import { useState, useEffect } from 'react'
 import api from '../../api/index'
 import { listTahunAjaran } from '../../api/tahunAjaran'
 import { Download, Printer, Filter, Search } from 'lucide-react'
+import { exportToExcel } from '../../utils/exportExcel'
+import { printTagihanSantri } from '../../utils/printLaporan'
+import { useInstansiSetting } from '../../hooks/useInstansiSetting'
 
 interface TagihanData {
   id: number
@@ -34,6 +37,7 @@ interface Summary {
 }
 
 export default function LaporanTagihanSantri() {
+  const { setting } = useInstansiSetting()
   const [data, setData] = useState<TagihanData[]>([])
   const [summary, setSummary] = useState<Summary | null>(null)
   const [loading, setLoading] = useState(false)
@@ -222,6 +226,41 @@ export default function LaporanTagihanSantri() {
     return Math.round((dibayar / nominal) * 100)
   }
 
+  const handlePrint = () => {
+    const bulanLabel = filterBulan !== 'all' ? (bulanOptions.find(b => b.value === filterBulan)?.label || filterBulan) : 'Semua Bulan'
+    const periode = `${bulanLabel} ${filterTahun}`
+    printTagihanSantri(data, summary, { namaYayasan: setting?.nama_yayasan, namaPesantren: setting?.nama_pesantren, kopSuratUrl: setting?.kop_surat_url }, periode)
+  }
+
+  const handleExportExcel = () => {
+    const rows = data.map((t, i) => ({
+      no: i + 1,
+      nama: t.santri?.nama || '',
+      nis: t.santri?.nis || '',
+      kelas: t.santri?.kelas?.nama_kelas || '',
+      jenis_tagihan: t.jenis_tagihan?.nama_tagihan || '',
+      bulan: t.bulan || '',
+      tahun: t.tahun,
+      nominal: t.nominal,
+      dibayar: t.dibayar,
+      sisa: t.sisa,
+      status: t.status === 'lunas' ? 'Lunas' : t.status === 'belum_bayar' ? 'Belum Bayar' : 'Cicilan',
+    }))
+    exportToExcel(rows, {
+      no: 'No',
+      nama: 'Nama Santri',
+      nis: 'NIS',
+      kelas: 'Kelas',
+      jenis_tagihan: 'Jenis Tagihan',
+      bulan: 'Bulan',
+      tahun: 'Tahun',
+      nominal: 'Nominal (Rp)',
+      dibayar: 'Dibayar (Rp)',
+      sisa: 'Sisa (Rp)',
+      status: 'Status',
+    }, `laporan-tagihan-santri-${new Date().toISOString().split('T')[0]}`, 'Tagihan Santri')
+  }
+
   return (
     <div className="space-y-6">
       {/* Header */}
@@ -231,11 +270,11 @@ export default function LaporanTagihanSantri() {
           <p className="text-gray-600 mt-1">Daftar tagihan santri per periode</p>
         </div>
         <div className="flex gap-2">
-          <button className="flex items-center gap-2 px-4 py-2 bg-white border border-gray-300 rounded-md hover:bg-gray-50 text-sm font-medium">
+          <button onClick={handlePrint} className="flex items-center gap-2 px-4 py-2 bg-white border border-gray-300 rounded-md hover:bg-gray-50 text-sm font-medium">
             <Printer className="h-4 w-4" />
             Cetak
           </button>
-          <button className="flex items-center gap-2 px-4 py-2 bg-green-600 text-white rounded-md hover:bg-green-700 text-sm font-medium">
+          <button onClick={handleExportExcel} className="flex items-center gap-2 px-4 py-2 bg-green-600 text-white rounded-md hover:bg-green-700 text-sm font-medium">
             <Download className="h-4 w-4" />
             Export Excel
           </button>

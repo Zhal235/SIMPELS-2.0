@@ -5,7 +5,8 @@ import {
   FileText,
   Banknote,
   Table,
-  TrendingUp
+  TrendingUp,
+  BookOpen
 } from 'lucide-react'
 
 interface ReportCard {
@@ -24,6 +25,13 @@ export default function LaporanIndex() {
       icon: BarChart3,
       path: '/keuangan/laporan/dashboard',
       color: 'bg-blue-50 text-blue-600 border-blue-200'
+    },
+    {
+      title: 'Laporan Keuangan Lengkap',
+      description: 'Laporan keuangan profesional komprehensif untuk bank/audit',
+      icon: BookOpen,
+      path: '/keuangan/laporan/keuangan-lengkap',
+      color: 'bg-emerald-50 text-emerald-600 border-emerald-200'
     },
     {
       title: 'Laporan Tagihan Santri',

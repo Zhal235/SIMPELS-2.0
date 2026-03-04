@@ -69,20 +69,32 @@ export function useRecentPayments() {
   return { data, loading }
 }
 
-export function useKasKeuangan(bulan?: string, tahun?: number) {
+export function useKasKeuangan(params: {
+  bulan?: string
+  tahun?: number
+  startDate?: string
+  endDate?: string
+}) {
   const [data, setData] = useState<KasKeuangan | null>(null)
   const [loading, setLoading] = useState(false)
 
+  const { bulan, tahun, startDate, endDate } = params
+
   useEffect(() => {
-    const params = new URLSearchParams()
-    if (bulan) params.set('bulan', bulan)
-    if (tahun) params.set('tahun', String(tahun))
+    const qs = new URLSearchParams()
+    if (startDate) {
+      qs.set('start', startDate)
+      if (endDate) qs.set('end', endDate)
+    } else if (bulan) {
+      qs.set('bulan', bulan)
+      if (tahun) qs.set('tahun', String(tahun))
+    }
     setLoading(true)
-    apiFetch<KasKeuangan>(`/dashboard/kas-keuangan?${params}`, 'GET')
+    apiFetch<KasKeuangan>(`/dashboard/kas-keuangan?${qs}`, 'GET')
       .then(setData)
       .catch(() => {})
       .finally(() => setLoading(false))
-  }, [bulan, tahun])
+  }, [bulan, tahun, startDate, endDate])
 
   return { data, loading }
 }

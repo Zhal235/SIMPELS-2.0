@@ -141,6 +141,69 @@ class DashboardController extends Controller
         }
     }
 
+    public function kasSummary(Request $request)
+    {
+        try {
+            $start = $request->query('start');
+            $end   = $request->query('end');
+            $bulan = $request->query('bulan');
+            $tahun = $request->query('tahun');
+
+            if ($bulan && $tahun && !$start) {
+                $bulanMap = [
+                    'Januari' => 1, 'Februari' => 2, 'Maret' => 3, 'April' => 4,
+                    'Mei' => 5, 'Juni' => 6, 'Juli' => 7, 'Agustus' => 8,
+                    'September' => 9, 'Oktober' => 10, 'November' => 11, 'Desember' => 12,
+                ];
+                $bulanNum = $bulanMap[$bulan] ?? null;
+                if ($bulanNum) {
+                    $start = sprintf('%04d-%02d-01', $tahun, $bulanNum);
+                    $lastDay = date('t', mktime(0, 0, 0, $bulanNum, 1, $tahun));
+                    $end = sprintf('%04d-%02d-%02d', $tahun, $bulanNum, $lastDay);
+                }
+            }
+
+            $query = DB::table('transaksi_kas as tk')
+                ->join('buku_kas as bk', 'tk.buku_kas_id', '=', 'bk.id')
+                ->whereNull('tk.deleted_at')
+                ->where('tk.kategori', 'NOT LIKE', '%Transfer Internal%')
+                ->select(
+                    'tk.buku_kas_id',
+                    'bk.nama_kas',
+                    DB::raw("SUM(CASE WHEN tk.jenis = 'pemasukan' THEN tk.nominal ELSE 0 END) as total_pemasukan"),
+                    DB::raw("SUM(CASE WHEN tk.jenis != 'pemasukan' THEN tk.nominal ELSE 0 END) as total_pengeluaran")
+                )
+                ->groupBy('tk.buku_kas_id', 'bk.nama_kas');
+
+            if ($start) $query->whereDate('tk.tanggal', '>=', $start);
+            if ($end)   $query->whereDate('tk.tanggal', '<=', $end);
+
+            $rows = $query->get()->map(function ($row) {
+                $pemasukan   = (float) $row->total_pemasukan;
+                $pengeluaran = (float) $row->total_pengeluaran;
+                return [
+                    'buku_kas_id'      => $row->buku_kas_id,
+                    'nama_kas'         => $row->nama_kas,
+                    'total_pemasukan'  => $pemasukan,
+                    'total_pengeluaran'=> $pengeluaran,
+                    'saldo_berjalan'   => $pemasukan - $pengeluaran,
+                ];
+            });
+
+            return response()->json([
+                'success' => true,
+                'data'    => $rows,
+                'total'   => [
+                    'pemasukan'   => $rows->sum('total_pemasukan'),
+                    'pengeluaran' => $rows->sum('total_pengeluaran'),
+                    'saldo'       => $rows->sum('saldo_berjalan'),
+                ],
+            ]);
+        } catch (\Exception $e) {
+            return response()->json(['success' => false, 'message' => $e->getMessage()], 500);
+        }
+    }
+
     public function recentPayments()
     {
         try {
@@ -176,13 +239,18 @@ class DashboardController extends Controller
         try {
             $bulan = $request->query('bulan');
             $tahun = $request->query('tahun');
+            $start = $request->query('start');
+            $end   = $request->query('end');
 
             $bukuKasList = BukuKas::all();
 
-            $perBukuKas = $bukuKasList->map(function ($bk) use ($bulan, $tahun) {
+            $perBukuKas = $bukuKasList->map(function ($bk) use ($bulan, $tahun, $start, $end) {
                 $query = TransaksiKas::where('buku_kas_id', $bk->id);
 
-                if ($bulan && $tahun) {
+                if ($start) {
+                    $query->whereDate('tanggal', '>=', $start);
+                    if ($end) $query->whereDate('tanggal', '<=', $end);
+                } elseif ($bulan && $tahun) {
                     $bulanIndex = array_search($bulan, self::BULAN_ORDER) + 1;
                     $query->whereYear('tanggal', $tahun)->whereMonth('tanggal', $bulanIndex);
                 } elseif ($tahun) {

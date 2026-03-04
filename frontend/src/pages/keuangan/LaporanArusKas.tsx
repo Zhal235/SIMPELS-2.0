@@ -1,6 +1,9 @@
 import { useState, useEffect } from 'react'
 import api from '../../api/index'
 import { Download, Printer } from 'lucide-react'
+import { exportToExcel } from '../../utils/exportExcel'
+import { printArusKas } from '../../utils/printLaporan'
+import { useInstansiSetting } from '../../hooks/useInstansiSetting'
 
 interface CashFlowData {
   period: string
@@ -20,6 +23,7 @@ interface CashFlowData {
 }
 
 export default function LaporanArusKas() {
+  const { setting } = useInstansiSetting()
   const [period, setPeriod] = useState<'month' | 'quarter' | 'year' | 'custom'>('month')
   const [startDate, setStartDate] = useState('')
   const [endDate, setEndDate] = useState('')
@@ -107,6 +111,28 @@ export default function LaporanArusKas() {
     }).format(value)
   }
 
+  const handlePrint = () => {
+    if (!data) return
+    printArusKas(data, { namaYayasan: setting?.nama_yayasan, namaPesantren: setting?.nama_pesantren, kopSuratUrl: setting?.kop_surat_url })
+  }
+
+  const handleExportExcel = () => {
+    if (!data) return
+    const rows: Record<string, any>[] = [
+      { kategori: 'ARUS KAS MASUK', keterangan: '', nominal: '' },
+      { kategori: 'Pembayaran Santri', keterangan: '', nominal: data.receipts.pembayaran_santri },
+      { kategori: 'Total Kas Masuk', keterangan: '', nominal: data.receipts.total },
+      { kategori: '', keterangan: '', nominal: '' },
+      { kategori: 'ARUS KAS KELUAR', keterangan: '', nominal: '' },
+      ...data.expenses.by_category.map(e => ({ kategori: e.kategori, keterangan: '', nominal: e.total })),
+      { kategori: 'Total Kas Keluar', keterangan: '', nominal: data.expenses.total },
+      { kategori: '', keterangan: '', nominal: '' },
+      { kategori: 'NET ARUS KAS', keterangan: '', nominal: data.net_cash_flow },
+    ]
+    exportToExcel(rows, { kategori: 'Keterangan', keterangan: '', nominal: 'Nominal (Rp)' },
+      `laporan-arus-kas-${new Date().toISOString().split('T')[0]}`, 'Arus Kas')
+  }
+
   return (
     <div className="space-y-6">
       {/* Header */}
@@ -116,11 +142,11 @@ export default function LaporanArusKas() {
           <p className="text-gray-600 mt-1">Analisis arus kas masuk dan keluar</p>
         </div>
         <div className="flex gap-2">
-          <button className="flex items-center gap-2 px-4 py-2 bg-white border border-gray-300 rounded-md hover:bg-gray-50 text-sm font-medium">
+          <button onClick={handlePrint} className="flex items-center gap-2 px-4 py-2 bg-white border border-gray-300 rounded-md hover:bg-gray-50 text-sm font-medium">
             <Printer className="h-4 w-4" />
             Cetak
           </button>
-          <button className="flex items-center gap-2 px-4 py-2 bg-green-600 text-white rounded-md hover:bg-green-700 text-sm font-medium">
+          <button onClick={handleExportExcel} className="flex items-center gap-2 px-4 py-2 bg-green-600 text-white rounded-md hover:bg-green-700 text-sm font-medium">
             <Download className="h-4 w-4" />
             Export Excel
           </button>
