@@ -49,10 +49,10 @@ class InstansiSettingController extends Controller
         $setting = InstansiSetting::firstOrCreate([]);
 
         if ($setting->kop_surat_path) {
-            Storage::disk('public')->delete($setting->kop_surat_path);
+            Storage::disk('r2')->delete($setting->kop_surat_path);
         }
 
-        $path = $request->file('kop_surat')->store('instansi', 'public');
+        $path = $request->file('kop_surat')->store('instansi', 'r2');
         $setting->update(['kop_surat_path' => $path]);
 
         return response()->json(['success' => true, 'data' => $setting, 'message' => 'Kop surat berhasil diupload']);
@@ -63,7 +63,7 @@ class InstansiSettingController extends Controller
         $setting = InstansiSetting::firstOrCreate([]);
 
         if ($setting->kop_surat_path) {
-            Storage::disk('public')->delete($setting->kop_surat_path);
+            Storage::disk('r2')->delete($setting->kop_surat_path);
             $setting->update(['kop_surat_path' => null]);
         }
 

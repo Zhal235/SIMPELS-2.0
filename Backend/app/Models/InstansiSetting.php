@@ -3,6 +3,7 @@
 namespace App\Models;
 
 use Illuminate\Database\Eloquent\Model;
+use Illuminate\Support\Facades\Storage;
 
 class InstansiSetting extends Model
 {
@@ -23,6 +24,6 @@ class InstansiSetting extends Model
     public function getKopSuratUrlAttribute(): ?string
     {
         if (!$this->kop_surat_path) return null;
-        return asset('storage/' . $this->kop_surat_path);
+        return Storage::disk('r2')->url($this->kop_surat_path);
     }
 }
