@@ -354,4 +354,43 @@ class TabunganController extends Controller
             ],
         ]);
     }
+
+    /**
+     * DELETE /api/tabungan/{santriId}
+     * Tutup dan hapus tabungan. Jika ada saldo, catat transaksi penarikan terlebih dahulu.
+     */
+    public function destroy(Request $request, $santriId)
+    {
+        $tabungan = SantriTabungan::where('santri_id', $santriId)->firstOrFail();
+
+        try {
+            DB::beginTransaction();
+
+            if ($tabungan->saldo > 0) {
+                SantriTabunganTransaction::create([
+                    'tabungan_id' => $tabungan->id,
+                    'santri_id'   => $santriId,
+                    'type'        => 'tarik',
+                    'amount'      => $tabungan->saldo,
+                    'saldo_after' => 0,
+                    'description' => 'Penarikan saldo saat penutupan tabungan',
+                    'method'      => 'cash',
+                    'recorded_by' => $request->user()?->id,
+                ]);
+            }
+
+            SantriTabunganTransaction::where('tabungan_id', $tabungan->id)->delete();
+            $tabungan->delete();
+
+            DB::commit();
+
+            return response()->json([
+                'success' => true,
+                'message' => 'Tabungan berhasil ditutup dan dihapus.',
+            ]);
+        } catch (\Exception $e) {
+            DB::rollBack();
+            return response()->json(['success' => false, 'message' => $e->getMessage()], 500);
+        }
+    }
 }

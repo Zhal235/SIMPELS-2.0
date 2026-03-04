@@ -19,11 +19,12 @@ export default function LaporanKeuangan() {
 
   useEffect(() => { load() }, [])
 
-  async function load() {
+  async function load(dateFrom = '', dateTo = '') {
     try {
       setLoading(true)
+      const params = dateFrom && dateTo ? { date_from: dateFrom, date_to: dateTo } : undefined
       const [walletsRes, cashRes, eposRes] = await Promise.all([
-        listWallets(),
+        listWallets(params),
         listCashWithdrawals({ status: 'done' }),
         getEposPool()
       ])
@@ -31,8 +32,7 @@ export default function LaporanKeuangan() {
       if (walletsRes.success) setWallets(walletsRes.data || [])
       if (cashRes.success) setCashWithdrawals(cashRes.data || [])
       if (eposRes.success) setEposPool(eposRes.data)
-    } catch (err) {
-      console.error(err)
+    } catch {
       toast.error('Gagal memuat data')
     } finally { setLoading(false) }
   }
@@ -172,8 +172,8 @@ export default function LaporanKeuangan() {
                     onChange={(e) => setDateRange({ ...dateRange, end: e.target.value })}
                     className="px-3 py-1 border rounded"
                   />
-                  <button className="btn btn-sm btn-primary">Terapkan</button>
-                  <button className="btn btn-sm" onClick={() => setDateRange({ start: '', end: '' })}>Reset</button>
+                  <button className="btn btn-sm btn-primary" onClick={() => load(dateRange.start, dateRange.end)}>Terapkan</button>
+                  <button className="btn btn-sm" onClick={() => { setDateRange({ start: '', end: '' }); load() }}>Reset</button>
                 </div>
               </Card>
 

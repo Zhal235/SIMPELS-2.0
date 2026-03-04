@@ -173,6 +173,7 @@ Route::middleware('auth:sanctum')->group(function () {
             Route::post('/{santriId}/setor', [TabunganController::class, 'setor'])->where('santriId', $uuidConstraint);
             Route::post('/{santriId}/tarik', [TabunganController::class, 'tarik'])->where('santriId', $uuidConstraint);
             Route::get('/{santriId}/history', [TabunganController::class, 'history'])->where('santriId', $uuidConstraint);
+            Route::delete('/{santriId}', [TabunganController::class, 'destroy'])->where('santriId', $uuidConstraint);
         });
 
         // API v1 endpoints untuk Dompet Digital / Wallets (protected)

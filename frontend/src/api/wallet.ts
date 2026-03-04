@@ -1,7 +1,7 @@
 import api from './index'
 
-export async function listWallets() {
-  const res = await api.get('/v1/wallets')
+export async function listWallets(params?: { date_from?: string; date_to?: string }) {
+  const res = await api.get('/v1/wallets', { params })
   return res.data
 }
 

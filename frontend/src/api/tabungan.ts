@@ -56,3 +56,8 @@ export async function getLaporanTabungan() {
   const res = await api.get('/v1/tabungan/laporan/summary')
   return res.data
 }
+
+export async function tutupTabungan(santriId: string) {
+  const res = await api.delete(`/v1/tabungan/${santriId}`)
+  return res.data
+}
