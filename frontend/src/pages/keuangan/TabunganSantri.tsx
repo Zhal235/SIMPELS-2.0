@@ -39,6 +39,7 @@ export default function TabunganSantri() {
   const [data, setData] = useState<TabunganItem[]>([])
   const [summary, setSummary] = useState<Summary | null>(null)
   const [loading, setLoading] = useState(false)
+  const [searchInput, setSearchInput] = useState('')
   const [search, setSearch] = useState('')
   const [filterStatus, setFilterStatus] = useState<'semua' | 'aktif' | 'nonaktif'>('semua')
 
@@ -81,6 +82,11 @@ export default function TabunganSantri() {
     }
   }, [search, filterStatus])
 
+  useEffect(() => {
+    const timer = setTimeout(() => setSearch(searchInput), 400)
+    return () => clearTimeout(timer)
+  }, [searchInput])
+
   useEffect(() => { load() }, [load])
 
   // Santri search for buka tabungan
@@ -88,7 +94,7 @@ export default function TabunganSantri() {
     if (!santriSearch || santriSearch.length < 2) { setSantriResults([]); return }
     const timer = setTimeout(async () => {
       try {
-        const res = await listSantri(1, 10, { search: santriSearch, status: 'aktif' })
+        const res = await listSantri(1, 25, { q: santriSearch })
         setSantriResults(res.data || [])
       } catch { /* ignore */ }
     }, 300)
@@ -226,8 +232,8 @@ export default function TabunganSantri() {
           <input
             type="text"
             placeholder="Cari nama / NIS santri..."
-            value={search}
-            onChange={(e) => setSearch(e.target.value)}
+            value={searchInput}
+            onChange={(e) => setSearchInput(e.target.value)}
             className="w-full pl-9 pr-4 py-2 border rounded-lg text-sm focus:ring-2 focus:ring-brand focus:border-transparent"
           />
         </div>
