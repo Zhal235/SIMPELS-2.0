@@ -23,12 +23,18 @@ class TransaksiKas extends Model
         'nominal',
         'keterangan',
         'pembayaran_id',
+        'created_by',
     ];
 
     protected $casts = [
         'nominal' => 'decimal:2',
         'tanggal' => 'date',
     ];
+
+    public function author()
+    {
+        return $this->belongsTo(\App\Models\User::class, 'created_by');
+    }
 
     /**
      * Relasi ke buku kas

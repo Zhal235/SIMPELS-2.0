@@ -2,6 +2,7 @@ import { useState, useEffect } from 'react'
 import { Plus, Search, Trash2, X, ArrowDownCircle, ArrowUpCircle, Eye, ArrowRightLeft, Settings } from 'lucide-react'
 import { listBukuKas, listTransaksiKas, createTransaksiKas, deleteTransaksiKas } from '../../api/bukuKas'
 import { listKategoriPengeluaran, createKategoriPengeluaran } from '../../api/kategoriPengeluaran'
+import { listUsers } from '../../api/wallet'
 import { hasAccess } from '../../stores/useAuthStore'
 import toast from 'react-hot-toast'
 import ModalPreviewTransaksi from './components/ModalPreviewTransaksi'
@@ -16,6 +17,7 @@ export default function TransaksiKas() {
   const [transaksiList, setTransaksiList] = useState<any[]>([])
   const [bukuKasList, setBukuKasList] = useState<any[]>([])
   const [categories, setCategories] = useState<Array<{id:number;name:string}>>([])
+  const [users, setUsers] = useState<Array<{id:number;name:string}>>([])
   const [loading, setLoading] = useState(true)
   const [showModal, setShowModal] = useState(false)
   const [showPreview, setShowPreview] = useState(false)
@@ -26,6 +28,7 @@ export default function TransaksiKas() {
   const [searchQuery, setSearchQuery] = useState('')
   const [filterJenis, setFilterJenis] = useState<'all'|'pemasukan'|'pengeluaran'>('all')
   const [filterBukuKas, setFilterBukuKas] = useState<number|'all'>('all')
+  const [filterOperator, setFilterOperator] = useState<number|'all'>('all')
   const [startDate, setStartDate] = useState('')
   const [endDate, setEndDate] = useState('')
   const [formData, setFormData] = useState({ buku_kas_id: '', tanggal: new Date().toISOString().split('T')[0], kategori: '', kategori_id: '', nominal: '', keterangan: '', nama_pemohon: '', metode: 'cash' as 'cash'|'transfer' })
@@ -35,10 +38,11 @@ export default function TransaksiKas() {
   const loadData = async () => {
     try {
       setLoading(true)
-      const [tRes, bkRes, kRes] = await Promise.all([listTransaksiKas(), listBukuKas(), listKategoriPengeluaran()])
+      const [tRes, bkRes, kRes, uRes] = await Promise.all([listTransaksiKas(), listBukuKas(), listKategoriPengeluaran(), listUsers()])
       if (tRes.success) setTransaksiList(tRes.data)
       if (bkRes.success) setBukuKasList(bkRes.data)
       if (kRes) setCategories(kRes)
+      if (uRes.success) setUsers(uRes.data ?? [])
     } catch { toast.error('Gagal memuat data') }
     finally { setLoading(false) }
   }
@@ -99,9 +103,15 @@ export default function TransaksiKas() {
     const matchSearch = !searchQuery || t.no_transaksi.toLowerCase().includes(searchQuery.toLowerCase()) || t.kategori.toLowerCase().includes(searchQuery.toLowerCase()) || t.keterangan?.toLowerCase().includes(searchQuery.toLowerCase())
     const matchJenis = filterJenis === 'all' || t.jenis === filterJenis
     const matchBK = filterBukuKas === 'all' || t.buku_kas_id === filterBukuKas
+    const matchOp = filterOperator === 'all' || t.created_by === filterOperator
     let matchDate = true
-    if (startDate && endDate) { const d = new Date(t.tanggal); matchDate = d >= new Date(startDate) && d <= new Date(endDate) }
-    return matchSearch && matchJenis && matchBK && matchDate
+    if (t.tanggal) {
+      const d = new Date(t.tanggal)
+      const tgl = `${d.getFullYear()}-${String(d.getMonth() + 1).padStart(2, '0')}-${String(d.getDate()).padStart(2, '0')}`
+      if (startDate) matchDate = matchDate && tgl >= startDate
+      if (endDate) matchDate = matchDate && tgl <= endDate
+    }
+    return matchSearch && matchJenis && matchBK && matchOp && matchDate
   }).sort((a, b) => { const diff = new Date(b.created_at).getTime()-new Date(a.created_at).getTime(); return diff !== 0 ? diff : b.id - a.id })
 
   const totalPemasukan = filtered.filter(t => t.jenis === 'pemasukan' && !t.kategori.includes('Transfer Internal')).reduce((s,t) => s+Number(t.nominal), 0)
@@ -134,10 +144,11 @@ export default function TransaksiKas() {
       </div>
 
       <div className="bg-white rounded-lg shadow p-4 mb-6">
-        <div className="grid grid-cols-1 md:grid-cols-5 gap-4">
+        <div className="grid grid-cols-1 md:grid-cols-6 gap-4">
           <div className="md:col-span-2 relative"><Search className="absolute left-3 top-1/2 -translate-y-1/2 text-gray-400 w-5 h-5" /><input type="text" placeholder="Cari no transaksi, kategori, keterangan..." value={searchQuery} onChange={e=>setSearchQuery(e.target.value)} className="w-full pl-10 pr-4 py-2 border border-gray-300 rounded-lg focus:ring-2 focus:ring-blue-500" /></div>
           <select value={filterJenis} onChange={e=>setFilterJenis(e.target.value as any)} className="w-full px-4 py-2 border border-gray-300 rounded-lg focus:ring-2 focus:ring-blue-500"><option value="all">Semua Jenis</option><option value="pemasukan">Pemasukan</option><option value="pengeluaran">Pengeluaran</option></select>
           <select value={filterBukuKas} onChange={e=>setFilterBukuKas(e.target.value==='all'?'all':Number(e.target.value))} className="w-full px-4 py-2 border border-gray-300 rounded-lg focus:ring-2 focus:ring-blue-500"><option value="all">Semua Buku Kas</option>{bukuKasList.map(bk=><option key={bk.id} value={bk.id}>{bk.nama_kas}</option>)}</select>
+          <select value={filterOperator} onChange={e=>setFilterOperator(e.target.value==='all'?'all':Number(e.target.value))} className="w-full px-4 py-2 border border-gray-300 rounded-lg focus:ring-2 focus:ring-blue-500"><option value="all">Semua Operator</option>{users.map(u=><option key={u.id} value={u.id}>{u.name}</option>)}</select>
           <div className="flex gap-2"><input type="date" value={startDate} onChange={e=>setStartDate(e.target.value)} className="flex-1 px-3 py-2 border border-gray-300 rounded-lg focus:ring-2 focus:ring-blue-500 text-sm" /><input type="date" value={endDate} onChange={e=>setEndDate(e.target.value)} className="flex-1 px-3 py-2 border border-gray-300 rounded-lg focus:ring-2 focus:ring-blue-500 text-sm" /></div>
         </div>
       </div>
@@ -145,10 +156,10 @@ export default function TransaksiKas() {
       <div className="bg-white rounded-lg shadow overflow-hidden">
         <div className="overflow-x-auto">
           <table className="w-full">
-            <thead className="bg-gray-50 border-b"><tr>{['No. Transaksi','Tanggal','Buku Kas','Jenis','Kategori','Metode','Nominal','Keterangan','Aksi'].map(h=><th key={h} className={`px-6 py-3 text-xs font-medium text-gray-500 uppercase tracking-wider ${h==='Nominal'?'text-right':'text-left'} ${h==='Aksi'?'text-center':''}`}>{h}</th>)}</tr></thead>
+            <thead className="bg-gray-50 border-b"><tr>{['No. Transaksi','Tanggal','Buku Kas','Jenis','Kategori','Metode','Nominal','Keterangan','Operator','Aksi'].map(h=><th key={h} className={`px-6 py-3 text-xs font-medium text-gray-500 uppercase tracking-wider ${h==='Nominal'?'text-right':'text-left'} ${h==='Aksi'?'text-center':''}`}>{h}</th>)}</tr></thead>
             <tbody className="bg-white divide-y divide-gray-200">
               {filtered.length === 0 ? (
-                <tr><td colSpan={9} className="px-6 py-12 text-center text-gray-500"><div className="flex flex-col items-center"><Search className="w-12 h-12 text-gray-400 mb-3" /><p>Tidak ada data transaksi</p></div></td></tr>
+                <tr><td colSpan={10} className="px-6 py-12 text-center text-gray-500"><div className="flex flex-col items-center"><Search className="w-12 h-12 text-gray-400 mb-3" /><p>Tidak ada data transaksi</p></div></td></tr>
               ) : filtered.map(t => (
                 <tr key={t.id} className="hover:bg-gray-50">
                   <td className="px-6 py-4 text-sm font-medium">{t.no_transaksi}</td>
@@ -159,6 +170,7 @@ export default function TransaksiKas() {
                   <td className="px-6 py-4"><span className={`inline-flex px-2 py-1 text-xs font-semibold rounded ${t.metode==='cash'?'bg-blue-100 text-blue-800':'bg-purple-100 text-purple-800'}`}>{t.metode==='cash'?'💵 Cash':'🏦 Transfer'}</span></td>
                   <td className={`px-6 py-4 text-sm font-semibold text-right ${t.jenis==='pemasukan'?'text-green-600':'text-red-600'}`}>{t.jenis==='pemasukan'?'+':'-'} {formatRupiah(t.nominal)}</td>
                   <td className="px-6 py-4 text-sm text-gray-600 max-w-xs truncate">{t.keterangan || '-'}</td>
+                  <td className="px-6 py-4 text-sm">{t.author?.name ? <span className="text-gray-700 font-medium">{t.author.name}</span> : <span className="text-gray-400 text-xs">System</span>}</td>
                   <td className="px-6 py-4 text-center">
                     <div className="flex items-center justify-center gap-2">
                       <button onClick={() => { setSelectedTransaksi(t); setShowPreview(true) }} className="text-blue-600 hover:text-blue-800"><Eye className="w-4 h-4" /></button>

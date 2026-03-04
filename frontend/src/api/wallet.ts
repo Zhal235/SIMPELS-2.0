@@ -1,7 +1,7 @@
 import api from './index'
 
-export async function listWallets() {
-  const res = await api.get('/v1/wallets')
+export async function listWallets(params?: { date_from?: string; date_to?: string }) {
+  const res = await api.get('/v1/wallets', { params })
   return res.data
 }
 
@@ -22,6 +22,11 @@ export async function debitWallet(santriId: string | number, amount: number, des
 
 export async function listWalletTransactions(params?: any) {
   const res = await api.get('/v1/wallets/transactions', { params })
+  return res.data
+}
+
+export async function listUsers() {
+  const res = await api.get('/v1/users')
   return res.data
 }
 

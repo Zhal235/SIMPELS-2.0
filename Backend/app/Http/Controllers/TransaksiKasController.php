@@ -15,7 +15,7 @@ class TransaksiKasController extends Controller
      */
     public function index(Request $request)
     {
-        $query = TransaksiKas::with(['bukuKas', 'pembayaran', 'kategoriPengeluaran']);
+        $query = TransaksiKas::with(['bukuKas', 'pembayaran', 'kategoriPengeluaran', 'author']);
 
         // Filter by buku kas
         if ($request->has('buku_kas_id')) {
@@ -30,6 +30,11 @@ class TransaksiKasController extends Controller
         // Filter by date range
         if ($request->has('start_date') && $request->has('end_date')) {
             $query->whereBetween('tanggal', [$request->start_date, $request->end_date]);
+        }
+
+        // Filter by created_by (operator)
+        if ($request->has('created_by') && $request->created_by !== '') {
+            $query->where('created_by', $request->created_by);
         }
 
         // Jika diminta agregasi per kategori
@@ -94,6 +99,7 @@ class TransaksiKasController extends Controller
             'kategori_id' => $request->kategori_id ?? null,
             'nominal' => $request->nominal,
             'keterangan' => $request->keterangan,
+            'created_by' => auth()->id(),
         ]);
 
         return response()->json([

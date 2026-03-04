@@ -111,12 +111,15 @@ class WalletController extends Controller
         ]);
     }
 
-    public function index()
+    public function index(Request $request)
     {
+        $dateFrom = $request->filled('date_from') ? $request->date_from . ' 00:00:00' : null;
+        $dateTo   = $request->filled('date_to')   ? $request->date_to   . ' 23:59:59' : null;
+
         $wallets = Wallet::with('santri')->get();
 
         // Add transaction totals per wallet
-        $wallets->transform(function ($wallet) {
+        $wallets->transform(function ($wallet) use ($dateFrom, $dateTo) {
             // Exclude voided transactions (voided=1/true) AND admin-void reversal transactions
             $wallet->total_credit = WalletTransaction::where('wallet_id', $wallet->id)
                 ->where('type', 'credit')
@@ -125,8 +128,9 @@ class WalletController extends Controller
                     $q->where('voided', '!=', 1)
                       ->orWhereNull('voided');
                 })
+                ->when($dateFrom && $dateTo, fn($q) => $q->whereBetween('created_at', [$dateFrom, $dateTo]))
                 ->sum('amount');
-            
+
             $wallet->total_debit = WalletTransaction::where('wallet_id', $wallet->id)
                 ->where('type', 'debit')
                 ->where('method', '!=', 'admin-void') // Exclude reversal transactions
@@ -134,8 +138,9 @@ class WalletController extends Controller
                     $q->where('voided', '!=', 1)
                       ->orWhereNull('voided');
                 })
+                ->when($dateFrom && $dateTo, fn($q) => $q->whereBetween('created_at', [$dateFrom, $dateTo]))
                 ->sum('amount');
-            
+
             // Include NULL/empty method in cash (legacy import data had method truncated to NULL)
             $wallet->total_credit_cash = WalletTransaction::where('wallet_id', $wallet->id)
                 ->where('type', 'credit')
@@ -148,8 +153,9 @@ class WalletController extends Controller
                     $q->where('voided', '!=', 1)
                       ->orWhereNull('voided');
                 })
+                ->when($dateFrom && $dateTo, fn($q) => $q->whereBetween('created_at', [$dateFrom, $dateTo]))
                 ->sum('amount');
-            
+
             $wallet->total_credit_transfer = WalletTransaction::where('wallet_id', $wallet->id)
                 ->where('type', 'credit')
                 ->where('method', 'transfer')
@@ -157,8 +163,9 @@ class WalletController extends Controller
                     $q->where('voided', '!=', 1)
                       ->orWhereNull('voided');
                 })
+                ->when($dateFrom && $dateTo, fn($q) => $q->whereBetween('created_at', [$dateFrom, $dateTo]))
                 ->sum('amount');
-            
+
             $wallet->total_debit_cash = WalletTransaction::where('wallet_id', $wallet->id)
                 ->where('type', 'debit')
                 ->where('method', 'cash')
@@ -166,8 +173,9 @@ class WalletController extends Controller
                     $q->where('voided', '!=', 1)
                       ->orWhereNull('voided');
                 })
+                ->when($dateFrom && $dateTo, fn($q) => $q->whereBetween('created_at', [$dateFrom, $dateTo]))
                 ->sum('amount');
-            
+
             $wallet->total_debit_transfer = WalletTransaction::where('wallet_id', $wallet->id)
                 ->where('type', 'debit')
                 ->where('method', 'transfer')
@@ -175,8 +183,9 @@ class WalletController extends Controller
                     $q->where('voided', '!=', 1)
                       ->orWhereNull('voided');
                 })
+                ->when($dateFrom && $dateTo, fn($q) => $q->whereBetween('created_at', [$dateFrom, $dateTo]))
                 ->sum('amount');
-            
+
             $wallet->total_debit_epos = WalletTransaction::where('wallet_id', $wallet->id)
                 ->where('type', 'debit')
                 ->where('method', 'epos')
@@ -184,8 +193,13 @@ class WalletController extends Controller
                     $q->where('voided', '!=', 1)
                       ->orWhereNull('voided');
                 })
+                ->when($dateFrom && $dateTo, fn($q) => $q->whereBetween('created_at', [$dateFrom, $dateTo]))
                 ->sum('amount');
-            
+
+            $wallet->transaction_count = WalletTransaction::where('wallet_id', $wallet->id)
+                ->when($dateFrom && $dateTo, fn($q) => $q->whereBetween('created_at', [$dateFrom, $dateTo]))
+                ->count();
+
             return $wallet;
         });
 
@@ -604,6 +618,10 @@ class WalletController extends Controller
                 $sq->where('nama_santri', 'like', "%{$search}%")
                    ->orWhere('nis', 'like', "%{$search}%");
             });
+        }
+
+        if ($request->has('created_by') && $request->query('created_by') !== '') {
+            $q->where('created_by', $request->query('created_by'));
         }
 
         $perPage = min((int)($request->query('per_page', 25)), 100);
