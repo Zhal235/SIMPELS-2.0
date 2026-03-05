@@ -3,7 +3,9 @@
 namespace App\Http\Controllers;
 
 use App\Models\KategoriPengeluaran;
+use App\Models\TransaksiKas;
 use Illuminate\Http\Request;
+use Illuminate\Support\Facades\DB;
 
 class KategoriPengeluaranController extends Controller
 {
@@ -36,16 +38,21 @@ class KategoriPengeluaranController extends Controller
 
     public function update(Request $request, KategoriPengeluaran $kategoriPengeluaran)
     {
-
         $data = $request->validate([
             'name' => 'required|string|unique:kategori_pengeluaran,name,' . $kategoriPengeluaran->id,
         ]);
 
         $data['slug'] = str()->slug($data['name']);
 
-        $kategoriPengeluaran->update($data);
+        $oldName = $kategoriPengeluaran->name;
+        $newName = $data['name'];
 
-        return response()->json($kategoriPengeluaran);
+        DB::transaction(function () use ($kategoriPengeluaran, $data, $oldName, $newName) {
+            $kategoriPengeluaran->update($data);
+            TransaksiKas::where('kategori', $oldName)->update(['kategori' => $newName]);
+        });
+
+        return response()->json($kategoriPengeluaran->fresh());
     }
 
     public function destroy(Request $request, KategoriPengeluaran $kategoriPengeluaran)
