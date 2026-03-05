@@ -1,7 +1,7 @@
 import { useEffect, useState } from 'react'
 import { useParams, useNavigate } from 'react-router-dom'
-import { ArrowLeft, ArrowUpCircle, ArrowDownCircle, Wallet } from 'lucide-react'
-import { getTabungan, getTabunganHistory, setorTabungan, tarikTabungan } from '../../api/tabungan'
+import { ArrowLeft, ArrowUpCircle, ArrowDownCircle, Wallet, Pencil } from 'lucide-react'
+import { getTabungan, getTabunganHistory, setorTabungan, tarikTabungan, editTransaksiTabungan } from '../../api/tabungan'
 import toast from 'react-hot-toast'
 
 const formatRupiah = (val: number | null | undefined) =>
@@ -28,6 +28,8 @@ export default function TabunganDetail() {
   // Modal states
   const [showSetor, setShowSetor] = useState(false)
   const [showTarik, setShowTarik] = useState(false)
+  const [showEdit, setShowEdit] = useState(false)
+  const [editTrx, setEditTrx] = useState<Transaction | null>(null)
   const [amount, setAmount] = useState('')
   const [description, setDescription] = useState('')
   const [method, setMethod] = useState<'cash' | 'transfer'>('cash')
@@ -82,6 +84,34 @@ export default function TabunganDetail() {
       load()
     } catch (e: any) {
       toast.error(e.response?.data?.message || 'Gagal menarik')
+    } finally {
+      setSubmitting(false)
+    }
+  }
+
+  const openEdit = (t: Transaction) => {
+    setEditTrx(t)
+    setAmount(String(t.amount))
+    setDescription(t.description || '')
+    setMethod((t.method as 'cash' | 'transfer') || 'cash')
+    setShowEdit(true)
+  }
+
+  const handleEdit = async () => {
+    if (!editTrx || !amount || Number(amount) <= 0) return
+    setSubmitting(true)
+    try {
+      await editTransaksiTabungan(editTrx.id, {
+        amount: Number(amount),
+        description: description || undefined,
+        method,
+      })
+      toast.success('Transaksi berhasil diperbarui!')
+      setShowEdit(false)
+      setEditTrx(null)
+      load()
+    } catch (e: any) {
+      toast.error(e.response?.data?.message || 'Gagal memperbarui transaksi')
     } finally {
       setSubmitting(false)
     }
@@ -193,6 +223,13 @@ export default function TabunganDetail() {
                         {new Date(t.created_at).toLocaleDateString('id-ID', { day: '2-digit', month: 'short', year: 'numeric' })}
                       </p>
                     </div>
+                    <button
+                      onClick={() => openEdit(t)}
+                      className="ml-2 p-1.5 rounded-lg hover:bg-gray-200 text-gray-400 hover:text-gray-600 flex-shrink-0"
+                      title="Edit transaksi"
+                    >
+                      <Pencil className="w-3.5 h-3.5" />
+                    </button>
                   </li>
                 ))}
               </ul>
@@ -233,19 +270,36 @@ export default function TabunganDetail() {
           maxAmount={tabungan?.saldo}
         />
       )}
+
+      {/* Modal Edit Transaksi */}
+      {showEdit && editTrx && (
+        <TransaksiModal
+          title={`Edit Transaksi — ${editTrx.type === 'setor' ? 'Setoran' : 'Penarikan'}`}
+          type={editTrx.type}
+          currentSaldo={tabungan?.saldo}
+          amount={amount} setAmount={setAmount}
+          description={description} setDescription={setDescription}
+          method={method} setMethod={setMethod}
+          onClose={() => { setShowEdit(false); setEditTrx(null) }}
+          onSubmit={handleEdit}
+          submitting={submitting}
+          isEdit
+        />
+      )}
     </div>
   )
 }
 
-function TransaksiModal({ title, type, currentSaldo, amount, setAmount, description, setDescription, method, setMethod, onClose, onSubmit, submitting, maxAmount }: {
+function TransaksiModal({ title, type, currentSaldo, amount, setAmount, description, setDescription, method, setMethod, onClose, onSubmit, submitting, maxAmount, isEdit }: {
   title: string; type: 'setor' | 'tarik'; currentSaldo: number
   amount: string; setAmount: (v: string) => void
   description: string; setDescription: (v: string) => void
   method: 'cash' | 'transfer'; setMethod: (v: 'cash' | 'transfer') => void
   onClose: () => void; onSubmit: () => void; submitting: boolean
-  maxAmount?: number
+  maxAmount?: number; isEdit?: boolean
 }) {
   const isValid = Number(amount) > 0 && (!maxAmount || Number(amount) <= maxAmount)
+  const submitLabel = isEdit ? 'Simpan' : type === 'setor' ? 'Setor' : 'Tarik'
   return (
     <div className="fixed inset-0 z-50 flex items-center justify-center p-4">
       <div className="absolute inset-0 bg-black/30" onClick={onClose} />
@@ -292,8 +346,8 @@ function TransaksiModal({ title, type, currentSaldo, amount, setAmount, descript
         <div className="flex gap-3">
           <button onClick={onClose} className="flex-1 py-2 border rounded-lg text-sm hover:bg-gray-50">Batal</button>
           <button onClick={onSubmit} disabled={!isValid || submitting}
-            className={`flex-1 py-2 rounded-lg text-sm text-white font-medium disabled:opacity-50 ${type === 'setor' ? 'bg-green-600 hover:bg-green-700' : 'bg-orange-500 hover:bg-orange-600'}`}>
-            {submitting ? 'Memproses...' : type === 'setor' ? 'Setor' : 'Tarik'}
+            className={`flex-1 py-2 rounded-lg text-sm text-white font-medium disabled:opacity-50 ${isEdit ? 'bg-blue-600 hover:bg-blue-700' : type === 'setor' ? 'bg-green-600 hover:bg-green-700' : 'bg-orange-500 hover:bg-orange-600'}`}>
+            {submitting ? 'Memproses...' : submitLabel}
           </button>
         </div>
       </div>

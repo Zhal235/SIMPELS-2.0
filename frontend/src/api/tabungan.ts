@@ -57,6 +57,15 @@ export async function getLaporanTabungan() {
   return res.data
 }
 
+export async function editTransaksiTabungan(transactionId: number, payload: {
+  amount: number
+  description?: string
+  method?: 'cash' | 'transfer'
+}) {
+  const res = await api.patch(`/v1/tabungan/transactions/${transactionId}`, payload)
+  return res.data
+}
+
 export async function tutupTabungan(santriId: string) {
   const res = await api.delete(`/v1/tabungan/${santriId}`)
   return res.data

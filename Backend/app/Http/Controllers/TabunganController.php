@@ -356,6 +356,73 @@ class TabunganController extends Controller
     }
 
     /**
+     * PATCH /api/tabungan/transactions/{transactionId}
+     * Edit nominal, keterangan, dan metode sebuah transaksi.
+     * Saldo tabungan dan saldo_after transaksi berikutnya akan dihitung ulang.
+     */
+    public function editTransaction(Request $request, $transactionId)
+    {
+        $validator = Validator::make($request->all(), [
+            'amount'      => 'required|numeric|min:1',
+            'description' => 'nullable|string|max:255',
+            'method'      => 'nullable|in:cash,transfer',
+        ]);
+
+        if ($validator->fails()) {
+            return response()->json(['success' => false, 'errors' => $validator->errors()], 422);
+        }
+
+        $trx = SantriTabunganTransaction::findOrFail($transactionId);
+        $tabungan = $trx->tabungan;
+
+        try {
+            DB::beginTransaction();
+
+            $selisih = $request->amount - $trx->amount;
+
+            // Hitung ulang saldo_after seluruh transaksi mulai dari yang diedit (urut created_at ASC)
+            $allTrx = SantriTabunganTransaction::where('tabungan_id', $tabungan->id)
+                ->orderBy('created_at', 'asc')
+                ->orderBy('id', 'asc')
+                ->get();
+
+            // Update amount dan metadata transaksi yang diedit
+            $trx->amount      = $request->amount;
+            $trx->description = $request->description ?? $trx->description;
+            $trx->method      = $request->method ?? $trx->method;
+            $trx->save();
+
+            // Hitung ulang running saldo untuk semua transaksi
+            $runningSaldo = 0;
+            foreach ($allTrx as $t) {
+                $amt = ($t->id === $trx->id) ? $request->amount : $t->amount;
+                $runningSaldo = $t->type === 'setor'
+                    ? $runningSaldo + $amt
+                    : $runningSaldo - $amt;
+                SantriTabunganTransaction::where('id', $t->id)->update(['saldo_after' => $runningSaldo]);
+            }
+
+            // Update saldo tabungan
+            $tabungan->update(['saldo' => $tabungan->saldo + (
+                $trx->type === 'setor' ? $selisih : -$selisih
+            )]);
+
+            DB::commit();
+
+            return response()->json([
+                'success' => true,
+                'message' => 'Transaksi berhasil diperbarui.',
+                'data'    => [
+                    'saldo_baru' => $tabungan->fresh()->saldo,
+                ],
+            ]);
+        } catch (\Exception $e) {
+            DB::rollBack();
+            return response()->json(['success' => false, 'message' => $e->getMessage()], 500);
+        }
+    }
+
+    /**
      * DELETE /api/tabungan/{santriId}
      * Tutup dan hapus tabungan. Jika ada saldo, catat transaksi penarikan terlebih dahulu.
      */

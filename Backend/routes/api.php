@@ -181,6 +181,7 @@ Route::middleware('auth:sanctum')->group(function () {
             Route::get('laporan/summary', [TabunganController::class, 'laporan']);
             Route::get('/', [TabunganController::class, 'index']);
             Route::post('/', [TabunganController::class, 'store']);
+            Route::patch('/transactions/{transactionId}', [TabunganController::class, 'editTransaction']);
             $uuidConstraint = '[0-9a-fA-F\-]{36}';
             Route::get('/{santriId}', [TabunganController::class, 'show'])->where('santriId', $uuidConstraint);
             Route::patch('/{santriId}', [TabunganController::class, 'update'])->where('santriId', $uuidConstraint);
