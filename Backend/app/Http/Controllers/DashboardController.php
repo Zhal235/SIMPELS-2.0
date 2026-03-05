@@ -245,7 +245,8 @@ class DashboardController extends Controller
             $bukuKasList = BukuKas::all();
 
             $perBukuKas = $bukuKasList->map(function ($bk) use ($bulan, $tahun, $start, $end) {
-                $query = TransaksiKas::where('buku_kas_id', $bk->id);
+                $query = TransaksiKas::where('buku_kas_id', $bk->id)
+                    ->where('kategori', 'NOT LIKE', '%Transfer Internal%');
 
                 if ($start) {
                     $query->whereDate('tanggal', '>=', $start);

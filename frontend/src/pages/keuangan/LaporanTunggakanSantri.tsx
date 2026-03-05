@@ -4,6 +4,19 @@ import { Download, Printer, AlertTriangle, Clock } from 'lucide-react'
 import { exportToExcel } from '../../utils/exportExcel'
 import { printTunggakanSantri } from '../../utils/printLaporan'
 import { useInstansiSetting } from '../../hooks/useInstansiSetting'
+import { isOverdue } from '../../utils/pembayaranHelpers'
+import ModalDetailTunggakan from './components/ModalDetailTunggakan'
+
+const BULAN_MAP: Record<string, number> = {
+  Januari:1, Februari:2, Maret:3, April:4, Mei:5, Juni:6,
+  Juli:7, Agustus:8, September:9, Oktober:10, November:11, Desember:12,
+}
+
+function calcDueDate(jatuhTempo: string, bulan: string, tahun: number): Date {
+  const day = parseInt(jatuhTempo?.match(/\d+/)?.[0] || '10')
+  const m = BULAN_MAP[bulan] || parseInt(bulan) || 1
+  return new Date(tahun, m - 1, day)
+}
 
 interface TunggakanSantri {
   santri_id: number
@@ -42,6 +55,7 @@ export default function LaporanTunggakanSantri() {
   const [loading, setLoading] = useState(false)
   const [sortBy, setSortBy] = useState<'nama' | 'total' | 'tertua'>('total')
   const [filterKelas, setFilterKelas] = useState<string>('all')
+  const [selectedDetail, setSelectedDetail] = useState<TunggakanSantri | null>(null)
   
   const [kelasList, setKelasList] = useState<Array<{id: number, nama_kelas: string}>>([])
   const [summary, setSummary] = useState({
@@ -95,10 +109,8 @@ export default function LaporanTunggakanSantri() {
 
       // Filter hanya tagihan yang sudah jatuh tempo dan belum lunas
       tagihan = tagihan.filter((t: any) => {
-        if (!t.jatuh_tempo) return false
-        const jatuhTempo = new Date(t.jatuh_tempo)
         const sisa = parseFloat(t.sisa || 0)
-        return jatuhTempo < today && sisa > 0 && t.status !== 'lunas'
+        return sisa > 0 && t.status !== 'lunas' && isOverdue(t.jatuh_tempo, t.bulan, t.tahun)
       })
 
       // Group by santri
@@ -106,8 +118,8 @@ export default function LaporanTunggakanSantri() {
 
       tagihan.forEach((t: any) => {
         const santriId = t.santri_id
-        const jatuhTempo = new Date(t.jatuh_tempo)
-        const umurTunggakanHari = Math.floor((today.getTime() - jatuhTempo.getTime()) / (1000 * 60 * 60 * 24))
+        const dueDate = calcDueDate(t.jatuh_tempo, t.bulan, t.tahun)
+        const umurTunggakanHari = Math.floor((today.getTime() - dueDate.getTime()) / (1000 * 60 * 60 * 24))
 
         if (!groupedBySantri[santriId]) {
           groupedBySantri[santriId] = {
@@ -116,7 +128,7 @@ export default function LaporanTunggakanSantri() {
             tagihan: [],
             total_tunggakan: 0,
             jumlah_tagihan: 0,
-            tagihan_tertua: t.jatuh_tempo
+            tagihan_tertua: dueDate.toISOString()
           }
         }
 
@@ -127,9 +139,8 @@ export default function LaporanTunggakanSantri() {
         groupedBySantri[santriId].total_tunggakan += parseFloat(t.sisa)
         groupedBySantri[santriId].jumlah_tagihan += 1
 
-        // Track tagihan tertua
-        if (new Date(t.jatuh_tempo) < new Date(groupedBySantri[santriId].tagihan_tertua)) {
-          groupedBySantri[santriId].tagihan_tertua = t.jatuh_tempo
+        if (dueDate < new Date(groupedBySantri[santriId].tagihan_tertua)) {
+          groupedBySantri[santriId].tagihan_tertua = dueDate.toISOString()
         }
       })
 
@@ -238,7 +249,8 @@ export default function LaporanTunggakanSantri() {
   }
 
   return (
-    <div className="space-y-6">
+    <>
+      <div className="space-y-6">
       {/* Header */}
       <div className="flex items-center justify-between">
         <div>
@@ -352,9 +364,11 @@ export default function LaporanTunggakanSantri() {
               </thead>
               <tbody className="bg-white divide-y divide-gray-200">
                 {data.map((tunggakan, index) => {
-                  const tagihanTertua = tunggakan.tagihan.reduce((oldest, current) => 
-                    new Date(current.jatuh_tempo) < new Date(oldest.jatuh_tempo) ? current : oldest
-                  )
+                  const tagihanTertua = tunggakan.tagihan.reduce((oldest, current) => {
+                    const cVal = current.tahun * 100 + (BULAN_MAP[current.bulan] || 0)
+                    const oVal = oldest.tahun * 100 + (BULAN_MAP[oldest.bulan] || 0)
+                    return cVal < oVal ? current : oldest
+                  })
                   const prioritas = getPrioritas(tagihanTertua.umur_tunggakan_hari)
 
                   return (
@@ -391,7 +405,7 @@ export default function LaporanTunggakanSantri() {
                         </span>
                       </td>
                       <td className="px-6 py-4 text-center">
-                        <button className="text-blue-600 hover:text-blue-800 text-sm font-medium">
+                        <button onClick={() => setSelectedDetail(tunggakan)} className="text-blue-600 hover:text-blue-800 text-sm font-medium">
                           Lihat Detail
                         </button>
                       </td>
@@ -408,6 +422,16 @@ export default function LaporanTunggakanSantri() {
           </div>
         )}
       </div>
-    </div>
+      </div>
+
+    {selectedDetail && (
+      <ModalDetailTunggakan
+        namaLengkap={selectedDetail.santri.nama}
+        kelas={selectedDetail.santri.kelas?.nama_kelas || '-'}
+        tagihan={selectedDetail.tagihan}
+        onClose={() => setSelectedDetail(null)}
+      />
+    )}
+    </>
   )
 }

@@ -448,24 +448,26 @@ class TagihanSantriController extends Controller
             $duplicates = 0;
 
             foreach ($request->tunggakan as $item) {
-                // Cek duplikat
+                // Tentukan tahun berdasarkan bulan dulu
+                $tahun = isset($item['tahun']) ? (int) $item['tahun'] : null;
+                if (!$tahun) {
+                    $bulanNum = $this->getBulanNumber($item['bulan']);
+                    $tahunAjaran = \App\Models\TahunAjaran::where('status', 'aktif')->first();
+                    $tahunMulai  = $tahunAjaran?->tahun_mulai ?? date('Y');
+                    $tahunAkhir  = $tahunAjaran?->tahun_akhir ?? (date('Y') + 1);
+                    $tahun = $bulanNum >= 7 ? $tahunMulai : $tahunAkhir;
+                }
+
+                // Cek duplikat termasuk tahun
                 $exists = TagihanSantri::where('santri_id', $item['santri_id'])
                     ->where('jenis_tagihan_id', $item['jenis_tagihan_id'])
                     ->where('bulan', $item['bulan'])
+                    ->where('tahun', $tahun)
                     ->first();
 
                 if ($exists) {
                     $duplicates++;
                     continue;
-                }
-
-                // Tentukan tahun berdasarkan bulan
-                $tahun = 2025; // Default tahun
-                $bulanNum = $this->getBulanNumber($item['bulan']);
-                
-                // Jika bulan >= 7 (Juli), tahun = 2025, else 2026
-                if ($bulanNum < 7) {
-                    $tahun = 2026;
                 }
 
                 // Get jenis tagihan untuk jatuh tempo

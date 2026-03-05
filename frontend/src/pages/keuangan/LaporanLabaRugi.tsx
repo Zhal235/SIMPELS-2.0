@@ -33,16 +33,27 @@ export default function LaporanLabaRugi() {
     let start = new Date()
     let end = new Date()
 
+    const fmt = (d: Date) => {
+      const y = d.getFullYear()
+      const m = String(d.getMonth() + 1).padStart(2, '0')
+      const day = String(d.getDate()).padStart(2, '0')
+      return `${y}-${m}-${day}`
+    }
+
     switch (period) {
       case 'month':
         start = new Date(now.getFullYear(), now.getMonth(), 1)
+        end = new Date(now.getFullYear(), now.getMonth() + 1, 0)
         break
-      case 'quarter':
+      case 'quarter': {
         const quarter = Math.floor(now.getMonth() / 3)
         start = new Date(now.getFullYear(), quarter * 3, 1)
+        end = new Date(now.getFullYear(), quarter * 3 + 3, 0)
         break
+      }
       case 'year':
         start = new Date(now.getFullYear(), 0, 1)
+        end = new Date(now.getFullYear(), 11, 31)
         break
       case 'custom':
         if (startDate && endDate) {
@@ -51,10 +62,7 @@ export default function LaporanLabaRugi() {
         return null
     }
 
-    return {
-      start: start.toISOString().split('T')[0],
-      end: end.toISOString().split('T')[0]
-    }
+    return { start: fmt(start), end: fmt(end) }
   }
 
   const fetchData = async () => {
