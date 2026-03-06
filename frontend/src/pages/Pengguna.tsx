@@ -137,12 +137,18 @@ export default function Pengguna() {
         { key: 'dashboard', label: 'Akses Dashboard' }
       ]
     },
+    pengumuman: {
+      title: 'Pengumuman',
+      menus: [
+        { key: 'pengumuman', label: 'Pengumuman', permissions: ['edit', 'delete'] }
+      ]
+    },
     kesantrian: {
       title: 'Kesantrian',
       menus: [
-        { key: 'kesantrian.santri', label: 'Data Santri', permissions: ['view', 'edit', 'delete'] },
-        { key: 'kesantrian.kelas', label: 'Kelas', permissions: ['view', 'edit', 'delete'] },
-        { key: 'kesantrian.asrama', label: 'Asrama', permissions: ['view', 'edit', 'delete'] },
+        { key: 'kesantrian.santri', label: 'Data Santri', permissions: ['edit', 'delete'] },
+        { key: 'kesantrian.kelas', label: 'Kelas', permissions: ['edit', 'delete'] },
+        { key: 'kesantrian.asrama', label: 'Asrama', permissions: ['edit', 'delete'] },
         { key: 'kesantrian.koreksi_data', label: 'Koreksi Data' },
         { key: 'kesantrian.mutasi.masuk', label: 'Mutasi Masuk' },
         { key: 'kesantrian.mutasi.keluar', label: 'Mutasi Keluar' },
@@ -152,44 +158,51 @@ export default function Pengguna() {
     keuangan: {
       title: 'Keuangan',
       menus: [
-        { key: 'keuangan.pembayaran', label: 'Pembayaran Santri', permissions: ['view', 'edit', 'delete'] },
-        { key: 'keuangan.transaksi-kas', label: 'Transaksi Kas', permissions: ['view', 'edit', 'delete'] },
-        { key: 'keuangan.buku-kas', label: 'Buku Kas', permissions: ['view', 'edit', 'delete'] },
+        { key: 'keuangan.pembayaran', label: 'Pembayaran Santri', permissions: ['edit', 'delete'] },
+        { key: 'keuangan.transaksi-kas', label: 'Transaksi Kas', permissions: ['edit', 'delete'] },
+        { key: 'keuangan.buku-kas', label: 'Buku Kas', permissions: ['edit', 'delete'] },
         { key: 'keuangan.laporan', label: 'Laporan' },
-        { key: 'keuangan.tagihan', label: 'Tagihan Santri', permissions: ['view', 'edit', 'delete'] },
-        { key: 'keuangan.bukti-transfer', label: 'Bukti Transfer' },
-        { key: 'keuangan.rekening-bank', label: 'Rekening Bank', permissions: ['view', 'edit', 'delete'] },
+        { key: 'keuangan.tagihan', label: 'Tagihan Santri', permissions: ['edit', 'delete'] },
+        { key: 'keuangan.bukti-transfer', label: 'Bukti Transfer', permissions: ['edit', 'delete'] },
+        { key: 'keuangan.rekening-bank', label: 'Rekening Bank', permissions: ['edit', 'delete'] },
+        { key: 'keuangan.tabungan', label: 'Tabungan Santri', permissions: ['edit', 'delete'] },
         { key: 'keuangan.tunggakan', label: 'Tunggakan Santri' },
-        { key: 'keuangan.pengaturan', label: 'Pengaturan' }
+        { key: 'keuangan.pengaturan', label: 'Pengaturan Tagihan', permissions: ['edit', 'delete'] }
       ]
     },
     dompet: {
       title: 'Dompet Digital',
       menus: [
-        { key: 'dompet.dompet-santri', label: 'Dompet Santri' },
+        { key: 'dompet.dompet-santri', label: 'Dompet Santri', permissions: ['edit', 'delete'] },
         { key: 'dompet.manajemen-keuangan', label: 'Manajemen Keuangan' },
         { key: 'dompet.history', label: 'History Transaksi' },
         { key: 'dompet.laporan', label: 'Laporan Keuangan' },
-        { key: 'dompet.tagihan', label: 'Tagihan Kolektif' },
-        { key: 'dompet.rfid', label: 'Kelola RFID' },
-        { key: 'dompet.settings', label: 'Pengaturan Dompet', permissions: ['view', 'edit'] },
-        { key: 'dompet.manage', label: 'Manage Transaksi' },
-        { key: 'dompet.withdrawals', label: 'Penarikan (ePOS)' }
+        { key: 'dompet.tagihan', label: 'Tagihan Kolektif', permissions: ['edit', 'delete'] },
+        { key: 'dompet.rfid', label: 'Kelola RFID', permissions: ['edit', 'delete'] },
+        { key: 'dompet.settings', label: 'Pengaturan Dompet', permissions: ['edit'] },
+        { key: 'dompet.manage', label: 'Manage Transaksi', permissions: ['edit', 'delete'] },
+        { key: 'dompet.withdrawals', label: 'Penarikan (ePOS)', permissions: ['edit', 'delete'] }
       ]
     },
     akademik: {
       title: 'Akademik',
       menus: [
-        { key: 'akademik.tahun-ajaran', label: 'Tahun Ajaran', permissions: ['view', 'edit', 'delete'] }
+        { key: 'akademik.tahun-ajaran', label: 'Tahun Ajaran', permissions: ['edit', 'delete'] }
+      ]
+    },
+    kepegawaian: {
+      title: 'Guru & Kepegawaian',
+      menus: [
+        { key: 'kepegawaian.data-pegawai', label: 'Data Pegawai', permissions: ['edit', 'delete'] },
+        { key: 'kepegawaian.struktur-jabatan', label: 'Struktur & Jabatan', permissions: ['edit', 'delete'] }
       ]
     },
     system: {
       title: 'System',
       menus: [
-        { key: 'pengguna', label: 'Pengguna', permissions: ['view', 'edit', 'delete'] },
+        { key: 'pengguna', label: 'Manajemen Pengguna', permissions: ['edit', 'delete'] },
         { key: 'pengguna.roles', label: 'Kelola Role' },
-        { key: 'pengumuman', label: 'Pengumuman', permissions: ['view', 'edit', 'delete'] },
-        { key: 'pengaturan', label: 'Pengaturan' }
+        { key: 'pengaturan', label: 'Pengaturan Sistem' }
       ]
     }
   }
@@ -223,20 +236,7 @@ export default function Pengguna() {
     )
   }
 
-  // Helper function untuk select all permissions untuk suatu menu
-  const toggleAllMenuPermissions = (menuKey: string, permissions: string[]) => {
-    const allChecked = permissions.every(perm => isPermissionChecked(menuKey, perm))
-    
-    if (allChecked) {
-      // Uncheck all permissions for this menu
-      const keysToRemove = permissions.map(perm => getPermissionKey(menuKey, perm))
-      setRoleMenus(prev => prev.filter(k => !keysToRemove.includes(k)))
-    } else {
-      // Check all permissions for this menu
-      const keysToAdd = permissions.map(perm => getPermissionKey(menuKey, perm))
-      setRoleMenus(prev => [...new Set([...prev, ...keysToAdd])])
-    }
-  }
+
 
   async function loadRoles() {
     try {
@@ -394,55 +394,20 @@ export default function Pengguna() {
             ) : (
                 <Table columns={[
                   { key: 'name', header: 'Nama' }, 
-                  { 
-                    key: 'menus', 
-                    header: 'Permissions', 
+                  {
+                    key: 'menus',
+                    header: 'Akses Menu',
                     render: (_v:any, r:any) => {
-                      if (!r.menus?.length) return <span className="text-gray-500">Tidak ada akses</span>
-                      
-                      const permissionGroups: {[key: string]: {base: boolean, permissions: string[]}} = {}
-                      
-                      r.menus.forEach((menu: string) => {
-                        const parts = menu.split('.')
-                        if (parts.length >= 3 && ['edit', 'delete', 'view', 'create', 'update'].includes(parts[parts.length - 1])) {
-                          // This is a permission like 'kesantrian.santri.view'
-                          const baseKey = parts.slice(0, -1).join('.')
-                          const permission = parts[parts.length - 1]
-                          if (!permissionGroups[baseKey]) {
-                            permissionGroups[baseKey] = { base: false, permissions: [] }
-                          }
-                          permissionGroups[baseKey].permissions.push(permission)
-                        } else {
-                          // This is a base menu access
-                          if (!permissionGroups[menu]) {
-                            permissionGroups[menu] = { base: true, permissions: [] }
-                          } else {
-                            permissionGroups[menu].base = true
-                          }
-                        }
-                      })
-                      
+                      if (!r.menus?.length) return <span className="text-gray-400 text-xs">Tidak ada akses</span>
+                      const PERM_SUFFIXES = ['edit','delete','view','create','update']
+                      const baseMenus = r.menus.filter((m: string) => !PERM_SUFFIXES.includes(m.split('.').pop()!))
                       return (
-                        <div className="space-y-1 max-w-sm">
-                          {Object.entries(permissionGroups).slice(0, 3).map(([menu, access]) => (
-                            <div key={menu} className="text-xs">
-                              <span className="font-medium">{menu.split('.').pop()}</span>
-                              {access.permissions.length > 0 && (
-                                <div className="flex gap-1 mt-1">
-                                  {access.permissions.map(perm => (
-                                    <span key={perm} className={`px-1 py-0.5 rounded text-white text-xs ${
-                                      perm === 'edit' ? 'bg-yellow-400' :
-                                      perm === 'delete' ? 'bg-red-400' : 'bg-blue-400'
-                                    }`}>
-                                      {perm === 'edit' ? 'E' : perm === 'delete' ? 'D' : 'V'}
-                                    </span>
-                                  ))}
-                                </div>
-                              )}
-                            </div>
+                        <div className="flex flex-wrap gap-1">
+                          {baseMenus.slice(0, 5).map((m: string) => (
+                            <span key={m} className="px-1.5 py-0.5 bg-blue-50 text-blue-700 rounded text-xs">{m.split('.').pop()}</span>
                           ))}
-                          {Object.keys(permissionGroups).length > 3 && (
-                            <span className="text-gray-500">+{Object.keys(permissionGroups).length - 3} lainnya</span>
+                          {baseMenus.length > 5 && (
+                            <span className="px-1.5 py-0.5 bg-gray-100 text-gray-500 rounded text-xs">+{baseMenus.length - 5}</span>
                           )}
                         </div>
                       )
@@ -491,70 +456,47 @@ export default function Pengguna() {
                     {roleMenus.length} permission{roleMenus.length !== 1 ? 's' : ''} dipilih
                   </div>
                 </div>
-              <div className="border rounded-lg p-4 max-h-96 overflow-y-auto">
+              <div className="border rounded-lg overflow-hidden max-h-96 overflow-y-auto">
                 {Object.entries(menuCategories).map(([categoryKey, category]) => (
-                  <div key={categoryKey} className="mb-4">
-                    <div 
-                      className="flex items-center justify-between cursor-pointer p-2 bg-gray-50 rounded-md mb-2"
+                  <div key={categoryKey} className="border-b last:border-0">
+                    <div
+                      className="flex items-center justify-between cursor-pointer px-4 py-2.5 bg-gray-50 hover:bg-gray-100"
                       onClick={() => toggleCategory(categoryKey)}
                     >
-                      <h4 className="font-medium text-gray-700">{category.title}</h4>
-                      <span className="text-gray-500">
-                        {collapsedCategories.includes(categoryKey) ? '▼' : '▲'}
-                      </span>
+                      <h4 className="font-semibold text-gray-700 text-sm">{category.title}</h4>
+                      <span className="text-gray-400 text-xs">{collapsedCategories.includes(categoryKey) ? '▼' : '▲'}</span>
                     </div>
-                    
                     {!collapsedCategories.includes(categoryKey) && (
-                      <div className="ml-4 space-y-3">
+                      <div className="divide-y divide-gray-50">
                         {category.menus.map(menu => (
-                          <div key={menu.key} className="border-l-2 border-gray-200 pl-4 py-2">
-                            <div className="flex items-start gap-3">
-                              <div className="flex-1">
-                                <div className="flex items-center gap-2 mb-2">
-                                  <input 
-                                    type="checkbox" 
-                                    id={`${menu.key}-view`}
-                                    checked={isPermissionChecked(menu.key)} 
-                                    onChange={() => togglePermission(menu.key)}
-                                    className="w-4 h-4"
-                                  />
-                                  <label htmlFor={`${menu.key}-view`} className="font-medium text-sm text-gray-800 cursor-pointer">
-                                    {menu.label}
-                                  </label>
-                                  {menu.permissions && (
-                                    <button
-                                      type="button"
-                                      onClick={() => toggleAllMenuPermissions(menu.key, menu.permissions!)}
-                                      className="text-xs text-blue-600 hover:text-blue-800 ml-auto"
-                                    >
-                                      {menu.permissions.every(perm => isPermissionChecked(menu.key, perm)) ? 'Uncheck All' : 'Check All'}
-                                    </button>
-                                  )}
-                                </div>
-                                
-                                {menu.permissions && (
-                                  <div className="ml-6 grid grid-cols-3 gap-2">
-                                    {menu.permissions.map(permission => (
-                                      <label key={`${menu.key}-${permission}`} className="flex items-center gap-2 cursor-pointer">
-                                        <input
-                                          type="checkbox"
-                                          checked={isPermissionChecked(menu.key, permission)}
-                                          onChange={() => togglePermission(menu.key, permission)}
-                                          className="w-3 h-3"
-                                        />
-                                        <span className={`px-2 py-1 rounded text-white text-xs font-medium ${
-                                          permission === 'edit' ? 'bg-yellow-500' :
-                                          permission === 'delete' ? 'bg-red-500' : 'bg-blue-500'
-                                        }`}>
-                                          {permission === 'view' ? 'Lihat' :
-                                           permission === 'edit' ? 'Edit' : 'Hapus'}
-                                        </span>
-                                      </label>
-                                    ))}
-                                  </div>
-                                )}
+                          <div key={menu.key} className="flex items-center justify-between px-4 py-2.5 hover:bg-gray-50">
+                            <label className="flex items-center gap-2.5 cursor-pointer flex-1">
+                              <input
+                                type="checkbox"
+                                checked={isPermissionChecked(menu.key)}
+                                onChange={() => togglePermission(menu.key)}
+                                className="w-4 h-4 rounded accent-blue-600"
+                              />
+                              <span className="text-sm text-gray-800">{menu.label}</span>
+                            </label>
+                            {menu.permissions && (
+                              <div className="flex gap-1.5 ml-3">
+                                {menu.permissions.map(perm => (
+                                  <button
+                                    key={perm}
+                                    type="button"
+                                    onClick={() => togglePermission(menu.key, perm)}
+                                    className={`px-2.5 py-1 rounded text-xs font-medium transition-colors ${
+                                      isPermissionChecked(menu.key, perm)
+                                        ? perm === 'delete' ? 'bg-red-500 text-white' : 'bg-yellow-500 text-white'
+                                        : 'bg-gray-100 text-gray-400 hover:bg-gray-200'
+                                    }`}
+                                  >
+                                    {perm === 'edit' ? '✎ Tambah & Ubah' : '✕ Hapus'}
+                                  </button>
+                                ))}
                               </div>
-                            </div>
+                            )}
                           </div>
                         ))}
                       </div>

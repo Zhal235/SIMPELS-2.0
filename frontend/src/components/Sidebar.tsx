@@ -65,7 +65,7 @@ export default function Sidebar() {
       <nav className="px-2 space-y-1 flex flex-col h-[calc(100vh-64px)]">
         <div className="flex-1 space-y-1 overflow-y-auto">
           {hasAccess('dashboard') && <SidebarNavLink to="/" icon={LayoutDashboard} label="Dashboard" open={sidebarOpen} />}
-          {(hasAccess('pengumuman.view')||hasAccess('pengumuman.create')||hasAccess('pengumuman.edit')||hasAccess('pengumuman.delete')) && <SidebarNavLink to="/pengumuman" icon={Megaphone} label="Pengumuman" open={sidebarOpen} />}
+          {(hasAccess('pengumuman')||hasAccess('pengumuman.edit')||hasAccess('pengumuman.delete')) && <SidebarNavLink to="/pengumuman" icon={Megaphone} label="Pengumuman" open={sidebarOpen} />}
 
           {/* Kesantrian */}
           {(hasAccess('kesantrian.santri')||hasAccess('kesantrian.kelas')||hasAccess('kesantrian.asrama')||hasAccess('kesantrian.koreksi_data')||hasAccess('kesantrian.mutasi.masuk')||hasAccess('kesantrian.mutasi.keluar')||hasAccess('kesantrian.alumni')) && (
