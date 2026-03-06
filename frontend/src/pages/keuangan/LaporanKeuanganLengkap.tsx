@@ -102,50 +102,15 @@ export default function LaporanKeuanganLengkap() {
       )
       const allTagihanRows = tagihanResponses.flatMap(r => r.data.data || [])
 
-      // Calculate buku kas balances
+      // Gunakan saldo_cash dan saldo_bank langsung dari API buku kas
+      // Backend sudah menghitung dengan benar: saldo_awal + semua transaksi + Transfer Internal
       const bukuKasList = bukuKasRes.data.data || []
-      const bukuKasData = await Promise.all(
-        bukuKasList.map(async (kas: any) => {
-          const transaksiRes = await api.get('/v1/keuangan/transaksi-kas', {
-            params: {
-              buku_kas_id: kas.id,
-              start_date: range.start,
-              end_date: range.end
-            }
-          })
-
-          const transaksi = transaksiRes.data.data || []
-          let mutasi_masuk_cash = 0, mutasi_masuk_bank = 0
-          let mutasi_keluar_cash = 0, mutasi_keluar_bank = 0
-
-          transaksi.forEach((t: any) => {
-            if (t.kategori && t.kategori.includes('Transfer Internal')) return
-            const nominal = parseFloat(t.nominal || 0)
-            const isMasuk = t.jenis === 'pemasukan'
-            const isCash = t.metode === 'cash' || t.metode === 'tunai'
-
-            if (isMasuk) {
-              if (isCash) mutasi_masuk_cash += nominal
-              else mutasi_masuk_bank += nominal
-            } else {
-              if (isCash) mutasi_keluar_cash += nominal
-              else mutasi_keluar_bank += nominal
-            }
-          })
-
-          const saldo_awal_cash = parseFloat((kas.saldo_cash_awal || 0).toString())
-          const saldo_awal_bank = parseFloat((kas.saldo_bank_awal || 0).toString())
-          const saldo_akhir_cash = saldo_awal_cash + mutasi_masuk_cash - mutasi_keluar_cash
-          const saldo_akhir_bank = saldo_awal_bank + mutasi_masuk_bank - mutasi_keluar_bank
-
-          return {
-            buku_kas: kas,
-            total_saldo_akhir: saldo_akhir_cash + saldo_akhir_bank,
-            saldo_akhir_cash,
-            saldo_akhir_bank
-          }
-        })
-      )
+      const bukuKasData = bukuKasList.map((kas: any) => ({
+        buku_kas: kas,
+        saldo_akhir_cash: parseFloat(kas.saldo_cash || 0),
+        saldo_akhir_bank: parseFloat(kas.saldo_bank || 0),
+        total_saldo_akhir: parseFloat(kas.total_saldo || 0),
+      }))
 
       // Calculate santri payment metrics from all tagihan (akumulatif)
       const santriData: any[] = allTagihanRows
