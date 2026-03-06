@@ -97,7 +97,15 @@ export default function ModalKwitansi({ kwitansiData, onClose }: Props) {
             {kwitansiData.kembalian > 0 && (
               <>
                 <div className="flex justify-between border-t pt-0.5 mt-0.5 px-1"><span className="font-semibold">Kembalian:</span><span>{formatRupiah(kwitansiData.kembalian)}</span></div>
-                <div className="flex justify-between pt-0.5 px-1"><span className="font-semibold">Opsi:</span><span className="text-xs">{kwitansiData.opsiKembalian === 'dompet' ? '✓ Masukkan ke Dompet Santri' : kwitansiData.opsiKembalian === 'tabungan' ? '✓ Simpan ke Tabungan Santri' : '✓ Kembalian Tunai'}</span></div>
+                {kwitansiData.kembalianDistribusi ? (
+                  <>
+                    {kwitansiData.kembalianDistribusi.tunai > 0 && <div className="flex justify-between pt-0.5 px-1"><span className="text-xs text-gray-500">→ Tunai:</span><span className="text-xs">{formatRupiah(kwitansiData.kembalianDistribusi.tunai)}</span></div>}
+                    {kwitansiData.kembalianDistribusi.dompet > 0 && <div className="flex justify-between pt-0.5 px-1"><span className="text-xs text-gray-500">→ Ke Dompet:</span><span className="text-xs">{formatRupiah(kwitansiData.kembalianDistribusi.dompet)}</span></div>}
+                    {kwitansiData.kembalianDistribusi.tabungan > 0 && <div className="flex justify-between pt-0.5 px-1"><span className="text-xs text-gray-500">→ Ke Tabungan:</span><span className="text-xs">{formatRupiah(kwitansiData.kembalianDistribusi.tabungan)}</span></div>}
+                  </>
+                ) : (
+                  <div className="flex justify-between pt-0.5 px-1"><span className="font-semibold">Opsi:</span><span className="text-xs">{kwitansiData.opsiKembalian === 'dompet' ? '✓ Masukkan ke Dompet Santri' : kwitansiData.opsiKembalian === 'tabungan' ? '✓ Simpan ke Tabungan Santri' : '✓ Kembalian Tunai'}</span></div>
+                )}
               </>
             )}
             {kwitansiData.type === 'sebagian' && totalSisa > 0 && (

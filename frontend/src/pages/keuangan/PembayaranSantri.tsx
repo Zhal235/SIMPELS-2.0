@@ -2,8 +2,8 @@ import { useState, useEffect } from 'react'
 import { useSearchParams } from 'react-router-dom'
 import { Search } from 'lucide-react'
 import { listSantri, getSantri } from '../../api/santri'
-import { getTagihanBySantri, listPembayaran, getHistoryPembayaran } from '../../api/pembayaran'
-import { useAuthStore } from '../../stores/useAuthStore'
+import { getTagihanBySantri, listPembayaran, getHistoryPembayaran, batalkanPembayaran } from '../../api/pembayaran'
+import { useAuthStore, hasAccess } from '../../stores/useAuthStore'
 import toast from 'react-hot-toast'
 import type { Santri, Tagihan } from '../../types/pembayaran.types'
 import { isOverdue, formatRupiah } from '../../utils/pembayaranHelpers'
@@ -13,9 +13,10 @@ import ModalBayarLunas from './components/ModalBayarLunas'
 import ModalBayarSebagian from './components/ModalBayarSebagian'
 import ModalKwitansi from './components/ModalKwitansi'
 import HistoryPembayaranContent from './components/HistoryPembayaranContent'
+import RiwayatPembayaranContent from './components/RiwayatPembayaranContent'
 import TagihanGroupedCards from './components/TagihanGroupedCards'
 
-type ActiveTab = 'rutin' | 'non-rutin' | 'tunggakan' | 'lunas'
+type ActiveTab = 'rutin' | 'non-rutin' | 'tunggakan' | 'lunas' | 'riwayat'
 
 export default function PembayaranSantri() {
   const [searchParams] = useSearchParams()
@@ -32,7 +33,6 @@ export default function PembayaranSantri() {
   const [kwitansiData, setKwitansiData] = useState<any>(null)
   const [showKwitansi, setShowKwitansi] = useState(false)
   const user = useAuthStore((state) => state.user)
-  const isLunasTab = activeTab === 'lunas'
 
   useEffect(() => {
     listSantri(1, 1000).then(res => {
@@ -140,6 +140,21 @@ export default function PembayaranSantri() {
     if (selectedSantri) handleSelectSantri(selectedSantri)
   }
 
+  async function handleBatalkanSesi(ids: number[]) {
+    if (!hasAccess('keuangan.pembayaran.delete')) {
+      toast.error('Anda tidak memiliki izin untuk membatalkan pembayaran')
+      return
+    }
+    if (!window.confirm(`Batalkan sesi ini (${ids.length} pembayaran)? Semua tagihan dalam sesi akan dikembalikan ke status sebelum bayar.`)) return
+    try {
+      for (const id of ids) await batalkanPembayaran(id)
+      toast.success('Sesi pembayaran berhasil dibatalkan')
+      if (selectedSantri) handleSelectSantri(selectedSantri)
+    } catch (error: any) {
+      toast.error(error.response?.data?.message || 'Gagal membatalkan pembayaran')
+    }
+  }
+
   return (
     <div className="p-6">
       <div className="mb-6 flex items-center justify-between">
@@ -180,7 +195,7 @@ export default function PembayaranSantri() {
           <div className="bg-white rounded-lg shadow">
             <div className="border-b border-gray-200">
               <div className="flex">
-                {([{ key: 'rutin', label: 'Tagihan Rutin' }, { key: 'non-rutin', label: 'Tagihan Non Rutin' }, { key: 'tunggakan', label: 'Tunggakan' }, { key: 'lunas', label: 'Sudah Dibayar' }] as const).map((tab) => (
+                {([{ key: 'rutin', label: 'Tagihan Rutin' }, { key: 'non-rutin', label: 'Tagihan Non Rutin' }, { key: 'tunggakan', label: 'Tunggakan' }, { key: 'lunas', label: 'Sudah Dibayar' }, { key: 'riwayat', label: 'Riwayat Pembayaran' }] as const).map((tab) => (
                   <button key={tab.key} onClick={() => setActiveTab(tab.key)} className={`px-6 py-3 font-medium text-sm transition-colors ${activeTab === tab.key ? 'border-b-2 border-blue-600 text-blue-600' : 'text-gray-500 hover:text-gray-700'}`}>
                     {tab.label}
                   </button>
@@ -188,9 +203,11 @@ export default function PembayaranSantri() {
               </div>
             </div>
             <div className="p-6">
-              {isLunasTab
-                ? <HistoryPembayaranContent historyPembayaran={historyPembayaran} santri={selectedSantri} onPrintKwitansi={(data) => { setKwitansiData(data); setShowKwitansi(true) }} />
-                : <TagihanGroupedCards groupedTagihan={getGroupedTagihan()} selectedTagihan={selectedTagihan} isLunasTab={isLunasTab} santri={selectedSantri} onToggle={toggleTagihan} onPrintKwitansi={(data) => { setKwitansiData(data); setShowKwitansi(true) }} />
+              {activeTab === 'riwayat'
+                ? <RiwayatPembayaranContent historyPembayaran={historyPembayaran} santri={selectedSantri} onPrintKwitansi={(data) => { setKwitansiData(data); setShowKwitansi(true) }} onBatalkanSesi={handleBatalkanSesi} />
+                : activeTab === 'lunas'
+                  ? <HistoryPembayaranContent historyPembayaran={historyPembayaran} santri={selectedSantri} />
+                  : <TagihanGroupedCards groupedTagihan={getGroupedTagihan()} selectedTagihan={selectedTagihan} isLunasTab={false} santri={selectedSantri} onToggle={toggleTagihan} onPrintKwitansi={(data) => { setKwitansiData(data); setShowKwitansi(true) }} />
               }
             </div>
           </div>

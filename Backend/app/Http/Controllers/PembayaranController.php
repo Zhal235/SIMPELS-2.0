@@ -6,6 +6,10 @@ use App\Models\Pembayaran;
 use App\Models\TagihanSantri;
 use App\Models\BukuKas;
 use App\Models\TransaksiKas;
+use App\Models\Wallet;
+use App\Models\WalletTransaction;
+use App\Models\SantriTabungan;
+use App\Models\SantriTabunganTransaction;
 use Illuminate\Http\Request;
 use Illuminate\Support\Facades\DB;
 use Illuminate\Support\Facades\Validator;
@@ -323,8 +327,48 @@ class PembayaranController extends Controller
             $tagihan->update(['status' => $statusTagihan]);
 
             // Hapus transaksi kas terkait
-            // JANGAN decrement saldo_awal, transaksi akan otomatis hilang dari perhitungan
             TransaksiKas::where('pembayaran_id', $pembayaran->id)->delete();
+
+            // Balikkan kembalian yang sudah masuk ke dompet/tabungan
+            $snapshot = $pembayaran->kwitansi_snapshot;
+            $distribusi = $snapshot['kembalian_distribusi'] ?? null;
+
+            if ($distribusi) {
+                $dompetAmt   = (float) ($distribusi['dompet']   ?? 0);
+                $tabunganAmt = (float) ($distribusi['tabungan'] ?? 0);
+
+                if ($dompetAmt > 0) {
+                    $wallet = Wallet::where('santri_id', $pembayaran->santri_id)->first();
+                    if ($wallet) {
+                        $txn = WalletTransaction::where('wallet_id', $wallet->id)
+                            ->where('type', 'credit')
+                            ->where('amount', $dompetAmt)
+                            ->where('description', 'like', 'Kembalian%')
+                            ->latest()
+                            ->first();
+                        if ($txn) {
+                            $wallet->decrement('balance', $dompetAmt);
+                            $txn->delete();
+                        }
+                    }
+                }
+
+                if ($tabunganAmt > 0) {
+                    $tabungan = SantriTabungan::where('santri_id', $pembayaran->santri_id)->first();
+                    if ($tabungan) {
+                        $trx = SantriTabunganTransaction::where('santri_id', $pembayaran->santri_id)
+                            ->where('type', 'setor')
+                            ->where('amount', $tabunganAmt)
+                            ->where('description', 'like', 'Kembalian%')
+                            ->latest()
+                            ->first();
+                        if ($trx) {
+                            $tabungan->decrement('saldo', $tabunganAmt);
+                            $trx->delete();
+                        }
+                    }
+                }
+            }
 
             $pembayaran->delete();
 
