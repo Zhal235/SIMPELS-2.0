@@ -27,6 +27,12 @@ interface FinancialData {
     total_tunggakan: number
     persentase_pembayaran: number
   }
+  crossPeriodPayments: Array<{
+    bulan: string
+    tahun: string
+    jenisTagihan: string
+    total: number
+  }>
 }
 
 export default function LaporanKeuanganLengkap() {
@@ -148,6 +154,24 @@ export default function LaporanKeuanganLengkap() {
       const totalTunggakan = santriData.reduce((sum: number, item: any) => sum + (item.totalSisa || 0), 0)
       const persentasePembayaran = totalTagihan > 0 ? (totalDibayar / totalTagihan) * 100 : 0
 
+      const pembayaranRes = await api.get('/v1/keuangan/pembayaran', {
+        params: { start_date: range.start, end_date: range.end }
+      })
+      const pembayaranList = pembayaranRes.data.data || []
+      const crossMap = new Map<string, { bulan: string; tahun: string; jenisTagihan: string; total: number }>()
+      for (const p of pembayaranList) {
+        const tag = p.tagihan_santri
+        if (!tag || !tag.jenis_tagihan) continue
+        const key = `${tag.jenis_tagihan.nama_tagihan}-${tag.bulan}-${tag.tahun}`
+        if (!crossMap.has(key)) crossMap.set(key, { bulan: tag.bulan, tahun: String(tag.tahun), jenisTagihan: tag.jenis_tagihan.nama_tagihan, total: 0 })
+        crossMap.get(key)!.total += parseFloat(p.nominal_bayar || 0)
+      }
+      const crossPeriodPayments = Array.from(crossMap.values()).sort((a, b) => {
+        if (a.tahun !== b.tahun) return Number(a.tahun) - Number(b.tahun)
+        const BULAN = ['Januari','Februari','Maret','April','Mei','Juni','Juli','Agustus','September','Oktober','November','Desember']
+        return BULAN.indexOf(a.bulan) - BULAN.indexOf(b.bulan)
+      })
+
       setData({
         summary: summaryRes.data.data,
         bukuKas: bukuKasData,
@@ -157,7 +181,8 @@ export default function LaporanKeuanganLengkap() {
           total_dibayar: totalDibayar,
           total_tunggakan: totalTunggakan,
           persentase_pembayaran: persentasePembayaran
-        }
+        },
+        crossPeriodPayments,
       })
     } catch (error) {
       toast.error('Gagal memuat data laporan')
@@ -184,7 +209,7 @@ export default function LaporanKeuanganLengkap() {
 
   const handlePrint = () => {
     if (!data) return
-    printLaporanKeuanganLengkap(data, getPeriodeLabel(), {
+    printLaporanKeuanganLengkap(data, getPeriodeLabel(), data.crossPeriodPayments, {
       namaYayasan: setting?.nama_yayasan,
       namaPesantren: setting?.nama_pesantren,
       kopSuratUrl: setting?.kop_surat_url
@@ -412,8 +437,9 @@ export default function LaporanKeuanganLengkap() {
 
 // Print function for comprehensive financial report
 function printLaporanKeuanganLengkap(
-  data: FinancialData, 
-  periode: string, 
+  data: FinancialData,
+  periode: string,
+  crossPeriodPayments: FinancialData['crossPeriodPayments'],
   instansi: { namaYayasan?: string; namaPesantren?: string; kopSuratUrl?: string | null }
 ) {
   const formatRp = (v: number) => new Intl.NumberFormat('id-ID', { style: 'currency', currency: 'IDR', minimumFractionDigits: 0 }).format(v)
@@ -520,7 +546,31 @@ function printLaporanKeuanganLengkap(
             <div class="row"><span>Persentase Terbayar</span><span class="${data.santriMetrics.persentase_pembayaran >= 80 ? 'green' : data.santriMetrics.persentase_pembayaran >= 60 ? 'blue' : 'red'}" style="font-weight: bold;">${data.santriMetrics.persentase_pembayaran.toFixed(1)}%</span></div>
             <div style="font-size: 10pt; color: #666; margin-top: 6px;">Status pembayaran: ${data.santriMetrics.persentase_pembayaran >= 90 ? 'Sangat Baik' : data.santriMetrics.persentase_pembayaran >= 75 ? 'Baik' : data.santriMetrics.persentase_pembayaran >= 50 ? 'Cukup' : 'Perlu Perhatian'}</div>
           </div>
-          
+
+          ${crossPeriodPayments.length > 0 ? `
+          <div class="subsection-title" style="margin-top:14px;">Rincian Penerimaan Tagihan Santri (Berdasarkan Periode Tagihan):</div>
+          <table>
+            <thead><tr><th>Jenis Tagihan</th><th>Bulan Tagihan</th><th>Tahun</th><th class="text-right">Total Diterima</th></tr></thead>
+            <tbody>
+              ${crossPeriodPayments.map(r => `<tr><td>${r.jenisTagihan}</td><td>${r.bulan}</td><td>${r.tahun}</td><td class="text-right">${formatRp(r.total)}</td></tr>`).join('')}
+              <tr style="font-weight:bold;background:#f0f9ff;">
+                <td colspan="3" style="border:1px solid #999;padding:8px;">TOTAL PENERIMAAN TAGIHAN</td>
+                <td class="text-right" style="border:1px solid #999;padding:8px;color:#047857;">${formatRp(crossPeriodPayments.reduce((s,r)=>s+r.total,0))}</td>
+              </tr>
+            </tbody>
+          </table>
+          ` : ''}
+
+      </div>
+
+      <!-- Page 2: Posisi Keuangan (Neraca) -->
+      <div class="page-break">
+        ${buildHeader('LAPORAN POSISI KEUANGAN (NERACA)')}
+
+        <div class="section">
+          <div class="section-title">II. POSISI KEUANGAN (NERACA)</div>
+          <div class="subsection-title">Posisi Kas &amp; Setara Kas:</div>
+          <table>
           <thead>
             <tr><th>Nama Kas</th><th class="text-right">Kas Tunai</th><th class="text-right">Bank/Transfer</th><th class="text-right">Total</th></tr>
           </thead>
@@ -534,21 +584,22 @@ function printLaporanKeuanganLengkap(
             </tr>
           </tbody>
         </table>
-        
+
         <div class="row total" style="margin: 15px 0;"><span>TOTAL ASET</span><span class="blue">${formatRp(totalKas)}</span></div>
-        
-        <div class="subsection-title">LIABILITAS & EKUITAS</div>
+
+        <div class="subsection-title">LIABILITAS &amp; EKUITAS</div>
         <div class="row indent"><span>Liabilitas Jangka Pendek</span><span>-</span></div>
-        <div class="row indent"><span>Ekuitas/Dana Yayasan</span><span class="blue">${formatRp(totalKas)}</span></div>
-        <div class="row total"><span>TOTAL LIABILITAS & EKUITAS</span><span class="blue">${formatRp(totalKas)}</span></div>
+        <div class="row indent"><span>Ekuitas/Dana Pesantren</span><span class="blue">${formatRp(totalKas)}</span></div>
+        <div class="row total"><span>TOTAL LIABILITAS &amp; EKUITAS</span><span class="blue">${formatRp(totalKas)}</span></div>
+        </div>
       </div>
 
-      <!-- Page 2: Laporan Aktivitas -->
+      <!-- Page 4: Laporan Aktivitas -->
       <div class="page-break">
         ${buildHeader('LAPORAN AKTIVITAS KEUANGAN')}
         
         <div class="section">
-          <div class="section-title">III. LAPORAN AKTIVITAS (LABA/RUGI)</div>
+          <div class="section-title">III. LAPORAN AKTIVITAS </div>
           
           <div class="subsection-title">PENERIMAAN:</div>
           ${receiptsBreakdown}
@@ -565,7 +616,7 @@ function printLaporanKeuanganLengkap(
         </div>
       </div>
 
-      <!-- Page 3: Laporan Arus Kas -->
+      <!-- Page 5: Laporan Arus Kas -->
       <div class="page-break">
         ${buildHeader('LAPORAN ARUS KAS')}
         

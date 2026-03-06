@@ -1,5 +1,4 @@
 import { useState, useEffect } from 'react'
-import { CheckCircle } from 'lucide-react'
 import type { Santri, Tagihan } from '../../../types/pembayaran.types'
 import { formatRupiah, getCurrentWIBForBackend } from '../../../utils/pembayaranHelpers'
 import { prosesPembayaran } from '../../../api/pembayaran'
@@ -20,7 +19,10 @@ interface Props {
 export default function ModalBayarLunas({ tagihan, selectedTagihan, santri, userName, onClose, onSuccess }: Props) {
   const [nominalBayar, setNominalBayar] = useState('')
   const [metodeBayar, setMetodeBayar] = useState<'cash' | 'transfer'>('cash')
-  const [opsiKembalian, setOpsiKembalian] = useState<'tunai' | 'dompet' | 'tabungan'>('tunai')
+  const [keDompet, setKeDompet] = useState(false)
+  const [keTabungan, setKeTabungan] = useState(false)
+  const [nominalKeDompet, setNominalKeDompet] = useState('')
+  const [nominalKeTabungan, setNominalKeTabungan] = useState('')
   const [hasTabungan, setHasTabungan] = useState(false)
 
   useEffect(() => {
@@ -34,21 +36,48 @@ export default function ModalBayarLunas({ tagihan, selectedTagihan, santri, user
   const tagihanTerpilih = tagihan.filter(t => selectedTagihan.includes(String(t.id)))
   const totalTagihan = tagihanTerpilih.reduce((sum, t) => sum + (Number(t.nominal) || 0), 0)
   const kembalian = Math.max(0, Number(nominalBayar) - totalTagihan)
+  const dompetAmt = keDompet ? (Number(nominalKeDompet) || 0) : 0
+  const tabunganAmt = keTabungan ? (Number(nominalKeTabungan) || 0) : 0
+  const tunaiAmt = kembalian - dompetAmt - tabunganAmt
+  const isDistribusiValid = tunaiAmt >= 0
+
+  const handleToggleDompet = (checked: boolean) => {
+    setKeDompet(checked)
+    if (checked) setNominalKeDompet(String(Math.max(0, kembalian - tabunganAmt)))
+    else setNominalKeDompet('')
+  }
+
+  const handleToggleTabungan = (checked: boolean) => {
+    setKeTabungan(checked)
+    if (checked) setNominalKeTabungan(String(Math.max(0, kembalian - dompetAmt)))
+    else setNominalKeTabungan('')
+  }
 
   const handleKonfirmasi = async () => {
+    if (!isDistribusiValid) {
+      toast.error('Total distribusi kembalian melebihi jumlah kembalian')
+      return
+    }
     try {
       const now = new Date()
       const tanggalWIB = now.toLocaleDateString('id-ID', { timeZone: 'Asia/Jakarta', day: '2-digit', month: 'long', year: 'numeric' })
       const jamWIB = now.toLocaleTimeString('id-ID', { timeZone: 'Asia/Jakarta', hour: '2-digit', minute: '2-digit', second: '2-digit', hour12: false }) + ' WIB'
       const currentDateTime = getCurrentWIBForBackend()
+      const kembalianDistribusi = { tunai: Math.max(0, tunaiAmt), dompet: dompetAmt, tabungan: tabunganAmt }
+      const sessionId = 'SES-' + Math.random().toString(36).substr(2, 12).toUpperCase()
+      const sessionNoKwitansi = Math.random().toString(36).substr(2, 9).toUpperCase()
 
-      for (const t of tagihanTerpilih) {
+      for (const [i, t] of tagihanTerpilih.entries()) {
         const snapshot = {
-          no_kwitansi: Math.random().toString(36).substr(2, 9).toUpperCase(),
+          no_kwitansi: sessionNoKwitansi,
+          session_id: sessionId,
           type: 'lunas',
           santri: { nis: santri?.nis, nama_santri: santri?.nama_santri, kelas: santri?.kelas },
           tagihan: { jenis_tagihan: t.jenisTagihan, bulan: t.bulan, tahun: t.tahun, nominal: t.nominal },
           pembayaran: { nominal_bayar: t.nominal, sisa_sebelum: t.sisa || t.nominal, sisa_sesudah: 0, metode_pembayaran: metodeBayar, tanggal_bayar: currentDateTime },
+          nominal_bayar_pengguna: Number(nominalBayar),
+          kembalian,
+          kembalian_distribusi: i === 0 ? kembalianDistribusi : null,
           admin: userName,
           tanggal_cetak: tanggalWIB,
           jam_cetak: jamWIB,
@@ -64,22 +93,23 @@ export default function ModalBayarLunas({ tagihan, selectedTagihan, santri, user
       }
 
       toast.success('Pembayaran berhasil!')
+      const descKembalian = tagihanTerpilih.map(t => `${t.jenisTagihan} ${t.bulan} ${t.tahun}`).join(', ')
 
-      if (opsiKembalian === 'dompet' && kembalian > 0 && santri?.id) {
+      if (dompetAmt > 0 && santri?.id) {
         try {
-          await topupWallet(String(santri.id), kembalian, `Kembalian pembayaran ${tagihanTerpilih.map(t => `${t.jenisTagihan} ${t.bulan} ${t.tahun}`).join(', ')}`, metodeBayar)
-          toast.success(`Kembalian ${formatRupiah(kembalian)} berhasil disimpan ke dompet santri`)
+          await topupWallet(String(santri.id), dompetAmt, `Kembalian pembayaran ${descKembalian}`, metodeBayar)
+          toast.success(`${formatRupiah(dompetAmt)} berhasil disimpan ke dompet`)
         } catch { toast.error('Pembayaran berhasil, tapi gagal menyimpan ke dompet — lakukan manual') }
       }
 
-      if (opsiKembalian === 'tabungan' && kembalian > 0 && santri?.id) {
+      if (tabunganAmt > 0 && santri?.id) {
         try {
-          await setorTabungan(String(santri.id), { amount: kembalian, description: `Kembalian pembayaran ${tagihanTerpilih.map(t => `${t.jenisTagihan} ${t.bulan} ${t.tahun}`).join(', ')}`, method: metodeBayar })
-          toast.success(`Kembalian ${formatRupiah(kembalian)} berhasil disetorkan ke tabungan`)
+          await setorTabungan(String(santri.id), { amount: tabunganAmt, description: `Kembalian pembayaran ${descKembalian}`, method: metodeBayar })
+          toast.success(`${formatRupiah(tabunganAmt)} berhasil disetorkan ke tabungan`)
         } catch { toast.error('Pembayaran berhasil, tapi gagal menyetor ke tabungan — lakukan manual') }
       }
 
-      onSuccess({ type: 'lunas', santri, tagihan: tagihanTerpilih, totalTagihan, totalBayar: totalTagihan, nominalBayar: Number(nominalBayar), kembalian, opsiKembalian, metodeBayar, tanggal: tanggalWIB, jam: jamWIB, admin: userName })
+      onSuccess({ type: 'lunas', santri, tagihan: tagihanTerpilih, totalTagihan, totalBayar: totalTagihan, nominalBayar: Number(nominalBayar), kembalian, kembalianDistribusi, metodeBayar, tanggal: tanggalWIB, jam: jamWIB, admin: userName })
     } catch (error: any) {
       toast.error(error.response?.data?.message || 'Gagal memproses pembayaran')
     }
@@ -122,23 +152,38 @@ export default function ModalBayarLunas({ tagihan, selectedTagihan, santri, user
             {nominalBayar && <p className="text-sm text-gray-600 mt-1">{formatRupiah(Number(nominalBayar))}</p>}
           </div>
           {kembalian > 0 && (
-            <div className="mb-6">
-              <div className="p-4 bg-green-50 rounded-lg mb-3">
-                <p className="text-sm text-gray-700 mb-1">Kembalian:</p>
+            <div className="mb-6 p-4 bg-green-50 rounded-lg border border-green-200">
+              <div className="flex justify-between items-center mb-3">
+                <p className="font-semibold text-gray-700">Kembalian</p>
                 <p className="text-xl font-bold text-green-600">{formatRupiah(kembalian)}</p>
               </div>
-              <p className="text-sm font-medium text-gray-700 mb-2">Opsi Kembalian:</p>
-              <div className="flex gap-3 flex-wrap">
-                <button onClick={() => setOpsiKembalian('tunai')} className={`flex-1 px-4 py-3 rounded-lg border-2 transition-colors ${opsiKembalian === 'tunai' ? 'border-blue-600 bg-blue-50 text-blue-700' : 'border-gray-300 hover:border-gray-400'}`}>Kembalian Tunai</button>
-                <button onClick={() => setOpsiKembalian('dompet')} className={`flex-1 px-4 py-3 rounded-lg border-2 transition-colors ${opsiKembalian === 'dompet' ? 'border-blue-600 bg-blue-50 text-blue-700' : 'border-gray-300 hover:border-gray-400'}`}>Masukkan ke Dompet Santri</button>
-                {hasTabungan && <button onClick={() => setOpsiKembalian('tabungan')} className={`flex-1 px-4 py-3 rounded-lg border-2 transition-colors ${opsiKembalian === 'tabungan' ? 'border-green-600 bg-green-50 text-green-700' : 'border-gray-300 hover:border-gray-400'}`}>💰 Simpan ke Tabungan</button>}
+              <p className="text-sm font-medium text-gray-600 mb-2">Alokasikan kembalian ke:</p>
+              <div className="space-y-2">
+                <label className="flex items-center gap-3 cursor-pointer p-2 rounded hover:bg-green-100">
+                  <input type="checkbox" checked={keDompet} onChange={(e) => handleToggleDompet(e.target.checked)} className="w-4 h-4 text-blue-600 rounded" />
+                  <span className="text-sm font-medium text-gray-700 flex-1">Ke Dompet Santri</span>
+                  {keDompet && <input type="text" value={nominalKeDompet} onChange={(e) => setNominalKeDompet(e.target.value.replace(/\D/g, ''))} className="w-32 px-2 py-1 text-sm border border-gray-300 rounded focus:ring-1 focus:ring-blue-500 text-right" placeholder="0" />}
+                </label>
+                {hasTabungan && (
+                  <label className="flex items-center gap-3 cursor-pointer p-2 rounded hover:bg-green-100">
+                    <input type="checkbox" checked={keTabungan} onChange={(e) => handleToggleTabungan(e.target.checked)} className="w-4 h-4 text-green-600 rounded" />
+                    <span className="text-sm font-medium text-gray-700 flex-1">Ke Tabungan</span>
+                    {keTabungan && <input type="text" value={nominalKeTabungan} onChange={(e) => setNominalKeTabungan(e.target.value.replace(/\D/g, ''))} className="w-32 px-2 py-1 text-sm border border-gray-300 rounded focus:ring-1 focus:ring-green-500 text-right" placeholder="0" />}
+                  </label>
+                )}
+                <div className={`flex justify-between items-center px-2 py-1.5 rounded text-sm ${!isDistribusiValid ? 'bg-red-50' : ''}`}>
+                  <span className="text-gray-600">Kembalian Tunai (sisa):</span>
+                  <span className={`font-semibold ${!isDistribusiValid ? 'text-red-600' : 'text-green-700'}`}>
+                    {isDistribusiValid ? formatRupiah(tunaiAmt) : '⚠ Melebihi kembalian!'}
+                  </span>
+                </div>
               </div>
             </div>
           )}
         </div>
         <div className="p-6 border-t flex gap-3 justify-end">
           <button onClick={onClose} className="px-6 py-2 border border-gray-300 rounded-lg hover:bg-gray-50">Batal</button>
-          <button onClick={handleKonfirmasi} disabled={!nominalBayar || Number(nominalBayar) < totalTagihan} className="px-6 py-2 bg-blue-600 text-white rounded-lg hover:bg-blue-700 disabled:opacity-50 disabled:cursor-not-allowed">
+          <button onClick={handleKonfirmasi} disabled={!nominalBayar || Number(nominalBayar) < totalTagihan || !isDistribusiValid} className="px-6 py-2 bg-blue-600 text-white rounded-lg hover:bg-blue-700 disabled:opacity-50 disabled:cursor-not-allowed">
             Konfirmasi Pembayaran
           </button>
         </div>
