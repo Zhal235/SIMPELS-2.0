@@ -2,6 +2,28 @@ const { Client, LocalAuth } = require('whatsapp-web.js');
 const qrcode = require('qrcode');
 const path = require('path');
 const os = require('os');
+const fs = require('fs');
+
+function clearChromiumLocks(authPath) {
+    const patterns = ['SingletonLock', 'SingletonCookie', 'SingletonSocket'];
+    try {
+        const entries = fs.readdirSync(authPath, { withFileTypes: true });
+        for (const entry of entries) {
+            const sessionDir = path.join(authPath, entry.name);
+            if (entry.isDirectory()) {
+                for (const p of patterns) {
+                    const lockFile = path.join(sessionDir, p);
+                    if (fs.existsSync(lockFile)) {
+                        fs.rmSync(lockFile, { force: true });
+                        console.log(`[WA] Removed stale lock: ${lockFile}`);
+                    }
+                }
+            }
+        }
+    } catch (e) {
+        // auth dir may not exist yet on first run
+    }
+}
 
 let state = {
     status: 'disconnected',
@@ -29,9 +51,12 @@ function buildPuppeteerConfig() {
     return { args };
 }
 
+const AUTH_PATH = process.env.WA_AUTH_PATH || path.join(process.cwd(), '.wwebjs_auth');
+clearChromiumLocks(AUTH_PATH);
+
 const client = new Client({
     authStrategy: new LocalAuth({
-        dataPath: process.env.WA_AUTH_PATH || path.join(process.cwd(), '.wwebjs_auth'),
+        dataPath: AUTH_PATH,
     }),
     puppeteer: buildPuppeteerConfig(),
 });
