@@ -2,7 +2,7 @@ const { sendMessage } = require('./whatsapp');
 const { notifyLaravel } = require('./callback');
 const { onMemJob, useRedis } = require('./queue');
 
-const QUEUE_NAME = process.env.WA_QUEUE_NAME || 'wa:messages';
+const QUEUE_NAME = process.env.WA_QUEUE_NAME || 'wa_messages';
 
 async function processJob(job) {
     const { logId, to, message } = job.data;

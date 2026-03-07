@@ -1,4 +1,4 @@
-const QUEUE_NAME = process.env.WA_QUEUE_NAME || 'wa:messages';
+const QUEUE_NAME = process.env.WA_QUEUE_NAME || 'wa_messages';
 
 let bullQueue = null;
 const memQueue = [];

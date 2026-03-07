@@ -108,7 +108,7 @@ services:
       - REDIS_URL=redis://:${REDIS_PASSWORD:-redispassword}@redis:6379
       - LARAVEL_CALLBACK_URL=http://nginx/api/v1/wa/callback
       - WA_CALLBACK_SECRET=${WA_GATEWAY_SECRET:-change_this_secret}
-      - WA_QUEUE_NAME=wa:messages
+      - WA_QUEUE_NAME=wa_messages
     depends_on:
       redis:
         condition: service_healthy
