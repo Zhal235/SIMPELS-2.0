@@ -4,6 +4,7 @@ import { Download, Printer } from 'lucide-react'
 import { exportToExcel } from '../../utils/exportExcel'
 import { printPerBukuKas } from '../../utils/printLaporan'
 import { useInstansiSetting } from '../../hooks/useInstansiSetting'
+import BukuKasCard from '../../components/keuangan/BukuKasCard'
 
 interface BukuKas {
   id: number
@@ -62,67 +63,64 @@ export default function LaporanPerBukuKas() {
     }
   }
 
+  const calcNetMutasi = (transaksi: any[], excludeTI: boolean) => {
+    let cash_in = 0, cash_out = 0, bank_in = 0, bank_out = 0
+    transaksi.forEach((t: any) => {
+      if (excludeTI && t.kategori && t.kategori.includes('Transfer Internal')) return
+      const nominal = parseFloat(t.nominal || 0)
+      const isMasuk = t.jenis === 'pemasukan'
+      const isCash = t.metode === 'cash' || t.metode === 'tunai'
+      if (isMasuk) { if (isCash) cash_in += nominal; else bank_in += nominal }
+      else { if (isCash) cash_out += nominal; else bank_out += nominal }
+    })
+    return { cash_in, cash_out, bank_in, bank_out }
+  }
+
   const fetchData = async () => {
     const range = getDateRange()
     if (!range) return
 
     setLoading(true)
     try {
-      // Fetch all buku kas
       const bukuKasRes = await api.get('/v1/keuangan/buku-kas')
       const bukuKasList: BukuKas[] = bukuKasRes.data.data
 
-      // Fetch transaksi for each buku kas
+      const prevEndDate = (() => {
+        const d = new Date(range.start)
+        d.setDate(d.getDate() - 1)
+        return d.toISOString().split('T')[0]
+      })()
+
       const kasData: KasMutasi[] = await Promise.all(
         bukuKasList.map(async (kas) => {
-          const transaksiRes = await api.get('/v1/keuangan/transaksi-kas', {
-            params: {
-              buku_kas_id: kas.id,
-              start_date: range.start,
-              end_date: range.end
-            }
-          })
+          const [transaksiRes, prevTransaksiRes] = await Promise.all([
+            api.get('/v1/keuangan/transaksi-kas', {
+              params: { buku_kas_id: kas.id, start_date: range.start, end_date: range.end }
+            }),
+            api.get('/v1/keuangan/transaksi-kas', {
+              params: { buku_kas_id: kas.id, end_date: prevEndDate }
+            })
+          ])
 
           const transaksi = transaksiRes.data.data || []
-          
-          // Calculate mutations - EXCLUDE Transfer Internal
-          let mutasi_masuk_cash = 0
-          let mutasi_masuk_bank = 0
-          let mutasi_keluar_cash = 0
-          let mutasi_keluar_bank = 0
+          const prevTransaksi = prevTransaksiRes.data.data || []
 
-          transaksi.forEach((t: any) => {
-            // Skip Transfer Internal (perpindahan Bank ↔ Cash dalam 1 buku kas)
-            if (t.kategori && t.kategori.includes('Transfer Internal')) {
-              return // Skip this transaction
-            }
-            
-            const nominal = parseFloat(t.nominal || 0)
-            const isMasuk = t.jenis === 'pemasukan'
-            const isCash = t.metode === 'cash' || t.metode === 'tunai'
+          const prev = calcNetMutasi(prevTransaksi, true)
+          const saldo_awal_cash = (kas.saldo_cash_awal || 0) + prev.cash_in - prev.cash_out
+          const saldo_awal_bank = (kas.saldo_bank_awal || 0) + prev.bank_in - prev.bank_out
 
-            if (isMasuk) {
-              if (isCash) mutasi_masuk_cash += nominal
-              else mutasi_masuk_bank += nominal
-            } else {
-              if (isCash) mutasi_keluar_cash += nominal
-              else mutasi_keluar_bank += nominal
-            }
-          })
-
-          const saldo_awal_cash = parseFloat((kas.saldo_cash_awal || 0).toString())
-          const saldo_awal_bank = parseFloat((kas.saldo_bank_awal || 0).toString())
-          const saldo_akhir_cash = saldo_awal_cash + mutasi_masuk_cash - mutasi_keluar_cash
-          const saldo_akhir_bank = saldo_awal_bank + mutasi_masuk_bank - mutasi_keluar_bank
+          const period = calcNetMutasi(transaksi, true)
+          const saldo_akhir_cash = saldo_awal_cash + period.cash_in - period.cash_out
+          const saldo_akhir_bank = saldo_awal_bank + period.bank_in - period.bank_out
 
           return {
             buku_kas: kas,
             saldo_awal_cash,
             saldo_awal_bank,
-            mutasi_masuk_cash,
-            mutasi_masuk_bank,
-            mutasi_keluar_cash,
-            mutasi_keluar_bank,
+            mutasi_masuk_cash: period.cash_in,
+            mutasi_masuk_bank: period.bank_in,
+            mutasi_keluar_cash: period.cash_out,
+            mutasi_keluar_bank: period.bank_out,
             saldo_akhir_cash,
             saldo_akhir_bank,
             total_saldo_akhir: saldo_akhir_cash + saldo_akhir_bank
@@ -277,77 +275,7 @@ export default function LaporanPerBukuKas() {
       ) : data.length > 0 ? (
         <div className="space-y-4">
           {data.map((kas) => (
-            <div key={kas.buku_kas.id} className="bg-white rounded-lg shadow-sm border border-gray-200 overflow-hidden">
-              <div className="bg-gradient-to-r from-blue-600 to-blue-500 p-4">
-                <h3 className="text-lg font-semibold text-white">{kas.buku_kas.nama_kas}</h3>
-              </div>
-
-              <div className="p-6">
-                <div className="grid grid-cols-1 md:grid-cols-2 gap-6">
-                  {/* Kas Tunai */}
-                  <div className="space-y-3">
-                    <h4 className="font-semibold text-gray-900 pb-2 border-b-2 border-blue-200">
-                      💵 KAS TUNAI (CASH)
-                    </h4>
-                    <div className="space-y-2 ml-2">
-                      <div className="flex justify-between">
-                        <span className="text-gray-700">Saldo Awal</span>
-                        <span className="font-medium">{formatCurrency(kas.saldo_awal_cash)}</span>
-                      </div>
-                      <div className="flex justify-between text-green-600">
-                        <span>Mutasi Masuk (+)</span>
-                        <span className="font-medium">{formatCurrency(kas.mutasi_masuk_cash)}</span>
-                      </div>
-                      <div className="flex justify-between text-red-600">
-                        <span>Mutasi Keluar (-)</span>
-                        <span className="font-medium">{formatCurrency(kas.mutasi_keluar_cash)}</span>
-                      </div>
-                      <div className="flex justify-between font-semibold text-blue-600 pt-2 border-t-2 border-gray-200">
-                        <span>Saldo Akhir</span>
-                        <span>{formatCurrency(kas.saldo_akhir_cash)}</span>
-                      </div>
-                    </div>
-                  </div>
-
-                  {/* Kas Bank */}
-                  <div className="space-y-3">
-                    <h4 className="font-semibold text-gray-900 pb-2 border-b-2 border-green-200">
-                      🏦 KAS BANK (TRANSFER)
-                    </h4>
-                    <div className="space-y-2 ml-2">
-                      <div className="flex justify-between">
-                        <span className="text-gray-700">Saldo Awal</span>
-                        <span className="font-medium">{formatCurrency(kas.saldo_awal_bank)}</span>
-                      </div>
-                      <div className="flex justify-between text-green-600">
-                        <span>Mutasi Masuk (+)</span>
-                        <span className="font-medium">{formatCurrency(kas.mutasi_masuk_bank)}</span>
-                      </div>
-                      <div className="flex justify-between text-red-600">
-                        <span>Mutasi Keluar (-)</span>
-                        <span className="font-medium">{formatCurrency(kas.mutasi_keluar_bank)}</span>
-                      </div>
-                      <div className="flex justify-between font-semibold text-green-600 pt-2 border-t-2 border-gray-200">
-                        <span>Saldo Akhir</span>
-                        <span>{formatCurrency(kas.saldo_akhir_bank)}</span>
-                      </div>
-                    </div>
-                  </div>
-                </div>
-
-                {/* Total Saldo */}
-                <div className="mt-6 pt-4 border-t-4 border-gray-900">
-                  <div className="bg-gradient-to-r from-gray-50 to-blue-50 p-4 rounded-lg">
-                    <div className="flex justify-between items-center">
-                      <span className="text-lg font-bold text-gray-900">TOTAL SALDO AKHIR</span>
-                      <span className="text-2xl font-bold text-blue-600">
-                        {formatCurrency(kas.total_saldo_akhir)}
-                      </span>
-                    </div>
-                  </div>
-                </div>
-              </div>
-            </div>
+            <BukuKasCard key={kas.buku_kas.id} kas={kas} formatCurrency={formatCurrency} />
           ))}
 
           {/* Grand Total */}

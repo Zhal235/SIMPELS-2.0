@@ -94,6 +94,8 @@ class BukuKasController extends Controller
             return [
                 'id' => $bukuKas->id,
                 'nama_kas' => $bukuKas->nama_kas,
+                'saldo_cash_awal' => (float) $bukuKas->saldo_cash_awal,
+                'saldo_bank_awal' => (float) $bukuKas->saldo_bank_awal,
                 'saldo_cash' => (float) $saldoCash,
                 'saldo_bank' => (float) $saldoBank,
                 'total_saldo' => (float) ($saldoCash + $saldoBank),

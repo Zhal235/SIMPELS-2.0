@@ -30,6 +30,8 @@ class TransaksiKasController extends Controller
         // Filter by date range
         if ($request->has('start_date') && $request->has('end_date')) {
             $query->whereBetween('tanggal', [$request->start_date, $request->end_date]);
+        } elseif ($request->has('end_date')) {
+            $query->where('tanggal', '<=', $request->end_date);
         }
 
         // Filter by created_by (operator)

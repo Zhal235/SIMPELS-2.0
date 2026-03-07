@@ -201,7 +201,7 @@ class _MultiplePaymentInfoScreenState extends State<MultiplePaymentInfoScreen> {
           ]),
           const SizedBox(height: 8),
           const Text(
-            '� Transfer TEPAT sesuai nominal di atas\n� Simpan bukti transfer (screenshot/foto struk)\n� Upload bukti setelah transfer berhasil\n� Tunggu konfirmasi dari admin',
+            '- Transfer TEPAT sesuai nominal di atas\n- Simpan bukti transfer (screenshot/foto struk)\n- Upload bukti setelah transfer berhasil\n- Tunggu konfirmasi dari admin',
             style: TextStyle(fontSize: 12),
           ),
         ],
