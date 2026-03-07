@@ -16,9 +16,11 @@ COPY package*.json ./
 RUN npm ci --only=production
 
 COPY src/ ./src/
+COPY scripts/entrypoint.sh /entrypoint.sh
+RUN chmod +x /entrypoint.sh
 
 VOLUME ["/app/.wwebjs_auth"]
 
 EXPOSE 3100
 
-CMD ["node", "src/index.js"]
+ENTRYPOINT ["/entrypoint.sh"]
