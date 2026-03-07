@@ -42,7 +42,7 @@ function startWorker() {
     if (useRedis()) {
         const { Worker } = require('bullmq');
         const { createClient } = require('./redis');
-        const worker = new Worker(QUEUE_NAME, processJob, { connection: createClient(), concurrency: 3 });
+        const worker = new Worker(QUEUE_NAME, processJob, { connection: createClient(), concurrency: 1 });
         worker.on('error', (err) => console.error('[Worker] Error:', err.message));
         console.log(`[Worker] BullMQ listening on queue: ${QUEUE_NAME}`);
         return worker;

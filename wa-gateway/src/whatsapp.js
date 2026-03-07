@@ -134,12 +134,38 @@ client.on('auth_failure', (msg) => {
     setTimeout(() => process.exit(1), 1000);
 });
 
+function randomDelay(minMs, maxMs) {
+    const ms = Math.floor(Math.random() * (maxMs - minMs + 1)) + minMs;
+    return new Promise((resolve) => setTimeout(resolve, ms));
+}
+
+const MIN_DELAY_MS = parseInt(process.env.WA_MIN_DELAY_MS || '3000', 10);
+const MAX_DELAY_MS = parseInt(process.env.WA_MAX_DELAY_MS || '8000', 10);
+const TYPING_ENABLED = process.env.WA_TYPING_SIMULATION !== 'false';
+
 async function sendMessage(to, message) {
     if (state.status !== 'connected') {
         throw new Error(`WA client not connected (status: ${state.status})`);
     }
 
     const chatId = to.replace(/\D/g, '').replace(/^0/, '62') + '@c.us';
+
+    // Jeda acak sebelum kirim agar tidak terdeteksi sebagai bot
+    await randomDelay(MIN_DELAY_MS, MAX_DELAY_MS);
+
+    if (TYPING_ENABLED) {
+        try {
+            const chat = await client.getChatById(chatId);
+            await chat.sendStateTyping();
+            // Simulasi waktu mengetik berdasarkan panjang pesan (50ms/karakter, min 1s max 4s)
+            const typingMs = Math.min(Math.max(message.length * 50, 1000), 4000);
+            await randomDelay(typingMs, typingMs + 500);
+            await chat.clearState();
+        } catch {
+            // Typing simulation tidak kritis, lanjut kirim jika gagal
+        }
+    }
+
     await client.sendMessage(chatId, message);
 }
 
