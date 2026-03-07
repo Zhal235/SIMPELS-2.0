@@ -17,4 +17,4 @@ cmds = [
 ]
 
 [start]
-cmd = "php artisan optimize:clear && php artisan config:cache && php artisan migrate --force --no-interaction ; (while true; do php artisan schedule:run >> /dev/null 2>&1; sleep 60; done) & php artisan serve --host=0.0.0.0 --port=$PORT"
+cmd = "php artisan optimize:clear && php artisan config:cache && php artisan migrate --force --no-interaction ; (while true; do php artisan schedule:run >> /dev/null 2>&1; sleep 60; done) & php artisan queue:work --queue=default --tries=3 --timeout=30 --sleep=3 & php artisan serve --host=0.0.0.0 --port=$PORT"
