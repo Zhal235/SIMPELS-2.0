@@ -103,6 +103,19 @@ client.on('ready', () => {
     state.phone = info?.wid?.user ? `+${info.wid.user}` : 'unknown';
     state.connectedAt = new Date().toISOString();
     console.log(`[WA] Ready — connected as ${state.phone}`);
+
+    // Deteksi halaman WA Web crash atau navigate away
+    const page = client.pupPage;
+    if (page) {
+        page.on('crash', () => {
+            console.error('[WA] Page crashed, exiting for clean restart...');
+            setTimeout(() => process.exit(1), 500);
+        });
+        page.on('close', () => {
+            console.error('[WA] Page closed unexpectedly, exiting...');
+            setTimeout(() => process.exit(1), 500);
+        });
+    }
 });
 
 client.on('disconnected', (reason) => {
