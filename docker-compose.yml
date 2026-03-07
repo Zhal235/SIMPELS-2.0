@@ -92,7 +92,29 @@ services:
     depends_on:
       - redis
 
+  # ─── WA Gateway (whatsapp-web.js) ─────────────────────────────────────────────
+  wa-gateway:
+    build:
+      context: ./wa-gateway
+      dockerfile: Dockerfile
+    container_name: simpels_wa_gateway
+    restart: unless-stopped
+    ports:
+      - "3100:3100"
+    volumes:
+      - wa_session:/app/.wwebjs_auth
+    environment:
+      - PORT=3100
+      - REDIS_URL=redis://:${REDIS_PASSWORD:-redispassword}@redis:6379
+      - LARAVEL_CALLBACK_URL=http://nginx/api/v1/wa/callback
+      - WA_CALLBACK_SECRET=${WA_GATEWAY_SECRET:-change_this_secret}
+      - WA_QUEUE_NAME=wa:messages
+    depends_on:
+      redis:
+        condition: service_healthy
+
 volumes:
   db_data:
   redis_data:
   backend_storage:
+  wa_session:

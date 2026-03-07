@@ -10,3 +10,7 @@ Artisan::command('inspire', function () {
 
 // Backup database every day at 02:00 WIB (UTC+7 = 19:00 UTC)
 Schedule::command('db:backup')->dailyAt('19:00')->timezone('UTC');
+
+// WA: Jalankan pengecekan jadwal setiap hari pukul 07:00 WIB (00:00 UTC)
+Schedule::command('wa:run-scheduled')->dailyAt('00:00')->timezone('UTC');
+

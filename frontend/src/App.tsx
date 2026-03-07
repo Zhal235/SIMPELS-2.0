@@ -67,6 +67,8 @@ const PindahTahunAjaran = lazy(() => import('./pages/akademik/PindahTahunAjaran'
 // Kepegawaian subpages
 const DataPegawai = lazy(() => import('./pages/kepegawaian/DataPegawai'))
 const StrukturJabatan = lazy(() => import('./pages/kepegawaian/StrukturJabatan'))
+// WA Gateway
+const WaGatewayPage = lazy(() => import('./pages/wa/WaGatewayPage'))
 
 // Protected Route Component
 function ProtectedRoute({ children }: { children: React.ReactNode }) {
@@ -471,6 +473,15 @@ export default function App() {
               <ProtectedRoute>
                 <AppLayout>
                   <PindahTahunAjaran />
+                </AppLayout>
+              </ProtectedRoute>
+            } />
+
+            {/* WA Gateway Routes */}
+            <Route path="/wa-gateway" element={
+              <ProtectedRoute>
+                <AppLayout>
+                  <WaGatewayPage />
                 </AppLayout>
               </ProtectedRoute>
             } />

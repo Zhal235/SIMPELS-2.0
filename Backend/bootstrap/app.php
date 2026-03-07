@@ -24,6 +24,7 @@ return Application::configure(basePath: dirname(__DIR__))
         // Register custom middleware aliases
         $middleware->alias([
             'permission' => \App\Http\Middleware\CheckPermission::class,
+            'role'       => \App\Http\Middleware\CheckRole::class,
         ]);
         
         // Exclude storage routes and API routes from CSRF verification

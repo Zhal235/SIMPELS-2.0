@@ -40,4 +40,9 @@ return [
         'timeout' => env('EPOS_API_TIMEOUT', 30),
     ],
 
+    'wa_gateway' => [
+        'url'    => env('WA_GATEWAY_URL', 'http://wa-gateway:3100'),
+        'secret' => env('WA_GATEWAY_SECRET', ''),
+    ],
+
 ];
