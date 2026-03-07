@@ -1,17 +1,23 @@
 FROM node:20-slim
 
+# Dependencies untuk Chrome (headless) dan fonts
 RUN apt-get update && apt-get install -y \
-    chromium \
+    wget \
+    gnupg \
+    ca-certificates \
     fonts-freefont-ttf \
     fonts-noto \
     fonts-noto-cjk \
-    ca-certificates \
     dumb-init \
     --no-install-recommends \
+    && wget -q -O - https://dl.google.com/linux/linux_signing_key.pub | gpg --dearmor -o /usr/share/keyrings/googlechrome-linux-keyring.gpg \
+    && echo "deb [arch=amd64 signed-by=/usr/share/keyrings/googlechrome-linux-keyring.gpg] http://dl.google.com/linux/chrome/deb/ stable main" >> /etc/apt/sources.list.d/google.list \
+    && apt-get update \
+    && apt-get install -y google-chrome-stable --no-install-recommends \
     && rm -rf /var/lib/apt/lists/*
 
 ENV PUPPETEER_SKIP_CHROMIUM_DOWNLOAD=true
-ENV PUPPETEER_EXECUTABLE_PATH=/usr/bin/chromium
+ENV PUPPETEER_EXECUTABLE_PATH=/usr/bin/google-chrome-stable
 
 WORKDIR /app
 
@@ -26,6 +32,6 @@ VOLUME ["/app/.wwebjs_auth"]
 
 EXPOSE 3100
 
-# dumb-init mencegah zombie process dari Chromium
+# dumb-init mencegah zombie process dari Chrome
 ENTRYPOINT ["/usr/bin/dumb-init", "--"]
 CMD ["/entrypoint.sh"]

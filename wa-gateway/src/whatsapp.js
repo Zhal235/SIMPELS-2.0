@@ -64,15 +64,10 @@ function buildPuppeteerConfig() {
 
     const base = { args, protocolTimeout: 120000 };
 
-    if (process.env.PUPPETEER_EXECUTABLE_PATH) {
-        return { ...base, executablePath: process.env.PUPPETEER_EXECUTABLE_PATH };
-    }
+    const execPath = process.env.PUPPETEER_EXECUTABLE_PATH
+        || (os.platform() === 'linux' ? '/usr/bin/google-chrome-stable' : undefined);
 
-    if (os.platform() === 'linux') {
-        return { ...base, executablePath: '/usr/bin/chromium' };
-    }
-
-    return base;
+    return execPath ? { ...base, executablePath: execPath } : base;
 }
 
 clearChromiumLocks(AUTH_PATH);
