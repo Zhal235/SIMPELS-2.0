@@ -125,7 +125,11 @@ class TabunganController extends Controller
     {
         $tabungan = SantriTabungan::with(['santri.kelas', 'santri.asrama'])
             ->where('santri_id', $santriId)
-            ->firstOrFail();
+            ->first();
+
+        if (!$tabungan) {
+            return response()->json(['success' => false, 'data' => null, 'message' => 'Tabungan tidak ditemukan'], 404);
+        }
 
         return response()->json([
             'success' => true,

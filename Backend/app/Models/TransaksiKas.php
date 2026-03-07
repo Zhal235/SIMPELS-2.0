@@ -66,7 +66,7 @@ class TransaksiKas extends Model
         $date = date('Ymd');
         
         // Cari nomor terakhir dengan prefix dan tanggal yang sama
-        $lastTransaksi = self::where('no_transaksi', 'LIKE', $prefix . '-' . $date . '-%')
+        $lastTransaksi = self::withTrashed()->where('no_transaksi', 'LIKE', $prefix . '-' . $date . '-%')
             ->orderBy('no_transaksi', 'desc')
             ->first();
         

@@ -66,7 +66,7 @@ class Pembayaran extends Model
     public static function generateNoTransaksi()
     {
         $date = date('Ymd');
-        $lastPembayaran = self::whereDate('created_at', today())
+        $lastPembayaran = self::withTrashed()->whereDate('created_at', today())
             ->orderBy('id', 'desc')
             ->first();
         
