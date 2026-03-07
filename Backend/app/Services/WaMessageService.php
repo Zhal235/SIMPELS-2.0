@@ -145,12 +145,41 @@ class WaMessageService
             ->get();
     }
 
-    public function buildPengumumanMessage(string $judul, string $isi): string
+    public function buildPengumumanMessageForWali(Santri $santri, string $judul, string $isi): string
     {
-        return $this->renderTemplate('pengumuman', [
-            'judul' => $judul,
-            'isi'   => $isi,
+        $namaWali = $santri->nama_ayah ?: $santri->nama_ibu ?: 'Wali Santri';
+        return $this->renderTemplate('pengumuman_wali', [
+            'nama_wali'   => $namaWali,
+            'nama_santri' => $santri->nama_santri,
+            'judul'       => $judul,
+            'isi'         => $isi,
         ]);
+    }
+
+    public function buildPengumumanMessageForPegawai(Pegawai $pegawai, string $judul, string $isi): string
+    {
+        return $this->renderTemplate('pengumuman_pegawai', [
+            'nama_pegawai' => $pegawai->nama_pegawai,
+            'judul'        => $judul,
+            'isi'          => $isi,
+        ]);
+    }
+
+    public function blastPengumumanToAllWali(string $judul, string $isi): Collection
+    {
+        $santriList = Santri::where('status', 'aktif')->get();
+        $logs = collect();
+
+        foreach ($santriList as $santri) {
+            try {
+                $message = $this->buildPengumumanMessageForWali($santri, $judul, $isi);
+                $logs->push($this->sendToSantriWali($santri, 'pengumuman', $message));
+            } catch (\Throwable $e) {
+                Log::error("[WA Blast Pengumuman] Skip santri {$santri->id}: {$e->getMessage()}");
+            }
+        }
+
+        return $logs;
     }
 
     private function resolveWaliPhone(Santri $santri): string
@@ -191,7 +220,9 @@ class WaMessageService
             'tagihan_detail'  => "Assalamu'alaikum Wr. Wb.\nYth. Wali Santri *{{nama_santri}}*\n\nBerikut tagihan bulan *{{bulan_tahun}}*:\n{{daftar_tagihan}}\n────────────────{{bagian_tunggakan}}\n*Total Keseluruhan: Rp {{total}}*\n\nPembayaran dapat dilakukan melalui aplikasi SIMPELS atau transfer ke rekening pesantren.\n\nTerima kasih.\n_SIMPELS - Sistem Informasi Pesantren_",
             'reminder'        => "Assalamu'alaikum Wr. Wb.\nYth. Wali Santri *{{nama_santri}}*\n\nKami mengingatkan bahwa pembayaran SPP bulan *{{bulan_tahun}}* belum dilakukan. Mohon segera melakukan pembayaran paling lambat tanggal *{{jatuh_tempo}}*.\n\nTerima kasih atas perhatiannya.\n_SIMPELS - Sistem Informasi Pesantren_",
             'rekap_tunggakan' => "Assalamu'alaikum Wr. Wb.\nYth. Wali Santri *{{nama_santri}}*\n\n⚠️ *REKAP TUNGGAKAN BELUM LUNAS*\n\n{{daftar_tunggakan}}\n────────────────\n*Total Tunggakan: Rp {{total}}*\n\nMohon segera melunasi tagihan di atas melalui aplikasi SIMPELS atau transfer ke rekening pesantren.\n\nTerima kasih atas perhatiannya.\n_SIMPELS - Sistem Informasi Pesantren_",
-            'pengumuman'      => "📢 *PENGUMUMAN*\n*{{judul}}*\n\n{{isi}}\n\n_SIMPELS - Sistem Informasi Pesantren_",
+            'pengumuman'         => "📢 *PENGUMUMAN*\n*{{judul}}*\n\n{{isi}}\n\n_SIMPELS - Sistem Informasi Pesantren_",
+            'pengumuman_wali'    => "📢 *PENGUMUMAN*\n\nAssalamu'alaikum Wr. Wb.\nYth. Bpk/Ibu *{{nama_wali}}*\nWali dari Ananda *{{nama_santri}}*\n\n*{{judul}}*\n\n{{isi}}\n\n_SIMPELS - Sistem Informasi Pesantren_",
+            'pengumuman_pegawai' => "📢 *PENGUMUMAN*\n\nAssalamu'alaikum Wr. Wb.\nYth. *{{nama_pegawai}}*\n\n*{{judul}}*\n\n{{isi}}\n\n_SIMPELS - Sistem Informasi Pesantren_",
             default           => '',
         };
     }

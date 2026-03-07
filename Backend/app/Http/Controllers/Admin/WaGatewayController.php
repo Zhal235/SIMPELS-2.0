@@ -91,16 +91,13 @@ class WaGatewayController extends Controller
             'target'  => 'required|in:wali,pegawai,all',
         ]);
 
-        $message = $this->waService->buildPengumumanMessage(
-            $request->input('judul'),
-            $request->input('isi')
-        );
-
+        $judul  = $request->input('judul');
+        $isi    = $request->input('isi');
         $target = $request->input('target');
-        $count = 0;
+        $count  = 0;
 
         if (in_array($target, ['wali', 'all'])) {
-            $logs = $this->waService->blastToAllWali('pengumuman', $message);
+            $logs = $this->waService->blastPengumumanToAllWali($judul, $isi);
             $count += $logs->count();
         }
 
@@ -108,6 +105,7 @@ class WaGatewayController extends Controller
             $pegawaiList = Pegawai::whereNotNull('no_hp')->get();
             foreach ($pegawaiList as $pegawai) {
                 try {
+                    $message = $this->waService->buildPengumumanMessageForPegawai($pegawai, $judul, $isi);
                     $this->waService->sendToPegawai($pegawai, 'pengumuman', $message);
                     $count++;
                 } catch (\Throwable $e) {
