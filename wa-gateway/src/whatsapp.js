@@ -38,6 +38,7 @@ function buildPuppeteerConfig() {
         '--disable-setuid-sandbox',
         '--disable-dev-shm-usage',
         '--disable-gpu',
+        '--disable-singleton-lock',
     ];
 
     if (process.env.PUPPETEER_EXECUTABLE_PATH) {

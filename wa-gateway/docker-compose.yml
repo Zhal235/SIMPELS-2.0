@@ -1,0 +1,26 @@
+services:
+  wagateway:
+    build:
+      context: .
+      dockerfile: Dockerfile
+    ports:
+      - "3100:3100"
+    volumes:
+      - wa-session:/app/.wwebjs_auth
+    env_file:
+      - .env
+    networks:
+      - dokploy-network
+    deploy:
+      replicas: 1
+      update_config:
+        order: stop-first
+      restart_policy:
+        condition: on-failure
+
+volumes:
+  wa-session:
+
+networks:
+  dokploy-network:
+    external: true
