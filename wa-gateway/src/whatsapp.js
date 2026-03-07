@@ -4,6 +4,8 @@ const path = require('path');
 const os = require('os');
 const fs = require('fs');
 
+const AUTH_PATH = process.env.WA_AUTH_PATH || path.join(process.cwd(), '.wwebjs_auth');
+
 function clearChromiumLocks(authPath) {
     const patterns = ['SingletonLock', 'SingletonCookie', 'SingletonSocket'];
     try {
@@ -25,6 +27,18 @@ function clearChromiumLocks(authPath) {
     }
 }
 
+function clearSession(authPath) {
+    try {
+        const sessionDir = path.join(authPath, 'session');
+        if (fs.existsSync(sessionDir)) {
+            fs.rmSync(sessionDir, { recursive: true, force: true });
+            console.log('[WA] Cleared corrupt session data');
+        }
+    } catch (e) {
+        console.error('[WA] Failed to clear session:', e.message);
+    }
+}
+
 let state = {
     status: 'disconnected',
     qrDataUrl: null,
@@ -39,20 +53,28 @@ function buildPuppeteerConfig() {
         '--disable-dev-shm-usage',
         '--disable-gpu',
         '--disable-singleton-lock',
+        '--disable-extensions',
+        '--disable-default-apps',
+        '--no-first-run',
+        '--disable-background-networking',
+        '--disable-sync',
+        '--metrics-recording-only',
+        '--disable-background-timer-throttling',
     ];
 
+    const base = { args, protocolTimeout: 120000 };
+
     if (process.env.PUPPETEER_EXECUTABLE_PATH) {
-        return { executablePath: process.env.PUPPETEER_EXECUTABLE_PATH, args };
+        return { ...base, executablePath: process.env.PUPPETEER_EXECUTABLE_PATH };
     }
 
     if (os.platform() === 'linux') {
-        return { executablePath: '/usr/bin/chromium', args };
+        return { ...base, executablePath: '/usr/bin/chromium' };
     }
 
-    return { args };
+    return base;
 }
 
-const AUTH_PATH = process.env.WA_AUTH_PATH || path.join(process.cwd(), '.wwebjs_auth');
 clearChromiumLocks(AUTH_PATH);
 
 const client = new Client({
@@ -60,6 +82,7 @@ const client = new Client({
         dataPath: AUTH_PATH,
     }),
     puppeteer: buildPuppeteerConfig(),
+    restartOnAuthFail: false,
 });
 
 client.on('qr', async (qr) => {
@@ -87,12 +110,20 @@ client.on('disconnected', (reason) => {
     state.phone = null;
     state.connectedAt = null;
     console.log(`[WA] Disconnected: ${reason}`);
-    setTimeout(() => client.initialize(), 5000);
+    // Jika remote logout (WA invalidate session), bersihkan session agar QR muncul saat restart
+    if (reason === 'LOGOUT') {
+        clearSession(AUTH_PATH);
+    }
+    // Exit agar Docker Swarm restart container secara clean (bukan loop re-init)
+    setTimeout(() => process.exit(1), 1000);
 });
 
-client.on('auth_failure', () => {
+client.on('auth_failure', (msg) => {
     state.status = 'auth_failed';
-    console.error('[WA] Authentication failed');
+    console.error('[WA] Authentication failed:', msg);
+    // Bersihkan session rusak agar restart menghasilkan QR baru
+    clearSession(AUTH_PATH);
+    setTimeout(() => process.exit(1), 1000);
 });
 
 async function sendMessage(to, message) {

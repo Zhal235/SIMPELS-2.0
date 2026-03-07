@@ -3,7 +3,10 @@ FROM node:20-slim
 RUN apt-get update && apt-get install -y \
     chromium \
     fonts-freefont-ttf \
+    fonts-noto \
+    fonts-noto-cjk \
     ca-certificates \
+    dumb-init \
     --no-install-recommends \
     && rm -rf /var/lib/apt/lists/*
 
@@ -23,4 +26,6 @@ VOLUME ["/app/.wwebjs_auth"]
 
 EXPOSE 3100
 
-ENTRYPOINT ["/entrypoint.sh"]
+# dumb-init mencegah zombie process dari Chromium
+ENTRYPOINT ["/usr/bin/dumb-init", "--"]
+CMD ["/entrypoint.sh"]
