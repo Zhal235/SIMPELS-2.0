@@ -132,7 +132,7 @@ export default function Sidebar() {
           )}
 
           {/* Dompet Digital */}
-          {(hasAccess('dompet.dompet-santri')||hasAccess('dompet.manajemen-keuangan')||hasAccess('dompet.history')||hasAccess('dompet.laporan')||hasAccess('dompet.tagihan')||hasAccess('dompet.rfid')||hasAccess('dompet.settings')) && (
+          {(hasAccess('dompet.dompet-santri')||hasAccess('dompet.manajemen-keuangan')||hasAccess('dompet.history')||hasAccess('dompet.laporan')||hasAccess('dompet.tagihan')||hasAccess('dompet.kebutuhan')||hasAccess('dompet.rfid')||hasAccess('dompet.settings')) && (
             <div className="space-y-1">
               {parentBtn('Dompet Digital', DollarSign, isPath('/dompet'), () => setDompetOpen(v=>!v))}
               {collapse(dompetOpen, <>
@@ -141,6 +141,7 @@ export default function Sidebar() {
                 {hasAccess('dompet.history') && <li>{nl('/dompet/history-transaksi', FileText, 'History Transaksi')}</li>}
                 {hasAccess('dompet.laporan') && <li>{nl('/dompet/laporan-keuangan', Receipt, 'Laporan Keuangan')}</li>}
                 {hasAccess('dompet.tagihan') && <li>{nl('/dompet/tagihan-kolektif', Receipt, 'Tagihan Kolektif')}</li>}
+                {(hasAccess('dompet.kebutuhan') || hasAccess('dompet.dompet-santri')) && <li>{nl('/dompet/kebutuhan-orders', ListChecks, 'Pesanan Kebutuhan')}</li>}
                 {hasAccess('dompet.rfid') && <li>{nl('/dompet/rfid', Users, 'Kelola RFID')}</li>}
                 {hasAccess('dompet.settings') && <li>{nl('/dompet/settings', Settings, 'Pengaturan Dompet')}</li>}
               </>)}

@@ -6,6 +6,7 @@ use App\Http\Controllers\Api\V1\Wali\WaliController;
 use App\Http\Controllers\Api\V1\Admin\WalletController;
 use App\Http\Controllers\Api\V1\Kesantrian\SantriController;
 use App\Http\Controllers\Api\V1\Epos\EposTransactionController;
+use App\Http\Controllers\Api\V1\Epos\KebutuhanOrderController;
 
 /*
 |--------------------------------------------------------------------------
@@ -103,4 +104,21 @@ Route::post('wa/callback', [\App\Http\Controllers\Admin\WaGatewayController::cla
 // Epos Routes (Protected by token/auth)
 Route::prefix('epos')->group(function () {
     // Route::post('transaction', [EposTransactionController::class, 'store']);
+
+    // Pesanan Kebutuhan (public, sama pola dengan epos/transaction)
+    Route::post('kebutuhan-order', [KebutuhanOrderController::class, 'store']);
+    Route::get('kebutuhan-order/santri/{santriId}/pending', [KebutuhanOrderController::class, 'pendingForSantri']);
+});
+
+// Kebutuhan Orders — Wali (mobile)
+Route::prefix('wali')->middleware('auth:sanctum')->group(function () {
+    Route::get('kebutuhan-orders/{santriId}', [KebutuhanOrderController::class, 'indexForWali']);
+    Route::post('kebutuhan-orders/{orderId}/respond', [KebutuhanOrderController::class, 'respondByWali']);
+});
+
+// Kebutuhan Orders — Admin (frontend)
+Route::prefix('admin')->middleware(['auth:sanctum', 'role:admin'])->group(function () {
+    Route::get('kebutuhan-orders', [KebutuhanOrderController::class, 'indexForAdmin']);
+    Route::post('kebutuhan-orders/{orderId}/confirm', [KebutuhanOrderController::class, 'confirmByAdmin']);
+    Route::post('kebutuhan-orders/{orderId}/reject', [KebutuhanOrderController::class, 'rejectByAdmin']);
 });

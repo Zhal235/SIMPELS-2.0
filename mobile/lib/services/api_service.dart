@@ -413,4 +413,24 @@ class ApiService {
       'note': note,
     });
   }
+
+  // -----------------------------------------------------------------------
+  // Pesanan Kebutuhan
+  // -----------------------------------------------------------------------
+
+  Future<Response> getKebutuhanOrders(String santriId) async {
+    return await _dio.get('/wali/kebutuhan-orders/$santriId');
+  }
+
+  Future<Response> respondKebutuhanOrder(
+    int orderId, {
+    required String action,
+    String? rejectionReason,
+  }) async {
+    return await _dio.post('/wali/kebutuhan-orders/$orderId/respond', data: {
+      'action': action,
+      if (rejectionReason != null && rejectionReason.isNotEmpty)
+        'rejection_reason': rejectionReason,
+    });
+  }
 }
