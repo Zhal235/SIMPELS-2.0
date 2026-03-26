@@ -98,7 +98,11 @@ class WaliController extends BaseController
             ]
         );
         
-        $token = $systemUser->createToken('wali-mobile-' . $normalizedHp, ['*'], now()->addYear())->plainTextToken;
+        $token = $systemUser->createToken(
+            'wali-mobile-' . $normalizedHp,
+            ['santri_ids' => $santriIds], // Store santri_ids in abilities
+            now()->addYear()
+        )->plainTextToken;
 
         // Format response
         $santriData = $santriList->map(function ($s) use ($tipeWali, $namaWali) {

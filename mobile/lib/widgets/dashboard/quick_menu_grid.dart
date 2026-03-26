@@ -6,6 +6,7 @@ import 'package:simpels_mobile/screens/wallet/wallet_history_screen.dart';
 import 'package:simpels_mobile/screens/tagihan/data_santri_screen.dart';
 import 'package:simpels_mobile/screens/tabungan/tabungan_screen.dart';
 import 'package:simpels_mobile/screens/bukti/bukti_history_screen.dart';
+import 'package:simpels_mobile/screens/kebutuhan/kebutuhan_screen.dart';
 import 'package:simpels_mobile/screens/home/home_screen.dart';
 
 class QuickMenuGrid extends StatefulWidget {
@@ -64,14 +65,23 @@ class _QuickMenuGridState extends State<QuickMenuGrid> {
       }
     }));
 
-    if (_hasTabungan) {
-      items.add(_buildQuickMenu(context, icon: Icons.account_balance, title: 'Tabungan', color: Colors.indigo, onTap: () {
-        final santri = Provider.of<AuthProvider>(context, listen: false).activeSantri;
-        if (santri != null) {
-          Navigator.push(context, MaterialPageRoute(builder: (_) => TabunganScreen(santriId: santri.id, santriName: santri.nama)));
-        }
-      }));
-    }
+    items.add(_buildQuickMenu(context,
+        icon: Icons.shopping_bag_outlined,
+        title: 'Kebutuhan',
+        color: const Color(0xFF0D9488),
+        onTap: () {
+          final santri =
+              Provider.of<AuthProvider>(context, listen: false).activeSantri;
+          if (santri != null) {
+            Navigator.push(
+              context,
+              MaterialPageRoute(
+                builder: (_) => KebutuhanScreen(
+                    santriId: santri.id, santriName: santri.nama),
+              ),
+            );
+          }
+        }));
 
     items.add(_buildQuickMenu(context, icon: Icons.payment, title: 'Bayar', color: Colors.green, onTap: () {
       if (widget.onNavigateToTab != null) {
@@ -99,6 +109,15 @@ class _QuickMenuGridState extends State<QuickMenuGrid> {
         Navigator.of(context).pushReplacement(MaterialPageRoute(builder: (_) => const HomeScreen(initialIndex: 2)));
       }
     }));
+
+    if (_hasTabungan) {
+      items.add(_buildQuickMenu(context, icon: Icons.account_balance, title: 'Tabungan', color: Colors.indigo, onTap: () {
+        final santri = Provider.of<AuthProvider>(context, listen: false).activeSantri;
+        if (santri != null) {
+          Navigator.push(context, MaterialPageRoute(builder: (_) => TabunganScreen(santriId: santri.id, santriName: santri.nama)));
+        }
+      }));
+    }
 
     return items;
   }

@@ -60,6 +60,7 @@ const ManajemenKeuangan = lazy(() => import('./pages/dompet/ManajemenKeuangan'))
 const HistoryTransaksi = lazy(() => import('./pages/dompet/HistoryTransaksi'))
 const LaporanKeuanganDompet = lazy(() => import('./pages/dompet/LaporanKeuangan'))
 const TagihanKolektif = lazy(() => import('./pages/dompet/TagihanKolektif'))
+const KebutuhanOrders = lazy(() => import('./pages/dompet/KebutuhanOrders'))
 // Akademik subpages
 const AkademikTahunAjaran = lazy(() => import('./pages/akademik/TahunAjaran'))
 const PindahTahunAjaran = lazy(() => import('./pages/akademik/PindahTahunAjaran'))
@@ -417,6 +418,13 @@ export default function App() {
               <ProtectedRoute>
                 <AppLayout>
                   <TagihanKolektif />
+                </AppLayout>
+              </ProtectedRoute>
+            } />
+            <Route path="/dompet/kebutuhan-orders" element={
+              <ProtectedRoute>
+                <AppLayout>
+                  <KebutuhanOrders />
                 </AppLayout>
               </ProtectedRoute>
             } />

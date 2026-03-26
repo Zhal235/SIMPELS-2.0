@@ -10,6 +10,7 @@ use App\Models\Asrama;
 use App\Models\SantriTransactionLimit;
 use App\Models\RfidTag;
 use App\Models\Wallet;
+use App\Models\User;
 
 class Santri extends Model
 {
