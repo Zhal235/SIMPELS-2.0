@@ -21,9 +21,16 @@ class WalletSettingsController extends Controller
             $amount = isset($val['amount']) ? (float)$val['amount'] : 0;
         }
 
-        // Get global_minimum_balance from wallet_settings table (new field)
-        $settingsRow = WalletSettings::first();
-        $globalMinBalance = $settingsRow ? $settingsRow->global_minimum_balance : 10000;
+        // Get global_minimum_balance - coba dari key 'global_config' dulu, fallback ke row pertama
+        $globalConfigRow = DB::table('wallet_settings')->where('key', 'global_config')->where('scope', 'global')->first();
+        if ($globalConfigRow) {
+            $configVal = json_decode($globalConfigRow->value ?? '{}', true);
+            $globalMinBalance = isset($configVal['global_minimum_balance']) ? (float)$configVal['global_minimum_balance'] : 10000;
+        } else {
+            // Fallback: check if there's a row with global_minimum_balance column (from old structure)
+            $settingsRow = DB::table('wallet_settings')->whereNotNull('global_minimum_balance')->first();
+            $globalMinBalance = $settingsRow && isset($settingsRow->global_minimum_balance) ? (float)$settingsRow->global_minimum_balance : 10000;
+        }
 
         $santriLimits = SantriTransactionLimit::with('santri:id,nis,nama_santri')
             ->orderBy('created_at')
@@ -77,10 +84,15 @@ class WalletSettingsController extends Controller
 
         // Update global_minimum_balance for warning alert (if provided)
         if ($request->has('global_minimum_balance')) {
-            $settingsRow = WalletSettings::firstOrCreate([]);
-            $settingsRow->update([
-                'global_minimum_balance' => (float)$request->input('global_minimum_balance')
-            ]);
+            // Gunakan updateOrInsert dengan key unik untuk menghindari duplicate rows
+            DB::table('wallet_settings')->updateOrInsert(
+                ['key' => 'global_config', 'scope' => 'global'],
+                [
+                    'value' => json_encode(['global_minimum_balance' => (float)$request->input('global_minimum_balance')]),
+                    'updated_at' => now(),
+                    'created_at' => now()
+                ]
+            );
         }
 
         // Return both values
@@ -88,8 +100,15 @@ class WalletSettingsController extends Controller
         $val = json_decode($row->value ?? '{}', true);
         $minBalance = isset($val['amount']) ? (float)$val['amount'] : 0;
 
-        $settingsRow = WalletSettings::first();
-        $globalMinBalance = $settingsRow ? $settingsRow->global_minimum_balance : 10000;
+        // Get global_minimum_balance - coba dari key 'global_config' dulu, fallback ke row dengan global_minimum_balance column
+        $globalConfigRow = DB::table('wallet_settings')->where('key', 'global_config')->where('scope', 'global')->first();
+        if ($globalConfigRow) {
+            $configVal = json_decode($globalConfigRow->value ?? '{}', true);
+            $globalMinBalance = isset($configVal['global_minimum_balance']) ? (float)$configVal['global_minimum_balance'] : 10000;
+        } else {
+            $settingsRow = DB::table('wallet_settings')->whereNotNull('global_minimum_balance')->first();
+            $globalMinBalance = $settingsRow && isset($settingsRow->global_minimum_balance) ? (float)$settingsRow->global_minimum_balance : 10000;
+        }
 
         return response()->json(['success' => true, 'data' => [
             'min_balance' => $minBalance,
