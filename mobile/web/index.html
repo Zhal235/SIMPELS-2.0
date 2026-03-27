@@ -77,6 +77,45 @@
     // The value below is injected by flutter build, do not touch.
     var serviceWorkerVersion = null;
     
+    // Auto-update checker untuk PWA - cek update setiap dibuka dari home screen
+    if ('serviceWorker' in navigator) {
+      navigator.serviceWorker.getRegistration().then(function(reg) {
+        if (reg) {
+          // Cek update service worker setiap kali PWA dibuka
+          reg.update().then(function() {
+            console.log('Service worker update check completed');
+          }).catch(function(err) {
+            console.warn('Service worker update check failed:', err);
+          });
+          
+          // Auto-reload jika ada service worker baru yang waiting
+          reg.addEventListener('updatefound', function() {
+            var newWorker = reg.installing;
+            if (newWorker) {
+              newWorker.addEventListener('statechange', function() {
+                if (newWorker.state === 'installed' && navigator.serviceWorker.controller) {
+                  // Ada update baru, reload otomatis tanpa popup
+                  console.log('New version available, reloading...');
+                  setTimeout(function() {
+                    window.location.reload(true);
+                  }, 2000);
+                }
+              });
+            }
+          });
+        }
+      });
+      
+      // Cek berkala setiap 30 detik saat app sedang dibuka
+      setInterval(function() {
+        navigator.serviceWorker.getRegistration().then(function(reg) {
+          if (reg) {
+            reg.update();
+          }
+        });
+      }, 30000);
+    }
+    
     // Download main.dart.js
     window.addEventListener('load', function(ev) {
       // Download main.dart.js
