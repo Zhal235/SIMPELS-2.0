@@ -21,18 +21,17 @@ RUN apk add --no-cache \
 # Configure GD with freetype + jpeg support
 RUN docker-php-ext-configure gd --with-freetype --with-jpeg
 
-# Install PHP extensions
+# Install PHP extensions (tokenizer, mbstring, xml sudah built-in di php:8.2-fpm-alpine)
 RUN docker-php-ext-install \
     pdo \
     pdo_mysql \
     bcmath \
     zip \
     intl \
-    gd \
-    mbstring \
-    xml \
-    tokenizer \
-    opcache
+    gd
+
+# Enable opcache (sudah ada, cukup enable)
+RUN docker-php-ext-enable opcache
 
 # Install Redis PHP extension
 RUN pecl install redis && docker-php-ext-enable redis
