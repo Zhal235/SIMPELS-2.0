@@ -17,7 +17,7 @@ class RfidTagController extends Controller
     public function store(Request $request)
     {
         $validator = Validator::make($request->all(), [
-            'uid' => 'required|string|unique:rfid_tags,uid',
+            'uid' => 'required|string',
             'santri_id' => 'nullable|exists:santri,id',
             'label' => 'string|nullable',
         ]);
@@ -26,7 +26,23 @@ class RfidTagController extends Controller
             return response()->json(['success' => false, 'message' => 'Validation error', 'errors' => $validator->errors()], 422);
         }
 
-        $tag = RfidTag::create($request->only(['uid', 'santri_id', 'label']));
+        $uid = trim($request->uid);
+        $santriId = $request->santri_id;
+
+        $existingByUid = RfidTag::where('uid', $uid)->first();
+        if ($existingByUid && $existingByUid->santri_id != $santriId) {
+            return response()->json(['success' => false, 'message' => 'UID RFID sudah digunakan oleh santri lain'], 422);
+        }
+
+        if ($santriId) {
+            RfidTag::where('santri_id', $santriId)->where('uid', '!=', $uid)->delete();
+        }
+
+        $tag = RfidTag::updateOrCreate(
+            ['uid' => $uid],
+            ['santri_id' => $santriId, 'label' => $request->label, 'active' => true]
+        );
+
         return response()->json(['success' => true, 'data' => $tag], 201);
     }
 

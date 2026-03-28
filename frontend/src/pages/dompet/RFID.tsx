@@ -73,8 +73,15 @@ export default function RFID() {
       toast.error('UID RFID harus diisi')
       return
     }
+    const existingUID = selectedSantri?.rfid_tag?.uid
+    if (existingUID && existingUID !== rfidUID.trim()) {
+      const confirmed = window.confirm(
+        `Santri ini sudah memiliki RFID (${existingUID}).\nGanti dengan UID baru: ${rfidUID.trim()}?`
+      )
+      if (!confirmed) return
+    }
     try {
-      const res = await bindRFID(rfidUID, selectedSantri.id)
+      const res = await bindRFID(rfidUID.trim(), selectedSantri.id)
       if (res.success) {
         toast.success('RFID berhasil ditetapkan')
         setShowRFIDModal(false)
@@ -86,7 +93,6 @@ export default function RFID() {
         toast.error(res.message || 'Gagal menetapkan RFID')
       }
     } catch (err: any) {
-      console.error(err)
       toast.error(err?.response?.data?.message || 'Gagal menetapkan RFID')
     }
   }
