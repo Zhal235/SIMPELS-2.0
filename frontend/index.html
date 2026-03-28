@@ -25,5 +25,41 @@
   <body>
     <div id="root"></div>
     <script type="module" src="/src/main.tsx"></script>
+    
+    <!-- Auto-update checker untuk PWA frontend -->
+    <script>
+      if ('serviceWorker' in navigator) {
+        // Cek update service worker setiap kali dibuka dari home screen
+        navigator.serviceWorker.register('/sw.js', { scope: '/' }).then(function(reg) {
+          // Force check update saat PWA dibuka
+          reg.update().catch(function(err) {
+            console.warn('SW update check failed:', err);
+          });
+          
+          // Auto-reload jika ada service worker baru
+          reg.addEventListener('updatefound', function() {
+            var newWorker = reg.installing;
+            if (newWorker) {
+              newWorker.addEventListener('statechange', function() {
+                if (newWorker.state === 'installed' && navigator.serviceWorker.controller) {
+                  // Ada versi baru, reload otomatis dalam 2 detik
+                  console.log('New version available, reloading...');
+                  setTimeout(function() {
+                    window.location.reload(true);
+                  }, 2000);
+                }
+              });
+            }
+          });
+          
+          // Cek update berkala tiap 30 detik saat app dibuka
+          setInterval(function() {
+            reg.update();
+          }, 30000);
+        }).catch(function(err) {
+          console.warn('SW registration failed:', err);
+        });
+      }
+    </script>
   </body>
 </html>
