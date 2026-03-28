@@ -50,9 +50,11 @@ RUN { \
     echo 'opcache.validate_timestamps=0'; \
 } >> /usr/local/etc/php/conf.d/opcache.ini
 
-# PHP-FPM: listen on unix socket + tuning
+# PHP-FPM pool config
 RUN { \
     echo '[www]'; \
+    echo 'user = www-data'; \
+    echo 'group = www-data'; \
     echo 'listen = /run/php-fpm.sock'; \
     echo 'listen.owner = nginx'; \
     echo 'listen.group = nginx'; \
@@ -65,6 +67,15 @@ RUN { \
     echo 'pm.max_requests = 500'; \
     echo 'clear_env = no'; \
 } > /usr/local/etc/php-fpm.d/www.conf
+
+# Override zz-docker.conf agar tidak timpa unix socket config
+RUN { \
+    echo '[www]'; \
+    echo 'listen = /run/php-fpm.sock'; \
+    echo 'listen.owner = nginx'; \
+    echo 'listen.group = nginx'; \
+    echo 'listen.mode = 0660'; \
+} > /usr/local/etc/php-fpm.d/zz-docker.conf
 
 # Nginx config for Laravel
 RUN mkdir -p /run/nginx && { \
