@@ -1,6 +1,6 @@
 FROM php:8.2-fpm-alpine
 
-# Install system dependencies + nginx + supervisor + nodejs
+# Install system dependencies + nginx + supervisor + nodejs + build tools
 RUN apk add --no-cache \
     git \
     curl \
@@ -16,7 +16,10 @@ RUN apk add --no-cache \
     nginx \
     supervisor \
     nodejs \
-    npm
+    npm \
+    autoconf \
+    g++ \
+    make
 
 # Configure GD with freetype + jpeg support
 RUN docker-php-ext-configure gd --with-freetype --with-jpeg
