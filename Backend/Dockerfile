@@ -1,10 +1,12 @@
 FROM php:8.2-fpm-alpine
 
-# Install system dependencies + nginx + supervisor
+# Install system dependencies + nginx + supervisor + nodejs
 RUN apk add --no-cache \
     git \
     curl \
     libpng-dev \
+    libjpeg-turbo-dev \
+    freetype-dev \
     libxml2-dev \
     libzip-dev \
     zip \
@@ -12,7 +14,12 @@ RUN apk add --no-cache \
     icu-dev \
     oniguruma-dev \
     nginx \
-    supervisor
+    supervisor \
+    nodejs \
+    npm
+
+# Configure GD with freetype + jpeg support
+RUN docker-php-ext-configure gd --with-freetype --with-jpeg
 
 # Install PHP extensions
 RUN docker-php-ext-install \
