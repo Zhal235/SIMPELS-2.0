@@ -1,0 +1,54 @@
+http:
+  routers:
+    # API SIMPELS - api-simpels.saza.sch.id
+    simpels-api:
+      rule: "Host(`api-simpels.saza.sch.id`)"
+      service: "simpels-api-service"
+      entryPoints:
+        - "web"
+    
+    # Frontend SIMPELS - simples.saza.sch.id
+    simpels-frontend:
+      rule: "Host(`simples.saza.sch.id`)"
+      service: "simpels-frontend-service"
+      entryPoints:
+        - "web"
+    
+    # App SIMPELS - app-simpels.saza.sch.id
+    simpels-app:
+      rule: "Host(`app-simpels.saza.sch.id`)"
+      service: "simpels-app-service"
+      entryPoints:
+        - "web"
+
+    # EPOS SAZA - epos-simpels.saza.sch.id
+    epos-simpels:
+      rule: "Host(`epos-simpels.saza.sch.id`)"
+      service: "epos-simpels-service"
+      entryPoints:
+        - "web"
+
+  services:
+    # Service untuk API SIMPELS
+    simpels-api-service:
+      loadBalancer:
+        servers:
+          - url: "http://simpelssaza-simpelsapi-2ebzdr.1.mfyl39nrt6kpwj1sy1jzulp6n:8000"
+    
+    # Service untuk Frontend SIMPELS
+    simpels-frontend-service:
+      loadBalancer:
+        servers:
+          - url: "http://simpelssaza-simpelsfrontend-0bhef9.1.3afytxhdhg61b94fwjd6vgmwe:3000"
+    
+    # Service untuk App SIMPELS
+    simpels-app-service:
+      loadBalancer:
+        servers:
+          - url: "http://simpelssaza-appsimpels-xzwnps.1.polod56xz6z14btx15wzovki9:5000"
+
+    # Service untuk EPOS SAZA
+    epos-simpels-service:
+      loadBalancer:
+        servers:
+          - url: "http://10.0.1.42:80"
