@@ -1,0 +1,30 @@
+# Environment files
+.env
+.env.*
+mobile/.env
+
+# IDE files
+.vscode/
+.idea/
+
+# OS files  
+.DS_Store
+Thumbs.db
+
+# Build outputs
+build/
+dist/
+out/
+
+# Logs
+*.log
+logs/
+
+# Flutter/Dart specific
+.dart_tool/
+.flutter-plugins
+.packages
+.pub-cache/
+
+# Dependencies
+node_modules/
