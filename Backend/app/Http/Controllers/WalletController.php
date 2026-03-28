@@ -188,7 +188,7 @@ class WalletController extends Controller
 
             $wallet->total_debit_epos = WalletTransaction::where('wallet_id', $wallet->id)
                 ->where('type', 'debit')
-                ->where('method', 'epos')
+                ->whereIn('method', ['epos', 'epos_kebutuhan'])
                 ->where(function($q) {
                     $q->where('voided', '!=', 1)
                       ->orWhereNull('voided');

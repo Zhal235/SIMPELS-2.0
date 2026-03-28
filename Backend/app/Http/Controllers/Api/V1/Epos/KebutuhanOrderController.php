@@ -311,7 +311,7 @@ class KebutuhanOrderController extends Controller
                 'wallet_id'   => $wallet->id,
                 'type'        => 'debit',
                 'amount'      => $order->total_amount,
-                'method'      => 'epos',
+                'method'      => 'epos_kebutuhan',
                 'description' => 'Kebutuhan: ' . $itemNames,
                 'voided'      => false,
             ]);
