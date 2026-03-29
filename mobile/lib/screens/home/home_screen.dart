@@ -1,3 +1,5 @@
+import 'package:flutter/foundation.dart';
+import 'package:flutter/foundation.dart';
 import 'package:flutter/material.dart';
 import 'package:simpels_mobile/screens/home/tabs/profile_tab.dart';
 import 'package:simpels_mobile/screens/home/tabs/dashboard_tab.dart';
@@ -29,6 +31,7 @@ class HomeScreen extends StatefulWidget {
 
 class _HomeScreenState extends State<HomeScreen> {
   int _selectedIndex = 0;
+  bool _showNotificationBanner = false;
 
   late final List<Widget> _screens;
 
@@ -58,8 +61,26 @@ class _HomeScreenState extends State<HomeScreen> {
     try {
       await FCMService().initialize(context);
       debugPrint('FCM initialized successfully');
+      if (kIsWeb && mounted) {
+        final granted = await FCMService().isPermissionGranted();
+        if (!granted) setState(() => _showNotificationBanner = true);
+      }
     } catch (e) {
       debugPrint('FCM initialization error: $e');
+    }
+  }
+
+  Future<void> _requestNotificationPermission() async {
+    if (!mounted) return;
+    final granted = await FCMService().requestPermissionAndSetup(context);
+    if (mounted) {
+      setState(() => _showNotificationBanner = !granted);
+      if (granted) {
+        ScaffoldMessenger.of(context).showSnackBar(const SnackBar(
+          content: Text('Notifikasi berhasil diaktifkan!'),
+          backgroundColor: Colors.green,
+        ));
+      }
     }
   }
 
@@ -75,7 +96,31 @@ class _HomeScreenState extends State<HomeScreen> {
   @override
   Widget build(BuildContext context) {
     return Scaffold(
-      body: _screens[_selectedIndex],
+      body: Column(
+        children: [
+          if (_showNotificationBanner)
+            MaterialBanner(
+              padding: const EdgeInsets.symmetric(horizontal: 16, vertical: 8),
+              content: const Text(
+                'Aktifkan notifikasi untuk info pembayaran & tagihan.',
+                style: TextStyle(fontSize: 13),
+              ),
+              leading: const Icon(Icons.notifications_outlined, color: Colors.orange),
+              backgroundColor: Color(0xFFFFF3E0),
+              actions: [
+                TextButton(
+                  onPressed: () => setState(() => _showNotificationBanner = false),
+                  child: const Text('Nanti'),
+                ),
+                FilledButton(
+                  onPressed: _requestNotificationPermission,
+                  child: const Text('Aktifkan'),
+                ),
+              ],
+            ),
+          Expanded(child: _screens[_selectedIndex]),
+        ],
+      ),
       bottomNavigationBar: BottomNavigationBar(
         currentIndex: _selectedIndex,
         onTap: (index) {
