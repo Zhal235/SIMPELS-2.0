@@ -1,5 +1,7 @@
 import 'package:flutter/material.dart';
 import 'package:provider/provider.dart';
+import 'package:firebase_core/firebase_core.dart';
+import 'package:firebase_messaging/firebase_messaging.dart';
 import 'package:simpels_mobile/screens/auth/splash_screen.dart';
 import 'package:simpels_mobile/screens/pembayaran/payment_info_screen.dart';
 import 'package:simpels_mobile/screens/wallet/wallet_full_history_screen.dart';
@@ -9,7 +11,23 @@ import 'package:simpels_mobile/screens/pembayaran/unified_payment_screen.dart';
 import 'package:simpels_mobile/providers/auth_provider.dart';
 import 'package:simpels_mobile/config/app_theme.dart';
 
-void main() {
+@pragma('vm:entry-point')
+Future<void> _firebaseMessagingBackgroundHandler(RemoteMessage message) async {
+  await Firebase.initializeApp();
+  debugPrint('Background message: ${message.notification?.title}');
+}
+
+void main() async {
+  WidgetsFlutterBinding.ensureInitialized();
+  
+  try {
+    await Firebase.initializeApp();
+    FirebaseMessaging.onBackgroundMessage(_firebaseMessagingBackgroundHandler);
+    debugPrint('Firebase initialized successfully');
+  } catch (e) {
+    debugPrint('Firebase initialization error: $e');
+  }
+  
   runApp(const SimpleMobileApp());
 }
 

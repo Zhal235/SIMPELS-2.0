@@ -45,4 +45,8 @@ return [
         'secret' => env('WA_GATEWAY_SECRET', ''),
     ],
 
+    'fcm' => [
+        'server_key' => env('FCM_SERVER_KEY'),
+    ],
+
 ];

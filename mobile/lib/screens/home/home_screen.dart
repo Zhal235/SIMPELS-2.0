@@ -3,6 +3,7 @@ import 'package:simpels_mobile/screens/home/tabs/profile_tab.dart';
 import 'package:simpels_mobile/screens/home/tabs/dashboard_tab.dart';
 import 'package:simpels_mobile/screens/home/tabs/pembayaran_tab.dart';
 import 'package:simpels_mobile/screens/home/tabs/riwayat_tab.dart';
+import 'package:simpels_mobile/services/fcm_service.dart';
 
 class HomeScreen extends StatefulWidget {
   final int initialIndex;
@@ -49,6 +50,17 @@ class _HomeScreenState extends State<HomeScreen> {
       const RiwayatTab(),
       const ProfileTab(),
     ];
+    
+    _initializeFCM();
+  }
+
+  Future<void> _initializeFCM() async {
+    try {
+      await FCMService().initialize(context);
+      debugPrint('FCM initialized successfully');
+    } catch (e) {
+      debugPrint('FCM initialization error: $e');
+    }
   }
 
   // Public navigation method so child widgets can request tab changes

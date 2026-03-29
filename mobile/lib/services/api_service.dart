@@ -433,4 +433,22 @@ class ApiService {
         'rejection_reason': rejectionReason,
     });
   }
+
+  // -----------------------------------------------------------------------
+  // FCM Push Notification
+  // -----------------------------------------------------------------------
+
+  Future<Response> registerFCMToken(String santriId, String fcmToken) async {
+    return await _dio.post('/wali/fcm-token', data: {
+      'santri_id': santriId,
+      'fcm_token': fcmToken,
+    });
+  }
+
+  Future<Response> unregisterFCMToken(String santriId, String fcmToken) async {
+    return await _dio.delete('/wali/fcm-token', data: {
+      'santri_id': santriId,
+      'fcm_token': fcmToken,
+    });
+  }
 }
