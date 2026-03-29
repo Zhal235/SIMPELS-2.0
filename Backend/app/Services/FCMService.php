@@ -4,25 +4,52 @@ namespace App\Services;
 
 use App\Models\FCMToken;
 use App\Models\Santri;
+use Illuminate\Support\Facades\Http;
 use Illuminate\Support\Facades\Log;
-use Kreait\Firebase\Factory;
-use Kreait\Firebase\Messaging\CloudMessage;
-use Kreait\Firebase\Messaging\Notification;
 
 class FCMService
 {
-    protected $messaging;
+    protected $projectId = 'simpels-faf58';
+    protected $credentialsPath;
 
     public function __construct()
     {
-        $credentialsPath = storage_path('app/firebase-credentials.json');
-        
-        if (file_exists($credentialsPath)) {
-            $factory = (new Factory)->withServiceAccount($credentialsPath);
-            $this->messaging = $factory->createMessaging();
-        } else {
-            Log::warning('FCM: firebase-credentials.json not found, notifications disabled');
-            $this->messaging = null;
+        $this->credentialsPath = storage_path('app/firebase-credentials.json');
+    }
+
+    protected function getAccessToken(): ?string
+    {
+        if (!file_exists($this->credentialsPath)) {
+            Log::warning('FCM: firebase-credentials.json not found');
+            return null;
+        }
+
+        try {
+            $credentials = json_decode(file_get_contents($this->credentialsPath), true);
+
+            $now = time();
+            $header = base64_encode(json_encode(['alg' => 'RS256', 'typ' => 'JWT']));
+            $payload = base64_encode(json_encode([
+                'iss'   => $credentials['client_email'],
+                'scope' => 'https://www.googleapis.com/auth/firebase.messaging',
+                'aud'   => 'https://oauth2.googleapis.com/token',
+                'iat'   => $now,
+                'exp'   => $now + 3600,
+            ]));
+
+            $signingInput = $header . '.' . $payload;
+            openssl_sign($signingInput, $signature, $credentials['private_key'], 'SHA256');
+            $jwt = $signingInput . '.' . base64_encode($signature);
+
+            $response = Http::asForm()->post('https://oauth2.googleapis.com/token', [
+                'grant_type' => 'urn:ietf:params:oauth:grant-type:jwt-bearer',
+                'assertion'  => $jwt,
+            ]);
+
+            return $response->json('access_token');
+        } catch (\Exception $e) {
+            Log::error('FCM: getAccessToken error: ' . $e->getMessage());
+            return null;
         }
     }
 
@@ -52,35 +79,42 @@ class FCMService
 
     protected function sendNotification(array $tokens, $title, $body, $data = [])
     {
-        if (!$this->messaging) {
-            Log::warning('FCM: Messaging not initialized, skipping notification');
+        $accessToken = $this->getAccessToken();
+        if (!$accessToken) {
+            Log::warning('FCM: No access token, skipping notification');
             return false;
         }
 
+        $url = "https://fcm.googleapis.com/v1/projects/{$this->projectId}/messages:send";
         $successCount = 0;
-        
+
         foreach ($tokens as $token) {
             try {
-                $notification = Notification::create($title, $body);
-                
-                $message = CloudMessage::withTarget('token', $token)
-                    ->withNotification($notification)
-                    ->withData($data);
-
-                $this->messaging->send($message);
-                $successCount++;
-            } catch (\Exception $e) {
-                Log::error('FCM send failed for token', [
-                    'error' => $e->getMessage(),
-                    'token' => substr($token, 0, 20) . '...',
+                $response = Http::withToken($accessToken)->post($url, [
+                    'message' => [
+                        'token'        => $token,
+                        'notification' => ['title' => $title, 'body' => $body],
+                        'data'         => array_map('strval', $data),
+                        'android'      => ['priority' => 'high'],
+                        'webpush'      => [
+                            'notification' => ['icon' => '/icons/Icon-192.png'],
+                        ],
+                    ],
                 ]);
+
+                if ($response->successful()) {
+                    $successCount++;
+                } else {
+                    Log::error('FCM send failed', ['status' => $response->status(), 'body' => $response->body()]);
+                }
+            } catch (\Exception $e) {
+                Log::error('FCM send error: ' . $e->getMessage());
             }
         }
 
         Log::info('FCM batch notification completed', [
-            'total_tokens' => count($tokens),
+            'total'      => count($tokens),
             'successful' => $successCount,
-            'failed' => count($tokens) - $successCount,
         ]);
 
         return $successCount > 0;
