@@ -6,15 +6,17 @@ use App\Models\FCMToken;
 use App\Models\Santri;
 use Illuminate\Support\Facades\Http;
 use Illuminate\Support\Facades\Log;
+use Google\Auth\Credentials\ServiceAccountCredentials;
 
 class FCMService
 {
-    protected $serverKey;
-    protected $fcmUrl = 'https://fcm.googleapis.com/fcm/send';
+    protected $projectId;
+    protected $fcmUrl;
 
     public function __construct()
     {
-        $this->serverKey = config('services.fcm.server_key');
+        $this->projectId = config('services.fcm.project_id', 'simpels-faf58');
+        $this->fcmUrl = "https://fcm.googleapis.com/v1/projects/{$this->projectId}/messages:send";
     }
 
     public function sendToSantri($santriId, $title, $body, $data = [])
@@ -43,36 +45,57 @@ class FCMService
 
     protected function sendNotification(array $tokens, $title, $body, $data = [])
     {
-        if (empty($this->serverKey)) {
-            Log::error('FCM Server Key not configured');
-            return false;
+        $successCount = 0;
+        
+        foreach ($tokens as $token) {
+            if ($this->sendToSingleToken($token, $title, $body, $data)) {
+                $successCount++;
+            }
         }
 
-        $payload = [
-            'registration_ids' => $tokens,
-            'notification' => [
-                'title' => $title,
-                'body' => $body,
-                'sound' => 'default',
-                'badge' => '1',
-            ],
-            'data' => array_merge($data, [
-                'click_action' => 'FLUTTER_NOTIFICATION_CLICK',
-            ]),
-            'priority' => 'high',
-        ];
+        Log::info('FCM batch notification completed', [
+            'total_tokens' => count($tokens),
+            'successful' => $successCount,
+            'failed' => count($tokens) - $successCount,
+        ]);
 
+        return $successCount > 0;
+    }
+
+    protected function sendToSingleToken($token, $title, $body, $data = [])
+    {
         try {
+            $accessToken = $this->getAccessToken();
+            if (!$accessToken) {
+                Log::error('FCM: Unable to get access token');
+                return false;
+            }
+
+            $message = [
+                'message' => [
+                    'token' => $token,
+                    'notification' => [
+                        'title' => $title,
+                        'body' => $body,
+                    ],
+                    'data' => $data,
+                    'webpush' => [
+                        'fcm_options' => [
+                            'link' => config('app.url'),
+                        ],
+                    ],
+                    'android' => [
+                        'priority' => 'high',
+                    ],
+                ],
+            ];
+
             $response = Http::withHeaders([
-                'Authorization' => 'key=' . $this->serverKey,
+                'Authorization' => 'Bearer ' . $accessToken,
                 'Content-Type' => 'application/json',
-            ])->post($this->fcmUrl, $payload);
+            ])->post($this->fcmUrl, $message);
 
             if ($response->successful()) {
-                Log::info('FCM notification sent successfully', [
-                    'title' => $title,
-                    'tokens_count' => count($tokens),
-                ]);
                 return true;
             } else {
                 Log::error('FCM notification failed', [
@@ -84,6 +107,29 @@ class FCMService
         } catch (\Exception $e) {
             Log::error('FCM notification error: ' . $e->getMessage());
             return false;
+        }
+    }
+
+    protected function getAccessToken()
+    {
+        try {
+            $credentialsPath = storage_path('app/firebase-credentials.json');
+            
+            if (!file_exists($credentialsPath)) {
+                Log::error('FCM: firebase-credentials.json not found at ' . $credentialsPath);
+                return null;
+            }
+
+            $credentials = new ServiceAccountCredentials(
+                'https://www.googleapis.com/auth/firebase.messaging',
+                json_decode(file_get_contents($credentialsPath), true)
+            );
+
+            $token = $credentials->fetchAuthToken();
+            return $token['access_token'] ?? null;
+        } catch (\Exception $e) {
+            Log::error('FCM: Error getting access token: ' . $e->getMessage());
+            return null;
         }
     }
 
