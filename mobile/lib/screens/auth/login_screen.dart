@@ -1,8 +1,10 @@
+import 'package:flutter/foundation.dart';
 import 'package:flutter/material.dart';
 import 'package:provider/provider.dart';
 import 'package:simpels_mobile/providers/auth_provider.dart';
 import 'package:simpels_mobile/screens/home/home_screen.dart';
 import 'package:simpels_mobile/screens/pembayaran/select_account_screen.dart';
+import 'package:simpels_mobile/services/fcm_service.dart';
 
 class LoginScreen extends StatefulWidget {
   const LoginScreen({super.key});
@@ -35,6 +37,16 @@ class _LoginScreenState extends State<LoginScreen> {
 
       if (mounted) {
         if (result != null) {
+          // Register FCM token immediately after successful login.
+          // On web, this runs from the login button user gesture path.
+          try {
+            if (kIsWeb) {
+              await FCMService().requestPermissionAndSetup(context);
+            } else {
+              await FCMService().initialize(context);
+            }
+          } catch (_) {}
+
           // Check jumlah santri
           if (authProvider.hasMultipleSantri) {
             // Jika lebih dari 1 santri, ke Select Account Screen
