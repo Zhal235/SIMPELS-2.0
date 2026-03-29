@@ -109,7 +109,16 @@ class FCMService {
       debugPrint('FCM Token: $_fcmToken');
 
       if (_fcmToken != null) {
-        await _registerTokenToBackend(_fcmToken!);
+        if (kIsWeb && context.mounted) {
+          ScaffoldMessenger.of(context).showSnackBar(
+            SnackBar(content: Text('FCM token didapat (${_fcmToken!.length} chars)')),
+          );
+        }
+        await _registerTokenToBackend(_fcmToken!, context: context);
+      } else if (kIsWeb && context.mounted) {
+        ScaffoldMessenger.of(context).showSnackBar(
+          const SnackBar(content: Text('FCM token null - cek permission/service worker')),
+        );
       }
 
       _firebaseMessaging.onTokenRefresh.listen((newToken) {
@@ -135,25 +144,50 @@ class FCMService {
       }
     } catch (e) {
       debugPrint('FCM setup error: $e');
+      if (kIsWeb && context.mounted) {
+        ScaffoldMessenger.of(context).showSnackBar(
+          SnackBar(content: Text('FCM setup error: $e')),
+        );
+      }
     }
   }
 
-  Future<void> _registerTokenToBackend(String token) async {
+  Future<void> _registerTokenToBackend(String token, {BuildContext? context}) async {
     try {
       final santriId = await StorageHelper.getActiveSantriId();
       if (santriId == null || santriId.isEmpty) {
         debugPrint('FCM: No santriId found, skipping token registration');
+        if (kIsWeb && context != null && context.mounted) {
+          ScaffoldMessenger.of(context).showSnackBar(
+            const SnackBar(content: Text('FCM gagal: santriId kosong')),
+          );
+        }
         return;
       }
 
       final response = await _apiService.registerFCMToken(santriId, token);
       if (response.statusCode == 200) {
         debugPrint('FCM: Token registered successfully to backend');
+        if (kIsWeb && context != null && context.mounted) {
+          ScaffoldMessenger.of(context).showSnackBar(
+            const SnackBar(content: Text('FCM berhasil terdaftar ke backend'), backgroundColor: Colors.green),
+          );
+        }
       } else {
         debugPrint('FCM: Failed to register token: ${response.statusCode}');
+        if (kIsWeb && context != null && context.mounted) {
+          ScaffoldMessenger.of(context).showSnackBar(
+            SnackBar(content: Text('FCM gagal register: ${response.statusCode}')),
+          );
+        }
       }
     } catch (e) {
       debugPrint('FCM: Error registering token to backend: $e');
+      if (kIsWeb && context != null && context.mounted) {
+        ScaffoldMessenger.of(context).showSnackBar(
+          SnackBar(content: Text('FCM error: $e')),
+        );
+      }
     }
   }
 
