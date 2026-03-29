@@ -40,7 +40,11 @@ return Application::configure(basePath: dirname(__DIR__))
         $schedule->command('db:backup')->dailyAt('19:00')->timezone('UTC');
     })
     ->withExceptions(function (Exceptions $exceptions) {
-        // Customize exception handling (optional)
+        $exceptions->render(function (\Illuminate\Auth\AuthenticationException $e, $request) {
+            if ($request->is("api/*") || $request->expectsJson()) {
+                return response()->json(["success" => false, "message" => "Unauthenticated."], 401);
+            }
+        });
     })
     ->withProviders()  // ← KEY FIX: Ensure providers are registered for console bootstrap
     ->create();
