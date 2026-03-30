@@ -4,40 +4,52 @@ namespace App\Http\Controllers\Api;
 
 use App\Http\Controllers\Controller;
 use Illuminate\Http\Request;
-use App\Models\User;
+use App\Models\PasswordWali;
+use App\Models\Santri;
 use Illuminate\Support\Facades\DB;
 
 class MobileMonitoringController extends Controller
 {
     /**
-     * Get mobile app usage statistics
+     * Get mobile app usage statistics based on santri
      */
     public function statistics(Request $request)
     {
-        // Total wali santri (users with role 'wali' or similar)
-        $totalWali = User::whereIn('role', ['wali', 'wali_santri', 'user'])->count();
-
-        // Wali yang pernah login ke mobile (last_mobile_login_at is not null)
-        $waliEverLoggedIn = User::whereIn('role', ['wali', 'wali_santri', 'user'])
-            ->whereNotNull('last_mobile_login_at')
+        $totalSantri = Santri::where('status', 'aktif')->count();
+        
+        // Santri yang minimal 1 wali sudah login
+        $santriWithLoginQuery = Santri::where('status', 'aktif')
+            ->where(function($q) {
+                $q->whereHas('passwordWaliAyah', function($query) {
+                    $query->whereNotNull('last_mobile_login_at');
+                })
+                ->orWhereHas('passwordWaliIbu', function($query) {
+                    $query->whereNotNull('last_mobile_login_at');
+                });
+            });
+        
+        $santriWithLogin = $santriWithLoginQuery->count();
+        
+        // Santri yang kedua wali (ayah & ibu) sudah login
+        $santriFullyAdopted = Santri::where('status', 'aktif')
+            ->whereNotNull('hp_ayah')
+            ->whereNotNull('hp_ibu')
+            ->whereHas('passwordWaliAyah', function($query) {
+                $query->whereNotNull('last_mobile_login_at');
+            })
+            ->whereHas('passwordWaliIbu', function($query) {
+                $query->whereNotNull('last_mobile_login_at');
+            })
             ->count();
-
-        // Wali aktif 7 hari terakhir
-        $waliActive7Days = User::whereIn('role', ['wali', 'wali_santri', 'user'])
-            ->where('last_mobile_login_at', '>=', now()->subDays(7))
-            ->count();
-
-        // Wali aktif 30 hari terakhir
-        $waliActive30Days = User::whereIn('role', ['wali', 'wali_santri', 'user'])
-            ->where('last_mobile_login_at', '>=', now()->subDays(30))
-            ->count();
-
-        // Tingkat adopsi (persentase yang pernah login)
-        $adoptionRate = $totalWali > 0 ? round(($waliEverLoggedIn / $totalWali) * 100, 1) : 0;
-
-        // Device distribution
-        $deviceDistribution = User::whereIn('role', ['wali', 'wali_santri', 'user'])
-            ->whereNotNull('last_mobile_device')
+        
+        // Santri yang belum ada wali yang login
+        $santriNeverLogin = $totalSantri - $santriWithLogin;
+        
+        // Adoption rate
+        $adoptionRate = $totalSantri > 0 ? round(($santriWithLogin / $totalSantri) * 100, 1) : 0;
+        
+        // Device distribution dari password_wali
+        $deviceDistribution = PasswordWali::whereNotNull('last_mobile_device')
             ->select('last_mobile_device', DB::raw('count(*) as count'))
             ->groupBy('last_mobile_device')
             ->get();
@@ -45,10 +57,10 @@ class MobileMonitoringController extends Controller
         return response()->json([
             'success' => true,
             'data' => [
-                'total_wali' => $totalWali,
-                'wali_ever_logged_in' => $waliEverLoggedIn,
-                'wali_active_7_days' => $waliActive7Days,
-                'wali_active_30_days' => $waliActive30Days,
+                'total_santri' => $totalSantri,
+                'santri_with_wali_login' => $santriWithLogin,
+                'santri_fully_adopted' => $santriFullyAdopted,
+                'santri_never_login' => $santriNeverLogin,
                 'adoption_rate' => $adoptionRate,
                 'device_distribution' => $deviceDistribution,
             ]
@@ -56,43 +68,112 @@ class MobileMonitoringController extends Controller
     }
 
     /**
-     * Get detailed list of wali with mobile login info
+     * Get detailed list of santri with wali login status
      */
     public function waliList(Request $request)
     {
         $perPage = $request->input('per_page', 15);
         $search = $request->input('search');
-        $status = $request->input('status'); // 'never', 'logged_in', 'active_7', 'active_30'
+        $status = $request->input('status'); // 'never', 'partial', 'full'
 
-        $query = User::whereIn('role', ['wali', 'wali_santri', 'user'])
-            ->select('id', 'name', 'email', 'last_mobile_login_at', 'mobile_login_count', 'last_mobile_device');
+        $query = Santri::with(['kelas', 'passwordWaliAyah', 'passwordWaliIbu'])
+            ->where('status', 'aktif');
 
-        // Filter by search
+        // Filter by search (nama santri atau nomor HP)
         if ($search) {
-            $query->where(function ($q) use ($search) {
-                $q->where('name', 'like', "%{$search}%")
-                  ->orWhere('email', 'like', "%{$search}%");
+            $query->where(function($q) use ($search) {
+                $q->where('nama_santri', 'like', "%{$search}%")
+                  ->orWhere('nis', 'like', "%{$search}%")
+                  ->orWhere('hp_ayah', 'like', "%{$search}%")
+                  ->orWhere('hp_ibu', 'like', "%{$search}%");
             });
         }
 
-        // Filter by status
+        // Filter by adoption status
         if ($status === 'never') {
-            $query->whereNull('last_mobile_login_at');
-        } elseif ($status === 'logged_in') {
-            $query->whereNotNull('last_mobile_login_at');
-        } elseif ($status === 'active_7') {
-            $query->where('last_mobile_login_at', '>=', now()->subDays(7));
-        } elseif ($status === 'active_30') {
-            $query->where('last_mobile_login_at', '>=', now()->subDays(30));
+            // Belum ada satupun wali yang login
+            $query->where(function($q) {
+                $q->whereDoesntHave('passwordWaliAyah', function($query) {
+                    $query->whereNotNull('last_mobile_login_at');
+                })
+                ->whereDoesntHave('passwordWaliIbu', function($query) {
+                    $query->whereNotNull('last_mobile_login_at');
+                });
+            });
+        } elseif ($status === 'partial') {
+            // Hanya 1 wali yang login (ayah atau ibu saja)
+            $query->where(function($q) {
+                $q->where(function($q2) {
+                    // Ayah login, ibu belum
+                    $q2->whereHas('passwordWaliAyah', function($query) {
+                        $query->whereNotNull('last_mobile_login_at');
+                    })
+                    ->where(function($q3) {
+                        $q3->whereNull('hp_ibu')
+                           ->orWhereDoesntHave('passwordWaliIbu', function($query) {
+                               $query->whereNotNull('last_mobile_login_at');
+                           });
+                    });
+                })
+                ->orWhere(function($q2) {
+                    // Ibu login, ayah belum
+                    $q2->whereHas('passwordWaliIbu', function($query) {
+                        $query->whereNotNull('last_mobile_login_at');
+                    })
+                    ->where(function($q3) {
+                        $q3->whereNull('hp_ayah')
+                           ->orWhereDoesntHave('passwordWaliAyah', function($query) {
+                               $query->whereNotNull('last_mobile_login_at');
+                           });
+                    });
+                });
+            });
+        } elseif ($status === 'full') {
+            // Kedua wali sudah login
+            $query->whereNotNull('hp_ayah')
+                ->whereNotNull('hp_ibu')
+                ->whereHas('passwordWaliAyah', function($query) {
+                    $query->whereNotNull('last_mobile_login_at');
+                })
+                ->whereHas('passwordWaliIbu', function($query) {
+                    $query->whereNotNull('last_mobile_login_at');
+                });
         }
 
-        $waliList = $query->orderBy('last_mobile_login_at', 'desc')
-            ->orderBy('name', 'asc')
-            ->paginate($perPage);
+        $santriList = $query->orderBy('nama_santri', 'asc')->paginate($perPage);
+
+        // Format response
+        $data = $santriList->getCollection()->map(function($santri) {
+            $ayahLogin = $santri->passwordWaliAyah && $santri->passwordWaliAyah->last_mobile_login_at ? true : false;
+            $ibuLogin = $santri->passwordWaliIbu && $santri->passwordWaliIbu->last_mobile_login_at ? true : false;
+            
+            return [
+                'id' => $santri->id,
+                'nis' => $santri->nis,
+                'nama_santri' => $santri->nama_santri,
+                'kelas' => $santri->kelas->nama_kelas ?? '-',
+                'hp_ayah' => $santri->hp_ayah,
+                'hp_ibu' => $santri->hp_ibu,
+                'ayah_login_status' => $ayahLogin,
+                'ayah_last_login' => $santri->passwordWaliAyah?->last_mobile_login_at,
+                'ayah_login_count' => $santri->passwordWaliAyah?->mobile_login_count ?? 0,
+                'ayah_device' => $santri->passwordWaliAyah?->last_mobile_device,
+                'ibu_login_status' => $ibuLogin,
+                'ibu_last_login' => $santri->passwordWaliIbu?->last_mobile_login_at,
+                'ibu_login_count' => $santri->passwordWaliIbu?->mobile_login_count ?? 0,
+                'ibu_device' => $santri->passwordWaliIbu?->last_mobile_device,
+            ];
+        });
 
         return response()->json([
             'success' => true,
-            'data' => $waliList
+            'data' => [
+                'current_page' => $santriList->currentPage(),
+                'data' => $data,
+                'total' => $santriList->total(),
+                'per_page' => $santriList->perPage(),
+                'last_page' => $santriList->lastPage(),
+            ]
         ]);
     }
 
@@ -103,8 +184,7 @@ class MobileMonitoringController extends Controller
     {
         $days = $request->input('days', 30);
         
-        $trend = DB::table('users')
-            ->whereIn('role', ['wali', 'wali_santri', 'user'])
+        $trend = DB::table('password_wali')
             ->whereNotNull('last_mobile_login_at')
             ->where('last_mobile_login_at', '>=', now()->subDays($days))
             ->select(
@@ -120,5 +200,147 @@ class MobileMonitoringController extends Controller
             'data' => $trend
         ]);
     }
+
+    /**
+     * Get daily active users (DAU) trend
+     */
+    public function dailyActiveUsers(Request $request)
+    {
+        $days = $request->input('days', 30);
+        
+        $dau = DB::table('mobile_activity_logs')
+            ->where('created_at', '>=', now()->subDays($days))
+            ->select(
+                DB::raw('DATE(created_at) as date'),
+                DB::raw('COUNT(DISTINCT no_hp) as count')
+            )
+            ->groupBy('date')
+            ->orderBy('date', 'asc')
+            ->get();
+
+        return response()->json([
+            'success' => true,
+            'data' => $dau
+        ]);
+    }
+
+    /**
+     * Get most used features/actions
+     */
+    public function popularFeatures(Request $request)
+    {
+        $days = $request->input('days', 7);
+        
+        $features = DB::table('mobile_activity_logs')
+            ->where('created_at', '>=', now()->subDays($days))
+            ->select('feature', 'action', DB::raw('COUNT(*) as count'))
+            ->whereNotNull('feature')
+            ->groupBy('feature', 'action')
+            ->orderBy('count', 'desc')
+            ->limit(10)
+            ->get();
+
+        return response()->json([
+            'success' => true,
+            'data' => $features
+        ]);
+    }
+
+    /**
+     * Get peak usage hours
+     */
+    public function peakHours(Request $request)
+    {
+        $days = $request->input('days', 7);
+        
+        $hours = DB::table('mobile_activity_logs')
+            ->where('created_at', '>=', now()->subDays($days))
+            ->select(
+                DB::raw('HOUR(created_at) as hour'),
+                DB::raw('COUNT(*) as count')
+            )
+            ->groupBy('hour')
+            ->orderBy('hour', 'asc')
+            ->get();
+
+        return response()->json([
+            'success' => true,
+            'data' => $hours
+        ]);
+    }
+
+    /**
+     * Get real-time stats (today)
+     */
+    public function realTimeStats(Request $request)
+    {
+        $today = now()->startOfDay();
+        
+        $stats = [
+            'active_users_today' => DB::table('mobile_activity_logs')
+                ->where('created_at', '>=', $today)
+                ->distinct('no_hp')
+                ->count('no_hp'),
+            
+            'total_activities_today' => DB::table('mobile_activity_logs')
+                ->where('created_at', '>=', $today)
+                ->count(),
+            
+            'avg_response_time' => DB::table('mobile_activity_logs')
+                ->where('created_at', '>=', $today)
+                ->whereNotNull('response_time')
+                ->avg('response_time'),
+            
+            'top_feature_today' => DB::table('mobile_activity_logs')
+                ->where('created_at', '>=', $today)
+                ->select('feature', DB::raw('COUNT(*) as count'))
+                ->whereNotNull('feature')
+                ->groupBy('feature')
+                ->orderBy('count', 'desc')
+                ->first(),
+        ];
+
+        return response()->json([
+            'success' => true,
+            'data' => $stats
+        ]);
+    }
+
+    /**
+     * Get activity by specific wali (no_hp)
+     */
+    public function waliActivity(Request $request, $no_hp)
+    {
+        $days = $request->input('days', 30);
+        
+        $activities = DB::table('mobile_activity_logs')
+            ->where('no_hp', $no_hp)
+            ->where('created_at', '>=', now()->subDays($days))
+            ->select('action', 'feature', 'created_at', 'device', 'response_time')
+            ->orderBy('created_at', 'desc')
+            ->limit(100)
+            ->get();
+
+        $summary = [
+            'total_activities' => $activities->count(),
+            'last_active' => $activities->first()?->created_at,
+            'most_used_feature' => DB::table('mobile_activity_logs')
+                ->where('no_hp', $no_hp)
+                ->where('created_at', '>=', now()->subDays($days))
+                ->select('feature', DB::raw('COUNT(*) as count'))
+                ->groupBy('feature')
+                ->orderBy('count', 'desc')
+                ->first(),
+        ];
+
+        return response()->json([
+            'success' => true,
+            'data' => [
+                'summary' => $summary,
+                'activities' => $activities
+            ]
+        ]);
+    }
 }
+
 

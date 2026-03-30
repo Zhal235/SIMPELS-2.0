@@ -109,6 +109,13 @@ Route::middleware('auth:sanctum')->prefix('admin/mobile-monitoring')->group(func
     Route::get('/statistics', [\App\Http\Controllers\Api\MobileMonitoringController::class, 'statistics']);
     Route::get('/wali-list', [\App\Http\Controllers\Api\MobileMonitoringController::class, 'waliList']);
     Route::get('/login-trend', [\App\Http\Controllers\Api\MobileMonitoringController::class, 'loginTrend']);
+    
+    // Traffic & Activity Monitoring
+    Route::get('/daily-active-users', [\App\Http\Controllers\Api\MobileMonitoringController::class, 'dailyActiveUsers']);
+    Route::get('/popular-features', [\App\Http\Controllers\Api\MobileMonitoringController::class, 'popularFeatures']);
+    Route::get('/peak-hours', [\App\Http\Controllers\Api\MobileMonitoringController::class, 'peakHours']);
+    Route::get('/realtime-stats', [\App\Http\Controllers\Api\MobileMonitoringController::class, 'realTimeStats']);
+    Route::get('/wali-activity/{no_hp}', [\App\Http\Controllers\Api\MobileMonitoringController::class, 'waliActivity']);
 });
 
 // Protected routes

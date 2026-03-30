@@ -103,4 +103,20 @@ class Santri extends Model
     {
         return $this->hasOne(SantriTabungan::class, 'santri_id');
     }
+
+    /**
+     * Relasi ke password wali ayah
+     */
+    public function passwordWaliAyah()
+    {
+        return $this->hasOne(\App\Models\PasswordWali::class, 'no_hp', 'hp_ayah');
+    }
+
+    /**
+     * Relasi ke password wali ibu
+     */
+    public function passwordWaliIbu()
+    {
+        return $this->hasOne(\App\Models\PasswordWali::class, 'no_hp', 'hp_ibu');
+    }
 }

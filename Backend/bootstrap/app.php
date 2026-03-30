@@ -21,6 +21,11 @@ return Application::configure(basePath: dirname(__DIR__))
             \App\Http\Middleware\AddStorageCorsHeaders::class,
         ]);
         
+        // Track mobile app activity for wali API routes
+        $middleware->appendToGroup('api', [
+            \App\Http\Middleware\TrackMobileActivity::class,
+        ]);
+        
         // Register custom middleware aliases
         $middleware->alias([
             'permission' => \App\Http\Middleware\CheckPermission::class,

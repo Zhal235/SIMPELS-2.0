@@ -40,6 +40,14 @@ class WaliController extends BaseController
                     'password' => ['Password salah.'],
                 ]);
             }
+            
+            // Track mobile login
+            $userAgent = $request->header('User-Agent');
+            $passwordWali->last_mobile_login_at = now();
+            $passwordWali->mobile_login_count = ($passwordWali->mobile_login_count ?? 0) + 1;
+            $passwordWali->last_mobile_device = $this->detectDevice($userAgent);
+            $passwordWali->save();
+            
         } else {
             // Use default password 123456
             if ($request->password !== '123456') {
@@ -47,6 +55,16 @@ class WaliController extends BaseController
                     'password' => ['Password salah.'],
                 ]);
             }
+            
+            // Create new password_wali entry untuk tracking
+            $userAgent = $request->header('User-Agent');
+            $passwordWali = \App\Models\PasswordWali::create([
+                'no_hp' => $request->no_hp,
+                'password' => Hash::make('123456'),
+                'last_mobile_login_at' => now(),
+                'mobile_login_count' => 1,
+                'last_mobile_device' => $this->detectDevice($userAgent),
+            ]);
         }
 
         // Cari santri berdasarkan hp_ayah atau hp_ibu
@@ -169,6 +187,25 @@ class WaliController extends BaseController
         }
         
         return $phone;
+    }
+
+    /**
+     * Detect device type from user agent
+     */
+    private function detectDevice(?string $userAgent): string
+    {
+        if (!$userAgent) return 'Unknown';
+        
+        $ua = strtolower($userAgent);
+        
+        if (str_contains($ua, 'android')) return 'Android';
+        if (str_contains($ua, 'iphone') || str_contains($ua, 'ipad')) return 'iOS';
+        if (str_contains($ua, 'mobile')) return 'Mobile Web';
+        if (str_contains($ua, 'chrome')) return 'Chrome';
+        if (str_contains($ua, 'firefox')) return 'Firefox';
+        if (str_contains($ua, 'safari')) return 'Safari';
+        
+        return 'Desktop/Web';
     }
 
     /**

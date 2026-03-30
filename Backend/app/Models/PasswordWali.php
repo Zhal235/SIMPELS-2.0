@@ -11,6 +11,9 @@ class PasswordWali extends Model
     protected $fillable = [
         'no_hp',
         'password',
+        'last_mobile_login_at',
+        'mobile_login_count',
+        'last_mobile_device',
     ];
 
     protected $hidden = [
