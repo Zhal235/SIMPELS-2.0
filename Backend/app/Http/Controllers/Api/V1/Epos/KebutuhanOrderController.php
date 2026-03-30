@@ -419,26 +419,17 @@ class KebutuhanOrderController extends Controller
             $itemCount = count($order->items);
             $orderNumber = "#{$order->id}";
             
-            $message = "*🛒 PESANAN KEBUTUHAN MENUNGGU KONFIRMASI*\n\n";
-            $message .= "Assalamu'alaikum Bapak/Ibu Wali Santri,\n\n";
-            $message .= "Santri *{$order->santri_name}* telah memesan kebutuhan sebanyak *{$itemCount} item* senilai *{$total}*\n\n";
-            $message .= "📦 *Daftar Barang:*\n{$itemNames}{$more}\n\n";
-            $message .= "🔖 *Nomor Pesanan:*\n{$orderNumber}\n\n";
-            $message .= "⏰ *Batas Konfirmasi:*\n{$expiredDate} WIB\n\n";
-            $message .= "⚠️ Pesanan akan otomatis dibatalkan jika tidak dikonfirmasi dalam 24 jam.\n\n";
-            $message .= "━━━━━━━━━━━━━━━━━━━━━━\n\n";
-            $message .= "📱 *CARA KONFIRMASI PESANAN:*\n\n";
-            $message .= "1️⃣ Buka aplikasi SIMPELS Mobile:\n";
-            $message .= "    👉 {$pwaUrl}\n\n";
-            $message .= "2️⃣ Login dengan nomor HP Anda\n\n";
-            $message .= "3️⃣ Pilih menu *\"Pesanan Kebutuhan\"*\n\n";
-            $message .= "4️⃣ Cari pesanan {$orderNumber}\n\n";
-            $message .= "5️⃣ Klik *Konfirmasi* atau *Tolak*\n\n";
-            $message .= "━━━━━━━━━━━━━━━━━━━━━━\n\n";
-            $message .= "💡 *Tips:* Pastikan saldo santri mencukupi sebelum konfirmasi.\n\n";
-            $message .= "Jazakumullahu khairan 🤲";
-
             $waService = app(WaMessageService::class);
+            $message = $waService->buildKebutuhanOrderMessage(
+                namaSantri: $order->santri_name,
+                jumlahItem: $itemCount,
+                total: $total,
+                daftarBarang: $itemNames . $more,
+                nomorPesanan: $orderNumber,
+                batasKonfirmasi: $expiredDate,
+                linkPwa: $pwaUrl
+            );
+
             $waService->sendToSantriWali($santri, 'kebutuhan_order', $message);
 
             Log::info('WhatsApp notification sent for kebutuhan order', [

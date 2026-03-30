@@ -121,6 +121,27 @@ class WaMessageService
         ]);
     }
 
+    public function buildKebutuhanOrderMessage(
+        string $namaSantri, 
+        int $jumlahItem, 
+        string $total, 
+        string $daftarBarang, 
+        string $nomorPesanan, 
+        string $batasKonfirmasi, 
+        string $linkPwa
+    ): string
+    {
+        return $this->renderTemplate('kebutuhan_order', [
+            'nama_santri'      => $namaSantri,
+            'jumlah_item'      => $jumlahItem,
+            'total'            => $total,
+            'daftar_barang'    => $daftarBarang,
+            'nomor_pesanan'    => $nomorPesanan,
+            'batas_konfirmasi' => $batasKonfirmasi,
+            'link_pwa'         => $linkPwa,
+        ]);
+    }
+
     public function getTunggakanSebelumBulan(string $santriId, string $bulanNamaSekarang, int $tahunSekarang): Collection
     {
         $bulanUrut = ['Januari'=>1,'Februari'=>2,'Maret'=>3,'April'=>4,'Mei'=>5,'Juni'=>6,
@@ -223,6 +244,7 @@ class WaMessageService
             'pengumuman'         => "📢 *PENGUMUMAN*\n*{{judul}}*\n\n{{isi}}\n\n_SIMPELS - Sistem Informasi Pesantren_",
             'pengumuman_wali'    => "📢 *PENGUMUMAN*\n\nAssalamu'alaikum Wr. Wb.\nYth. Bpk/Ibu *{{nama_wali}}*\nWali dari Ananda *{{nama_santri}}*\n\n*{{judul}}*\n\n{{isi}}\n\n_SIMPELS - Sistem Informasi Pesantren_",
             'pengumuman_pegawai' => "📢 *PENGUMUMAN*\n\nAssalamu'alaikum Wr. Wb.\nYth. *{{nama_pegawai}}*\n\n*{{judul}}*\n\n{{isi}}\n\n_SIMPELS - Sistem Informasi Pesantren_",
+            'kebutuhan_order'    => "*🛒 PESANAN KEBUTUHAN MENUNGGU KONFIRMASI*\n\nAssalamu'alaikum Bapak/Ibu Wali Santri,\n\nSantri *{{nama_santri}}* telah memesan kebutuhan sebanyak *{{jumlah_item}} item* senilai *{{total}}*\n\n📦 *Daftar Barang:*\n{{daftar_barang}}\n\n🔖 *Nomor Pesanan:*\n{{nomor_pesanan}}\n\n⏰ *Batas Konfirmasi:*\n{{batas_konfirmasi}} WIB\n\n⚠️ Pesanan akan otomatis dibatalkan jika tidak dikonfirmasi dalam 24 jam.\n\n━━━━━━━━━━━━━━━━━━━━━━\n\n📱 *CARA KONFIRMASI PESANAN:*\n\n1️⃣ Buka aplikasi SIMPELS Mobile:\n    👉 {{link_pwa}}\n\n2️⃣ Login dengan nomor HP Anda\n\n3️⃣ Pilih menu *\"Pesanan Kebutuhan\"*\n\n4️⃣ Cari pesanan {{nomor_pesanan}}\n\n5️⃣ Klik *Konfirmasi* atau *Tolak*\n\n━━━━━━━━━━━━━━━━━━━━━━\n\n💡 *Tips:* Pastikan saldo santri mencukupi sebelum konfirmasi.\n\nJazakumullahu khairan 🤲",
             default           => '',
         };
     }

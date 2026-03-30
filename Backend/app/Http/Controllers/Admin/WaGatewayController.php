@@ -422,7 +422,7 @@ class WaGatewayController extends Controller
 
     public function updateTemplate(Request $request, string $type): JsonResponse
     {
-        if (!in_array($type, ['tagihan_detail', 'reminder', 'rekap_tunggakan', 'pengumuman'])) {
+        if (!in_array($type, ['tagihan_detail', 'reminder', 'rekap_tunggakan', 'pengumuman', 'kebutuhan_order'])) {
             return response()->json(['message' => 'Tipe tidak valid'], 422);
         }
 

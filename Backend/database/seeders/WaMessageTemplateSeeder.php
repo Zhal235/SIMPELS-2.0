@@ -47,6 +47,19 @@ class WaMessageTemplateSeeder extends Seeder
                     ['key' => 'isi',   'desc' => 'Isi pengumuman',   'required' => true],
                 ],
             ],
+            [
+                'type' => 'kebutuhan_order',
+                'body' => "*🛒 PESANAN KEBUTUHAN MENUNGGU KONFIRMASI*\n\nAssalamu'alaikum Bapak/Ibu Wali Santri,\n\nSantri *{{nama_santri}}* telah memesan kebutuhan sebanyak *{{jumlah_item}} item* senilai *{{total}}*\n\n📦 *Daftar Barang:*\n{{daftar_barang}}\n\n🔖 *Nomor Pesanan:*\n{{nomor_pesanan}}\n\n⏰ *Batas Konfirmasi:*\n{{batas_konfirmasi}} WIB\n\n⚠️ Pesanan akan otomatis dibatalkan jika tidak dikonfirmasi dalam 24 jam.\n\n━━━━━━━━━━━━━━━━━━━━━━\n\n📱 *CARA KONFIRMASI PESANAN:*\n\n1️⃣ Buka aplikasi SIMPELS Mobile:\n    👉 {{link_pwa}}\n\n2️⃣ Login dengan nomor HP Anda\n\n3️⃣ Pilih menu *\"Pesanan Kebutuhan\"*\n\n4️⃣ Cari pesanan {{nomor_pesanan}}\n\n5️⃣ Klik *Konfirmasi* atau *Tolak*\n\n━━━━━━━━━━━━━━━━━━━━━━\n\n💡 *Tips:* Pastikan saldo santri mencukupi sebelum konfirmasi.\n\nJazakumullahu khairan 🤲",
+                'placeholders' => [
+                    ['key' => 'nama_santri',      'desc' => 'Nama santri yang pesan',                    'required' => true],
+                    ['key' => 'jumlah_item',      'desc' => 'Jumlah item dalam pesanan',                'required' => true],
+                    ['key' => 'total',            'desc' => 'Total harga (contoh: Rp 85.000)',          'required' => true],
+                    ['key' => 'daftar_barang',    'desc' => 'Nama-nama barang yang dipesan',            'required' => true],
+                    ['key' => 'nomor_pesanan',    'desc' => 'Nomor pesanan (contoh: #456)',             'required' => true],
+                    ['key' => 'batas_konfirmasi', 'desc' => 'Tanggal & waktu batas (contoh: 31 Mar 2026 14:30)', 'required' => true],
+                    ['key' => 'link_pwa',         'desc' => 'URL aplikasi mobile PWA',                  'required' => true],
+                ],
+            ],
         ];
 
         foreach ($templates as $data) {

@@ -7,6 +7,7 @@ const TYPE_LABELS: Record<string, string> = {
   reminder:        'Reminder',
   rekap_tunggakan: 'Rekap Tunggakan',
   pengumuman:      'Pengumuman',
+  kebutuhan_order: 'Pesanan Kebutuhan',
 }
 
 interface Props {

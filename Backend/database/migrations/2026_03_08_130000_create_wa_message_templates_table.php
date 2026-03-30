@@ -10,7 +10,7 @@ return new class extends Migration
     {
         Schema::create('wa_message_templates', function (Blueprint $table) {
             $table->id();
-            $table->enum('type', ['tagihan_detail', 'reminder', 'rekap_tunggakan', 'pengumuman'])->unique();
+            $table->enum('type', ['tagihan_detail', 'reminder', 'rekap_tunggakan', 'pengumuman', 'kebutuhan_order'])->unique();
             $table->text('body');
             $table->json('placeholders'); // [{key, desc, required}]
             $table->string('updated_by')->nullable();
