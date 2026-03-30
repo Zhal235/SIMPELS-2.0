@@ -38,6 +38,19 @@ class AuthController extends Controller
         // Create token
         $token = $user->createToken('auth_token')->plainTextToken;
 
+        // Track mobile login if request comes from mobile app
+        $userAgent = $request->header('User-Agent');
+        $isMobile = $request->header('X-Mobile-App') === 'true' || 
+                    str_contains(strtolower($userAgent ?? ''), 'mobile') ||
+                    str_contains(strtolower($userAgent ?? ''), 'simpels-mobile');
+        
+        if ($isMobile) {
+            $user->last_mobile_login_at = now();
+            $user->mobile_login_count = ($user->mobile_login_count ?? 0) + 1;
+            $user->last_mobile_device = $this->detectDevice($userAgent);
+            $user->save();
+        }
+
         return response()->json([
             'token' => $token,
             'user' => [
@@ -47,6 +60,25 @@ class AuthController extends Controller
                 'role' => $user->role ?? 'user',
             ],
         ], 200);
+    }
+
+    /**
+     * Detect device type from user agent
+     */
+    private function detectDevice(?string $userAgent): string
+    {
+        if (!$userAgent) return 'Unknown';
+        
+        $ua = strtolower($userAgent);
+        
+        if (str_contains($ua, 'android')) return 'Android';
+        if (str_contains($ua, 'iphone') || str_contains($ua, 'ipad')) return 'iOS';
+        if (str_contains($ua, 'mobile')) return 'Mobile Web';
+        if (str_contains($ua, 'chrome')) return 'Chrome';
+        if (str_contains($ua, 'firefox')) return 'Firefox';
+        if (str_contains($ua, 'safari')) return 'Safari';
+        
+        return 'Desktop/Web';
     }
 
     /**

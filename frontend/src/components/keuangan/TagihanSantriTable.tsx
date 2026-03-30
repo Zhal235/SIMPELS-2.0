@@ -21,6 +21,7 @@ export interface SantriGroup {
   total_tagihan: number
   total_dibayar: number
   total_sisa: number
+  status: string
 }
 
 interface Props {
@@ -35,6 +36,7 @@ const statusConfig: Record<string, { cls: string; label: string }> = {
   lunas: { cls: 'bg-green-100 text-green-800', label: 'Lunas' },
   belum_bayar: { cls: 'bg-red-100 text-red-800', label: 'Belum Bayar' },
   sebagian: { cls: 'bg-yellow-100 text-yellow-800', label: 'Cicilan' },
+  lunas_sebagian: { cls: 'bg-orange-100 text-orange-800', label: 'Lunas Sebagian' },
 }
 
 export default function TagihanSantriTable({ groups, bulanOptions }: Props) {
@@ -97,9 +99,6 @@ export default function TagihanSantriTable({ groups, bulanOptions }: Props) {
           <tbody className="bg-white divide-y divide-gray-200">
             {pagedGroups.map((group) => {
               const isExpanded = expanded.has(group.santri_id)
-              const lunas = group.tagihan.filter(t => t.status === 'lunas').length
-              const sebagian = group.tagihan.filter(t => t.status === 'sebagian').length
-              const belum = group.tagihan.filter(t => t.status === 'belum_bayar').length
               return (
                 <Fragment key={group.santri_id}>
                   <tr className="hover:bg-blue-50 cursor-pointer" onClick={() => toggle(group.santri_id)}>
@@ -115,12 +114,10 @@ export default function TagihanSantriTable({ groups, bulanOptions }: Props) {
                     <td className="px-4 py-3 text-sm text-right font-medium text-gray-900">{formatCurrency(group.total_tagihan)}</td>
                     <td className="px-4 py-3 text-sm text-right font-medium text-green-600">{formatCurrency(group.total_dibayar)}</td>
                     <td className="px-4 py-3 text-sm text-right font-medium text-red-600">{formatCurrency(group.total_sisa)}</td>
-                    <td className="px-4 py-3">
-                      <div className="flex gap-1 justify-center flex-wrap">
-                        {lunas > 0 && <span className="bg-green-100 text-green-800 text-xs px-2 py-0.5 rounded">{lunas} lunas</span>}
-                        {sebagian > 0 && <span className="bg-yellow-100 text-yellow-800 text-xs px-2 py-0.5 rounded">{sebagian} cicilan</span>}
-                        {belum > 0 && <span className="bg-red-100 text-red-800 text-xs px-2 py-0.5 rounded">{belum} belum</span>}
-                      </div>
+                    <td className="px-4 py-3 text-center">
+                      <span className={`inline-flex px-2 py-1 text-xs font-semibold rounded-full ${statusConfig[group.status]?.cls || 'bg-gray-100 text-gray-800'}`}>
+                        {statusConfig[group.status]?.label || group.status}
+                      </span>
                     </td>
                   </tr>
                   {isExpanded && group.tagihan.map((t) => (

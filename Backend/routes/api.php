@@ -104,6 +104,13 @@ Route::middleware('auth:sanctum')->prefix('v1/instansi')->group(function () {
     Route::delete('/kop-surat', [InstansiSettingController::class, 'deleteKopSurat']);
 });
 
+// Mobile Monitoring
+Route::middleware('auth:sanctum')->prefix('admin/mobile-monitoring')->group(function () {
+    Route::get('/statistics', [\App\Http\Controllers\Api\MobileMonitoringController::class, 'statistics']);
+    Route::get('/wali-list', [\App\Http\Controllers\Api\MobileMonitoringController::class, 'waliList']);
+    Route::get('/login-trend', [\App\Http\Controllers\Api\MobileMonitoringController::class, 'loginTrend']);
+});
+
 // Protected routes
 Route::middleware('auth:sanctum')->group(function () {
     Route::post('/logout', [AuthController::class, 'logout']);

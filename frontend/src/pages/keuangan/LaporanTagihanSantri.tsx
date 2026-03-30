@@ -57,6 +57,7 @@ function groupBySantri(data: TagihanData[]): SantriGroup[] {
         total_tagihan: 0,
         total_dibayar: 0,
         total_sisa: 0,
+        status: '',
       })
     }
     const group = map.get(key)!
@@ -65,6 +66,22 @@ function groupBySantri(data: TagihanData[]): SantriGroup[] {
     group.total_dibayar += t.dibayar
     group.total_sisa += t.sisa
   })
+  
+  // Hitung status per santri
+  map.forEach(group => {
+    const statuses = group.tagihan.map(t => t.status)
+    const hasLunas = statuses.some(s => s === 'lunas')
+    const hasBelumBayar = statuses.some(s => s === 'belum_bayar' || s === 'sebagian')
+    
+    if (statuses.every(s => s === 'lunas')) {
+      group.status = 'lunas'
+    } else if (statuses.every(s => s === 'belum_bayar')) {
+      group.status = 'belum_bayar'
+    } else {
+      group.status = 'lunas_sebagian'
+    }
+  })
+  
   return Array.from(map.values())
 }
 
@@ -133,13 +150,16 @@ export default function LaporanTagihanSantri() {
         return true
       })
       setData(filtered)
+      
+      // Hitung summary dari grouped data (per santri)
+      const grouped = groupBySantri(filtered)
       setSummary({
-        total_tagihan: filtered.reduce((s, t) => s + t.nominal, 0),
-        total_dibayar: filtered.reduce((s, t) => s + t.dibayar, 0),
-        total_sisa: filtered.reduce((s, t) => s + t.sisa, 0),
-        jumlah_lunas: filtered.filter(t => t.status === 'lunas').length,
-        jumlah_belum_lunas: filtered.filter(t => t.status === 'belum_bayar').length,
-        jumlah_cicilan: filtered.filter(t => t.status === 'sebagian').length,
+        total_tagihan: grouped.reduce((s, g) => s + g.total_tagihan, 0),
+        total_dibayar: grouped.reduce((s, g) => s + g.total_dibayar, 0),
+        total_sisa: grouped.reduce((s, g) => s + g.total_sisa, 0),
+        jumlah_lunas: grouped.filter(g => g.status === 'lunas').length,
+        jumlah_belum_lunas: grouped.filter(g => g.status === 'belum_bayar').length,
+        jumlah_cicilan: grouped.filter(g => g.status === 'lunas_sebagian').length,
       })
     } catch {
       setData([]); setSummary(null)
@@ -153,19 +173,64 @@ export default function LaporanTagihanSantri() {
 
   const handlePrint = () => {
     const bulanLabel = filterBulan !== 'all' ? (bulanOptions.find(b => b.value === filterBulan)?.label || filterBulan) : 'Semua Bulan'
-    printTagihanSantri(data, summary, { namaYayasan: setting?.nama_yayasan, namaPesantren: setting?.nama_pesantren, kopSuratUrl: setting?.kop_surat_url }, `${bulanLabel} ${filterTahun}`)
+    printTagihanSantri(groupedData, summary, { namaYayasan: setting?.nama_yayasan, namaPesantren: setting?.nama_pesantren, kopSuratUrl: setting?.kop_surat_url }, `${bulanLabel} ${filterTahun}`)
   }
 
   const handleExportExcel = () => {
-    const rows = data.map((t, i) => ({
-      no: i + 1, nama: t.santri?.nama || '', nis: t.santri?.nis || '',
-      kelas: t.santri?.kelas?.nama_kelas || '', jenis_tagihan: t.jenis_tagihan?.nama_tagihan || '',
-      bulan: t.bulan || '', tahun: t.tahun, nominal: t.nominal, dibayar: t.dibayar, sisa: t.sisa,
-      status: t.status === 'lunas' ? 'Lunas' : t.status === 'belum_bayar' ? 'Belum Bayar' : 'Cicilan',
-    }))
+    const statusLabel: Record<string, string> = {
+      lunas: 'Lunas',
+      belum_bayar: 'Belum Bayar',
+      sebagian: 'Cicilan',
+      lunas_sebagian: 'Lunas Sebagian',
+    }
+    
+    const rows: any[] = []
+    groupedData.forEach((group, idx) => {
+      // Header santri
+      rows.push({
+        no: idx + 1,
+        nama: group.nama,
+        nis: group.nis,
+        kelas: group.kelas,
+        detail: `${group.tagihan.length} tagihan`,
+        bulan: '',
+        tahun: '',
+        nominal: group.total_tagihan,
+        dibayar: group.total_dibayar,
+        sisa: group.total_sisa,
+        status: statusLabel[group.status] || group.status,
+      })
+      
+      // Detail tagihan santri
+      group.tagihan.forEach((t: any) => {
+        rows.push({
+          no: '',
+          nama: '',
+          nis: '',
+          kelas: '',
+          detail: `  - ${t.jenis_tagihan.nama_tagihan}`,
+          bulan: t.bulan,
+          tahun: t.tahun,
+          nominal: t.nominal,
+          dibayar: t.dibayar,
+          sisa: t.sisa,
+          status: statusLabel[t.status] || t.status,
+        })
+      })
+    })
+    
     exportToExcel(rows, {
-      no: 'No', nama: 'Nama Santri', nis: 'NIS', kelas: 'Kelas', jenis_tagihan: 'Jenis Tagihan',
-      bulan: 'Bulan', tahun: 'Tahun', nominal: 'Nominal (Rp)', dibayar: 'Dibayar (Rp)', sisa: 'Sisa (Rp)', status: 'Status',
+      no: 'No',
+      nama: 'Nama Santri',
+      nis: 'NIS',
+      kelas: 'Kelas',
+      detail: 'Detail',
+      bulan: 'Bulan',
+      tahun: 'Tahun',
+      nominal: 'Nominal (Rp)',
+      dibayar: 'Dibayar (Rp)',
+      sisa: 'Sisa (Rp)',
+      status: 'Status',
     }, `laporan-tagihan-santri-${new Date().toISOString().split('T')[0]}`, 'Tagihan Santri')
   }
 
@@ -217,7 +282,7 @@ export default function LaporanTagihanSantri() {
             <p className="text-sm text-gray-600">Status</p>
             <div className="flex gap-2 mt-1 text-xs">
               <span className="bg-green-100 text-green-800 px-2 py-1 rounded">Lunas: {summary.jumlah_lunas}</span>
-              <span className="bg-yellow-100 text-yellow-800 px-2 py-1 rounded">Cicilan: {summary.jumlah_cicilan}</span>
+              <span className="bg-orange-100 text-orange-800 px-2 py-1 rounded">L. Sebagian: {summary.jumlah_cicilan}</span>
               <span className="bg-red-100 text-red-800 px-2 py-1 rounded">Belum: {summary.jumlah_belum_lunas}</span>
             </div>
           </div>
