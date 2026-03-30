@@ -166,4 +166,37 @@ class WalletSettingsController extends Controller
 
         return response()->json(['success' => true, 'message' => 'Limits updated']);
     }
+
+    /**
+     * Public endpoint untuk EPOS mendapatkan wallet settings
+     * GET /api/v1/epos/wallet-settings
+     */
+    public function getSettings(): \Illuminate\Http\JsonResponse
+    {
+        // Get global_minimum_balance
+        $globalConfigRow = DB::table('wallet_settings')->where('key', 'global_config')->where('scope', 'global')->first();
+        if ($globalConfigRow) {
+            $configVal = json_decode($globalConfigRow->value ?? '{}', true);
+            $globalMinBalance = isset($configVal['global_minimum_balance']) ? (float)$configVal['global_minimum_balance'] : 10000;
+        } else {
+            $settingsRow = DB::table('wallet_settings')->whereNotNull('global_minimum_balance')->first();
+            $globalMinBalance = $settingsRow && isset($settingsRow->global_minimum_balance) ? (float)$settingsRow->global_minimum_balance : 10000;
+        }
+
+        // Get min_balance for jajan control
+        $row = DB::table('wallet_settings')->where('key', 'min_balance_jajan')->where('scope', 'global')->first();
+        $minBalance = 0;
+        if ($row) {
+            $val = json_decode($row->value ?? '{}', true);
+            $minBalance = isset($val['amount']) ? (float)$val['amount'] : 0;
+        }
+
+        return response()->json([
+            'success' => true,
+            'data' => [
+                'global_minimum_balance' => (float)$globalMinBalance,
+                'min_balance_jajan' => (float)$minBalance,
+            ]
+        ]);
+    }
 }

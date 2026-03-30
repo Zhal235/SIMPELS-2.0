@@ -7,9 +7,11 @@ use App\Models\EposKebutuhanOrder;
 use App\Models\EposPool;
 use App\Models\Notification;
 use App\Models\Santri;
+use App\Models\User;
 use App\Models\Wallet;
 use App\Models\WalletTransaction;
 use App\Services\EposCallbackService;
+use App\Services\WaMessageService;
 use Illuminate\Http\JsonResponse;
 use Illuminate\Http\Request;
 use Illuminate\Support\Facades\DB;
@@ -384,8 +386,9 @@ class KebutuhanOrderController extends Controller
             $moreCount = $itemCount - 3;
             $more      = $moreCount > 0 ? " (+{$moreCount} lainnya)" : '';
 
+            // Create in-app notification
             Notification::create([
-                'user_id'   => $waliUser->id, // Target the wali's user ID
+                'user_id'   => $waliUser->id,
                 'user_type' => 'wali',
                 'type'      => 'kebutuhan_order',
                 'title'     => '🛒 Pesanan Kebutuhan Menunggu Konfirmasi',
@@ -398,8 +401,59 @@ class KebutuhanOrderController extends Controller
                     'expired_at'    => $order->expired_at->format('Y-m-d H:i:s'),
                 ],
             ]);
+
+            // Send WhatsApp notification with PWA link
+            $this->sendWaNotification($santri, $order, $total, $itemNames, $more);
+
         } catch (\Exception $e) {
             Log::error('Gagal kirim notif kebutuhan order', ['error' => $e->getMessage()]);
+        }
+    }
+
+    private function sendWaNotification(Santri $santri, EposKebutuhanOrder $order, string $total, string $itemNames, string $more): void
+    {
+        try {
+            $pwaUrl = rtrim(config('services.mobile.pwa_url', 'https://app-simpels.saza.sch.id'), '/');
+            
+            $expiredDate = $order->expired_at->timezone('Asia/Jakarta')->format('d M Y H:i');
+            $itemCount = count($order->items);
+            $orderNumber = "#{$order->id}";
+            
+            $message = "*🛒 PESANAN KEBUTUHAN MENUNGGU KONFIRMASI*\n\n";
+            $message .= "Assalamu'alaikum Bapak/Ibu Wali Santri,\n\n";
+            $message .= "Santri *{$order->santri_name}* telah memesan kebutuhan sebanyak *{$itemCount} item* senilai *{$total}*\n\n";
+            $message .= "📦 *Daftar Barang:*\n{$itemNames}{$more}\n\n";
+            $message .= "🔖 *Nomor Pesanan:*\n{$orderNumber}\n\n";
+            $message .= "⏰ *Batas Konfirmasi:*\n{$expiredDate} WIB\n\n";
+            $message .= "⚠️ Pesanan akan otomatis dibatalkan jika tidak dikonfirmasi dalam 24 jam.\n\n";
+            $message .= "━━━━━━━━━━━━━━━━━━━━━━\n\n";
+            $message .= "📱 *CARA KONFIRMASI PESANAN:*\n\n";
+            $message .= "1️⃣ Buka aplikasi SIMPELS Mobile:\n";
+            $message .= "    👉 {$pwaUrl}\n\n";
+            $message .= "2️⃣ Login dengan nomor HP Anda\n\n";
+            $message .= "3️⃣ Pilih menu *\"Pesanan Kebutuhan\"*\n\n";
+            $message .= "4️⃣ Cari pesanan {$orderNumber}\n\n";
+            $message .= "5️⃣ Klik *Konfirmasi* atau *Tolak*\n\n";
+            $message .= "━━━━━━━━━━━━━━━━━━━━━━\n\n";
+            $message .= "💡 *Tips:* Pastikan saldo santri mencukupi sebelum konfirmasi.\n\n";
+            $message .= "Jazakumullahu khairan 🤲";
+
+            $waService = app(WaMessageService::class);
+            $waService->sendToSantriWali($santri, 'kebutuhan_order', $message);
+
+            Log::info('WhatsApp notification sent for kebutuhan order', [
+                'order_id' => $order->id,
+                'order_number' => $orderNumber,
+                'santri_id' => $santri->id,
+                'pwa_url' => $pwaUrl,
+            ]);
+
+        } catch (\Exception $e) {
+            Log::error('Failed to send WhatsApp notification for kebutuhan order', [
+                'order_id' => $order->id,
+                'error' => $e->getMessage(),
+            ]);
+            // Don't throw - notification failure shouldn't block order creation
         }
     }
 

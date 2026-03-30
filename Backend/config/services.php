@@ -45,5 +45,8 @@ return [
         'secret' => env('WA_GATEWAY_SECRET', ''),
     ],
 
+    'mobile' => [
+        'pwa_url' => env('MOBILE_PWA_URL', 'https://app-simpels.saza.sch.id'),
+    ],
 
 ];

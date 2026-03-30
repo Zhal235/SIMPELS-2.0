@@ -7,6 +7,7 @@ use App\Http\Controllers\Api\V1\Admin\WalletController;
 use App\Http\Controllers\Api\V1\Kesantrian\SantriController;
 use App\Http\Controllers\Api\V1\Epos\EposTransactionController;
 use App\Http\Controllers\Api\V1\Epos\KebutuhanOrderController;
+use App\Http\Controllers\WalletSettingsController;
 
 /*
 |--------------------------------------------------------------------------
@@ -104,6 +105,9 @@ Route::post('wa/callback', [\App\Http\Controllers\Admin\WaGatewayController::cla
 // Epos Routes (Protected by token/auth)
 Route::prefix('epos')->group(function () {
     // Route::post('transaction', [EposTransactionController::class, 'store']);
+
+    // Wallet Settings (public, untuk EPOS cek minimum balance)
+    Route::get('wallet-settings', [WalletSettingsController::class, 'getSettings']);
 
     // Pesanan Kebutuhan (public, sama pola dengan epos/transaction)
     Route::post('kebutuhan-order', [KebutuhanOrderController::class, 'store']);
