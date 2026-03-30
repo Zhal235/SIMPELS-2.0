@@ -208,6 +208,7 @@ class PembayaranController extends Controller
                         'nominal' => $request->nominal_bayar,
                         'keterangan' => $request->keterangan ?? "Pembayaran {$tagihan->jenisTagihan->nama_tagihan} - {$tagihan->bulan} {$tagihan->tahun}",
                         'pembayaran_id' => $pembayaran->id,
+                        'created_by' => auth()->id(),
                     ]);
                     
                     $transaksiKasCreated = true;

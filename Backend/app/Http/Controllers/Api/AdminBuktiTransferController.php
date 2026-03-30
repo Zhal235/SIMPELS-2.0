@@ -282,6 +282,7 @@ class AdminBuktiTransferController extends Controller
                             'nominal' => $nominalBayar,
                             'keterangan' => 'Pembayaran ' . $tagihan->jenisTagihan->nama_tagihan . ' - ' . $tagihan->bulan . ' ' . $tagihan->tahun . ' a.n. ' . $namaSantri . ' (via SIMPELS Mobile)',
                             'pembayaran_id' => $pembayaran->id,
+                            'created_by' => auth()->id(),
                         ]);
                         
                         $transaksiKasCreated = true;
