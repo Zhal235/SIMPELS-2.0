@@ -377,14 +377,19 @@ class KebutuhanOrderController extends Controller
                     'hp_ayah' => $santri->hp_ayah,
                     'hp_ibu' => $santri->hp_ibu,
                 ]);
-                return;
+                // Commented out return to allow WhatsApp notification even without waliUser
+                // return;
             }
 
             $total     = 'Rp ' . number_format($order->total_amount, 0, ',', '.');
             $itemCount = count($order->items);
-            $itemNames = collect($order->items)->pluck('name')->take(3)->implode(', ');
+            $itemNames = collect($order->items)->take(3)->map(function($item) {
+                return $item['name'] . ' x' . $item['qty'] . ' @ Rp ' . number_format($item['price'], 0, ',', '.') . ' = Rp ' . number_format($item['subtotal'], 0, ',', '.');
+            })->implode("\n");
             $moreCount = $itemCount - 3;
             $more      = $moreCount > 0 ? " (+{$moreCount} lainnya)" : '';
+            // Only create in-app notification if wali user exists
+            if ($waliUser) {
 
             // Create in-app notification
             Notification::create([
@@ -402,6 +407,7 @@ class KebutuhanOrderController extends Controller
                 ],
             ]);
 
+            }
             // Send WhatsApp notification with PWA link
             $this->sendWaNotification($santri, $order, $total, $itemNames, $more);
 
@@ -417,7 +423,7 @@ class KebutuhanOrderController extends Controller
             
             $expiredDate = $order->expired_at->timezone('Asia/Jakarta')->format('d M Y H:i');
             $itemCount = count($order->items);
-            $orderNumber = "#{$order->id}";
+            $orderNumber = $order->epos_order_id;
             
             $waService = app(WaMessageService::class);
             $message = $waService->buildKebutuhanOrderMessage(

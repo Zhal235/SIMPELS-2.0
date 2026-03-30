@@ -66,6 +66,8 @@ return [
     */
 
     'timezone' => 'Asia/Jakarta',
+    'fe_pwa_url' => env('FE_PWA_URL', 'https://pwa.saza.sch.id'),
+    'mobile_pwa_url' => env('MOBILE_PWA_URL', 'https://app-simpels.saza.sch.id'),
 
     /*
     |--------------------------------------------------------------------------
