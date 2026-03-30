@@ -70,6 +70,8 @@ const DataPegawai = lazy(() => import('./pages/kepegawaian/DataPegawai'))
 const StrukturJabatan = lazy(() => import('./pages/kepegawaian/StrukturJabatan'))
 // WA Gateway
 const WaGatewayPage = lazy(() => import('./pages/wa/WaGatewayPage'))
+// Monitoring
+const MonitoringMobile = lazy(() => import('./pages/MonitoringMobile'))
 
 // Protected Route Component
 function ProtectedRoute({ children }: { children: React.ReactNode }) {
@@ -490,6 +492,15 @@ export default function App() {
               <ProtectedRoute>
                 <AppLayout>
                   <WaGatewayPage />
+                </AppLayout>
+              </ProtectedRoute>
+            } />
+
+            {/* Monitoring Mobile */}
+            <Route path="/monitoring-mobile" element={
+              <ProtectedRoute>
+                <AppLayout>
+                  <MonitoringMobile />
                 </AppLayout>
               </ProtectedRoute>
             } />

@@ -3,7 +3,7 @@ import { useUIStore } from '../stores/useUIStore'
 import {
   LayoutDashboard, Users, Wallet, UserCog, Settings, Building2, Home,
   ArrowDownUp, LogIn, LogOut, GraduationCap, CreditCard, Receipt,
-  BookOpen, FileText, AlertCircle, ListChecks, DollarSign, Calendar, CheckCircle, Briefcase, Megaphone, MessageCircle
+  BookOpen, FileText, AlertCircle, ListChecks, DollarSign, Calendar, CheckCircle, Briefcase, Megaphone, MessageCircle, Smartphone
 } from 'lucide-react'
 import { motion, AnimatePresence } from 'framer-motion'
 import { useAuthStore, hasAccess } from '../stores/useAuthStore'
@@ -171,6 +171,7 @@ export default function Sidebar() {
 
           <div className="border-t border-gray-200 pt-2 space-y-1">
             {hasAccess('pengguna') && <SidebarNavLink to="/pengguna" icon={UserCog} label="Pengguna" open={sidebarOpen} />}
+            {hasAccess('monitoring-mobile') && <SidebarNavLink to="/monitoring-mobile" icon={Smartphone} label="Monitoring Mobile" open={sidebarOpen} />}
             {hasAccess('wa-gateway') && <SidebarNavLink to="/wa-gateway" icon={MessageCircle} label="WA Gateway" open={sidebarOpen} />}
             {hasAccess('pengaturan') && <SidebarNavLink to="/pengaturan" icon={Settings} label="Pengaturan" open={sidebarOpen} />}
           </div>

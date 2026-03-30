@@ -32,6 +32,7 @@ const PRINT_CSS = `
   .badge-green { background: #d1fae5; color: #047857; }
   .badge-red { background: #fee2e2; color: #b91c1c; }
   .badge-yellow { background: #fef3c7; color: #92400e; }
+  .badge-orange { background: #fed7aa; color: #9a3412; }
   .summary-table { width: 100%; border: 1.5px solid #333; padding: 10px 16px; margin-bottom: 16px; font-size: 10.5pt; }
   .summary-table .row { padding: 5px 0; }
   .footer { margin-top: 24px; font-size: 9pt; color: #555; text-align: center; border-top: 1px solid #ccc; padding-top: 10px; }
@@ -191,7 +192,7 @@ export function printPerBukuKas(data: any[], periode: string, instansi: Instansi
   openPrintWindow(body)
 }
 
-export function printTagihanSantri(data: any[], summary: any, instansi: InstansiInfo, periode: string) {
+export function printTagihanSantri(groupedData: any[], summary: any, instansi: InstansiInfo, periode: string) {
   const header = buildHeader({
     ...instansi,
     kopSuratUrl: instansi.kopSuratUrl || undefined,
@@ -199,21 +200,41 @@ export function printTagihanSantri(data: any[], summary: any, instansi: Instansi
     periode,
   })
 
-  const statusLabel: Record<string, string> = { lunas: 'Lunas', belum_bayar: 'Belum Bayar', cicilan: 'Cicilan' }
-  const rows = data.map((t, i) => `
-    <tr>
-      <td class="text-center">${i + 1}</td>
-      <td>${t.santri?.nama || ''}</td>
-      <td>${t.santri?.nis || ''}</td>
-      <td>${t.santri?.kelas?.nama_kelas || ''}</td>
-      <td>${t.jenis_tagihan?.nama_tagihan || ''}</td>
-      <td>${t.bulan || ''} ${t.tahun || ''}</td>
-      <td class="text-right">${formatRp(t.nominal)}</td>
-      <td class="text-right">${formatRp(t.dibayar)}</td>
-      <td class="text-right">${formatRp(t.sisa)}</td>
-      <td class="text-center"><span class="badge badge-${t.status === 'lunas' ? 'green' : t.status === 'cicilan' ? 'yellow' : 'red'}">${statusLabel[t.status] || t.status}</span></td>
-    </tr>
-  `).join('')
+  const statusLabel: Record<string, string> = { 
+    lunas: 'Lunas', 
+    belum_bayar: 'Belum Bayar', 
+    sebagian: 'Cicilan',
+    lunas_sebagian: 'Lunas Sebagian'
+  }
+  
+  const rows = groupedData.map((group, i) => {
+    const detailRows = group.tagihan.map((t: any) => `
+      <tr class="detail-row">
+        <td></td>
+        <td colspan="3" style="padding-left: 20px; font-size: 0.9em; color: #555;">${t.jenis_tagihan?.nama_tagihan || ''}</td>
+        <td style="font-size: 0.9em; color: #555;">${t.bulan || ''} ${t.tahun || ''}</td>
+        <td class="text-right" style="font-size: 0.9em;">${formatRp(t.nominal)}</td>
+        <td class="text-right" style="font-size: 0.9em;">${formatRp(t.dibayar)}</td>
+        <td class="text-right" style="font-size: 0.9em;">${formatRp(t.sisa)}</td>
+        <td class="text-center"><span class="badge badge-${t.status === 'lunas' ? 'green' : t.status === 'sebagian' ? 'yellow' : 'red'}" style="font-size: 0.85em;">${statusLabel[t.status] || t.status}</span></td>
+      </tr>
+    `).join('')
+    
+    return `
+      <tr class="parent-row" style="background-color: #f9fafb; font-weight: 500;">
+        <td class="text-center">${i + 1}</td>
+        <td>${group.nama || ''}</td>
+        <td>${group.nis || ''}</td>
+        <td>${group.kelas || ''}</td>
+        <td class="text-center">${group.tagihan.length} tagihan</td>
+        <td class="text-right"><b>${formatRp(group.total_tagihan)}</b></td>
+        <td class="text-right"><b>${formatRp(group.total_dibayar)}</b></td>
+        <td class="text-right"><b>${formatRp(group.total_sisa)}</b></td>
+        <td class="text-center"><span class="badge badge-${group.status === 'lunas' ? 'green' : group.status === 'lunas_sebagian' ? 'orange' : 'red'}"><b>${statusLabel[group.status] || group.status}</b></span></td>
+      </tr>
+      ${detailRows}
+    `
+  }).join('')
 
   const summaryHtml = summary ? `
     <div class="summary-table">
@@ -221,7 +242,8 @@ export function printTagihanSantri(data: any[], summary: any, instansi: Instansi
       <div class="row"><span>Total Dibayar:</span><span class="green"><b>${formatRp(summary.total_dibayar)}</b></span></div>
       <div class="row"><span>Total Sisa:</span><span class="red"><b>${formatRp(summary.total_sisa)}</b></span></div>
       <div class="row"><span>Lunas:</span><span>${summary.jumlah_lunas} santri</span></div>
-      <div class="row"><span>Belum Lunas:</span><span>${summary.jumlah_belum_lunas} santri</span></div>
+      <div class="row"><span>Lunas Sebagian:</span><span>${summary.jumlah_cicilan} santri</span></div>
+      <div class="row"><span>Belum Bayar:</span><span>${summary.jumlah_belum_lunas} santri</span></div>
     </div>
   ` : ''
 
@@ -231,12 +253,12 @@ export function printTagihanSantri(data: any[], summary: any, instansi: Instansi
     <table>
       <thead><tr>
         <th class="text-center">No</th><th>Nama Santri</th><th>NIS</th><th>Kelas</th>
-        <th>Jenis Tagihan</th><th>Bulan</th>
-        <th class="text-right">Nominal</th><th class="text-right">Dibayar</th><th class="text-right">Sisa</th><th class="text-center">Status</th>
+        <th>Detail</th>
+        <th class="text-right">Total Tagihan</th><th class="text-right">Total Dibayar</th><th class="text-right">Total Sisa</th><th class="text-center">Status</th>
       </tr></thead>
       <tbody>${rows}</tbody>
     </table>
-    <div class="footer">Dicetak pada: ${new Date().toLocaleDateString('id-ID', { day: '2-digit', month: 'long', year: 'numeric' })} &nbsp;|&nbsp; Total data: ${data.length} tagihan</div>
+    <div class="footer">Dicetak pada: ${new Date().toLocaleDateString('id-ID', { day: '2-digit', month: 'long', year: 'numeric' })} &nbsp;|&nbsp; Total: ${groupedData.length} santri</div>
   `
   openPrintWindow(body)
 }
