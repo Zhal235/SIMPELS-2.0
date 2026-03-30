@@ -425,18 +425,6 @@ class AdminBuktiTransferController extends Controller
                 $bukti->total_nominal
             );
 
-            // Send FCM Push Notification
-            try {
-                $fcm = new \App\Services\FCMService();
-                if ($nominalTopup > 0 && ($nominalPembayaran == 0 && $nominalTabungan == 0)) {
-                    $fcm->sendTopupApproved($bukti->santri_id, $nominalTopup, $bukti->id);
-                } else {
-                    $fcm->sendPaymentApproved($bukti->santri_id, $bukti->total_nominal, $bukti->id);
-                }
-            } catch (\Exception $e) {
-                \Log::warning('FCM notification failed: ' . $e->getMessage());
-            }
-
             return response()->json([
                 'success' => true,
                 'message' => 'Bukti transfer berhasil disetujui dan pembayaran diproses',
@@ -484,14 +472,6 @@ class AdminBuktiTransferController extends Controller
                 $bukti->santri_id,
                 $request->catatan
             );
-
-            // Send FCM Push Notification
-            try {
-                $fcm = new \App\Services\FCMService();
-                $fcm->sendPaymentRejected($bukti->santri_id, $bukti->total_nominal, $bukti->id, $request->catatan);
-            } catch (\Exception $e) {
-                \Log::warning('FCM notification failed: ' . $e->getMessage());
-            }
 
             return response()->json([
                 'success' => true,

@@ -49,10 +49,6 @@ Route::prefix('wali')->middleware('auth:sanctum')->group(function () {
     Route::post('upload-bukti-topup/{santri_id}', [WaliController::class, 'uploadBuktiTopup']);
     Route::get('bukti-history/{santri_id}', [WaliController::class, 'getBuktiHistory']);
 
-    // FCM Push Notification
-    Route::post('fcm-token', [\App\Http\Controllers\Api\V1\Wali\FCMController::class, 'register']);
-    Route::delete('fcm-token', [\App\Http\Controllers\Api\V1\Wali\FCMController::class, 'unregister']);
-
     // Notifications
     Route::get('notifications/{santri_id}', [\App\Http\Controllers\Api\NotificationController::class, 'getWaliNotifications']);
     Route::post('notifications/{id}/read', [\App\Http\Controllers\Api\NotificationController::class, 'markAsRead']);

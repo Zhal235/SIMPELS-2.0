@@ -45,8 +45,5 @@ return [
         'secret' => env('WA_GATEWAY_SECRET', ''),
     ],
 
-    'fcm' => [
-        'credentials' => storage_path('app/firebase-credentials.json'),
-    ],
 
 ];

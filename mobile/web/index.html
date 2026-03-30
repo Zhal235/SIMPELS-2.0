@@ -155,28 +155,6 @@
     <div class="loading-spinner"></div>
   </div>
 
-  <!-- Firebase SDK for Web (FCM Push Notifications) -->
-  <script src="https://www.gstatic.com/firebasejs/10.7.0/firebase-app-compat.js"></script>
-  <script src="https://www.gstatic.com/firebasejs/10.7.0/firebase-messaging-compat.js"></script>
-  <script>
-    // Firebase Configuration for PWA
-    const firebaseConfig = {
-      apiKey: "AIzaSyDb4HCIj2NooINTG8C2NgIiSOF_0hm6IdA",
-      authDomain: "simpels-faf58.firebaseapp.com",
-      projectId: "simpels-faf58",
-      storageBucket: "simpels-faf58.firebasestorage.app",
-      messagingSenderId: "784979401590",
-      appId: "1:784979401590:web:15a31c1e07210d66413857",
-      measurementId: "G-JWL6DLJ55N"
-    };
-
-    // Initialize Firebase
-    if (typeof firebase !== 'undefined' && firebase.apps.length === 0) {
-      firebase.initializeApp(firebaseConfig);
-      console.log('Firebase initialized for PWA');
-    }
-  </script>
-
   <script src="flutter.js" defer></script>
 </body>
 </html>
