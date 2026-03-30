@@ -208,20 +208,28 @@ class MobileMonitoringController extends Controller
     {
         $days = $request->input('days', 30);
         
-        $dau = DB::table('mobile_activity_logs')
-            ->where('created_at', '>=', now()->subDays($days))
-            ->select(
-                DB::raw('DATE(created_at) as date'),
-                DB::raw('COUNT(DISTINCT no_hp) as count')
-            )
-            ->groupBy('date')
-            ->orderBy('date', 'asc')
-            ->get();
+        try {
+            $dau = DB::table('mobile_activity_logs')
+                ->where('created_at', '>=', now()->subDays($days))
+                ->select(
+                    DB::raw('DATE(created_at) as date'),
+                    DB::raw('COUNT(DISTINCT no_hp) as count')
+                )
+                ->groupBy('date')
+                ->orderBy('date', 'asc')
+                ->get();
 
-        return response()->json([
-            'success' => true,
-            'data' => $dau
-        ]);
+            return response()->json([
+                'success' => true,
+                'data' => $dau
+            ]);
+        } catch (\Exception $e) {
+            // Table doesn't exist yet, return empty data
+            return response()->json([
+                'success' => true,
+                'data' => []
+            ]);
+        }
     }
 
     /**
@@ -231,19 +239,26 @@ class MobileMonitoringController extends Controller
     {
         $days = $request->input('days', 7);
         
-        $features = DB::table('mobile_activity_logs')
-            ->where('created_at', '>=', now()->subDays($days))
-            ->select('feature', 'action', DB::raw('COUNT(*) as count'))
-            ->whereNotNull('feature')
-            ->groupBy('feature', 'action')
-            ->orderBy('count', 'desc')
-            ->limit(10)
-            ->get();
+        try {
+            $features = DB::table('mobile_activity_logs')
+                ->where('created_at', '>=', now()->subDays($days))
+                ->select('feature', 'action', DB::raw('COUNT(*) as count'))
+                ->whereNotNull('feature')
+                ->groupBy('feature', 'action')
+                ->orderBy('count', 'desc')
+                ->limit(10)
+                ->get();
 
-        return response()->json([
-            'success' => true,
-            'data' => $features
-        ]);
+            return response()->json([
+                'success' => true,
+                'data' => $features
+            ]);
+        } catch (\Exception $e) {
+            return response()->json([
+                'success' => true,
+                'data' => []
+            ]);
+        }
     }
 
     /**
@@ -253,20 +268,27 @@ class MobileMonitoringController extends Controller
     {
         $days = $request->input('days', 7);
         
-        $hours = DB::table('mobile_activity_logs')
-            ->where('created_at', '>=', now()->subDays($days))
-            ->select(
-                DB::raw('HOUR(created_at) as hour'),
-                DB::raw('COUNT(*) as count')
-            )
-            ->groupBy('hour')
-            ->orderBy('hour', 'asc')
-            ->get();
+        try {
+            $hours = DB::table('mobile_activity_logs')
+                ->where('created_at', '>=', now()->subDays($days))
+                ->select(
+                    DB::raw('HOUR(created_at) as hour'),
+                    DB::raw('COUNT(*) as count')
+                )
+                ->groupBy('hour')
+                ->orderBy('hour', 'asc')
+                ->get();
 
-        return response()->json([
-            'success' => true,
-            'data' => $hours
-        ]);
+            return response()->json([
+                'success' => true,
+                'data' => $hours
+            ]);
+        } catch (\Exception $e) {
+            return response()->json([
+                'success' => true,
+                'data' => []
+            ]);
+        }
     }
 
     /**
@@ -276,34 +298,46 @@ class MobileMonitoringController extends Controller
     {
         $today = now()->startOfDay();
         
-        $stats = [
-            'active_users_today' => DB::table('mobile_activity_logs')
-                ->where('created_at', '>=', $today)
-                ->distinct('no_hp')
-                ->count('no_hp'),
-            
-            'total_activities_today' => DB::table('mobile_activity_logs')
-                ->where('created_at', '>=', $today)
-                ->count(),
-            
-            'avg_response_time' => DB::table('mobile_activity_logs')
-                ->where('created_at', '>=', $today)
-                ->whereNotNull('response_time')
-                ->avg('response_time'),
-            
-            'top_feature_today' => DB::table('mobile_activity_logs')
-                ->where('created_at', '>=', $today)
-                ->select('feature', DB::raw('COUNT(*) as count'))
-                ->whereNotNull('feature')
-                ->groupBy('feature')
-                ->orderBy('count', 'desc')
-                ->first(),
-        ];
+        try {
+            $stats = [
+                'active_users_today' => DB::table('mobile_activity_logs')
+                    ->where('created_at', '>=', $today)
+                    ->distinct('no_hp')
+                    ->count('no_hp'),
+                
+                'total_activities_today' => DB::table('mobile_activity_logs')
+                    ->where('created_at', '>=', $today)
+                    ->count(),
+                
+                'avg_response_time' => DB::table('mobile_activity_logs')
+                    ->where('created_at', '>=', $today)
+                    ->whereNotNull('response_time')
+                    ->avg('response_time'),
+                
+                'top_feature_today' => DB::table('mobile_activity_logs')
+                    ->where('created_at', '>=', $today)
+                    ->select('feature', DB::raw('COUNT(*) as count'))
+                    ->whereNotNull('feature')
+                    ->groupBy('feature')
+                    ->orderBy('count', 'desc')
+                    ->first(),
+            ];
 
-        return response()->json([
-            'success' => true,
-            'data' => $stats
-        ]);
+            return response()->json([
+                'success' => true,
+                'data' => $stats
+            ]);
+        } catch (\Exception $e) {
+            return response()->json([
+                'success' => true,
+                'data' => [
+                    'active_users_today' => 0,
+                    'total_activities_today' => 0,
+                    'avg_response_time' => 0,
+                    'top_feature_today' => null,
+                ]
+            ]);
+        }
     }
 
     /**
