@@ -16,9 +16,6 @@ COPY . .
 # Build the web version
 RUN flutter build web --release
 
-# Copy Firebase service worker to build output (required for FCM)
-RUN cp web/firebase-messaging-sw.js build/web/firebase-messaging-sw.js
-
 # Stage 2: Serve with Nginx
 FROM nginx:alpine
 
