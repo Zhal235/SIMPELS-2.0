@@ -15,56 +15,78 @@ class MobileMonitoringController extends Controller
      */
     public function statistics(Request $request)
     {
-        $totalSantri = Santri::where('status', 'aktif')->count();
-        
-        // Santri yang minimal 1 wali sudah login
-        $santriWithLoginQuery = Santri::where('status', 'aktif')
-            ->where(function($q) {
-                $q->whereHas('passwordWaliAyah', function($query) {
-                    $query->whereNotNull('last_mobile_login_at');
-                })
-                ->orWhereHas('passwordWaliIbu', function($query) {
-                    $query->whereNotNull('last_mobile_login_at');
-                });
-            });
-        
-        $santriWithLogin = $santriWithLoginQuery->count();
-        
-        // Santri yang kedua wali (ayah & ibu) sudah login
-        $santriFullyAdopted = Santri::where('status', 'aktif')
-            ->whereNotNull('hp_ayah')
-            ->whereNotNull('hp_ibu')
-            ->whereHas('passwordWaliAyah', function($query) {
-                $query->whereNotNull('last_mobile_login_at');
-            })
-            ->whereHas('passwordWaliIbu', function($query) {
-                $query->whereNotNull('last_mobile_login_at');
-            })
-            ->count();
-        
-        // Santri yang belum ada wali yang login
-        $santriNeverLogin = $totalSantri - $santriWithLogin;
-        
-        // Adoption rate
-        $adoptionRate = $totalSantri > 0 ? round(($santriWithLogin / $totalSantri) * 100, 1) : 0;
-        
-        // Device distribution dari password_wali
-        $deviceDistribution = PasswordWali::whereNotNull('last_mobile_device')
-            ->select('last_mobile_device', DB::raw('count(*) as count'))
-            ->groupBy('last_mobile_device')
-            ->get();
+        try {
+            $totalSantri = Santri::where('status', 'aktif')->count();
+            
+            // Get all active santri with their HP
+            $santriList = Santri::where('status', 'aktif')
+                ->select('id', 'hp_ayah', 'hp_ibu')
+                ->get();
+            
+            $santriWithLogin = 0;
+            $santriFullyAdopted = 0;
+            
+            foreach ($santriList as $santri) {
+                $ayahLogin = false;
+                $ibuLogin = false;
+                
+                if ($santri->hp_ayah) {
+                    $ayahLogin = PasswordWali::where('no_hp', $santri->hp_ayah)
+                        ->whereNotNull('last_mobile_login_at')
+                        ->exists();
+                }
+                
+                if ($santri->hp_ibu) {
+                    $ibuLogin = PasswordWali::where('no_hp', $santri->hp_ibu)
+                        ->whereNotNull('last_mobile_login_at')
+                        ->exists();
+                }
+                
+                // Count santri with at least 1 wali login
+                if ($ayahLogin || $ibuLogin) {
+                    $santriWithLogin++;
+                }
+                
+                // Count santri with both wali login
+                if ($ayahLogin && $ibuLogin && $santri->hp_ayah && $santri->hp_ibu) {
+                    $santriFullyAdopted++;
+                }
+            }
+            
+            $santriNeverLogin = $totalSantri - $santriWithLogin;
+            $adoptionRate = $totalSantri > 0 ? round(($santriWithLogin / $totalSantri) * 100, 1) : 0;
+            
+            // Device distribution
+            $deviceDistribution = PasswordWali::whereNotNull('last_mobile_device')
+                ->select('last_mobile_device', DB::raw('count(*) as count'))
+                ->groupBy('last_mobile_device')
+                ->get();
 
-        return response()->json([
-            'success' => true,
-            'data' => [
-                'total_santri' => $totalSantri,
-                'santri_with_wali_login' => $santriWithLogin,
-                'santri_fully_adopted' => $santriFullyAdopted,
-                'santri_never_login' => $santriNeverLogin,
-                'adoption_rate' => $adoptionRate,
-                'device_distribution' => $deviceDistribution,
-            ]
-        ]);
+            return response()->json([
+                'success' => true,
+                'data' => [
+                    'total_santri' => $totalSantri,
+                    'santri_with_wali_login' => $santriWithLogin,
+                    'santri_fully_adopted' => $santriFullyAdopted,
+                    'santri_never_login' => $santriNeverLogin,
+                    'adoption_rate' => $adoptionRate,
+                    'device_distribution' => $deviceDistribution,
+                ]
+            ]);
+        } catch (\Exception $e) {
+            \Log::error('Error in statistics: ' . $e->getMessage());
+            return response()->json([
+                'success' => true,
+                'data' => [
+                    'total_santri' => 0,
+                    'santri_with_wali_login' => 0,
+                    'santri_fully_adopted' => 0,
+                    'santri_never_login' => 0,
+                    'adoption_rate' => 0,
+                    'device_distribution' => [],
+                ]
+            ]);
+        }
     }
 
     /**
@@ -76,105 +98,117 @@ class MobileMonitoringController extends Controller
         $search = $request->input('search');
         $status = $request->input('status'); // 'never', 'partial', 'full'
 
-        $query = Santri::with(['kelas', 'passwordWaliAyah', 'passwordWaliIbu'])
-            ->where('status', 'aktif');
+        try {
+            $query = Santri::with(['kelas'])
+                ->where('status', 'aktif');
 
-        // Filter by search (nama santri atau nomor HP)
-        if ($search) {
-            $query->where(function($q) use ($search) {
-                $q->where('nama_santri', 'like', "%{$search}%")
-                  ->orWhere('nis', 'like', "%{$search}%")
-                  ->orWhere('hp_ayah', 'like', "%{$search}%")
-                  ->orWhere('hp_ibu', 'like', "%{$search}%");
+            // Filter by search (nama santri atau nomor HP)
+            if ($search) {
+                $query->where(function($q) use ($search) {
+                    $q->where('nama_santri', 'like', "%{$search}%")
+                      ->orWhere('nis', 'like', "%{$search}%")
+                      ->orWhere('hp_ayah', 'like', "%{$search}%")
+                      ->orWhere('hp_ibu', 'like', "%{$search}%");
+                });
+            }
+
+            // Get santri data
+            $santriList = $query->orderBy('nama_santri', 'asc')->paginate($perPage);
+
+            // Manually fetch password_wali data for each santri
+            $data = $santriList->getCollection()->map(function($santri) {
+                $ayahLogin = false;
+                $ayahLastLogin = null;
+                $ayahLoginCount = 0;
+                $ayahDevice = null;
+                
+                $ibuLogin = false;
+                $ibuLastLogin = null;
+                $ibuLoginCount = 0;
+                $ibuDevice = null;
+                
+                // Check ayah login status
+                if ($santri->hp_ayah) {
+                    $passwordAyah = PasswordWali::where('no_hp', $santri->hp_ayah)->first();
+                    if ($passwordAyah && $passwordAyah->last_mobile_login_at) {
+                        $ayahLogin = true;
+                        $ayahLastLogin = $passwordAyah->last_mobile_login_at;
+                        $ayahLoginCount = $passwordAyah->mobile_login_count ?? 0;
+                        $ayahDevice = $passwordAyah->last_mobile_device;
+                    }
+                }
+                
+                // Check ibu login status
+                if ($santri->hp_ibu) {
+                    $passwordIbu = PasswordWali::where('no_hp', $santri->hp_ibu)->first();
+                    if ($passwordIbu && $passwordIbu->last_mobile_login_at) {
+                        $ibuLogin = true;
+                        $ibuLastLogin = $passwordIbu->last_mobile_login_at;
+                        $ibuLoginCount = $passwordIbu->mobile_login_count ?? 0;
+                        $ibuDevice = $passwordIbu->last_mobile_device;
+                    }
+                }
+                
+                // Apply status filter
+                $shouldInclude = true;
+                if ($status === 'never') {
+                    $shouldInclude = !$ayahLogin && !$ibuLogin;
+                } elseif ($status === 'partial') {
+                    $shouldInclude = ($ayahLogin && !$ibuLogin) || (!$ayahLogin && $ibuLogin);
+                } elseif ($status === 'full') {
+                    $shouldInclude = $ayahLogin && $ibuLogin && $santri->hp_ayah && $santri->hp_ibu;
+                }
+                
+                return [
+                    'id' => $santri->id,
+                    'nis' => $santri->nis,
+                    'nama_santri' => $santri->nama_santri,
+                    'kelas' => $santri->kelas->nama_kelas ?? '-',
+                    'hp_ayah' => $santri->hp_ayah,
+                    'hp_ibu' => $santri->hp_ibu,
+                    'ayah_login_status' => $ayahLogin,
+                    'ayah_last_login' => $ayahLastLogin,
+                    'ayah_login_count' => $ayahLoginCount,
+                    'ayah_device' => $ayahDevice,
+                    'ibu_login_status' => $ibuLogin,
+                    'ibu_last_login' => $ibuLastLogin,
+                    'ibu_login_count' => $ibuLoginCount,
+                    'ibu_device' => $ibuDevice,
+                    'should_include' => $shouldInclude,
+                ];
             });
+
+            // Filter by status if specified
+            if ($status) {
+                $data = $data->filter(function($item) {
+                    return $item['should_include'];
+                })->values();
+            }
+
+            return response()->json([
+                'success' => true,
+                'data' => [
+                    'current_page' => $santriList->currentPage(),
+                    'data' => $data,
+                    'total' => $santriList->total(),
+                    'per_page' => $santriList->perPage(),
+                    'last_page' => $santriList->lastPage(),
+                ]
+            ]);
+        } catch (\Exception $e) {
+            \Log::error('Error in waliList: ' . $e->getMessage());
+            return response()->json([
+                'success' => false,
+                'message' => 'Error loading data: ' . $e->getMessage(),
+                'data' => [
+                    'current_page' => 1,
+                    'data' => [],
+                    'total' => 0,
+                    'per_page' => 15,
+                    'last_page' => 1,
+                ]
+            ], 500);
         }
-
-        // Filter by adoption status
-        if ($status === 'never') {
-            // Belum ada satupun wali yang login
-            $query->where(function($q) {
-                $q->whereDoesntHave('passwordWaliAyah', function($query) {
-                    $query->whereNotNull('last_mobile_login_at');
-                })
-                ->whereDoesntHave('passwordWaliIbu', function($query) {
-                    $query->whereNotNull('last_mobile_login_at');
-                });
-            });
-        } elseif ($status === 'partial') {
-            // Hanya 1 wali yang login (ayah atau ibu saja)
-            $query->where(function($q) {
-                $q->where(function($q2) {
-                    // Ayah login, ibu belum
-                    $q2->whereHas('passwordWaliAyah', function($query) {
-                        $query->whereNotNull('last_mobile_login_at');
-                    })
-                    ->where(function($q3) {
-                        $q3->whereNull('hp_ibu')
-                           ->orWhereDoesntHave('passwordWaliIbu', function($query) {
-                               $query->whereNotNull('last_mobile_login_at');
-                           });
-                    });
-                })
-                ->orWhere(function($q2) {
-                    // Ibu login, ayah belum
-                    $q2->whereHas('passwordWaliIbu', function($query) {
-                        $query->whereNotNull('last_mobile_login_at');
-                    })
-                    ->where(function($q3) {
-                        $q3->whereNull('hp_ayah')
-                           ->orWhereDoesntHave('passwordWaliAyah', function($query) {
-                               $query->whereNotNull('last_mobile_login_at');
-                           });
-                    });
-                });
-            });
-        } elseif ($status === 'full') {
-            // Kedua wali sudah login
-            $query->whereNotNull('hp_ayah')
-                ->whereNotNull('hp_ibu')
-                ->whereHas('passwordWaliAyah', function($query) {
-                    $query->whereNotNull('last_mobile_login_at');
-                })
-                ->whereHas('passwordWaliIbu', function($query) {
-                    $query->whereNotNull('last_mobile_login_at');
-                });
-        }
-
-        $santriList = $query->orderBy('nama_santri', 'asc')->paginate($perPage);
-
-        // Format response
-        $data = $santriList->getCollection()->map(function($santri) {
-            $ayahLogin = $santri->passwordWaliAyah && $santri->passwordWaliAyah->last_mobile_login_at ? true : false;
-            $ibuLogin = $santri->passwordWaliIbu && $santri->passwordWaliIbu->last_mobile_login_at ? true : false;
-            
-            return [
-                'id' => $santri->id,
-                'nis' => $santri->nis,
-                'nama_santri' => $santri->nama_santri,
-                'kelas' => $santri->kelas->nama_kelas ?? '-',
-                'hp_ayah' => $santri->hp_ayah,
-                'hp_ibu' => $santri->hp_ibu,
-                'ayah_login_status' => $ayahLogin,
-                'ayah_last_login' => $santri->passwordWaliAyah?->last_mobile_login_at,
-                'ayah_login_count' => $santri->passwordWaliAyah?->mobile_login_count ?? 0,
-                'ayah_device' => $santri->passwordWaliAyah?->last_mobile_device,
-                'ibu_login_status' => $ibuLogin,
-                'ibu_last_login' => $santri->passwordWaliIbu?->last_mobile_login_at,
-                'ibu_login_count' => $santri->passwordWaliIbu?->mobile_login_count ?? 0,
-                'ibu_device' => $santri->passwordWaliIbu?->last_mobile_device,
-            ];
-        });
-
-        return response()->json([
-            'success' => true,
-            'data' => [
-                'current_page' => $santriList->currentPage(),
-                'data' => $data,
-                'total' => $santriList->total(),
-                'per_page' => $santriList->perPage(),
-                'last_page' => $santriList->lastPage(),
-            ]
-        ]);
     }
 
     /**
