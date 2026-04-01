@@ -45,24 +45,39 @@ export default function LaporanKeuangan() {
   const totalDebitEpos = wallets.reduce((sum, w) => sum + parseFloat(w.total_debit_epos || 0), 0)
   const totalWithdrawals = cashWithdrawals.reduce((sum, w) => sum + parseFloat(w.amount || 0), 0)
   
-  // Gunakan total_credit dari backend (mencakup semua metode termasuk import)
   const totalCredit = wallets.reduce((sum, w) => sum + parseFloat(w.total_credit || 0), 0)
   const totalDebit = totalDebitCash + totalDebitTransfer + totalDebitEpos
 
-  // Total saldo aktual dari field balance (bukan kalkulasi transaksi)
-  const totalBalance = wallets.reduce((sum, w) => sum + parseFloat(w.balance || 0), 0)
+  // Jika filter aktif, gunakan balance_at_end_date; jika tidak, gunakan balance real-time
+  const isFiltered = dateRange.start && dateRange.end  
+  const totalBalance = wallets.reduce((sum, w) => {
+    const bal = isFiltered ? (w.balance_at_end_date || 0) : (w.balance || 0)
+    return sum + parseFloat(bal || 0)
+  }, 0)
 
-  const totalCashBalance = (totalCreditCash - totalDebitCash - totalDebitEpos) + totalWithdrawals
-  const totalBankBalance = (totalCreditTransfer - totalDebitTransfer) - totalWithdrawals
+  const totalCashBalance = isFiltered 
+    ? wallets.reduce((sum, w) => sum + parseFloat(w.cash_balance_at_end_date || 0), 0)
+    : (totalCreditCash - totalDebitCash - totalDebitEpos) + totalWithdrawals
+    
+  const totalBankBalance = isFiltered
+    ? wallets.reduce((sum, w) => sum + parseFloat(w.bank_balance_at_end_date || 0), 0)
+    : (totalCreditTransfer - totalDebitTransfer) - totalWithdrawals
 
   // Detail per santri columns
   const detailColumns = [
     { key: 'nis', header: 'NIS', render: (v: any, r: any) => <div className="font-mono text-sm">{r.santri?.nis || '-'}</div> },
     { key: 'nama_santri', header: 'Nama Santri', render: (v: any, r: any) => <div className="font-medium">{r.santri?.nama_santri || '-'}</div> },
-    { key: 'balance', header: 'Saldo', render: (v: any) => <div className="font-bold text-blue-600">Rp {parseFloat(v || 0).toLocaleString('id-ID')}</div> },
+    { 
+      key: 'balance', 
+      header: isFiltered ? `Saldo per ${new Date(dateRange.end).toLocaleDateString('id-ID')}` : 'Saldo', 
+      render: (v: any, r: any) => {
+        const bal = isFiltered ? (r.balance_at_end_date || 0) : (r.balance || 0)
+        return <div className="font-bold text-blue-600">Rp {parseFloat(bal).toLocaleString('id-ID')}</div>
+      }
+    },
     { 
       key: 'total_credit', 
-      header: 'Total Top-up', 
+      header: isFiltered ? 'Uang Masuk (Periode)' : 'Total Top-up', 
       render: (v: any, r: any) => (
         <div>
           <div className="text-green-600 font-semibold">Rp {parseFloat(v || 0).toLocaleString('id-ID')}</div>
@@ -73,10 +88,14 @@ export default function LaporanKeuangan() {
         </div>
       )
     },
-    { key: 'total_debit', header: 'Total Debit', render: (v: any) => <div className="text-red-600">Rp {parseFloat(v || 0).toLocaleString('id-ID')}</div> },
+    { 
+      key: 'total_debit', 
+      header: isFiltered ? 'Penarikan (Periode)' : 'Total Penarikan', 
+      render: (v: any) => <div className="text-red-600">Rp {parseFloat(v || 0).toLocaleString('id-ID')}</div> 
+    },
     { 
       key: 'total_debit_epos', 
-      header: 'Belanja EPOS', 
+      header: isFiltered ? 'Belanja EPOS (Periode)' : 'Belanja EPOS', 
       render: (v: any) => <div className="text-purple-600">Rp {parseFloat(v || 0).toLocaleString('id-ID')}</div> 
     },
   ]
@@ -178,83 +197,195 @@ export default function LaporanKeuangan() {
               </Card>
 
               {/* Ringkasan Saldo */}
-              <div className="grid grid-cols-1 md:grid-cols-2 lg:grid-cols-4 gap-4">
-                <Card>
-                  <div className="text-sm text-gray-500 mb-1">💰 Total Saldo Santri</div>
-                  <div className="text-3xl font-bold text-blue-600">
-                    Rp {totalBalance.toLocaleString('id-ID')}
-                  </div>
-                  <div className="text-xs text-gray-500 mt-2">Cash + Bank</div>
-                </Card>
+              {dateRange.start && dateRange.end ? (
+                <>
+                  <Card>
+                    <div className="bg-blue-50 border border-blue-200 rounded p-4 flex items-start gap-3">
+                      <div className="text-blue-600 text-xl">📊</div>
+                      <div>
+                        <div className="font-semibold text-blue-900 mb-1">Laporan Periode: {new Date(dateRange.start).toLocaleDateString('id-ID')} - {new Date(dateRange.end).toLocaleDateString('id-ID')}</div>
+                        <div className="text-sm text-blue-700">
+                          Saldo menampilkan snapshot pada akhir periode. Transaksi menampilkan data dalam periode tersebut.
+                        </div>
+                      </div>
+                    </div>
+                  </Card>
 
-                <Card>
-                  <div className="text-sm text-gray-500 mb-1">💵 Saldo Cash</div>
-                  <div className="text-3xl font-bold text-green-600">
-                    Rp {totalCashBalance.toLocaleString('id-ID')}
-                  </div>
-                  <div className="text-xs text-gray-500 mt-2">Uang fisik</div>
-                </Card>
+                  {/* Saldo pada akhir periode */}
+                  <div className="grid grid-cols-1 md:grid-cols-2 lg:grid-cols-3 gap-4">
+                    <Card>
+                      <div className="text-sm text-gray-500 mb-1">💰 Saldo Total per {new Date(dateRange.end).toLocaleDateString('id-ID')}</div>
+                      <div className="text-3xl font-bold text-blue-600">
+                        Rp {totalBalance.toLocaleString('id-ID')}
+                      </div>
+                      <div className="text-xs text-gray-500 mt-2">Snapshot akhir periode</div>
+                    </Card>
 
-                <Card>
-                  <div className="text-sm text-gray-500 mb-1">🏦 Saldo Bank</div>
-                  <div className="text-3xl font-bold text-purple-600">
-                    Rp {totalBankBalance.toLocaleString('id-ID')}
-                  </div>
-                  <div className="text-xs text-gray-500 mt-2">Di rekening</div>
-                </Card>
+                    <Card>
+                      <div className="text-sm text-gray-500 mb-1">💵 Saldo Cash per {new Date(dateRange.end).toLocaleDateString('id-ID')}</div>
+                      <div className="text-3xl font-bold text-green-600">
+                        Rp {totalCashBalance.toLocaleString('id-ID')}
+                      </div>
+                      <div className="text-xs text-gray-500 mt-2">Uang fisik</div>
+                    </Card>
 
-                <Card>
-                  <div className="text-sm text-gray-500 mb-1">🏪 Pool EPOS</div>
-                  <div className="text-3xl font-bold text-orange-600">
-                    Rp {parseFloat(eposPool?.balance || 0).toLocaleString('id-ID')}
+                    <Card>
+                      <div className="text-sm text-gray-500 mb-1">🏦 Saldo Bank per {new Date(dateRange.end).toLocaleDateString('id-ID')}</div>
+                      <div className="text-3xl font-bold text-purple-600">
+                        Rp {totalBankBalance.toLocaleString('id-ID')}
+                      </div>
+                      <div className="text-xs text-gray-500 mt-2">Di rekening</div>
+                    </Card>
                   </div>
-                  <div className="text-xs text-gray-500 mt-2">Belum dicairkan</div>
-                </Card>
-              </div>
+
+                  {/* Transaksi dalam periode */}
+                  <div className="grid grid-cols-1 md:grid-cols-2 lg:grid-cols-3 gap-4">
+                    <Card>
+                      <div className="text-sm text-gray-500 mb-1">📈 Uang Masuk (Periode)</div>
+                      <div className="text-3xl font-bold text-green-600">
+                        Rp {totalCredit.toLocaleString('id-ID')}
+                      </div>
+                      <div className="text-xs text-gray-500 mt-2">Top-up dalam periode</div>
+                    </Card>
+
+                    <Card>
+                      <div className="text-sm text-gray-500 mb-1">📉 Uang Keluar (Periode)</div>
+                      <div className="text-3xl font-bold text-red-600">
+                        Rp {totalDebit.toLocaleString('id-ID')}
+                      </div>
+                      <div className="text-xs text-gray-500 mt-2">Penarikan + Belanja dalam periode</div>
+                    </Card>
+
+                    <Card>
+                      <div className="text-sm text-gray-500 mb-1">🔄 Selisih (Periode)</div>
+                      <div className={`text-3xl font-bold ${totalCredit - totalDebit >= 0 ? 'text-green-600' : 'text-red-600'}`}>
+                        Rp {(totalCredit - totalDebit).toLocaleString('id-ID')}
+                      </div>
+                      <div className="text-xs text-gray-500 mt-2">Masuk - Keluar</div>
+                    </Card>
+                  </div>
+                </>
+              ) : (
+                <div className="grid grid-cols-1 md:grid-cols-2 lg:grid-cols-4 gap-4">
+                  <Card>
+                    <div className="text-sm text-gray-500 mb-1">💰 Total Saldo Santri</div>
+                    <div className="text-3xl font-bold text-blue-600">
+                      Rp {totalBalance.toLocaleString('id-ID')}
+                    </div>
+                    <div className="text-xs text-gray-500 mt-2">Cash + Bank</div>
+                  </Card>
+
+                  <Card>
+                    <div className="text-sm text-gray-500 mb-1">💵 Saldo Cash</div>
+                    <div className="text-3xl font-bold text-green-600">
+                      Rp {totalCashBalance.toLocaleString('id-ID')}
+                    </div>
+                    <div className="text-xs text-gray-500 mt-2">Uang fisik</div>
+                  </Card>
+
+                  <Card>
+                    <div className="text-sm text-gray-500 mb-1">🏦 Saldo Bank</div>
+                    <div className="text-3xl font-bold text-purple-600">
+                      Rp {totalBankBalance.toLocaleString('id-ID')}
+                    </div>
+                    <div className="text-xs text-gray-500 mt-2">Di rekening</div>
+                  </Card>
+
+                  <Card>
+                    <div className="text-sm text-gray-500 mb-1">🏪 Pool EPOS</div>
+                    <div className="text-3xl font-bold text-orange-600">
+                      Rp {parseFloat(eposPool?.balance || 0).toLocaleString('id-ID')}
+                    </div>
+                    <div className="text-xs text-gray-500 mt-2">Belum dicairkan</div>
+                  </Card>
+                </div>
+              )}
 
               {/* Transaksi Periode */}
-              <div className="grid grid-cols-1 md:grid-cols-3 gap-4">
-                <Card>
-                  <div className="text-sm text-gray-500 mb-1">📈 Total Top-up</div>
-                  <div className="text-2xl font-bold text-green-600">
-                    Rp {totalCredit.toLocaleString('id-ID')}
-                  </div>
-                  <div className="text-xs text-gray-500 mt-1">
-                    Cash: Rp {totalCreditCash.toLocaleString('id-ID')}
-                  </div>
-                  <div className="text-xs text-gray-500">
-                    Transfer: Rp {totalCreditTransfer.toLocaleString('id-ID')}
-                  </div>
-                </Card>
+              {!isFiltered && (
+                <div className="grid grid-cols-1 md:grid-cols-3 gap-4">
+                  <Card>
+                    <div className="text-sm text-gray-500 mb-1">📈 Total Top-up</div>
+                    <div className="text-2xl font-bold text-green-600">
+                      Rp {totalCredit.toLocaleString('id-ID')}
+                    </div>
+                    <div className="text-xs text-gray-500 mt-1">
+                      Cash: Rp {totalCreditCash.toLocaleString('id-ID')}
+                    </div>
+                    <div className="text-xs text-gray-500">
+                      Transfer: Rp {totalCreditTransfer.toLocaleString('id-ID')}
+                    </div>
+                  </Card>
 
-                <Card>
-                  <div className="text-sm text-gray-500 mb-1">📉 Total Penarikan</div>
-                  <div className="text-2xl font-bold text-red-600">
-                    Rp {(totalDebitCash + totalDebitTransfer).toLocaleString('id-ID')}
-                  </div>
-                  <div className="text-xs text-gray-500 mt-1">
-                    Cash: Rp {totalDebitCash.toLocaleString('id-ID')}
-                  </div>
-                  <div className="text-xs text-gray-500">
-                    Transfer: Rp {totalDebitTransfer.toLocaleString('id-ID')}
-                  </div>
-                </Card>
+                  <Card>
+                    <div className="text-sm text-gray-500 mb-1">📉 Total Penarikan</div>
+                    <div className="text-2xl font-bold text-red-600">
+                      Rp {(totalDebitCash + totalDebitTransfer).toLocaleString('id-ID')}
+                    </div>
+                    <div className="text-xs text-gray-500 mt-1">
+                      Cash: Rp {totalDebitCash.toLocaleString('id-ID')}
+                    </div>
+                    <div className="text-xs text-gray-500">
+                      Transfer: Rp {totalDebitTransfer.toLocaleString('id-ID')}
+                    </div>
+                  </Card>
 
-                <Card>
-                  <div className="text-sm text-gray-500 mb-1">🛒 Total EPOS</div>
-                  <div className="text-2xl font-bold text-orange-600">
-                    Rp {totalDebitEpos.toLocaleString('id-ID')}
-                  </div>
-                  <div className="text-xs text-gray-500 mt-1">
-                    Belanja di kantin
-                  </div>
-                </Card>
-              </div>
+                  <Card>
+                    <div className="text-sm text-gray-500 mb-1">🛒 Total EPOS</div>
+                    <div className="text-2xl font-bold text-orange-600">
+                      Rp {totalDebitEpos.toLocaleString('id-ID')}
+                    </div>
+                    <div className="text-xs text-gray-500 mt-1">
+                      Belanja di kantin
+                    </div>
+                  </Card>
+                </div>
+              )}
+
+              {isFiltered && (
+                <div className="grid grid-cols-1 md:grid-cols-3 gap-4">
+                  <Card>
+                    <div className="text-sm text-gray-500 mb-1">📈 Top-up dalam Periode</div>
+                    <div className="text-2xl font-bold text-green-600">
+                      Rp {totalCredit.toLocaleString('id-ID')}
+                    </div>
+                    <div className="text-xs text-gray-500 mt-1">
+                      Cash: Rp {totalCreditCash.toLocaleString('id-ID')}
+                    </div>
+                    <div className="text-xs text-gray-500">
+                      Transfer: Rp {totalCreditTransfer.toLocaleString('id-ID')}
+                    </div>
+                  </Card>
+
+                  <Card>
+                    <div className="text-sm text-gray-500 mb-1">📉 Penarikan dalam Periode</div>
+                    <div className="text-2xl font-bold text-red-600">
+                      Rp {(totalDebitCash + totalDebitTransfer).toLocaleString('id-ID')}
+                    </div>
+                    <div className="text-xs text-gray-500 mt-1">
+                      Cash: Rp {totalDebitCash.toLocaleString('id-ID')}
+                    </div>
+                    <div className="text-xs text-gray-500">
+                      Transfer: Rp {totalDebitTransfer.toLocaleString('id-ID')}
+                    </div>
+                  </Card>
+
+                  <Card>
+                    <div className="text-sm text-gray-500 mb-1">🛒 Belanja EPOS dalam Periode</div>
+                    <div className="text-2xl font-bold text-orange-600">
+                      Rp {totalDebitEpos.toLocaleString('id-ID')}
+                    </div>
+                    <div className="text-xs text-gray-500 mt-1">
+                      Belanja di kantin
+                    </div>
+                  </Card>
+                </div>
+              )}
 
               {/* Top Transaksi */}
               <div className="grid grid-cols-1 md:grid-cols-2 gap-4">
                 <Card>
-                  <h3 className="text-sm font-semibold text-gray-700 mb-3">🔝 Top 10 Top-up Terbesar</h3>
+                  <h3 className="text-sm font-semibold text-gray-700 mb-3">🔝 Top 10 Top-up Terbesar {isFiltered ? '(Periode)' : ''}</h3>
                   <div className="space-y-2">
                     {topTopup.map((w, idx) => (
                       <div key={w.id} className="flex items-center justify-between p-2 bg-gray-50 rounded">
@@ -273,7 +404,7 @@ export default function LaporanKeuangan() {
                 </Card>
 
                 <Card>
-                  <h3 className="text-sm font-semibold text-gray-700 mb-3">📊 Top 10 Belanja Terbanyak</h3>
+                  <h3 className="text-sm font-semibold text-gray-700 mb-3">📊 Top 10 Belanja Terbanyak {isFiltered ? '(Periode)' : ''}</h3>
                   <div className="space-y-2">
                     {topBelanja.map((w, idx) => (
                       <div key={w.id} className="flex items-center justify-between p-2 bg-gray-50 rounded">
@@ -296,7 +427,8 @@ export default function LaporanKeuangan() {
 
           {/* Tab: Detail Santri */}
           {activeTab === 'detail' && (
-            <Card>
+            <>
+              <Card>
               <div className="mb-4 flex items-center justify-between gap-4">
                 <div>
                   <h3 className="text-lg font-semibold">Rincian per Santri</h3>
@@ -365,55 +497,71 @@ export default function LaporanKeuangan() {
                 </>
               )}
             </Card>
+            </>
           )}
 
           {/* Tab: Rekonsiliasi */}
           {activeTab === 'rekonsiliasi' && (
             <div className="space-y-4">
+              {dateRange.start && dateRange.end && (
+                <Card>
+                  <div className="bg-blue-50 border border-blue-200 rounded p-4 flex items-start gap-3">
+                    <div className="text-blue-600 text-xl">ℹ️</div>
+                    <div>
+                      <div className="font-semibold text-blue-900 mb-1">Mode Periode Aktif</div>
+                      <div className="text-sm text-blue-700">
+                        Rekonsiliasi menampilkan data transaksi dalam periode yang dipilih. 
+                        Untuk rekonsiliasi penuh, reset filter periode.
+                      </div>
+                    </div>
+                  </div>
+                </Card>
+              )}
+              
               <Card>
-                <h3 className="text-lg font-semibold mb-4">✅ Rekonsiliasi Saldo</h3>
-                <div className="space-y-3">
-                  <div className="flex items-center gap-3 p-3 bg-green-50 border border-green-200 rounded">
-                    <div className="text-green-600 text-2xl">✅</div>
-                    <div className="flex-1">
-                      <div className="font-medium text-green-900">Saldo Cash sesuai transaksi</div>
-                      <div className="text-sm text-green-700">
-                        Rp {totalCashBalance.toLocaleString('id-ID')}
+                  <h3 className="text-lg font-semibold mb-4">✅ Rekonsiliasi Saldo</h3>
+                  <div className="space-y-3">
+                    <div className="flex items-center gap-3 p-3 bg-green-50 border border-green-200 rounded">
+                      <div className="text-green-600 text-2xl">✅</div>
+                      <div className="flex-1">
+                        <div className="font-medium text-green-900">Saldo Cash sesuai transaksi</div>
+                        <div className="text-sm text-green-700">
+                          Rp {totalCashBalance.toLocaleString('id-ID')}
+                        </div>
                       </div>
                     </div>
-                  </div>
 
-                  <div className="flex items-center gap-3 p-3 bg-green-50 border border-green-200 rounded">
-                    <div className="text-green-600 text-2xl">✅</div>
-                    <div className="flex-1">
-                      <div className="font-medium text-green-900">Saldo Bank sesuai transaksi</div>
-                      <div className="text-sm text-green-700">
-                        Rp {totalBankBalance.toLocaleString('id-ID')}
+                    <div className="flex items-center gap-3 p-3 bg-green-50 border border-green-200 rounded">
+                      <div className="text-green-600 text-2xl">✅</div>
+                      <div className="flex-1">
+                        <div className="font-medium text-green-900">Saldo Bank sesuai transaksi</div>
+                        <div className="text-sm text-green-700">
+                          Rp {totalBankBalance.toLocaleString('id-ID')}
+                        </div>
                       </div>
                     </div>
-                  </div>
 
-                  <div className="flex items-center gap-3 p-3 bg-green-50 border border-green-200 rounded">
-                    <div className="text-green-600 text-2xl">✅</div>
-                    <div className="flex-1">
-                      <div className="font-medium text-green-900">Total Saldo Santri match</div>
-                      <div className="text-sm text-green-700">
-                        {wallets.length} dompet terverifikasi
+                    <div className="flex items-center gap-3 p-3 bg-green-50 border border-green-200 rounded">
+                      <div className="text-green-600 text-2xl">✅</div>
+                      <div className="flex-1">
+                        <div className="font-medium text-green-900">Total Saldo Santri match</div>
+                        <div className="text-sm text-green-700">
+                          {wallets.length} dompet terverifikasi
+                        </div>
                       </div>
                     </div>
-                  </div>
 
-                  <div className="flex items-center gap-3 p-3 bg-green-50 border border-green-200 rounded">
-                    <div className="text-green-600 text-2xl">✅</div>
-                    <div className="flex-1">
-                      <div className="font-medium text-green-900">Pool EPOS konsisten</div>
-                      <div className="text-sm text-green-700">
-                        Rp {parseFloat(eposPool?.balance || 0).toLocaleString('id-ID')}
+                    <div className="flex items-center gap-3 p-3 bg-green-50 border border-green-200 rounded">
+                      <div className="text-green-600 text-2xl">✅</div>
+                      <div className="flex-1">
+                        <div className="font-medium text-green-900">Pool EPOS konsisten</div>
+                        <div className="text-sm text-green-700">
+                          Rp {parseFloat(eposPool?.balance || 0).toLocaleString('id-ID')}
+                        </div>
                       </div>
                     </div>
                   </div>
-                </div>
-              </Card>
+                </Card>
 
               <Card>
                 <h3 className="text-lg font-semibold mb-4">⚠️ Anomali & Warning</h3>

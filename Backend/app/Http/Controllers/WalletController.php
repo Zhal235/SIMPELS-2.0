@@ -197,6 +197,96 @@ class WalletController extends Controller
                 ->when($dateFrom && $dateTo, fn($q) => $q->whereBetween('created_at', [$dateFrom, $dateTo]))
                 ->count();
 
+            // Jika ada filter periode, hitung saldo snapshot pada tanggal akhir
+            if ($dateFrom && $dateTo) {
+                // Hitung total credit sampai tanggal akhir
+                $creditUntilEnd = WalletTransaction::where('wallet_id', $wallet->id)
+                    ->where('type', 'credit')
+                    ->where(function($q) {
+                        $q->where('voided', '!=', 1)
+                          ->orWhereNull('voided');
+                    })
+                    ->where('created_at', '<=', $dateTo)
+                    ->sum('amount');
+
+                // Hitung total debit sampai tanggal akhir
+                $debitUntilEnd = WalletTransaction::where('wallet_id', $wallet->id)
+                    ->where('type', 'debit')
+                    ->where(function($q) {
+                        $q->where('voided', '!=', 1)
+                          ->orWhereNull('voided');
+                    })
+                    ->where('created_at', '<=', $dateTo)
+                    ->sum('amount');
+
+                $wallet->balance_at_end_date = (float)($creditUntilEnd - $debitUntilEnd);
+
+                // Breakdown per metode sampai tanggal akhir
+                $creditCashUntilEnd = WalletTransaction::where('wallet_id', $wallet->id)
+                    ->where('type', 'credit')
+                    ->where(function($q) {
+                        $q->where('method', 'cash')
+                          ->orWhereNull('method')
+                          ->orWhere('method', '');
+                    })
+                    ->where(function($q) {
+                        $q->where('voided', '!=', 1)
+                          ->orWhereNull('voided');
+                    })
+                    ->where('created_at', '<=', $dateTo)
+                    ->sum('amount');
+
+                $creditTransferUntilEnd = WalletTransaction::where('wallet_id', $wallet->id)
+                    ->where('type', 'credit')
+                    ->where('method', 'transfer')
+                    ->where(function($q) {
+                        $q->where('voided', '!=', 1)
+                          ->orWhereNull('voided');
+                    })
+                    ->where('created_at', '<=', $dateTo)
+                    ->sum('amount');
+
+                $debitCashUntilEnd = WalletTransaction::where('wallet_id', $wallet->id)
+                    ->where('type', 'debit')
+                    ->where('method', 'cash')
+                    ->where(function($q) {
+                        $q->where('voided', '!=', 1)
+                          ->orWhereNull('voided');
+                    })
+                    ->where('created_at', '<=', $dateTo)
+                    ->sum('amount');
+
+                $debitTransferUntilEnd = WalletTransaction::where('wallet_id', $wallet->id)
+                    ->where('type', 'debit')
+                    ->where('method', 'transfer')
+                    ->where(function($q) {
+                        $q->where('voided', '!=', 1)
+                          ->orWhereNull('voided');
+                    })
+                    ->where('created_at', '<=', $dateTo)
+                    ->sum('amount');
+
+                $debitEposUntilEnd = WalletTransaction::where('wallet_id', $wallet->id)
+                    ->where('type', 'debit')
+                    ->whereIn('method', ['epos', 'epos_kebutuhan'])
+                    ->where(function($q) {
+                        $q->where('voided', '!=', 1)
+                          ->orWhereNull('voided');
+                    })
+                    ->where('created_at', '<=', $dateTo)
+                    ->sum('amount');
+
+                // Hitung penarikan Bank->Cash sampai tanggal akhir
+                $withdrawalsUntilEnd = DB::table('wallet_withdrawals')
+                    ->where('pool_id', null)
+                    ->where('status', 'done')
+                    ->where('created_at', '<=', $dateTo)
+                    ->sum('amount');
+
+                $wallet->cash_balance_at_end_date = (float)(($creditCashUntilEnd - $debitCashUntilEnd - $debitEposUntilEnd) + $withdrawalsUntilEnd);
+                $wallet->bank_balance_at_end_date = (float)(($creditTransferUntilEnd - $debitTransferUntilEnd) - $withdrawalsUntilEnd);
+            }
+
             return $wallet;
         });
 
