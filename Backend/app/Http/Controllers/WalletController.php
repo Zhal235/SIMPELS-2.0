@@ -624,7 +624,10 @@ class WalletController extends Controller
             $q->where('created_by', $request->query('created_by'));
         }
 
-        $perPage = min((int)($request->query('per_page', 25)), 100);
+        $perPage = (int)($request->query('per_page', 25));
+        if ($perPage > 10000) {
+            $perPage = 10000;
+        }
         $page = max((int)($request->query('page', 1)), 1);
 
         $total = $q->count();

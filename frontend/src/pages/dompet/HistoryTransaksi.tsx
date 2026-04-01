@@ -66,7 +66,7 @@ export default function HistoryTransaksi() {
     
     try {
       const query = new URLSearchParams(location.search)
-      const params: any = { per_page: 999999 }
+      const params: any = { per_page: 10000 }
       if (query.get('santri_id')) params.santri_id = query.get('santri_id')
       if (search.trim().length >= 2) params.search = search.trim()
       if (filterType) params.type = filterType
