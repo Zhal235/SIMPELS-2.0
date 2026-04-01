@@ -59,19 +59,63 @@ export default function HistoryTransaksi() {
     setSearch(''); setFilterType(''); setFilterMethod(''); setFilterStart(''); setFilterEnd(''); setFilterOperator(''); setPage(1)
   }
 
-  function exportCSV() {
-    if (!transactions.length) { toast.error('Tidak ada data untuk diexport'); return }
-    const headers = ['id','wallet_id','type','amount','balance_after','description','reference','method','created_at']
-    const csvRows = [headers.join(',')]
-    transactions.forEach((t: any) => {
-      csvRows.push(headers.map(h => JSON.stringify(t[h] ?? '')).join(','))
-    })
-    const blob = new Blob([csvRows.join('\n')], { type: 'text/csv' })
-    const url = URL.createObjectURL(blob)
-    const a = document.createElement('a')
-    a.href = url; a.download = `dompet_transactions_${Date.now()}.csv`; a.click()
-    URL.revokeObjectURL(url)
-    toast.success('Data berhasil diexport')
+  async function exportCSV() {
+    if (totalRows === 0) { toast.error('Tidak ada data untuk diexport'); return }
+    
+    const loadingToast = toast.loading('Mengambil semua data untuk export...')
+    
+    try {
+      const query = new URLSearchParams(location.search)
+      const params: any = { per_page: 999999 }
+      if (query.get('santri_id')) params.santri_id = query.get('santri_id')
+      if (search.trim().length >= 2) params.search = search.trim()
+      if (filterType) params.type = filterType
+      if (filterMethod) params.method = filterMethod
+      if (filterStart) params.start = filterStart
+      if (filterEnd) params.end = filterEnd + ' 23:59:59'
+      if (filterOperator) params.created_by = filterOperator
+      
+      const res = await listWalletTransactions(params)
+      
+      if (!res.success || !res.data || res.data.length === 0) {
+        toast.error('Tidak ada data untuk diexport', { id: loadingToast })
+        return
+      }
+      
+      const allData = res.data
+      const headers = ['No', 'NIS', 'Nama Santri', 'Tipe', 'Nominal', 'Saldo Setelah', 'Keterangan', 'Metode', 'Operator', 'Waktu', 'Status']
+      const csvRows = [headers.join(',')]
+      
+      allData.forEach((t: any, idx: number) => {
+        const row = [
+          idx + 1,
+          t.wallet?.santri?.nis || '',
+          t.wallet?.santri?.nama_santri || '',
+          t.type === 'credit' ? 'Top-up' : 'Debit',
+          parseFloat(t.amount || 0),
+          parseFloat(t.balance_after || 0),
+          (t.description || '').replace(/,/g, ';'),
+          t.method || '',
+          t.author?.name || 'System',
+          new Date(t.created_at).toLocaleString('id-ID'),
+          t.voided ? 'VOID' : 'Valid'
+        ]
+        csvRows.push(row.map(v => JSON.stringify(v)).join(','))
+      })
+      
+      const blob = new Blob([csvRows.join('\n')], { type: 'text/csv' })
+      const url = URL.createObjectURL(blob)
+      const a = document.createElement('a')
+      a.href = url
+      a.download = `dompet_transactions_${new Date().toISOString().split('T')[0]}_${Date.now()}.csv`
+      a.click()
+      URL.revokeObjectURL(url)
+      
+      toast.success(`Berhasil export ${allData.length.toLocaleString('id-ID')} transaksi`, { id: loadingToast })
+    } catch (err) {
+      console.error(err)
+      toast.error('Gagal mengexport data', { id: loadingToast })
+    }
   }
 
   async function handleDeleteImportHistory() {
@@ -155,8 +199,8 @@ export default function HistoryTransaksi() {
               {deletingImport ? '⏳ Menghapus...' : '🗑️ Hapus Semua History Import'}
             </button>
           )}
-          <button className="btn btn-primary" onClick={exportCSV} disabled={!transactions.length}>
-            📥 Export CSV
+          <button className="btn btn-primary" onClick={exportCSV} disabled={totalRows === 0}>
+            📥 Export CSV {totalRows > 0 && `(${totalRows.toLocaleString('id-ID')} data)`}
           </button>
         </div>
       </div>
