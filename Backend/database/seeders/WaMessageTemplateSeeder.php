@@ -60,6 +60,15 @@ class WaMessageTemplateSeeder extends Seeder
                     ['key' => 'link_pwa',         'desc' => 'URL aplikasi mobile PWA',                  'required' => true],
                 ],
             ],
+            [
+                'type' => 'reminder_saldo',
+                'body' => "⚠️ *NOTIFIKASI SALDO RENDAH*\n\nAssalamu'alaikum Wr. Wb.\nYth. Wali Santri *{{nama_santri}}*\n\nKami informasikan bahwa saldo santri saat ini berada di bawah batas minimal yang ditentukan:\n\n💰 *Saldo saat ini:* Rp {{saldo_sekarang}}\n📊 *Batas minimal:* Rp {{saldo_minimal}}\n\nMohon segera melakukan top-up saldo agar santri dapat melakukan transaksi dengan lancar.\n\nPembayaran dapat dilakukan melalui aplikasi SIMPELS atau transfer ke rekening pesantren.\n\nTerima kasih atas perhatiannya.\n_SIMPELS - Sistem Informasi Pesantren_",
+                'placeholders' => [
+                    ['key' => 'nama_santri',    'desc' => 'Nama santri',                              'required' => true],
+                    ['key' => 'saldo_sekarang', 'desc' => 'Saldo saat ini (contoh: 5.000)',          'required' => true],
+                    ['key' => 'saldo_minimal',  'desc' => 'Batas minimal saldo (contoh: 10.000)',    'required' => true],
+                ],
+            ],
         ];
 
         foreach ($templates as $data) {
