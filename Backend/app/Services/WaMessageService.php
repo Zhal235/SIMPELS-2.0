@@ -121,6 +121,15 @@ class WaMessageService
         ]);
     }
 
+    public function buildLowBalanceMessage(Santri $santri, float $currentBalance, float $minBalance): string
+    {
+        return $this->renderTemplate('reminder_saldo', [
+            'nama_santri'     => $santri->nama_santri,
+            'saldo_sekarang'  => number_format($currentBalance, 0, ',', '.'),
+            'saldo_minimal'   => number_format($minBalance, 0, ',', '.'),
+        ]);
+    }
+
     public function getTunggakanSebelumBulan(string $santriId, string $bulanNamaSekarang, int $tahunSekarang): Collection
     {
         $bulanUrut = ['Januari'=>1,'Februari'=>2,'Maret'=>3,'April'=>4,'Mei'=>5,'Juni'=>6,
@@ -223,6 +232,7 @@ class WaMessageService
             'pengumuman'         => "📢 *PENGUMUMAN*\n*{{judul}}*\n\n{{isi}}\n\n_SIMPELS - Sistem Informasi Pesantren_",
             'pengumuman_wali'    => "📢 *PENGUMUMAN*\n\nAssalamu'alaikum Wr. Wb.\nYth. Bpk/Ibu *{{nama_wali}}*\nWali dari Ananda *{{nama_santri}}*\n\n*{{judul}}*\n\n{{isi}}\n\n_SIMPELS - Sistem Informasi Pesantren_",
             'pengumuman_pegawai' => "📢 *PENGUMUMAN*\n\nAssalamu'alaikum Wr. Wb.\nYth. *{{nama_pegawai}}*\n\n*{{judul}}*\n\n{{isi}}\n\n_SIMPELS - Sistem Informasi Pesantren_",
+            'reminder_saldo'     => "⚠️ *NOTIFIKASI SALDO RENDAH*\n\nAssalamu'alaikum Wr. Wb.\nYth. Wali Santri *{{nama_santri}}*\n\nKami informasikan bahwa saldo santri saat ini berada di bawah batas minimal yang ditentukan:\n\n💰 *Saldo saat ini:* Rp {{saldo_sekarang}}\n📊 *Batas minimal:* Rp {{saldo_minimal}}\n\nMohon segera melakukan top-up saldo agar santri dapat melakukan transaksi dengan lancar.\n\nPembayaran dapat dilakukan melalui aplikasi SIMPELS atau transfer ke rekening pesantren.\n\nTerima kasih atas perhatiannya.\n_SIMPELS - Sistem Informasi Pesantren_",
             default           => '',
         };
     }

@@ -12,7 +12,11 @@ class Wallet extends Model
     protected $table = 'wallets';
 
     protected $fillable = [
-        'santri_id', 'balance'
+        'santri_id', 'balance', 'low_balance_notified_at'
+    ];
+
+    protected $casts = [
+        'low_balance_notified_at' => 'datetime',
     ];
 
     public function santri()

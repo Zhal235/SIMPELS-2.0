@@ -14,3 +14,6 @@ Schedule::command('db:backup')->dailyAt('19:00')->timezone('UTC');
 // WA: Jalankan pengecekan jadwal setiap hari pukul 07:00 WIB (00:00 UTC)
 Schedule::command('wa:run-scheduled')->dailyAt('00:00')->timezone('UTC');
 
+// WA: Reminder saldo minimal setiap hari pukul 08:00 WIB (01:00 UTC)
+Schedule::command('wa:reminder-saldo-minimal')->dailyAt('01:00')->timezone('UTC');
+
