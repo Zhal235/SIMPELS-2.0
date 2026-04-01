@@ -31,10 +31,9 @@ class WalletController extends Controller
             })
             ->sum('amount');
         
-        // Debit cash (tarik tunai santri, EPOS belanja) - exclude voided & admin-void
+        // Debit cash (tarik tunai santri, EPOS belanja) - exclude voided
         $cashDebit = WalletTransaction::where('type', 'debit')
             ->where('method', 'cash')
-            ->where('method', '!=', 'admin-void')
             ->where(function($q) {
                 $q->where('voided', '!=', 1)
                   ->orWhereNull('voided');
@@ -120,10 +119,9 @@ class WalletController extends Controller
 
         // Add transaction totals per wallet
         $wallets->transform(function ($wallet) use ($dateFrom, $dateTo) {
-            // Exclude voided transactions (voided=1/true) AND admin-void reversal transactions
+            // Exclude voided transactions (voided=1/true)
             $wallet->total_credit = WalletTransaction::where('wallet_id', $wallet->id)
                 ->where('type', 'credit')
-                ->where('method', '!=', 'admin-void') // Exclude reversal transactions
                 ->where(function($q) {
                     $q->where('voided', '!=', 1)
                       ->orWhereNull('voided');
@@ -133,7 +131,6 @@ class WalletController extends Controller
 
             $wallet->total_debit = WalletTransaction::where('wallet_id', $wallet->id)
                 ->where('type', 'debit')
-                ->where('method', '!=', 'admin-void') // Exclude reversal transactions
                 ->where(function($q) {
                     $q->where('voided', '!=', 1)
                       ->orWhereNull('voided');
