@@ -14,17 +14,28 @@ export function useWaGateway() {
 
   const fetchStatus = useCallback(async () => {
     setLoadingStatus(true)
+    setError(null)
     try {
       const data = await getWaStatus()
+      
+      if (!data || typeof data !== 'object') {
+        throw new Error('Format data status tidak valid')
+      }
+      
       setGatewayStatus(data)
 
       if (data.status === 'waiting_scan') {
         const qr = await getWaQr()
-        setQrDataUrl(qr.qr)
+        if (qr?.qr) {
+          setQrDataUrl(qr.qr)
+        }
       } else {
         setQrDataUrl(null)
       }
-    } catch {
+    } catch (err) {
+      const error = err as { response?: { data?: { message?: string } }; message?: string }
+      const errorMsg = error?.response?.data?.message || error?.message || 'Tidak dapat terhubung ke WA Gateway'
+      setError(`Gagal memuat status: ${errorMsg}`)
       setGatewayStatus({ status: 'unreachable', phone: null, connected_at: null })
     } finally {
       setLoadingStatus(false)
@@ -33,12 +44,21 @@ export function useWaGateway() {
 
   const fetchLogs = useCallback(async () => {
     setLoadingLogs(true)
+    setError(null)
     try {
       const data = await getWaLogs(logsFilter)
+      
+      if (!data || !data.data || !Array.isArray(data.data)) {
+        throw new Error('Format data log tidak valid')
+      }
+      
       setLogs(data)
       setError(null)
-    } catch {
-      setError('Gagal memuat log pesan')
+    } catch (err) {
+      const error = err as { response?: { data?: { message?: string } }; message?: string }
+      const errorMsg = error?.response?.data?.message || error?.message || 'Terjadi kesalahan saat memuat data'
+      setError(`Gagal memuat log pesan: ${errorMsg}`)
+      setLogs(null)
     } finally {
       setLoadingLogs(false)
     }
@@ -46,11 +66,19 @@ export function useWaGateway() {
 
   const handleRetry = useCallback(async (log: WaMessageLog) => {
     setRetryingId(log.id)
+    setError(null)
     try {
+      if (!log?.id) {
+        throw new Error('ID log tidak valid')
+      }
+      
       await retryWaLog(log.id)
       await fetchLogs()
-    } catch {
-      setError('Gagal melakukan retry')
+      setError(null)
+    } catch (err) {
+      const error = err as { response?: { data?: { message?: string } }; message?: string }
+      const errorMsg = error?.response?.data?.message || error?.message || 'Terjadi kesalahan'
+      setError(`Gagal mengirim ulang pesan: ${errorMsg}`)
     } finally {
       setRetryingId(null)
     }

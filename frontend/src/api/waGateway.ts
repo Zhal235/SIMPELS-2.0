@@ -14,13 +14,36 @@ import type {
 } from '../types/wa.types'
 
 export const getWaStatus = async (): Promise<WaGatewayStatus> => {
-  const res = await api.get('/v1/admin/wa/status')
-  return res.data
+  try {
+    const res = await api.get('/v1/admin/wa/status')
+    if (!res.data) {
+      throw new Error('Response data kosong dari server')
+    }
+    return res.data
+  } catch (error: any) {
+    if (error.response?.status === 404) {
+      throw new Error('Endpoint WA Gateway tidak ditemukan')
+    }
+    if (error.response?.status === 503) {
+      throw new Error('WA Gateway sedang tidak dapat diakses')
+    }
+    throw error
+  }
 }
 
 export const getWaQr = async (): Promise<WaQrResponse> => {
-  const res = await api.get('/v1/admin/wa/qr')
-  return res.data
+  try {
+    const res = await api.get('/v1/admin/wa/qr')
+    if (!res.data) {
+      throw new Error('QR code tidak tersedia')
+    }
+    return res.data
+  } catch (error: any) {
+    if (error.response?.status === 404) {
+      throw new Error('QR code tidak ditemukan. Pastikan WA Gateway sudah terhubung')
+    }
+    throw error
+  }
 }
 
 export const getWaLogs = async (params?: {
@@ -28,12 +51,38 @@ export const getWaLogs = async (params?: {
   message_type?: string
   page?: number
 }): Promise<WaLogsResponse> => {
-  const res = await api.get('/v1/admin/wa/logs', { params })
-  return res.data
+  try {
+    const res = await api.get('/v1/admin/wa/logs', { params })
+    if (!res.data || !res.data.data) {
+      throw new Error('Format response tidak sesuai ekspektasi')
+    }
+    return res.data
+  } catch (error: any) {
+    if (error.response?.status === 403) {
+      throw new Error('Anda tidak memiliki akses untuk melihat log WA')
+    }
+    if (error.response?.status === 500) {
+      throw new Error('Terjadi kesalahan pada server saat memuat log')
+    }
+    throw error
+  }
 }
 
 export const retryWaLog = async (id: number): Promise<void> => {
-  await api.post(`/v1/admin/wa/logs/${id}/retry`)
+  try {
+    if (!id || typeof id !== 'number') {
+      throw new Error('ID log tidak valid')
+    }
+    await api.post(`/v1/admin/wa/logs/${id}/retry`)
+  } catch (error: any) {
+    if (error.response?.status === 404) {
+      throw new Error('Log pesan tidak ditemukan')
+    }
+    if (error.response?.status === 422) {
+      throw new Error('Hanya pesan yang gagal yang dapat di-retry')
+    }
+    throw error
+  }
 }
 
 export const blastPengumuman = async (payload: BlastPengumumanPayload): Promise<{ message: string }> => {
