@@ -60,7 +60,7 @@ export function useWaGateway() {
       }, {} as Record<string, number>)
       
       console.log('[WA Gateway] Total logs:', data.total)
-      console.log('[WA Gateway] Distribusi status:', statusDistribution)
+      console.log('[WA Gateway] Distribusi status (halaman ini):', statusDistribution)
       console.log('[WA Gateway] Data per page:', data.per_page)
       console.log('[WA Gateway] Current page:', data.current_page)
       

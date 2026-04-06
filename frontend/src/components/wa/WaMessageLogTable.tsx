@@ -25,15 +25,20 @@ const TYPE_LABEL: Record<string, string> = {
 }
 
 type StatusFilter = 'all' | 'sent' | 'failed' | 'pending'
+type MessageTypeFilter = 'all' | 'reminder' | 'tagihan_detail' | 'rekap_tunggakan' | 'pengumuman' | 'custom'
 type GroupedLogs = Record<string, WaMessageLog[]>
 
 export function WaMessageLogTable({ logs, loading, retryingId, onPageChange, onRetry }: Props) {
   const [expandedGroups, setExpandedGroups] = useState<Record<string, boolean>>({})
-  const [activeStatusTab, setActiveStatusTab] = useState<StatusFilter>('all')
+  const [activeMessageTypeTab, setActiveMessageTypeTab] = useState<MessageTypeFilter>('all')
 
   const groupedLogs = useMemo(() => {
-    if (!logs?.data || !Array.isArray(logs.data)) {
-      console.warn('[WA Log] Data log tidak valid atau kosong')
+    if (loading || logs == null) {
+      return {}
+    }
+
+    if (!Array.isArray(logs.data)) {
+      console.warn('[WA Log] Format data log tidak valid (field data bukan array)')
       return {}
     }
     const groups: Record<string, GroupedLogs> = {}
@@ -54,29 +59,25 @@ export function WaMessageLogTable({ logs, loading, retryingId, onPageChange, onR
 
   const filteredGroupedLogs = useMemo(() => {
     try {
-      if (activeStatusTab === 'all') return groupedLogs
+      if (activeMessageTypeTab === 'all') return groupedLogs
       const filtered: Record<string, GroupedLogs> = {}
-      Object.entries(groupedLogs).forEach(([messageType, statusGroups]) => {
-        if (!statusGroups || typeof statusGroups !== 'object') return
-        const filteredStatusGroups: GroupedLogs = { sent: [], failed: [], pending: [] }
-        if (Array.isArray(statusGroups[activeStatusTab])) {
-          filteredStatusGroups[activeStatusTab] = statusGroups[activeStatusTab]
-          if (filteredStatusGroups[activeStatusTab].length > 0) filtered[messageType] = filteredStatusGroups
-        }
-      })
+      const statusGroups = groupedLogs[activeMessageTypeTab]
+      if (statusGroups && typeof statusGroups === 'object') {
+        filtered[activeMessageTypeTab] = statusGroups
+      }
       return filtered
     } catch (err) {
       console.error('[WA Log] Error filtering logs:', err)
       return {}
     }
-  }, [groupedLogs, activeStatusTab])
+  }, [groupedLogs, activeMessageTypeTab])
 
   const toggleGroup = (messageType: string) => setExpandedGroups(prev => ({ ...prev, [messageType]: !prev[messageType] }))
 
-  const getStatusCounts = () => {
+  const getStatusCounts = (source: Record<string, GroupedLogs>) => {
     try {
       let sent = 0, failed = 0, pending = 0
-      Object.values(groupedLogs).forEach(statusGroups => {
+      Object.values(source).forEach(statusGroups => {
         if (statusGroups && typeof statusGroups === 'object') {
           sent += Array.isArray(statusGroups.sent) ? statusGroups.sent.length : 0
           failed += Array.isArray(statusGroups.failed) ? statusGroups.failed.length : 0
@@ -90,19 +91,30 @@ export function WaMessageLogTable({ logs, loading, retryingId, onPageChange, onR
     }
   }
 
-  const statusCounts = getStatusCounts()
+  const statusCounts = getStatusCounts(filteredGroupedLogs)
 
-  const StatusTab = ({ status, label, icon, count }: { status: StatusFilter; label: string; icon: string; count: number }) => (
-    <button onClick={() => setActiveStatusTab(status)}
+  const MessageTypeTab = ({ messageType, label, count }: { messageType: MessageTypeFilter; label: string; count: number }) => (
+    <button onClick={() => setActiveMessageTypeTab(messageType)}
       className={`px-4 py-2 rounded-lg text-sm font-medium whitespace-nowrap transition-colors ${
-        activeStatusTab === status
-          ? status === 'all' ? 'bg-blue-600 text-white' : status === 'sent' ? 'bg-green-600 text-white' :
-            status === 'failed' ? 'bg-red-600 text-white' : 'bg-yellow-600 text-white'
+        activeMessageTypeTab === messageType
+          ? 'bg-teal-600 text-white'
           : 'bg-gray-100 text-gray-600 hover:bg-gray-200'
       }`}>
-      {icon} {label} ({count})
+      {label} ({count})
     </button>
   )
+
+  const getMessageTypeCount = (messageType: MessageTypeFilter) => {
+    if (messageType === 'all') {
+      return Object.values(groupedLogs).reduce((acc, statusGroups) => {
+        return acc + (statusGroups.sent?.length || 0) + (statusGroups.failed?.length || 0) + (statusGroups.pending?.length || 0)
+      }, 0)
+    }
+
+    const statusGroups = groupedLogs[messageType]
+    if (!statusGroups) return 0
+    return (statusGroups.sent?.length || 0) + (statusGroups.failed?.length || 0) + (statusGroups.pending?.length || 0)
+  }
 
   const formatDate = (date: string) => {
     try {
@@ -161,10 +173,19 @@ export function WaMessageLogTable({ logs, loading, retryingId, onPageChange, onR
       <div className="px-5 py-4 border-b">
         <h2 className="font-semibold text-gray-800 text-base mb-4">Log Pesan WA</h2>
         <div className="flex gap-2 overflow-x-auto pb-1">
-          <StatusTab status="all" label="Semua" icon="" count={statusCounts.total} />
-          <StatusTab status="sent" label="Terkirim" icon="✓" count={statusCounts.sent} />
-          <StatusTab status="failed" label="Gagal" icon="✗" count={statusCounts.failed} />
-          <StatusTab status="pending" label="Pending" icon="⏳" count={statusCounts.pending} />
+          <MessageTypeTab messageType="all" label="Semua Jenis" count={getMessageTypeCount('all')} />
+          <MessageTypeTab messageType="reminder" label="Reminder" count={getMessageTypeCount('reminder')} />
+          <MessageTypeTab messageType="tagihan_detail" label="Detail Tagihan" count={getMessageTypeCount('tagihan_detail')} />
+          <MessageTypeTab messageType="rekap_tunggakan" label="Rekap Tunggakan" count={getMessageTypeCount('rekap_tunggakan')} />
+          <MessageTypeTab messageType="pengumuman" label="Pengumuman" count={getMessageTypeCount('pengumuman')} />
+          <MessageTypeTab messageType="custom" label="Custom" count={getMessageTypeCount('custom')} />
+        </div>
+
+        <div className="mt-3 flex flex-wrap gap-2 text-xs">
+          <span className="px-2 py-1 rounded-full bg-slate-100 text-slate-700 font-medium">Total: {statusCounts.total}</span>
+          <span className="px-2 py-1 rounded-full bg-green-100 text-green-700 font-medium">✓ Terkirim: {statusCounts.sent}</span>
+          <span className="px-2 py-1 rounded-full bg-red-100 text-red-700 font-medium">✗ Gagal: {statusCounts.failed}</span>
+          <span className="px-2 py-1 rounded-full bg-yellow-100 text-yellow-700 font-medium">⏳ Pending: {statusCounts.pending}</span>
         </div>
       </div>
 
