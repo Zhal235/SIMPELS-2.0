@@ -3,7 +3,6 @@
 namespace App\Models;
 
 use Illuminate\Database\Eloquent\Model;
-use Illuminate\Database\Eloquent\Relations\HasMany;
 
 class WaMessageLog extends Model
 {
@@ -37,12 +36,43 @@ class WaMessageLog extends Model
             return null;
         }
 
-        $santriList = Santri::where(function ($query) {
-            $query->where('hp_ayah', $this->phone)
-                  ->orWhere('hp_ibu', $this->phone);
+        $candidates = $this->phoneCandidates((string) $this->phone);
+        if (empty($candidates)) {
+            return null;
+        }
+
+        $santriList = \App\Models\Santri::where(function ($query) use ($candidates) {
+            foreach ($candidates as $candidate) {
+                $query->orWhere('hp_ayah', $candidate)
+                    ->orWhere('hp_ibu', $candidate);
+            }
         })->pluck('nama_santri');
 
         return $santriList->isEmpty() ? null : $santriList->join(', ');
+    }
+
+    private function phoneCandidates(string $rawPhone): array
+    {
+        $digits = preg_replace('/\D+/', '', $rawPhone) ?? '';
+        if ($digits === '') {
+            return [];
+        }
+
+        $candidates = [$rawPhone, $digits];
+
+        if (str_starts_with($digits, '62')) {
+            $local = '0' . substr($digits, 2);
+            $candidates[] = $local;
+            $candidates[] = '+62' . substr($digits, 2);
+        }
+
+        if (str_starts_with($digits, '0')) {
+            $intl = '62' . substr($digits, 1);
+            $candidates[] = $intl;
+            $candidates[] = '+' . $intl;
+        }
+
+        return array_values(array_unique(array_filter($candidates)));
     }
 
     public function markSent(): void

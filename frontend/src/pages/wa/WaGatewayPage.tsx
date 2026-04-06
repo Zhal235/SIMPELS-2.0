@@ -123,8 +123,6 @@ export default function WaGatewayPage() {
             logs={logs}
             loading={loadingLogs}
             retryingId={retryingId}
-            filterStatus={logsFilter.status}
-            onFilterChange={(status) => setLogsFilter({ status, page: 1 })}
             onPageChange={(page) => setLogsFilter((prev) => ({ ...prev, page }))}
             onRetry={handleRetry}
           />

@@ -6,8 +6,6 @@ interface Props {
   logs: WaLogsResponse | null
   loading: boolean
   retryingId: number | null
-  filterStatus: string | undefined
-  onFilterChange: (status: string | undefined) => void
   onPageChange: (page: number) => void
   onRetry: (log: WaMessageLog) => void
 }
@@ -29,7 +27,7 @@ const TYPE_LABEL: Record<string, string> = {
 type StatusFilter = 'all' | 'sent' | 'failed' | 'pending'
 type GroupedLogs = Record<string, WaMessageLog[]>
 
-export function WaMessageLogTable({ logs, loading, retryingId, filterStatus, onFilterChange, onPageChange, onRetry }: Props) {
+export function WaMessageLogTable({ logs, loading, retryingId, onPageChange, onRetry }: Props) {
   const [expandedGroups, setExpandedGroups] = useState<Record<string, boolean>>({})
   const [activeStatusTab, setActiveStatusTab] = useState<StatusFilter>('all')
 

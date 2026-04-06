@@ -6,7 +6,7 @@ export function useWaGateway() {
   const [gatewayStatus, setGatewayStatus] = useState<WaGatewayStatus | null>(null)
   const [qrDataUrl, setQrDataUrl] = useState<string | null>(null)
   const [logs, setLogs] = useState<WaLogsResponse | null>(null)
-  const [logsFilter, setLogsFilter] = useState<{ status?: string; page: number }>({ page: 1 })
+  const [logsFilter, setLogsFilter] = useState<{ page: number }>({ page: 1 })
   const [loadingStatus, setLoadingStatus] = useState(false)
   const [loadingLogs, setLoadingLogs] = useState(false)
   const [retryingId, setRetryingId] = useState<number | null>(null)
@@ -46,17 +46,30 @@ export function useWaGateway() {
     setLoadingLogs(true)
     setError(null)
     try {
+      console.log('[WA Gateway] Fetching logs dengan filter:', logsFilter)
       const data = await getWaLogs(logsFilter)
       
       if (!data || !data.data || !Array.isArray(data.data)) {
         throw new Error('Format data log tidak valid')
       }
       
+      // Debug: cek distribusi status
+      const statusDistribution = data.data.reduce((acc, log) => {
+        acc[log.status] = (acc[log.status] || 0) + 1
+        return acc
+      }, {} as Record<string, number>)
+      
+      console.log('[WA Gateway] Total logs:', data.total)
+      console.log('[WA Gateway] Distribusi status:', statusDistribution)
+      console.log('[WA Gateway] Data per page:', data.per_page)
+      console.log('[WA Gateway] Current page:', data.current_page)
+      
       setLogs(data)
       setError(null)
     } catch (err) {
       const error = err as { response?: { data?: { message?: string } }; message?: string }
       const errorMsg = error?.response?.data?.message || error?.message || 'Terjadi kesalahan saat memuat data'
+      console.error('[WA Gateway] Error loading logs:', errorMsg, err)
       setError(`Gagal memuat log pesan: ${errorMsg}`)
       setLogs(null)
     } finally {
