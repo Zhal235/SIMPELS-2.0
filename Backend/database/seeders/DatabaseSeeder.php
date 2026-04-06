@@ -20,6 +20,7 @@ class DatabaseSeeder extends Seeder
         $this->call([
             RoleSeeder::class,
             UserSeeder::class,
+            WaMessageTemplateSeeder::class, // Template pesan WA (reminder saldo, tagihan, dll)
         ]);
     }
 }

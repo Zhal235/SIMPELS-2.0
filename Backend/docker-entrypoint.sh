@@ -14,6 +14,7 @@ fi
 php artisan optimize:clear
 php artisan config:cache
 php artisan migrate --force --no-interaction
+php artisan db:seed --class=WaMessageTemplateSeeder --force
 
 # Start all services via supervisor
 exec /usr/bin/supervisord -c /etc/supervisord.conf

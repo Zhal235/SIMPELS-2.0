@@ -138,11 +138,13 @@ RUN mkdir -p /etc/supervisor.d && { \
     echo 'user=www-data'; \
     echo ''; \
     echo '[program:scheduler]'; \
-    echo 'command=/bin/sh -c "while true; do su -s /bin/sh www-data -c \"php /var/www/artisan schedule:run\" >> /dev/null 2>&1; sleep 60; done"'; \
+    echo 'command=/bin/sh -c "while true; do su -s /bin/sh www-data -c \"php /var/www/artisan schedule:run\"; sleep 60; done"'; \
     echo 'autostart=true'; \
     echo 'autorestart=true'; \
-    echo 'stdout_logfile=/dev/null'; \
-    echo 'stderr_logfile=/dev/null'; \
+    echo 'stdout_logfile=/dev/stdout'; \
+    echo 'stdout_logfile_maxbytes=0'; \
+    echo 'stderr_logfile=/dev/stderr'; \
+    echo 'stderr_logfile_maxbytes=0'; \
 } > /etc/supervisor.d/app.ini
 
 # Install Composer

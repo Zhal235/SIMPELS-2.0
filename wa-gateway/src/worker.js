@@ -26,6 +26,12 @@ async function processJob(job) {
         await sendMessage(to, message);
         await notifyLaravel(logId, 'sent', null);
         console.log(`[Worker] Job ${job.id} sent successfully`);
+        
+        // Anti-spam delay: random 5-15 detik sebelum ambil job berikutnya
+        const delayMs = Math.floor(Math.random() * (15000 - 5000 + 1)) + 5000;
+        const delaySec = (delayMs / 1000).toFixed(1);
+        console.log(`[Worker] Waiting ${delaySec}s before next message (anti-spam)`);
+        await new Promise(resolve => setTimeout(resolve, delayMs));
     } catch (err) {
         const reason = err.message || 'Unknown error';
         console.error(`[Worker] Job ${job.id} failed: ${reason}`);
