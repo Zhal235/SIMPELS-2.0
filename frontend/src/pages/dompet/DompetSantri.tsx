@@ -2,7 +2,7 @@ import React, { useEffect, useState } from 'react'
 import Card from '../../components/Card'
 import Table from '../../components/Table'
 import Modal from '../../components/Modal'
-import { topupWallet, getWallet, getWalletTransactions, debitWallet, updateTransaction, voidTransaction } from '../../api/wallet'
+import { topupWallet, getWallet, getWalletTransactions, debitWallet, updateTransaction, voidTransaction, deleteWallet } from '../../api/wallet'
 import { listSantri } from '../../api/santri'
 import { Search } from 'lucide-react'
 import { useAuthStore, hasAccess } from '../../stores/useAuthStore'
@@ -221,6 +221,33 @@ export default function DompetSantri() {
     }
   }
 
+  async function handleDeleteWalletForMutasi() {
+    if (!selectedSantri?.id) return
+    if (!['mutasi', 'mutasi_keluar', 'keluar', 'alumni', 'lulus'].includes(selectedSantri?.status)) {
+      toast.error('Opsi ini hanya untuk santri status mutasi')
+      return
+    }
+
+    const confirmed = window.confirm(
+      `Hapus dompet untuk ${selectedSantri.nama_santri}?\n\nSemua transaksi dompet akan ikut terhapus dan aksi ini tidak bisa dibatalkan.`
+    )
+
+    if (!confirmed) return
+
+    try {
+      const res = await deleteWallet(selectedSantri.id)
+      if (res?.success) {
+        toast.success(res.message || 'Dompet berhasil dihapus')
+        const wRes = await getWallet(selectedSantri.id)
+        if (wRes.success) setWalletDetail(wRes.data)
+        setTransactions([])
+      }
+    } catch (err: any) {
+      console.error(err)
+      toast.error(err?.response?.data?.message || 'Gagal menghapus dompet')
+    }
+  }
+
   // No global wallet table — we only show per-santri wallet after search selection
 
   return (
@@ -317,6 +344,11 @@ export default function DompetSantri() {
           <div className="flex gap-3">
             <button onClick={() => { setMethod('cash'); setAmount(''); setNote(''); setShowTopup(true) }} className="px-4 py-2 bg-green-600 text-white rounded-lg">Setor</button>
             <button onClick={() => { setMethod('cash'); setAmount(''); setNote(''); setShowWithdraw(true) }} className="px-4 py-2 bg-red-600 text-white rounded-lg">Tarik</button>
+            {['mutasi', 'mutasi_keluar', 'keluar', 'alumni', 'lulus'].includes(selectedSantri?.status) && hasAccess('dompet.manage') && (
+              <button onClick={handleDeleteWalletForMutasi} className="px-4 py-2 bg-gray-900 text-white rounded-lg">
+                Hapus Dompet Mutasi
+              </button>
+            )}
           </div>
 
           <Card>

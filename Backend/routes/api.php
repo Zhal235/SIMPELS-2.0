@@ -252,6 +252,7 @@ Route::middleware('auth:sanctum')->group(function () {
         // santriId is a UUID — constrain to avoid catching static paths like /ping
         $uuidConstraint = '[0-9a-fA-F\-]{36}';
         Route::get('/{santriId}', [WalletController::class, 'show'])->where('santriId', $uuidConstraint);
+        Route::delete('/{santriId}', [WalletController::class, 'destroy'])->where('santriId', $uuidConstraint);
         Route::post('/{santriId}/topup', [WalletController::class, 'topup'])->where('santriId', $uuidConstraint);
         Route::post('/{santriId}/debit', [WalletController::class, 'debit'])->where('santriId', $uuidConstraint);
         Route::get('/{santriId}/transactions', [WalletController::class, 'transactions'])->where('santriId', $uuidConstraint);

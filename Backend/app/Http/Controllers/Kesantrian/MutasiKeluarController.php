@@ -71,20 +71,16 @@ class MutasiKeluarController extends Controller
                 }
             }
 
-            // Hapus seluruh transaksi dan dompet santri yang dimutasi
+            // Catat saldo saat mutasi untuk informasi, tanpa menghapus histori transaksi.
+            // Histori transaksi harus dipertahankan agar laporan keuangan historis tetap konsisten.
             $wallet = Wallet::where('santri_id', $santri->id)->first();
-            $returnedBalance = 0;
-            if ($wallet) {
-                $returnedBalance = $wallet->balance;
-                $wallet->transactions()->delete(); // hapus semua transaksi
-                $wallet->delete();                 // hapus dompet
-            }
+            $returnedBalance = $wallet ? (float) $wallet->balance : 0;
 
             DB::commit();
 
             return response()->json([
                 'success' => true,
-                'message' => 'Mutasi keluar berhasil disimpan' . ($returnedBalance > 0 ? '. Saldo dompet Rp ' . number_format($returnedBalance, 0, ',', '.') . ' telah dihapus dari sistem.' : '.'),
+                'message' => 'Mutasi keluar berhasil disimpan' . ($returnedBalance > 0 ? '. Saldo dompet saat mutasi: Rp ' . number_format($returnedBalance, 0, ',', '.') . '.' : '.'),
                 'data' => $mutasi,
                 'returned_balance' => $returnedBalance,
             ], 201);

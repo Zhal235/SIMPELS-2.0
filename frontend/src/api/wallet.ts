@@ -10,6 +10,11 @@ export async function getWallet(santriId: string | number) {
   return res.data
 }
 
+export async function deleteWallet(santriId: string | number) {
+  const res = await api.delete(`/v1/wallets/${santriId}`)
+  return res.data
+}
+
 export async function topupWallet(santriId: string | number, amount: number, description?: string, method: 'cash' | 'transfer' = 'cash') {
   const res = await api.post(`/v1/wallets/${santriId}/topup`, { amount, description, method })
   return res.data

@@ -313,6 +313,49 @@ class WalletController extends Controller
         return response()->json(['success' => true, 'data' => $wallet]);
     }
 
+    public function destroy($santriId)
+    {
+        $santri = Santri::find($santriId);
+        if (!$santri) {
+            return response()->json([
+                'success' => false,
+                'message' => 'Santri tidak ditemukan',
+            ], 404);
+        }
+
+        if (!in_array($santri->status, ['mutasi', 'mutasi_keluar', 'keluar', 'alumni', 'lulus'], true)) {
+            return response()->json([
+                'success' => false,
+                'message' => 'Dompet hanya dapat dihapus untuk santri nonaktif/mutasi',
+            ], 422);
+        }
+
+        $wallet = Wallet::where('santri_id', $santriId)->first();
+        if (!$wallet) {
+            return response()->json([
+                'success' => false,
+                'message' => 'Dompet tidak ditemukan',
+            ], 404);
+        }
+
+        try {
+            DB::transaction(function () use ($wallet) {
+                $wallet->delete();
+            });
+
+            return response()->json([
+                'success' => true,
+                'message' => 'Dompet santri mutasi berhasil dihapus',
+            ]);
+        } catch (\Throwable $e) {
+            return response()->json([
+                'success' => false,
+                'message' => 'Gagal menghapus dompet',
+                'error' => $e->getMessage(),
+            ], 500);
+        }
+    }
+
     public function topup(Request $request, $santriId)
     {
         $validator = Validator::make($request->all(), [
