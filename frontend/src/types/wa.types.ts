@@ -21,6 +21,7 @@ export interface WaMessageLog {
   sent_at: string | null
   created_at: string
   updated_at: string
+  santri_names: string | null
 }
 
 export interface WaLogsResponse {

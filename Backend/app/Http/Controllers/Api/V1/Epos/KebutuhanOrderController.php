@@ -49,8 +49,8 @@ class KebutuhanOrderController extends Controller
             ], 422);
         }
 
-        // Expire order lama sebelum buat baru
-        EposKebutuhanOrder::expireOldOrders();
+        // Auto-confirm order lama sebelum buat baru
+        EposKebutuhanOrder::autoConfirmOldOrders();
 
         $order = EposKebutuhanOrder::create([
             'epos_order_id' => $request->epos_order_id,
@@ -84,7 +84,7 @@ class KebutuhanOrderController extends Controller
      */
     public function pendingForSantri(string $santriId): JsonResponse
     {
-        EposKebutuhanOrder::expireOldOrders();
+        EposKebutuhanOrder::autoConfirmOldOrders();
 
         $orders = EposKebutuhanOrder::forSantri((string)$santriId)
             ->whereIn('status', ['pending', 'confirmed', 'rejected'])
@@ -109,7 +109,7 @@ class KebutuhanOrderController extends Controller
      */
     public function indexForWali(Request $request, string $santriId): JsonResponse
     {
-        EposKebutuhanOrder::expireOldOrders();
+        EposKebutuhanOrder::autoConfirmOldOrders();
 
         $this->authorizeWaliForSantri($request, $santriId);
 
@@ -192,7 +192,7 @@ class KebutuhanOrderController extends Controller
      */
     public function indexForAdmin(Request $request): JsonResponse
     {
-        EposKebutuhanOrder::expireOldOrders();
+        EposKebutuhanOrder::autoConfirmOldOrders();
 
         $query = EposKebutuhanOrder::with('santri')
             ->when($request->status, fn($q) => $q->where('status', $request->status))
@@ -397,7 +397,7 @@ class KebutuhanOrderController extends Controller
                 'user_type' => 'wali',
                 'type'      => 'kebutuhan_order',
                 'title'     => '🛒 Pesanan Kebutuhan Menunggu Konfirmasi',
-                'message'   => "{$order->santri_name} memesan kebutuhan senilai {$total}. Segera konfirmasi sebelum 1×24 jam.",
+                'message'   => "{$order->santri_name} memesan kebutuhan senilai {$total}. Akan dikonfirmasi otomatis dalam 1×24 jam.",
                 'data'      => [
                     'order_id'      => $order->id,
                     'epos_order_id' => $order->epos_order_id,

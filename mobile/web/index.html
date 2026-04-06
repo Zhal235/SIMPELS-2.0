@@ -79,12 +79,6 @@
     
     // Auto-update checker untuk PWA - cek update setiap dibuka dari home screen
     if ('serviceWorker' in navigator) {
-      navigator.serviceWorker.register('firebase-messaging-sw.js').then(function() {
-        console.log('firebase-messaging-sw.js registered');
-      }).catch(function(err) {
-        console.error('firebase-messaging-sw.js registration failed:', err);
-      });
-
       navigator.serviceWorker.getRegistration().then(function(reg) {
         if (reg) {
           // Cek update service worker setiap kali PWA dibuka

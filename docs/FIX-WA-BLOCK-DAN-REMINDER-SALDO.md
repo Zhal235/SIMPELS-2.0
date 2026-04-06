@@ -1,4 +1,4 @@
-# Fix WA Block & Reminder Saldo
+# Fix WA Block, Reminder Saldo & Auto-Confirm Pesanan Kebutuhan
 
 **Tanggal:** 6 April 2026  
 **Status:** ✅ Ready to Deploy
@@ -56,13 +56,54 @@ await new Promise(resolve => setTimeout(resolve, delayMs));
 
 ---
 
+### 3. **Pesanan Kebutuhan - Auto-Confirm**
+
+**File:**
+- `Backend/app/Models/EposKebutuhanOrder.php`
+- `Backend/app/Http/Controllers/Api/V1/Epos/KebutuhanOrderController.php`
+- `Backend/database/seeders/WaMessageTemplateSeeder.php`
+
+**Problem:**
+- Pesanan kebutuhan auto-cancel setelah 24 jam
+- Wali sering lupa konfirmasi → pesanan dibatalkan
+
+**Solusi:**
+- **Auto-confirm otomatis** setelah 24 jam
+- Saldo dipotong otomatis jika mencukupi
+- Template WA diubah: "akan dikonfirmasi otomatis" instead of "akan dibatalkan"
+
+**Perubahan:**
+- Method `expireOldOrders()` → `autoConfirmOldOrders()`
+- Otomatis potong saldo & buat transaksi jika saldo cukup
+- Push status ke EPOS otomatis
+- Jika saldo tidak cukup, baru di-expire
+
+**Template WA baru:**
+```
+🛒 PESANAN KEBUTUHAN SANTRI
+
+✅ Pesanan akan otomatis dikonfirmasi dalam 24 jam jika tidak ada penolakan.
+
+📱 CARA MENOLAK PESANAN:
+1️⃣ Buka aplikasi SIMPELS Mobile
+2️⃣ Login dengan nomor HP Anda
+3️⃣ Pilih menu "Pesanan Kebutuhan"
+4️⃣ Klik Tolak jika tidak setuju
+
+💡 Catatan: 
+• Saldo akan dipotong otomatis setelah 24 jam
+• Pastikan saldo santri mencukupi
+```
+
+---
+
 ## 🚀 Cara Deploy
 
 ### Step 1: Commit & Push
 
 ```powershell
 git add .
-git commit -m "fix: WA anti-block delay + enable scheduler log + auto-seed WA templates"
+git commit -m "fix: WA anti-block delay + auto-confirm pesanan kebutuhan + enable scheduler log + auto-seed WA templates"
 git push origin main
 ```
 

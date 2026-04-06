@@ -4,6 +4,8 @@ namespace App\Models;
 
 use Illuminate\Database\Eloquent\Model;
 use Illuminate\Database\Eloquent\Relations\BelongsTo;
+use Illuminate\Support\Facades\DB;
+use Illuminate\Support\Facades\Log;
 
 class EposKebutuhanOrder extends Model
 {
@@ -76,12 +78,82 @@ class EposKebutuhanOrder extends Model
     }
 
     /**
-     * Expire semua order yang sudah melewati waktu
+     * Auto-confirm semua order yang sudah melewati batas waktu
+     * (setelah 24 jam otomatis dikonfirmasi)
      */
-    public static function expireOldOrders(): int
+    public static function autoConfirmOldOrders(): int
     {
-        return static::where('status', 'pending')
+        $orders = static::where('status', 'pending')
             ->where('expired_at', '<', now())
-            ->update(['status' => 'expired']);
+            ->get();
+
+        $confirmed = 0;
+        foreach ($orders as $order) {
+            try {
+                $wallet = Wallet::where('santri_id', $order->santri_id)->first();
+                
+                if (!$wallet) {
+                    // Jika tidak ada wallet, expire aja
+                    $order->update(['status' => 'expired']);
+                    continue;
+                }
+
+                $settingsRow = WalletSettings::first();
+                $minBalance = $settingsRow ? (float) $settingsRow->global_minimum_balance : 10000;
+
+                // Cek saldo cukup
+                if (($wallet->balance - $order->total_amount) < $minBalance) {
+                    // Saldo tidak cukup, expire
+                    $order->update(['status' => 'expired', 'rejection_reason' => 'Saldo tidak mencukupi']);
+                    continue;
+                }
+
+                \DB::beginTransaction();
+                
+                // Potong saldo
+                $wallet->balance -= $order->total_amount;
+                $wallet->save();
+
+                $itemNames = collect($order->items)->pluck('name')->take(5)->implode(', ');
+                $txn = WalletTransaction::create([
+                    'wallet_id'   => $wallet->id,
+                    'type'        => 'debit',
+                    'amount'      => $order->total_amount,
+                    'method'      => 'epos_kebutuhan',
+                    'description' => 'Kebutuhan (Auto): ' . $itemNames,
+                    'voided'      => false,
+                ]);
+
+                // Tambahkan ke EposPool
+                $pool = EposPool::firstOrCreate(['name' => 'epos_main'], ['balance' => 0]);
+                $pool->balance += $order->total_amount;
+                $pool->save();
+
+                $order->update([
+                    'status'                => 'confirmed',
+                    'confirmed_by_id'       => null,
+                    'confirmed_by'          => 'system',
+                    'confirmed_at'          => now(),
+                    'wallet_transaction_id' => $txn->id,
+                ]);
+
+                \DB::commit();
+                $confirmed++;
+
+                // Push ke EPOS
+                try {
+                    (new \App\Services\EposCallbackService())->pushOrderStatus($order->fresh());
+                } catch (\Exception $e) {
+                    \Log::error('Failed to push auto-confirmed order to EPOS', ['order_id' => $order->id, 'error' => $e->getMessage()]);
+                }
+
+            } catch (\Exception $e) {
+                \DB::rollBack();
+                \Log::error('Failed to auto-confirm order', ['order_id' => $order->id, 'error' => $e->getMessage()]);
+                $order->update(['status' => 'expired']);
+            }
+        }
+
+        return $confirmed;
     }
 }
