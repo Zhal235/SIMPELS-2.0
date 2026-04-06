@@ -59,7 +59,7 @@ class SantriResource extends JsonResource
             ] : null,
             'rfid_uid' => $this->rfid_tag?->uid,
             // Wallet information
-            'wallet' => $this->wallet ? [
+            'wallet' => ($this->wallet && $this->wallet->is_active) ? [
                 'id' => $this->wallet->id,
                 'balance' => $this->wallet->balance,
             ] : null,

@@ -90,7 +90,7 @@ export default function DompetSantri() {
     setLoading(true)
     const timer = setTimeout(async () => {
       try {
-        const res = await listSantri(1, 50, { q: searchQuery })
+        const res = await listSantri(1, 50, { q: searchQuery, has_wallet: true })
         if (res?.status === 'success') setSantriList(res.data || [])
       } catch (err) {
         console.error(err)
@@ -129,6 +129,16 @@ export default function DompetSantri() {
   }
 
   async function handleSelectSantri(santri: any) {
+    if (!santri?.wallet) {
+      toast.error('Dompet santri ini sudah tidak tersedia')
+      setSelectedSantri(null)
+      setWalletDetail(null)
+      setTransactions([])
+      setSearchQuery('')
+      setShowSearchResults(false)
+      return
+    }
+
     setSelectedSantri(santri)
     setSearchQuery(santri.nama_santri)
     setShowSearchResults(false)
@@ -235,16 +245,46 @@ export default function DompetSantri() {
     if (!confirmed) return
 
     try {
-      const res = await deleteWallet(selectedSantri.id)
-      if (res?.success) {
-        toast.success(res.message || 'Dompet berhasil dihapus')
-        const wRes = await getWallet(selectedSantri.id)
-        if (wRes.success) setWalletDetail(wRes.data)
-        setTransactions([])
+      const targetId = selectedSantri.id
+      const targetName = selectedSantri.nama_santri
+      const res = await deleteWallet(targetId)
+
+      if (res?.success === false) {
+        throw new Error(res?.message || 'Gagal menghapus dompet')
       }
+
+      toast.success(res?.message || `Dompet ${targetName} berhasil dihapus`)
+      setSelectedSantri(null)
+      setWalletDetail(null)
+      setTransactions([])
+      setSearchQuery('')
+      setShowSearchResults(false)
+      setSantriList((prev) => prev.filter((item) => item.id !== targetId))
     } catch (err: any) {
       console.error(err)
-      toast.error(err?.response?.data?.message || 'Gagal menghapus dompet')
+      const message = err?.response?.data?.message || 'Gagal menghapus dompet'
+
+      // Jika dompet memang sudah tidak ada di server, sinkronkan UI agar tidak tetap tampil.
+      if (err?.response?.status === 404) {
+        toast.success('Dompet sudah tidak tersedia')
+        setSelectedSantri(null)
+        setWalletDetail(null)
+        setTransactions([])
+        setSearchQuery('')
+        setShowSearchResults(false)
+      } else {
+        toast.error(message)
+      }
+    } finally {
+      try {
+        // Pastikan hasil pencarian sinkron dengan backend: hanya tampilkan santri yang masih punya dompet.
+        const res = await listSantri(1, 50, { has_wallet: true })
+        if (res?.status === 'success') {
+          setSantriList(res.data || [])
+        }
+      } catch (refreshErr) {
+        console.error('Gagal refresh daftar santri dompet:', refreshErr)
+      }
     }
   }
 

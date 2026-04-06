@@ -65,7 +65,8 @@ class MutasiKeluarController extends Controller
                 if ($tagihanDate->gt($mutasiDate->copy()->startOfMonth())) {
                     // Determine if it's tunggakan: already due and has sisa > 0
                     $isTunggakan = ($tagihanDate->lte(now()) && $tagihan->sisa > 0);
-                    if (!$isTunggakan) {
+                    $hasPembayaran = $tagihan->pembayaran()->exists();
+                    if (!$isTunggakan && !$hasPembayaran) {
                         $tagihan->delete(); // soft-delete
                     }
                 }

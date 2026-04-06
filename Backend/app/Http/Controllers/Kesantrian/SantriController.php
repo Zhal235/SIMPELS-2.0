@@ -64,8 +64,30 @@ class SantriController extends Controller
             if ($request->boolean('withoutAsrama')) {
                 $query->whereNull('asrama_id');
             }
+
+            if ($request->has('has_wallet')) {
+                $hasWallet = filter_var($request->input('has_wallet'), FILTER_VALIDATE_BOOLEAN, FILTER_NULL_ON_FAILURE);
+                if ($hasWallet === true) {
+                        $query->whereHas('wallet', function ($q) {
+                            $q->where('is_active', true);
+                        });
+                }
+                if ($hasWallet === false) {
+                        $query->whereDoesntHave('wallet', function ($q) {
+                            $q->where('is_active', true);
+                        });
+                }
+            }
+
             $paginator = $query
-                ->with(['kelas', 'asrama', 'rfid_tag', 'wallet'])
+                    ->with([
+                        'kelas',
+                        'asrama',
+                        'rfid_tag',
+                        'wallet' => function ($q) {
+                            $q->where('is_active', true);
+                        }
+                    ])
                 ->orderBy('nama_santri')
                 ->paginate($perPage, ['*'], 'page', $page);
 

@@ -115,7 +115,7 @@ class WalletController extends Controller
         $dateFrom = $request->filled('date_from') ? $request->date_from . ' 00:00:00' : null;
         $dateTo   = $request->filled('date_to')   ? $request->date_to   . ' 23:59:59' : null;
 
-        $wallets = Wallet::with('santri')->get();
+        $wallets = Wallet::with('santri')->where('is_active', true)->get();
 
         // Add transaction totals per wallet
         $wallets->transform(function ($wallet) use ($dateFrom, $dateTo) {
@@ -295,7 +295,7 @@ class WalletController extends Controller
 
     public function show($santriId)
     {
-        $wallet = Wallet::where('santri_id', $santriId)->with('santri')->first();
+        $wallet = Wallet::where('santri_id', $santriId)->where('is_active', true)->with('santri')->first();
 
         if (!$wallet) {
             // Wallet belum dibuat — kembalikan objek kosong agar frontend tidak error
@@ -330,7 +330,7 @@ class WalletController extends Controller
             ], 422);
         }
 
-        $wallet = Wallet::where('santri_id', $santriId)->first();
+        $wallet = Wallet::where('santri_id', $santriId)->where('is_active', true)->first();
         if (!$wallet) {
             return response()->json([
                 'success' => false,
@@ -340,12 +340,14 @@ class WalletController extends Controller
 
         try {
             DB::transaction(function () use ($wallet) {
-                $wallet->delete();
+                // Keep wallet + transactions for historical financial reports, just deactivate it.
+                $wallet->is_active = false;
+                $wallet->save();
             });
 
             return response()->json([
                 'success' => true,
-                'message' => 'Dompet santri mutasi berhasil dihapus',
+                'message' => 'Dompet santri mutasi berhasil dinonaktifkan',
             ]);
         } catch (\Throwable $e) {
             return response()->json([
@@ -358,6 +360,18 @@ class WalletController extends Controller
 
     public function topup(Request $request, $santriId)
     {
+        $santri = Santri::find($santriId);
+        if (!$santri) {
+            return response()->json(['success' => false, 'message' => 'Santri tidak ditemukan'], 404);
+        }
+
+        if ($santri->status !== 'aktif') {
+            return response()->json([
+                'success' => false,
+                'message' => 'Transaksi dompet hanya diizinkan untuk santri aktif',
+            ], 422);
+        }
+
         $validator = Validator::make($request->all(), [
             'amount' => 'required|numeric|min:0.01',
             'description' => 'string|nullable',
@@ -374,6 +388,9 @@ class WalletController extends Controller
         DB::beginTransaction();
         try {
             $wallet = Wallet::firstOrCreate(['santri_id' => $santriId], ['balance' => 0]);
+            if (!$wallet->is_active) {
+                $wallet->is_active = true;
+            }
 
             $wallet->balance = $wallet->balance + $amount;
             $wallet->save();
@@ -405,6 +422,18 @@ class WalletController extends Controller
 
     public function debit(Request $request, $santriId)
     {
+        $santri = Santri::find($santriId);
+        if (!$santri) {
+            return response()->json(['success' => false, 'message' => 'Santri tidak ditemukan'], 404);
+        }
+
+        if ($santri->status !== 'aktif') {
+            return response()->json([
+                'success' => false,
+                'message' => 'Transaksi dompet hanya diizinkan untuk santri aktif',
+            ], 422);
+        }
+
         $validator = Validator::make($request->all(), [
             'amount' => 'required|numeric|min:0.01',
             'description' => 'string|nullable',
