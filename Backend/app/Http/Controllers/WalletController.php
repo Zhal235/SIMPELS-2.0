@@ -15,14 +15,19 @@ use PhpOffice\PhpSpreadsheet\Spreadsheet;
 use PhpOffice\PhpSpreadsheet\Writer\Xlsx;
 use Illuminate\Support\Facades\Storage;
 use App\Services\Wallet\WalletBalanceService;
+use App\Services\Wallet\WalletCrudService;
 
 class WalletController extends Controller
 {
     protected WalletBalanceService $balanceService;
+    protected WalletCrudService $crudService;
 
-    public function __construct(WalletBalanceService $balanceService)
-    {
+    public function __construct(
+        WalletBalanceService $balanceService,
+        WalletCrudService $crudService
+    ) {
         $this->balanceService = $balanceService;
+        $this->crudService = $crudService;
     }
 
     /**
@@ -41,250 +46,23 @@ class WalletController extends Controller
 
     public function index(Request $request)
     {
-        $dateFrom = $request->filled('date_from') ? $request->date_from . ' 00:00:00' : null;
-        $dateTo   = $request->filled('date_to')   ? $request->date_to   . ' 23:59:59' : null;
-
-        $wallets = Wallet::with('santri')->where('is_active', true)->get();
-
-        // Add transaction totals per wallet
-        $wallets->transform(function ($wallet) use ($dateFrom, $dateTo) {
-            // Exclude voided transactions (voided=1/true)
-            $wallet->total_credit = WalletTransaction::where('wallet_id', $wallet->id)
-                ->where('type', 'credit')
-                ->where(function($q) {
-                    $q->where('voided', '!=', 1)
-                      ->orWhereNull('voided');
-                })
-                ->when($dateFrom && $dateTo, fn($q) => $q->whereBetween('created_at', [$dateFrom, $dateTo]))
-                ->sum('amount');
-
-            $wallet->total_debit = WalletTransaction::where('wallet_id', $wallet->id)
-                ->where('type', 'debit')
-                ->where(function($q) {
-                    $q->where('voided', '!=', 1)
-                      ->orWhereNull('voided');
-                })
-                ->when($dateFrom && $dateTo, fn($q) => $q->whereBetween('created_at', [$dateFrom, $dateTo]))
-                ->sum('amount');
-
-            // Include NULL/empty method in cash (legacy import data had method truncated to NULL)
-            $wallet->total_credit_cash = WalletTransaction::where('wallet_id', $wallet->id)
-                ->where('type', 'credit')
-                ->where(function($q) {
-                    $q->where('method', 'cash')
-                      ->orWhereNull('method')
-                      ->orWhere('method', '');
-                })
-                ->where(function($q) {
-                    $q->where('voided', '!=', 1)
-                      ->orWhereNull('voided');
-                })
-                ->when($dateFrom && $dateTo, fn($q) => $q->whereBetween('created_at', [$dateFrom, $dateTo]))
-                ->sum('amount');
-
-            $wallet->total_credit_transfer = WalletTransaction::where('wallet_id', $wallet->id)
-                ->where('type', 'credit')
-                ->where('method', 'transfer')
-                ->where(function($q) {
-                    $q->where('voided', '!=', 1)
-                      ->orWhereNull('voided');
-                })
-                ->when($dateFrom && $dateTo, fn($q) => $q->whereBetween('created_at', [$dateFrom, $dateTo]))
-                ->sum('amount');
-
-            $wallet->total_debit_cash = WalletTransaction::where('wallet_id', $wallet->id)
-                ->where('type', 'debit')
-                ->where('method', 'cash')
-                ->where(function($q) {
-                    $q->where('voided', '!=', 1)
-                      ->orWhereNull('voided');
-                })
-                ->when($dateFrom && $dateTo, fn($q) => $q->whereBetween('created_at', [$dateFrom, $dateTo]))
-                ->sum('amount');
-
-            $wallet->total_debit_transfer = WalletTransaction::where('wallet_id', $wallet->id)
-                ->where('type', 'debit')
-                ->where('method', 'transfer')
-                ->where(function($q) {
-                    $q->where('voided', '!=', 1)
-                      ->orWhereNull('voided');
-                })
-                ->when($dateFrom && $dateTo, fn($q) => $q->whereBetween('created_at', [$dateFrom, $dateTo]))
-                ->sum('amount');
-
-            $wallet->total_debit_epos = WalletTransaction::where('wallet_id', $wallet->id)
-                ->where('type', 'debit')
-                ->whereIn('method', ['epos', 'epos_kebutuhan'])
-                ->where(function($q) {
-                    $q->where('voided', '!=', 1)
-                      ->orWhereNull('voided');
-                })
-                ->when($dateFrom && $dateTo, fn($q) => $q->whereBetween('created_at', [$dateFrom, $dateTo]))
-                ->sum('amount');
-
-            $wallet->transaction_count = WalletTransaction::where('wallet_id', $wallet->id)
-                ->when($dateFrom && $dateTo, fn($q) => $q->whereBetween('created_at', [$dateFrom, $dateTo]))
-                ->count();
-
-            // Jika ada filter periode, hitung saldo snapshot pada tanggal akhir
-            if ($dateFrom && $dateTo) {
-                // Hitung total credit sampai tanggal akhir
-                $creditUntilEnd = WalletTransaction::where('wallet_id', $wallet->id)
-                    ->where('type', 'credit')
-                    ->where(function($q) {
-                        $q->where('voided', '!=', 1)
-                          ->orWhereNull('voided');
-                    })
-                    ->where('created_at', '<=', $dateTo)
-                    ->sum('amount');
-
-                // Hitung total debit sampai tanggal akhir
-                $debitUntilEnd = WalletTransaction::where('wallet_id', $wallet->id)
-                    ->where('type', 'debit')
-                    ->where(function($q) {
-                        $q->where('voided', '!=', 1)
-                          ->orWhereNull('voided');
-                    })
-                    ->where('created_at', '<=', $dateTo)
-                    ->sum('amount');
-
-                $wallet->balance_at_end_date = (float)($creditUntilEnd - $debitUntilEnd);
-
-                // Breakdown per metode sampai tanggal akhir
-                $creditCashUntilEnd = WalletTransaction::where('wallet_id', $wallet->id)
-                    ->where('type', 'credit')
-                    ->where(function($q) {
-                        $q->where('method', 'cash')
-                          ->orWhereNull('method')
-                          ->orWhere('method', '');
-                    })
-                    ->where(function($q) {
-                        $q->where('voided', '!=', 1)
-                          ->orWhereNull('voided');
-                    })
-                    ->where('created_at', '<=', $dateTo)
-                    ->sum('amount');
-
-                $creditTransferUntilEnd = WalletTransaction::where('wallet_id', $wallet->id)
-                    ->where('type', 'credit')
-                    ->where('method', 'transfer')
-                    ->where(function($q) {
-                        $q->where('voided', '!=', 1)
-                          ->orWhereNull('voided');
-                    })
-                    ->where('created_at', '<=', $dateTo)
-                    ->sum('amount');
-
-                $debitCashUntilEnd = WalletTransaction::where('wallet_id', $wallet->id)
-                    ->where('type', 'debit')
-                    ->where('method', 'cash')
-                    ->where(function($q) {
-                        $q->where('voided', '!=', 1)
-                          ->orWhereNull('voided');
-                    })
-                    ->where('created_at', '<=', $dateTo)
-                    ->sum('amount');
-
-                $debitTransferUntilEnd = WalletTransaction::where('wallet_id', $wallet->id)
-                    ->where('type', 'debit')
-                    ->where('method', 'transfer')
-                    ->where(function($q) {
-                        $q->where('voided', '!=', 1)
-                          ->orWhereNull('voided');
-                    })
-                    ->where('created_at', '<=', $dateTo)
-                    ->sum('amount');
-
-                $debitEposUntilEnd = WalletTransaction::where('wallet_id', $wallet->id)
-                    ->where('type', 'debit')
-                    ->whereIn('method', ['epos', 'epos_kebutuhan'])
-                    ->where(function($q) {
-                        $q->where('voided', '!=', 1)
-                          ->orWhereNull('voided');
-                    })
-                    ->where('created_at', '<=', $dateTo)
-                    ->sum('amount');
-
-                // Hitung penarikan Bank->Cash sampai tanggal akhir
-                $withdrawalsUntilEnd = DB::table('wallet_withdrawals')
-                    ->where('pool_id', null)
-                    ->where('status', 'done')
-                    ->where('created_at', '<=', $dateTo)
-                    ->sum('amount');
-
-                $wallet->cash_balance_at_end_date = (float)(($creditCashUntilEnd - $debitCashUntilEnd - $debitEposUntilEnd) + $withdrawalsUntilEnd);
-                $wallet->bank_balance_at_end_date = (float)(($creditTransferUntilEnd - $debitTransferUntilEnd) - $withdrawalsUntilEnd);
-            }
-
-            return $wallet;
-        });
-
+        $wallets = $this->crudService->getAllWallets($request);
         return response()->json(['success' => true, 'data' => $wallets]);
     }
 
     public function show($santriId)
     {
-        $wallet = Wallet::where('santri_id', $santriId)->where('is_active', true)->with('santri')->first();
-
-        if (!$wallet) {
-            // Wallet belum dibuat — kembalikan objek kosong agar frontend tidak error
-            return response()->json([
-                'success' => true,
-                'data' => [
-                    'id' => null,
-                    'santri_id' => $santriId,
-                    'balance' => 0,
-                    'updated_at' => null,
-                ]
-            ]);
-        }
-
+        $wallet = $this->crudService->getWalletBySantriId($santriId);
         return response()->json(['success' => true, 'data' => $wallet]);
     }
 
     public function destroy($santriId)
     {
-        $santri = Santri::find($santriId);
-        if (!$santri) {
-            return response()->json([
-                'success' => false,
-                'message' => 'Santri tidak ditemukan',
-            ], 404);
-        }
-
-        if (!in_array($santri->status, ['mutasi', 'mutasi_keluar', 'keluar', 'alumni', 'lulus'], true)) {
-            return response()->json([
-                'success' => false,
-                'message' => 'Dompet hanya dapat dihapus untuk santri nonaktif/mutasi',
-            ], 422);
-        }
-
-        $wallet = Wallet::where('santri_id', $santriId)->where('is_active', true)->first();
-        if (!$wallet) {
-            return response()->json([
-                'success' => false,
-                'message' => 'Dompet tidak ditemukan',
-            ], 404);
-        }
-
-        try {
-            DB::transaction(function () use ($wallet) {
-                // Keep wallet + transactions for historical financial reports, just deactivate it.
-                $wallet->is_active = false;
-                $wallet->save();
-            });
-
-            return response()->json([
-                'success' => true,
-                'message' => 'Dompet santri mutasi berhasil dinonaktifkan',
-            ]);
-        } catch (\Throwable $e) {
-            return response()->json([
-                'success' => false,
-                'message' => 'Gagal menghapus dompet',
-                'error' => $e->getMessage(),
-            ], 500);
-        }
+        $result = $this->crudService->deactivateWallet($santriId);
+        $statusCode = $result['status_code'] ?? 200;
+        unset($result['status_code']);
+        
+        return response()->json($result, $statusCode);
     }
 
     public function topup(Request $request, $santriId)
