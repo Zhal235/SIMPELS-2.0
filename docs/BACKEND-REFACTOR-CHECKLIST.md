@@ -184,27 +184,55 @@
 
 ---
 
-### 1.2 Repository Pattern untuk Wallet
+### 1.2 Repository Pattern untuk Wallet ✅ **COMPLETE!**
 
-- [ ] **1.2.1** Buat `app/Repositories/WalletRepository.php`
-  - [ ] Interface `WalletRepositoryInterface.php`
-  - [ ] Method `findWithFilters(WalletFilterDTO $filters)`
-  - [ ] Method `findBySantriId(int $santriId)`
-  - [ ] Method `getTotalBalances()`
-  - [ ] Bind interface ke implementation di ServiceProvider
+**Result:** 2 Repositories (466 lines) + 4 DTOs (337 lines) = 803 lines  
+**Status:** Optional layer - provides better architecture & testability
 
-- [ ] **1.2.2** Buat `app/Repositories/WalletTransactionRepository.php`
-  - [ ] Interface `WalletTransactionRepositoryInterface.php`
-  - [ ] Method `getTransactionsBySantri(int $santriId, array $filters)`
-  - [ ] Method `getAllTransactions(array $filters)`
-  - [ ] Method `calculateBalances(string $method)`
-  - [ ] Bind interface ke implementation
+- [x] **1.2.1** Buat `app/Repositories/WalletRepository.php` ✅
+  - [x] Interface `WalletRepositoryInterface.php` (55 lines)
+  - [x] Implementation `WalletRepository.php` (158 lines)
+  - [x] Method `findBySantriId(int $santriId)`
+  - [x] Method `getAllWithFilters(array $filters)` with pagination
+  - [x] Method `getTotalBalances()` - cash & bank totals
+  - [x] Method `firstOrCreateBySantriId(int $santriId)`
+  - [x] Method `updateBalance(int $santriId, float $newBalance)`
+  - [x] Method `deactivate(int $santriId)`
+  - [x] Bind interface to implementation in ServiceProvider
+  - ✅ Commit: `030c5b9`
 
-- [ ] **1.2.3** Buat DTOs untuk Wallet
-  - [ ] `app/DTOs/Wallet/WalletFilterDTO.php`
-  - [ ] `app/DTOs/Wallet/TransactionFilterDTO.php`
-  - [ ] `app/DTOs/Wallet/TopupRequestDTO.php`
-  - [ ] `app/DTOs/Wallet/WithdrawalRequestDTO.php`
+- [x] **1.2.2** Buat `app/Repositories/WalletTransactionRepository.php` ✅
+  - [x] Interface `WalletTransactionRepositoryInterface.php` (70 lines)
+  - [x] Implementation `WalletTransactionRepository.php` (183 lines)
+  - [x] Method `getTransactionsBySantri(int $santriId, array $filters)`
+  - [x] Method `getAllTransactions(array $filters)`  
+  - [x] Method `findById(int $id)`
+  - [x] Method `create(array $data)`
+  - [x] Method `update(int $id, array $data)`
+  - [x] Method `calculateBalances(string $method)`
+  - [x] Method `getByWalletId(int $walletId, array $filters)`
+  - [x] Method `deleteMigrationTransactions(int $walletId)`
+  - [x] Bind interface to implementation in ServiceProvider
+  - ✅ Commit: `030c5b9`
+
+- [x] **1.2.3** Buat DTOs untuk Wallet ✅
+  - [x] `app/DTOs/Wallet/WalletFilterDTO.php` (58 lines)
+    * Type-safe filter parameters for wallet queries
+    * Methods: fromRequest(), toArray()
+  - [x] `app/DTOs/Wallet/TransactionFilterDTO.php` (80 lines)
+    * Filter parameters for transaction queries
+    * Methods: fromRequest(), toArray(), hasValidType(), hasValidMethod()
+  - [x] `app/DTOs/Wallet/TopupRequestDTO.php` (80 lines)
+    * Topup operation data with validation
+    * Methods: validate(), toTransactionData(), fromRequest()
+  - [x] `app/DTOs/Wallet/WithdrawalRequestDTO.php` (119 lines)
+    * Withdrawal data for cash & EPOS withdrawals
+    * Methods: validate(), isCashWithdrawal(), isEposWithdrawal(), toWithdrawalData()
+  - ✅ Total DTOs: 337 lines | Commit: `030c5b9`
+
+**Note:** Repository Pattern adalah layer OPTIONAL.  
+Services saat ini sudah bekerja dengan baik tanpa repositories.  
+Layer ini memberikan better separation of concerns & testability.
 
 ---
 
@@ -594,15 +622,15 @@
 
 ### Completion by Phase
 - **Phase 0 (Pre-Refactor):** 13/25 tasks (52%) 🟡 **IN PROGRESS**
-- **Phase 1 (Critical):** 54/60 tasks (90%) 🟢 **PHASE 1.1 COMPLETE!** ✅
+- **Phase 1 (Critical):** 57/60 tasks (95%) 🟢 **ALMOST DONE!** ✅
   - **WalletController Refactor:** 10/10 tasks (100%) ✅ **DONE!**
-  - Repository Pattern: 0/3 tasks (0%) - TODO
-  - Form Request Validation: 0/7 tasks (0%) - TODO
+  - **Repository Pattern:** 3/3 tasks (100%) ✅ **DONE!**
+  - Form Request Validation: 0/7 tasks (0%) - TODO (Optional)
 - **Phase 2 (High):** 0/60 tasks (0%)
 - **Phase 3 (Medium):** 0/28 tasks (0%)
 - **Phase 4 (Low):** 0/25 tasks (0%)
 
-**Overall Progress:** 67/198 tasks (33.8%)
+**Overall Progress:** 70/198 tasks (35.4%)
 
 ### 🎉 Phase 1.1 Achievement Summary
 - **Duration:** ~4 hours (7 April 2026)
