@@ -7,6 +7,10 @@ use App\Models\Santri;
 use App\Models\WalletTransaction;
 use App\Observers\SantriObserver;
 use App\Observers\WalletTransactionObserver;
+use App\Repositories\Contracts\WalletRepositoryInterface;
+use App\Repositories\Contracts\WalletTransactionRepositoryInterface;
+use App\Repositories\WalletRepository;
+use App\Repositories\WalletTransactionRepository;
 
 class AppServiceProvider extends ServiceProvider
 {
@@ -15,7 +19,9 @@ class AppServiceProvider extends ServiceProvider
      */
     public function register(): void
     {
-        //
+        // Bind Repository Interfaces to Implementations
+        $this->app->bind(WalletRepositoryInterface::class, WalletRepository::class);
+        $this->app->bind(WalletTransactionRepositoryInterface::class, WalletTransactionRepository::class);
     }
 
     /**
