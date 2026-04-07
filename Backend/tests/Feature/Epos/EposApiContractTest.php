@@ -128,12 +128,7 @@ class EposApiContractTest extends TestCase
         // Arrange
         $santri = Santri::factory()->create();
         
-        $rfid = RfidTag::factory()->create([
-            'santri_id' => $santri->id,
-            'uid' => 'TESTUID123'
-        ]);
-        
-        $wallet = Wallet:create([
+        $rfid = RfidTag::create([
             'santri_id' => $santri->id,
             'uid' => 'TESTUID123',
             'status' => 'active'
@@ -144,6 +139,11 @@ class EposApiContractTest extends TestCase
             'cash_balance' => 50000,
             'bank_balance' => 100000,
             'is_active' => true
+        ]);
+
+        $transactionData = [
+            'santri_id' => $santri->id,
+            'amount' => 10000,
             'epos_txn_id' => 'EPOS-TEST-' . time(),
             'meta' => [
                 'items' => [
@@ -187,13 +187,13 @@ class EposApiContractTest extends TestCase
     public function test_epos_transaction_insufficient_balance_error()
     {
         // Arrange
-        $santri = Santri::create([
+        $santri = Santri::factory()->create();
+        
+        $wallet = Wallet::create([
             'santri_id' => $santri->id,
             'cash_balance' => 5000, // Low balance
             'bank_balance' => 0,
-            'is_active' => truetri->id,
-            'cash_balance' => 5000, // Low balance
-            'bank_balance' => 0
+            'is_active' => true
         ]);
 
         $transactionData = [
@@ -242,14 +242,14 @@ class EposApiContractTest extends TestCase
      */
     public function test_epos_withdrawal_creation_structure()
     {
-        // Arrangecreate([
+        // Arrange
+        $santri = Santri::factory()->create();
+        
+        $wallet = Wallet::create([
             'santri_id' => $santri->id,
             'cash_balance' => 100000,
             'bank_balance' => 50000,
-            'is_active' => true->create([
-            'santri_id' => $santri->id,
-            'cash_balance' => 100000,
-            'bank_balance' => 50000
+            'is_active' => true
         ]);
 
         $withdrawalData = [
@@ -297,7 +297,9 @@ class EposApiContractTest extends TestCase
      * EPOS terminals need fast responses (< 500ms)
      */
     public function test_rfid_lookup_response_time()
-    {create([
+    {
+        $santri = Santri::factory()->create();
+        $rfid = RfidTag::create([
             'santri_id' => $santri->id,
             'uid' => 'SPEED_TEST',
             'status' => 'active'
@@ -307,9 +309,7 @@ class EposApiContractTest extends TestCase
             'cash_balance' => 50000,
             'bank_balance' => 50000,
             'is_active' => true
-        
         ]);
-        Wallet::factory()->create(['santri_id' => $santri->id]);
 
         $start = microtime(true);
         $this->get("/api/v1/wallets/rfid/uid/{$rfid->uid}");
