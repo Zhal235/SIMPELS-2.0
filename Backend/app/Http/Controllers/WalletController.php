@@ -14,99 +14,28 @@ use PhpOffice\PhpSpreadsheet\IOFactory;
 use PhpOffice\PhpSpreadsheet\Spreadsheet;
 use PhpOffice\PhpSpreadsheet\Writer\Xlsx;
 use Illuminate\Support\Facades\Storage;
+use App\Services\Wallet\WalletBalanceService;
 
 class WalletController extends Controller
 {
-    /**
-     * Calculate total Cash balance across all santri wallets
-     */
-    private function calculateTotalCashBalance()
-    {
-        // Credit cash dari top-up manual (exclude voided & admin-void)
-        $cashCredit = WalletTransaction::where('type', 'credit')
-            ->where('method', 'cash')
-            ->where(function($q) {
-                $q->where('voided', '!=', 1)
-                  ->orWhereNull('voided');
-            })
-            ->sum('amount');
-        
-        // Debit cash (tarik tunai santri, EPOS belanja) - exclude voided
-        $cashDebit = WalletTransaction::where('type', 'debit')
-            ->where('method', 'cash')
-            ->where(function($q) {
-                $q->where('voided', '!=', 1)
-                  ->orWhereNull('voided');
-            })
-            ->sum('amount');
-        
-        // Tambah dari penarikan Bank→Cash
-        $withdrawals = DB::table('wallet_withdrawals')
-            ->where('pool_id', null) // Cash withdrawals (bukan EPOS)
-            ->where('status', 'done')
-            ->sum('amount');
-        
-        // Kurangi pencairan EPOS yang pakai cash
-        $eposWithdrawalsCash = DB::table('epos_withdrawals')
-            ->where('status', 'approved')
-            ->where('payment_method', 'cash')
-            ->sum('amount');
-        
-        return ($cashCredit - $cashDebit) + $withdrawals - $eposWithdrawalsCash;
-    }
+    protected WalletBalanceService $balanceService;
 
-    /**
-     * Calculate total Transfer/Bank balance across all santri wallets
-     */
-    private function calculateTotalBankBalance()
+    public function __construct(WalletBalanceService $balanceService)
     {
-        $transferCredit = WalletTransaction::where('type', 'credit')
-            ->where('method', 'transfer')
-            ->where(function($q) {
-                $q->where('voided', '!=', 1)
-                  ->orWhereNull('voided');
-            })
-            ->sum('amount');
-        
-        $transferDebit = WalletTransaction::where('type', 'debit')
-            ->where('method', 'transfer')
-            ->where(function($q) {
-                $q->where('voided', '!=', 1)
-                  ->orWhereNull('voided');
-            })
-            ->sum('amount');
-        
-        // Kurangi penarikan Bank→Cash
-        $withdrawals = DB::table('wallet_withdrawals')
-            ->where('pool_id', null)
-            ->where('status', 'done')
-            ->sum('amount');
-        
-        // Kurangi pencairan EPOS yang pakai transfer
-        $eposWithdrawalsTransfer = DB::table('epos_withdrawals')
-            ->where('status', 'approved')
-            ->where('payment_method', 'transfer')
-            ->sum('amount');
-        
-        return ($transferCredit - $transferDebit) - $withdrawals - $eposWithdrawalsTransfer;
+        $this->balanceService = $balanceService;
     }
 
     /**
      * Get total cash and bank balances
-     * GET /api/v1/wallets/balances
+    * GET /api/v1/wallets/balances
      */
     public function getBalances()
     {
-        $cashBalance = $this->calculateTotalCashBalance();
-        $bankBalance = $this->calculateTotalBankBalance();
+        $balances = $this->balanceService->getBalances();
         
         return response()->json([
             'success' => true,
-            'data' => [
-                'cash_balance' => $cashBalance,
-                'bank_balance' => $bankBalance,
-                'total_balance' => $cashBalance + $bankBalance
-            ]
+            'data' => $balances
         ]);
     }
 
