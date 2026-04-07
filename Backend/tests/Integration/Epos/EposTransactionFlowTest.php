@@ -34,21 +34,23 @@ class EposTransactionFlowTest extends TestCase
     {
         // Step 1: Setup - Create santri with RFID and wallet
         $santri = Santri::factory()->create([
-            'nama' => 'Ahmad Test',
+            'nama_santri' => 'Ahmad Test',
             'nis' => 'TEST001'
         ]);
         
-        $rfid = RfidTag::factory()->create([
+        $rfid = RfidTag::create([
             'santri_id' => $santri->id,
-            'uid' => 'FLOW_TEST_001'
+            'uid' => 'FLOW_TEST_001',
+            'status' => 'active'
         ]);
         
         $initialBalance = 100000;
-        $wallet = Wallet::factory()->create([
+        $wallet = Wallet::create([
             'santri_id' => $santri->id,
             'cash_balance' => $initialBalance,
             'bank_balance' => 50000,
-            'daily_limit' => 50000
+            'daily_limit' => 50000,
+            'is_active' => true
         ]);
 
         // Step 2: EPOS taps RFID card - Lookup santri
@@ -105,13 +107,14 @@ class EposTransactionFlowTest extends TestCase
     public function test_transaction_rejected_insufficient_balance()
     {
         $santri = Santri::factory()->create();
-        $rfid = RfidTag::factory()->create(['santri_id' => $santri->id, 'uid' => 'LOW_BALANCE']);
+        $rfid = RfidTag::create(['santri_id' => $santri->id, 'uid' => 'LOW_BALANCE', 'status' => 'active']);
         
         $lowBalance = 5000;
-        $wallet = Wallet::factory()->create([
+        $wallet = Wallet::create([
             'santri_id' => $santri->id,
             'cash_balance' => $lowBalance,
-            'bank_balance' => 0
+            'bank_balance' => 0,
+            'is_active' => true
         ]);
 
         // Try to purchase more than balance
@@ -145,22 +148,24 @@ class EposTransactionFlowTest extends TestCase
     public function test_transaction_rejected_daily_limit_exceeded()
     {
         $santri = Santri::factory()->create();
-        $rfid = RfidTag::factory()->create(['santri_id' => $santri->id, 'uid' => 'LIMIT_TEST']);
+        $rfid = RfidTag::create(['santri_id' => $santri->id, 'uid' => 'LIMIT_TEST', 'status' => 'active']);
         
         $dailyLimit = 20000;
-        $wallet = Wallet::factory()->create([
+        $wallet = Wallet::create([
             'santri_id' => $santri->id,
             'cash_balance' => 100000, // Enough balance
             'bank_balance' => 0,
-            'daily_limit' => $dailyLimit
+            'daily_limit' => $dailyLimit,
+            'is_active' => true
         ]);
 
         // Create existing transaction today (15000)
-        WalletTransaction::factory()->create([
+        WalletTransaction::create([
             'wallet_id' => $wallet->id,
             'type' => 'debit',
             'method' => 'epos',
             'amount' => 15000,
+            'notes' => 'Previous transaction',
             'created_at' => now()
         ]);
 
@@ -185,13 +190,14 @@ class EposTransactionFlowTest extends TestCase
     public function test_multiple_transactions_within_limit()
     {
         $santri = Santri::factory()->create();
-        $rfid = RfidTag::factory()->create(['santri_id' => $santri->id, 'uid' => 'MULTI_TEST']);
+        $rfid = RfidTag::create(['santri_id' => $santri->id, 'uid' => 'MULTI_TEST', 'status' => 'active']);
         
-        $wallet = Wallet::factory()->create([
+        $wallet = Wallet::create([
             'santri_id' => $santri->id,
             'cash_balance' => 100000,
             'bank_balance' => 0,
-            'daily_limit' => 50000
+            'daily_limit' => 50000,
+            'is_active' => true
         ]);
 
         $transactions = [5000, 10000, 8000]; // Total: 23000 (within 50000 limit)
@@ -236,12 +242,13 @@ class EposTransactionFlowTest extends TestCase
     public function test_withdrawal_creation_flow()
     {
         $santri = Santri::factory()->create();
-        $rfid = RfidTag::factory()->create(['santri_id' => $santri->id, 'uid' => 'WD_TEST']);
+        $rfid = RfidTag::create(['santri_id' => $santri->id, 'uid' => 'WD_TEST', 'status' => 'active']);
         
-        $wallet = Wallet::factory()->create([
+        $wallet = Wallet::create([
             'santri_id' => $santri->id,
             'cash_balance' => 100000,
-            'bank_balance' => 50000
+            'bank_balance' => 50000,
+            'is_active' => true
         ]);
 
         // Step 1: EPOS creates withdrawal request
@@ -295,9 +302,11 @@ class EposTransactionFlowTest extends TestCase
     public function test_transaction_response_time()
     {
         $santri = Santri::factory()->create();
-        $wallet = Wallet::factory()->create([
+        $wallet = Wallet::create([
             'santri_id' => $santri->id,
-            'cash_balance' => 100000
+            'cash_balance' => 100000,
+            'bank_balance' => 0,
+            'is_active' => true
         ]);
 
         $transactionData = [
