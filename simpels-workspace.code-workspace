@@ -1,0 +1,123 @@
+{
+  "folders": [
+    {
+      "name": "📦 SIMPELS Backend",
+      "path": "./Backend"
+    },
+    {
+      "name": "🖥️ SIMPELS Frontend",
+      "path": "./frontend"
+    },
+    {
+      "name": "📱 SIMPELS Mobile",
+      "path": "./mobile"
+    },
+    {
+      "name": "💬 WA Gateway",
+      "path": "./wa-gateway"
+    },
+    {
+      "name": "🏪 EPOS SAZA",
+      "path": "../EPOS_SAZA"
+    }
+  ],
+  "settings": {
+    "files.exclude": {
+      "**/node_modules": true,
+      "**/vendor": true,
+      "**/.git": true,
+      "**/build": true,
+      "**/.dart_tool": true
+    },
+    "search.exclude": {
+      "**/node_modules": true,
+      "**/vendor": true,
+      "**/build": true,
+      "**/.dart_tool": true,
+      "**/storage/logs": true
+    },
+    "files.associations": {
+      "*.blade.php": "blade",
+      ".env*": "dotenv"
+    },
+    "editor.formatOnSave": true,
+    "editor.tabSize": 4,
+    "[javascript]": {
+      "editor.tabSize": 2
+    },
+    "[typescript]": {
+      "editor.tabSize": 2
+    },
+    "[json]": {
+      "editor.tabSize": 2
+    }
+  },
+  "extensions": {
+    "recommendations": [
+      "bmewburn.vscode-intelephense-client",
+      "onecentlin.laravel-blade",
+      "dart-code.flutter",
+      "bradlc.vscode-tailwindcss",
+      "dbaeumer.vscode-eslint",
+      "esbenp.prettier-vscode"
+    ]
+  },
+  "launch": {
+    "version": "0.2.0",
+    "configurations": [
+      {
+        "name": "Backend: Laravel Artisan Serve",
+        "type": "php",
+        "request": "launch",
+        "program": "${workspaceFolder:SIMPELS Backend}/artisan",
+        "args": ["serve", "--port=8000"],
+        "cwd": "${workspaceFolder:SIMPELS Backend}"
+      },
+      {
+        "name": "EPOS: Laravel Artisan Serve",
+        "type": "php",
+        "request": "launch",
+        "program": "${workspaceFolder:EPOS SAZA}/artisan",
+        "args": ["serve", "--port=8002"],
+        "cwd": "${workspaceFolder:EPOS SAZA}"
+      }
+    ]
+  },
+  "tasks": {
+    "version": "2.0.0",
+    "tasks": [
+      {
+        "label": "Backend: PHP Tests",
+        "type": "shell",
+        "command": "php artisan test",
+        "options": {
+          "cwd": "${workspaceFolder:SIMPELS Backend}"
+        }
+      },
+      {
+        "label": "Backend: EPOS Contract Tests",
+        "type": "shell",
+        "command": "php artisan test --filter Epos",
+        "options": {
+          "cwd": "${workspaceFolder:SIMPELS Backend}"
+        }
+      },
+      {
+        "label": "EPOS: Run Tests",
+        "type": "shell",
+        "command": "php artisan test",
+        "options": {
+          "cwd": "${workspaceFolder:EPOS SAZA}"
+        }
+      },
+      {
+        "label": "EPOS: Integration Test with Backend",
+        "type": "shell",
+        "command": "php integration_test.php",
+        "options": {
+          "cwd": "${workspaceFolder:EPOS SAZA}"
+        }
+      }
+    ]
+  }
+}
