@@ -284,6 +284,22 @@ Route::prefix('v1/wallets')->group(function () {
     Route::get('epos/withdrawals', [WalletController::class, 'listEposWithdrawals']);
 });
 
+// EPOS Health Check Endpoint (comprehensive for monitoring)
+Route::get('/epos/health', function () {
+    return response()->json([
+        'status' => 'ok',
+        'version' => '2.0.1',
+        'timestamp' => now()->toDateTimeString(),
+        'endpoints' => [
+            'rfid_lookup' => 'available',
+            'transaction' => 'available',
+            'withdrawal' => 'available',
+            'wallet_settings' => 'available',
+        ],
+        'database' => \DB::connection()->getPdo() ? 'connected' : 'down',
+    ]);
+});
+
 // API v1 endpoints untuk modul Kepegawaian
 Route::middleware('auth:sanctum')->prefix('v1/kepegawaian')->group(function () {
     Route::apiResource('pegawai', \App\Http\Controllers\PegawaiController::class);

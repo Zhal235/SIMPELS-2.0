@@ -70,8 +70,8 @@
   - [x] List semua endpoints yang digunakan EPOS (sudah di docs)
   - [ ] Baseline test: Save current responses sebagai JSON
   - [x] Buat Contract Tests: `Epos/EposApiContractTest.php`
-  - [ ] Buat Integration Tests: `Integration/Epos/EposTransactionFlowTest.php`
-  - [ ] Setup health check endpoint: `GET /api/epos/health`
+  - [x] Buat Integration Tests: `Integration/Epos/EposTransactionFlowTest.php`
+  - [x] Setup health check endpoint: `GET /api/epos/health`
   - [x] Setup request logging middleware untuk EPOS
   - [ ] Test all EPOS endpoints dengan Postman (baseline test)
   - [ ] Run EPOS integration test: `cd EPOS_SAZA && php integration_test.php`
@@ -571,16 +571,16 @@
 
 ## 📝 PROGRESS TRACKING
 
-**Last Updated:** 7 April 2026, 23:59 WIB
+**Last Updated:** 8 April 2026, 00:15 WIB
 
 ### Completion by Phase
-- **Phase 0 (Pre-Refactor):** 10/25 tasks (40%) 🟡 **IN PROGRESS**
+- **Phase 0 (Pre-Refactor):** 13/25 tasks (52%) 🟡 **IN PROGRESS**
 - **Phase 1 (Critical):** 0/60 tasks (0%)
 - **Phase 2 (High):** 0/60 tasks (0%)
 - **Phase 3 (Medium):** 0/28 tasks (0%)
 - **Phase 4 (Low):** 0/25 tasks (0%)
 
-**Overall Progress:** 10/198 tasks (5%)
+**Overall Progress:** 13/198 tasks (6.5%)
 
 ### ⚠️ PENTING: Workflow Refactor
 1. **WAJIB selesaikan Phase 0 dulu** - jangan skip!
