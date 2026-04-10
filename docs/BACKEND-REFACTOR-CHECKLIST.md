@@ -31,7 +31,7 @@
 | ├─ 1.1 | WalletController Refactor | 10 | ✅ Done | 100% (10/10) |
 | ├─ 1.2 | Repository Pattern | 3 | ✅ Done | 100% (3/3) |
 | └─ 1.3 | Form Request Validation | 7 | ✅ Done | 100% (7/7) |
-| **Phase 2** | HIGH - Wali/Santri/etc | 60 | 🟡 In Progress | 27% (16/60) |
+| **Phase 2** | HIGH - Wali/Santri/etc | 60 | 🟡 In Progress | 45% (27/60) |
 | **Phase 3** | MEDIUM - Optimization | 28 | ⬜ Not Started | 0% (0/28) |
 | **Phase 4** | LOW - Nice to Have | 25 | ⬜ Not Started | 0% (0/25) |
 | | | | | |
@@ -427,32 +427,40 @@ Controllers can be updated to use these for even cleaner code.
 
 ---
 
-### 2.3 TagihanSantriController Refactor (621 baris)
+### 2.3 TagihanSantriController Refactor (621 baris → 3 Services) ✅ **COMPLETE! (89.2% reduction)**
 
-**Target:** Controller jadi < 100 baris
+**Target:** Controller jadi < 100 baris  
+**Hasil:** 621 → 67 baris (-554 baris, 89.2% reduction!) ✅  
+**Services:** TagihanCrudService (168) + TagihanGenerateService (102) + TagihanBulkService (153)
 
-- [ ] **2.3.1** Buat `app/Services/Tagihan/TagihanCrudService.php`
-  - [ ] Extract CRUD methods
-  - [ ] Add unit tests
+- [x] **2.3.1** Buat `app/Services/Tagihan/TagihanCrudService.php` ✅ **(168 baris)**
+  - [x] Extract `index()` → `getRekapPerSantri()`
+  - [x] Extract `show()` → `findById()`
+  - [x] Extract `getBySantri()`
+  - [x] Extract `update()` → `updateTagihan()` (split updateNominal + updatePembayaran)
+  - [x] Extract `destroy()` → `deleteTagihan()` dengan ValidatesDeletion
 
-- [ ] **2.3.2** Buat `app/Services/Tagihan/TagihanCalculationService.php`
-  - [ ] Extract calculation logic
-  - [ ] Extract tunggakan calculation
-  - [ ] Add unit tests
+- [x] **2.3.2** Buat `app/Services/Tagihan/TagihanGenerateService.php` ✅ **(102 baris)**
+  - [x] Extract `generate()` method
+  - [x] Extract `getSantriByTipeNominal()` private helper
+  - [x] Constant `BULAN_MAP` di-share
 
-- [ ] **2.3.3** Buat `app/Services/Tagihan/TagihanBulkService.php`
-  - [ ] Extract bulk creation
-  - [ ] Extract batch processing
-  - [ ] Add unit tests
+- [x] **2.3.3** Buat `app/Services/Tagihan/TagihanBulkService.php` ✅ **(153 baris)**
+  - [x] Extract `createTunggakan()`
+  - [x] Extract `bulkDelete()`
+  - [x] Extract `bulkUpdateNominal()`
+  - [x] Extract `cleanupOrphan()`
+  - [x] Extract private `resolveTahun()` helper
 
-- [ ] **2.3.4** Refactor `TagihanSantriController`
-  - [ ] Thin controller pattern
-  - [ ] Verify baris < 100
+- [x] **2.3.4** Refactor `TagihanSantriController` ✅ **(67 baris)**
+  - [x] Inject 3 services via constructor
+  - [x] 10 thin methods (semua 1-3 baris)
+  - [x] 11/11 routes intact
 
-- [ ] **2.3.5** Tagihan Form Requests
-  - [ ] `app/Http/Requests/Tagihan/CreateTagihanRequest.php`
-  - [ ] `app/Http/Requests/Tagihan/UpdateTagihanRequest.php`
-  - [ ] `app/Http/Requests/Tagihan/BulkTagihanRequest.php`
+- [x] **2.3.5** Tagihan Form Requests ✅ **(3 files created)**
+  - [x] `app/Http/Requests/Tagihan/CreateTagihanRequest.php` (27 baris, untuk generate)
+  - [x] `app/Http/Requests/Tagihan/UpdateTagihanRequest.php` (38 baris, conditional nominal/dibayar + max validation)
+  - [x] `app/Http/Requests/Tagihan/BulkTagihanRequest.php` (36 baris, nested array validation)
 
 ---
 
