@@ -8,7 +8,7 @@ export default defineConfig({
     react(),
     VitePWA({
       registerType: 'autoUpdate',
-      injectRegister: 'auto',
+      injectRegister: null,
       includeAssets: ['favicon-16x16.png', 'favicon-32x32.png', 'icons/apple-touch-icon.png'],
       manifest: {
         name: 'SIMPELS 2.0',
