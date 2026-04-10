@@ -696,11 +696,14 @@ Controllers can be updated to use these for even cleaner code.
   - **WalletController Refactor:** 10/10 tasks (100%) ✅ **DONE!**
   - **Repository Pattern:** 3/3 tasks (100%) ✅ **DONE!**
   - **Form Request Validation:** 7/7 tasks (100%) ✅ **DONE!**
-- **Phase 2 (High):** 0/60 tasks (0%)
+- **Phase 2 (High):** 5/60 tasks (8.3%) 🟢 **STARTED!**
+  - **WaliController Refactor:** 5/5 tasks (100%) ✅ **DONE!** (87.7% reduction!)
+  - SantriController: 0/10 tasks (0%)
+  - Other controllers: 0/45 tasks (0%)
 - **Phase 3 (Medium):** 0/28 tasks (0%)
 - **Phase 4 (Low):** 0/25 tasks (0%)
 
-**Overall Progress:** 73/198 tasks (36.9%)
+**Overall Progress:** 78/198 tasks (39.4%)
 
 ### 🎉 Phase 1 Achievement Summary - **100% COMPLETE!**
 
