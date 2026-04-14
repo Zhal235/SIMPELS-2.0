@@ -32,10 +32,10 @@
 | ├─ 1.2 | Repository Pattern | 3 | ✅ Done | 100% (3/3) |
 | └─ 1.3 | Form Request Validation | 7 | ✅ Done | 100% (7/7) |
 | **Phase 2** | HIGH - Wali/Santri/etc | 60 | 🟡 In Progress | 75% (45/60) |
-| **Phase 3** | MEDIUM - Optimization | 28 | ⬜ Not Started | 0% (0/28) |
+| **Phase 3** | MEDIUM - Optimization | 28 | 🟡 In Progress | 11% (3/28) |
 | **Phase 4** | LOW - Nice to Have | 25 | ⬜ Not Started | 0% (0/25) |
 | | | | | |
-| **TOTAL** | **All Phases** | **198** | **36.9%** | **73/198** |
+| **TOTAL** | **All Phases** | **198** | **39.9%** | **79/198** |
 
 ### 🏆 Phase 1 Architecture Created
 
@@ -585,9 +585,20 @@ Controllers can be updated to use these for even cleaner code.
 
 ### 3.4 Additional Services for Other Controllers
 
-- [ ] **3.4.1** `PembayaranController` (351 baris)
-  - [ ] Buat `PembayaranService.php`
-  - [ ] Refactor controller < 100 baris
+- [x] **3.4.1** `PembayaranController` Refactor (351 baris) ✅ **COMPLETE! (85.8% reduction)**
+  - [x] Buat `app/Services/Pembayaran/PembayaranService.php` ✅ **(271 baris)**
+    - [x] Extract getList() dengan filter santri_id, date range
+    - [x] Extract getHistory() dengan grouping by bulan-tahun
+    - [x] Extract processPembayaran() dengan kwitansi snapshot generation
+    - [x] Extract getDetail(), getTagihanBySantri(), deletePembayaran()
+    - [x] Private helpers: generateKwitansiSnapshot(), updateTagihan(), createTransaksiKas() with retry
+    - [x] Private helpers: rollbackTagihan(), rollbackWalletDistribution()
+  - [x] Refactor `PembayaranController` ✅ **(351 → 50 baris, -85.8%)**
+    - [x] Inject PembayaranService
+    - [x] 7 thin methods (index, history, store, show, getTagihanBySantri, destroy, update)
+    - [x] 8/8 routes intact
+  - [x] Pembayaran Form Request ✅ **(1 file created)**
+    - [x] `app/Http/Requests/Pembayaran/StorePembayaranRequest.php` (36 baris)
 
 - [ ] **3.4.2** `WaGatewayController` (364 baris)
   - [ ] Buat `WaGatewayService.php`
