@@ -31,18 +31,16 @@ export default function TransaksiKas() {
   const [filterOperator, setFilterOperator] = useState<number|'all'>('all')
   const [startDate, setStartDate] = useState('')
   const [endDate, setEndDate] = useState('')
+  const [tempStartDate, setTempStartDate] = useState('')
+  const [tempEndDate, setTempEndDate] = useState('')
   const [currentPage, setCurrentPage] = useState(1)
   const ITEMS_PER_PAGE = 20
   const [formData, setFormData] = useState({ buku_kas_id: '', tanggal: new Date().toISOString().split('T')[0], kategori: '', kategori_id: '', nominal: '', keterangan: '', nama_pemohon: '', metode: 'cash' as 'cash'|'transfer' })
 
   useEffect(() => { loadData() }, [])
 
-  // Reload data saat filter tanggal berubah
-  useEffect(() => {
-    if (startDate || endDate) {
-      loadData()
-    }
-  }, [startDate, endDate])
+  // Reload saat filter tanggal diterapkan
+  useEffect(() => { loadData() }, [startDate, endDate])
 
   const loadData = async () => {
     try {
@@ -163,12 +161,14 @@ export default function TransaksiKas() {
       </div>
 
       <div className="bg-white rounded-lg shadow p-4 mb-6">
-        <div className="grid grid-cols-1 md:grid-cols-6 gap-4">
-          <div className="md:col-span-2 relative"><Search className="absolute left-3 top-1/2 -translate-y-1/2 text-gray-400 w-5 h-5" /><input type="text" placeholder="Cari no transaksi, kategori, keterangan..." value={searchQuery} onChange={e=>setSearchQuery(e.target.value)} className="w-full pl-10 pr-4 py-2 border border-gray-300 rounded-lg focus:ring-2 focus:ring-blue-500" /></div>
+        <div className="grid grid-cols-1 md:grid-cols-7 gap-3">
+          <div className="relative"><Search className="absolute left-3 top-1/2 -translate-y-1/2 text-gray-400 w-5 h-5" /><input type="text" placeholder="Cari..." value={searchQuery} onChange={e=>setSearchQuery(e.target.value)} className="w-full pl-10 pr-4 py-2 border border-gray-300 rounded-lg focus:ring-2 focus:ring-blue-500" /></div>
           <select value={filterJenis} onChange={e=>setFilterJenis(e.target.value as any)} className="w-full px-4 py-2 border border-gray-300 rounded-lg focus:ring-2 focus:ring-blue-500"><option value="all">Semua Jenis</option><option value="pemasukan">Pemasukan</option><option value="pengeluaran">Pengeluaran</option></select>
           <select value={filterBukuKas} onChange={e=>setFilterBukuKas(e.target.value==='all'?'all':Number(e.target.value))} className="w-full px-4 py-2 border border-gray-300 rounded-lg focus:ring-2 focus:ring-blue-500"><option value="all">Semua Buku Kas</option>{bukuKasList.map(bk=><option key={bk.id} value={bk.id}>{bk.nama_kas}</option>)}</select>
           <select value={filterOperator} onChange={e=>setFilterOperator(e.target.value==='all'?'all':Number(e.target.value))} className="w-full px-4 py-2 border border-gray-300 rounded-lg focus:ring-2 focus:ring-blue-500"><option value="all">Semua Operator</option>{users.map(u=><option key={u.id} value={u.id}>{u.name}</option>)}</select>
-          <div className="flex gap-2"><input type="date" value={startDate} onChange={e=>setStartDate(e.target.value)} className="flex-1 px-3 py-2 border border-gray-300 rounded-lg focus:ring-2 focus:ring-blue-500 text-sm" /><input type="date" value={endDate} onChange={e=>setEndDate(e.target.value)} className="flex-1 px-3 py-2 border border-gray-300 rounded-lg focus:ring-2 focus:ring-blue-500 text-sm" /></div>
+          <div className="flex gap-1"><input type="date" value={tempStartDate} onChange={e=>setTempStartDate(e.target.value)} className="flex-1 px-2 py-2 border border-gray-300 rounded-lg focus:ring-2 focus:ring-blue-500 text-sm" /><input type="date" value={tempEndDate} onChange={e=>setTempEndDate(e.target.value)} className="flex-1 px-2 py-2 border border-gray-300 rounded-lg focus:ring-2 focus:ring-blue-500 text-sm" /></div>
+          <button onClick={()=>{setStartDate(tempStartDate);setEndDate(tempEndDate)}} className="px-4 py-2 bg-blue-600 text-white rounded-lg hover:bg-blue-700 font-medium text-sm whitespace-nowrap">Terapkan</button>
+          {(startDate || endDate) && <button onClick={()=>{setStartDate('');setEndDate('');setTempStartDate('');setTempEndDate('')}} className="px-3 py-2 bg-gray-200 text-gray-700 rounded-lg hover:bg-gray-300 text-sm"><X className="w-4 h-4" /></button>}
         </div>
       </div>
 
