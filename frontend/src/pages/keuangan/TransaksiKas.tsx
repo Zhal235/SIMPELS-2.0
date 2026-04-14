@@ -37,10 +37,22 @@ export default function TransaksiKas() {
 
   useEffect(() => { loadData() }, [])
 
+  // Reload data saat filter tanggal berubah
+  useEffect(() => {
+    if (startDate || endDate) {
+      loadData()
+    }
+  }, [startDate, endDate])
+
   const loadData = async () => {
     try {
       setLoading(true)
-      const [tRes, bkRes, kRes, uRes] = await Promise.all([listTransaksiKas(), listBukuKas(), listKategoriPengeluaran(), listUsers()])
+      // Kirim parameter filter tanggal ke API jika ada
+      const params: any = {}
+      if (startDate) params.date_from = startDate
+      if (endDate) params.date_to = endDate
+
+      const [tRes, bkRes, kRes, uRes] = await Promise.all([listTransaksiKas(params), listBukuKas(), listKategoriPengeluaran(), listUsers()])
       if (tRes.success) setTransaksiList(tRes.data)
       if (bkRes.success) setBukuKasList(bkRes.data)
       if (kRes) setCategories(kRes)
