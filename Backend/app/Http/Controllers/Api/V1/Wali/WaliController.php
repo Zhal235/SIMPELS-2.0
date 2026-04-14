@@ -3,6 +3,10 @@
 namespace App\Http\Controllers\Api\V1\Wali;
 
 use App\Http\Controllers\Api\BaseController;
+use App\Http\Requests\Wali\ChangePasswordRequest;
+use App\Http\Requests\Wali\LoginRequest;
+use App\Http\Requests\Wali\SetDailyLimitRequest;
+use App\Http\Requests\Wali\UploadBuktiRequest;
 use App\Services\Wali\WaliAuthService;
 use App\Services\Wali\WaliSantriService;
 use App\Services\Wali\WaliWalletService;
@@ -29,13 +33,8 @@ class WaliController extends BaseController
         $this->paymentService = $paymentService;
     }
 
-    public function login(Request $request)
+    public function login(LoginRequest $request)
     {
-        $request->validate([
-            'no_hp' => 'required|string',
-            'password' => 'required|string',
-        ]);
-
         try {
             $credentials = [
                 'no_hp' => $request->no_hp,
@@ -49,14 +48,8 @@ class WaliController extends BaseController
         }
     }
 
-    public function changePassword(Request $request)
+    public function changePassword(ChangePasswordRequest $request)
     {
-        $request->validate([
-            'no_hp' => 'required|string',
-            'current_password' => 'required|string',
-            'new_password' => 'required|string|min:6|confirmed',
-        ]);
-
         $data = [
             'no_hp' => $request->no_hp,
             'current_password' => $request->current_password,
@@ -111,12 +104,8 @@ class WaliController extends BaseController
         return response()->json($result, $result['status_code'] ?? 200);
     }
 
-    public function setSantriDailyLimit(Request $request, $santriId)
+    public function setSantriDailyLimit(SetDailyLimitRequest $request, $santriId)
     {
-        $request->validate([
-            'daily_limit' => 'required|numeric|min:0'
-        ]);
-
         $result = $this->walletService->setSantriDailyLimit($santriId, $request->daily_limit);
         return response()->json($result, $result['status_code'] ?? 200);
     }
@@ -139,19 +128,8 @@ class WaliController extends BaseController
         return response()->json($result, $result['status_code'] ?? 200);
     }
 
-    public function uploadBukti(Request $request, $santriId)
+    public function uploadBukti(UploadBuktiRequest $request, $santriId)
     {
-        $request->validate([
-            'tagihan_ids' => 'nullable|array',
-            'tagihan_ids.*' => 'required|integer|exists:tagihan_santri,id',
-            'total_nominal' => 'required|numeric|min:1',
-            'nominal_topup' => 'nullable|numeric|min:0',
-            'nominal_tabungan' => 'nullable|numeric|min:0',
-            'selected_bank_id' => 'nullable|integer|exists:bank_accounts,id',
-            'bukti' => 'required|file|mimes:jpeg,jpg,png|max:5120',
-            'catatan' => 'nullable|string|max:500',
-        ]);
-
         try {
             $data = [
                 'tagihan_ids' => $request->tagihan_ids ?? [],

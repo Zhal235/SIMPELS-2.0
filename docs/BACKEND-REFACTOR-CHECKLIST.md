@@ -31,7 +31,7 @@
 | ├─ 1.1 | WalletController Refactor | 10 | ✅ Done | 100% (10/10) |
 | ├─ 1.2 | Repository Pattern | 3 | ✅ Done | 100% (3/3) |
 | └─ 1.3 | Form Request Validation | 7 | ✅ Done | 100% (7/7) |
-| **Phase 2** | HIGH - Wali/Santri/etc | 60 | 🟡 In Progress | 67% (40/60) |
+| **Phase 2** | HIGH - Wali/Santri/etc | 60 | 🟡 In Progress | 75% (45/60) |
 | **Phase 3** | MEDIUM - Optimization | 28 | ⬜ Not Started | 0% (0/28) |
 | **Phase 4** | LOW - Nice to Have | 25 | ⬜ Not Started | 0% (0/25) |
 | | | | | |
@@ -374,12 +374,12 @@ Controllers can be updated to use these for even cleaner code.
   - [ ] Run mobile app end-to-end test
   - [ ] Verify tidak ada breaking changes untuk mobile
 
-- [ ] **2.1.7** Wali Form Requests
-  - [ ] `app/Http/Requests/Wali/LoginRequest.php`
-  - [ ] `app/Http/Requests/Wali/ChangePasswordRequest.php`
-  - [ ] `app/Http/Requests/Wali/SetDailyLimitRequest.php`
-  - [ ] `app/Http/Requests/Wali/SubmitPaymentRequest.php`
-  - [ ] `app/Http/Requests/Wali/UploadBuktiRequest.php`
+- [x] **2.1.7** Wali Form Requests ✅ **(5 files created, 150 baris total)**
+  - [x] `app/Http/Requests/Wali/LoginRequest.php` (25 baris, no_hp + password validation)
+  - [x] `app/Http/Requests/Wali/ChangePasswordRequest.php` (28 baris, password change with confirmation)
+  - [x] `app/Http/Requests/Wali/SetDailyLimitRequest.php` (24 baris, daily_limit numeric validation)
+  - [x] `app/Http/Requests/Wali/UploadBuktiRequest.php` (36 baris, file upload + tagihan + nominal validation)
+  - [x] `app/Http/Requests/Wali/SubmitPaymentRequest.php` (37 baris, deprecated, kept for backward compat)
 
 ---
 
