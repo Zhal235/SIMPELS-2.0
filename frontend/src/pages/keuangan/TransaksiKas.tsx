@@ -47,8 +47,8 @@ export default function TransaksiKas() {
       setLoading(true)
       // Kirim parameter filter tanggal ke API jika ada
       const params: any = {}
-      if (startDate) params.date_from = startDate
-      if (endDate) params.date_to = endDate
+      if (startDate) params.start_date = startDate
+      if (endDate) params.end_date = endDate
 
       const [tRes, bkRes, kRes, uRes] = await Promise.all([listTransaksiKas(params), listBukuKas(), listKategoriPengeluaran(), listUsers()])
       if (tRes.success) setTransaksiList(tRes.data)
