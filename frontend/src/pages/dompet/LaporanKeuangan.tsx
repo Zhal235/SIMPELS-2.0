@@ -1,7 +1,7 @@
 import React, { useEffect, useState } from 'react'
 import Card from '../../components/Card'
 import Table from '../../components/Table'
-import { listWallets, listCashWithdrawals, getEposPool } from '../../api/wallet'
+import { listWallets, listCashWithdrawals, getEposPool, getBalances } from '../../api/wallet'
 import toast from 'react-hot-toast'
 
 type TabType = 'ringkasan' | 'detail' | 'rekonsiliasi'
@@ -10,6 +10,9 @@ export default function LaporanKeuangan() {
   const [activeTab, setActiveTab] = useState<TabType>('ringkasan')
   const [wallets, setWallets] = useState<any[]>([])
   const [cashWithdrawals, setCashWithdrawals] = useState<any[]>([])
+  const [realCashBalance, setRealCashBalance] = useState(0)
+  const [realBankBalance, setRealBankBalance] = useState(0)
+  const [realTotalBalance, setRealTotalBalance] = useState(0)
   const [eposPool, setEposPool] = useState<any>(null)
   const [loading, setLoading] = useState(true)
   const [dateRange, setDateRange] = useState({ start: '', end: '' })
@@ -23,14 +26,20 @@ export default function LaporanKeuangan() {
     try {
       setLoading(true)
       const params = dateFrom && dateTo ? { date_from: dateFrom, date_to: dateTo } : undefined
-      const [walletsRes, cashRes, eposRes] = await Promise.all([
+      const [walletsRes, cashRes, eposRes, balRes] = await Promise.all([
         listWallets(params),
         listCashWithdrawals({ status: 'done' }),
-        getEposPool()
+        getEposPool(),
+        getBalances()
       ])
       
       if (walletsRes.success) setWallets(walletsRes.data || [])
       if (cashRes.success) setCashWithdrawals(cashRes.data || [])
+      if (balRes?.success) {
+        setRealCashBalance(balRes.data.cash_balance || 0)
+        setRealBankBalance(balRes.data.bank_balance || 0)
+        setRealTotalBalance(balRes.data.total_wallet_balance || 0)
+      }
       if (eposRes.success) setEposPool(eposRes.data)
     } catch {
       toast.error('Gagal memuat data')
@@ -57,11 +66,11 @@ export default function LaporanKeuangan() {
 
   const totalCashBalance = isFiltered 
     ? wallets.reduce((sum, w) => sum + parseFloat(w.cash_balance_at_end_date || 0), 0)
-    : (totalCreditCash - totalDebitCash - totalDebitEpos) + totalWithdrawals
+    : realCashBalance
     
   const totalBankBalance = isFiltered
     ? wallets.reduce((sum, w) => sum + parseFloat(w.bank_balance_at_end_date || 0), 0)
-    : (totalCreditTransfer - totalDebitTransfer) - totalWithdrawals
+    : realBankBalance
 
   // Detail per santri columns
   const detailColumns = [

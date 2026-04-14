@@ -99,13 +99,22 @@ class WalletController extends Controller
     {
         $cashBalance = $this->calculateTotalCashBalance();
         $bankBalance = $this->calculateTotalBankBalance();
+
+        // Total saldo aktual seluruh dompet santri (kewajiban sekolah ke santri)
+        $totalWalletBalance = Wallet::where('is_active', true)->sum('balance');
+
+        // Saldo epos pool yang belum dicairkan ke kantin
+        $eposPool = EposPool::first();
+        $eposPoolBalance = $eposPool ? (float) $eposPool->balance : 0;
         
         return response()->json([
             'success' => true,
             'data' => [
-                'cash_balance' => $cashBalance,
-                'bank_balance' => $bankBalance,
-                'total_balance' => $cashBalance + $bankBalance
+                'cash_balance'         => $cashBalance,
+                'bank_balance'         => $bankBalance,
+                'total_balance'        => $cashBalance + $bankBalance,
+                'total_wallet_balance' => (float) $totalWalletBalance,
+                'epos_pool_balance'    => $eposPoolBalance,
             ]
         ]);
     }

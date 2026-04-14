@@ -11,6 +11,8 @@ export default function ManajemenKeuangan() {
   // Cash & Bank State
   const [cashBalance, setCashBalance] = useState(0)
   const [bankBalance, setBankBalance] = useState(0)
+  const [totalWalletBalance, setTotalWalletBalance] = useState(0)
+  const [eposPoolBalance, setEposPoolBalance] = useState(0)
   const [showWithdrawModal, setShowWithdrawModal] = useState(false)
   const [withdrawAmount, setWithdrawAmount] = useState('')
   const [withdrawNote, setWithdrawNote] = useState('')
@@ -47,6 +49,8 @@ export default function ManajemenKeuangan() {
         if (balRes.success) {
           setCashBalance(balRes.data.cash_balance || 0)
           setBankBalance(balRes.data.bank_balance || 0)
+          setTotalWalletBalance(balRes.data.total_wallet_balance || 0)
+          setEposPoolBalance(balRes.data.epos_pool_balance || 0)
         }
         if (cwRes.success) setCashWithdrawals(cwRes.data || [])
       } else {
@@ -292,6 +296,24 @@ export default function ManajemenKeuangan() {
                     <div className="text-3xl font-bold text-blue-900">
                       Rp {bankBalance.toLocaleString('id-ID')}
                     </div>
+                  </div>
+                </div>
+
+                {/* Kewajiban & EPOS Breakdown */}
+                <div className="grid grid-cols-1 md:grid-cols-2 gap-4 border-t pt-4">
+                  <div className="bg-gradient-to-br from-yellow-50 to-yellow-100 p-5 rounded-lg border border-yellow-200">
+                    <div className="text-sm text-yellow-700 mb-1">👤 Kewajiban ke Santri</div>
+                    <div className="text-2xl font-bold text-yellow-900">
+                      Rp {totalWalletBalance.toLocaleString('id-ID')}
+                    </div>
+                    <div className="text-xs text-yellow-700 mt-1">Total saldo seluruh dompet santri</div>
+                  </div>
+                  <div className="bg-gradient-to-br from-orange-50 to-orange-100 p-5 rounded-lg border border-orange-200">
+                    <div className="text-sm text-orange-700 mb-1">🏪 Di EPOS Pool (Belum Dicairkan)</div>
+                    <div className="text-2xl font-bold text-orange-900">
+                      Rp {eposPoolBalance.toLocaleString('id-ID')}
+                    </div>
+                    <div className="text-xs text-orange-700 mt-1">Belanja santri belum dibayar ke kantin</div>
                   </div>
                 </div>
 
