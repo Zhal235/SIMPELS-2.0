@@ -97,7 +97,7 @@ class TransaksiKasController extends Controller
             'tanggal' => $request->tanggal,
             'jenis' => $request->jenis,
             'metode' => $request->metode,
-            'kategori' => $request->kategori_id ? (\App\Models\KategoriPengeluaran::find($request->kategori_id)->name ?? $request->kategori) : $request->kategori,
+            'kategori' => $request->kategori_id ? (\App\Models\KategoriPengeluaran::find($request->kategori_id)?->name ?? $request->kategori) : $request->kategori,
             'kategori_id' => $request->kategori_id ?? null,
             'nominal' => $request->nominal,
             'keterangan' => $request->keterangan,
@@ -157,7 +157,7 @@ class TransaksiKasController extends Controller
             'jenis'       => $request->jenis,
             'metode'      => $request->metode,
             'kategori'    => $request->kategori_id
-                ? (\App\Models\KategoriPengeluaran::find($request->kategori_id)->name ?? $request->kategori)
+                ? (\App\Models\KategoriPengeluaran::find($request->kategori_id)?->name ?? $request->kategori)
                 : $request->kategori,
             'kategori_id' => $request->kategori_id ?? null,
             'nominal'     => $request->nominal,
