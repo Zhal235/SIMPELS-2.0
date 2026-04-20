@@ -1,6 +1,6 @@
 import { useState, useEffect } from 'react'
-import { Plus, Search, Trash2, X, ArrowDownCircle, ArrowUpCircle, Eye, ArrowRightLeft, Settings } from 'lucide-react'
-import { listBukuKas, listTransaksiKas, createTransaksiKas, deleteTransaksiKas } from '../../api/bukuKas'
+import { Plus, Search, Trash2, X, ArrowDownCircle, ArrowUpCircle, Eye, ArrowRightLeft, Settings, Pencil } from 'lucide-react'
+import { listBukuKas, listTransaksiKas, createTransaksiKas, updateTransaksiKas, deleteTransaksiKas } from '../../api/bukuKas'
 import { listKategoriPengeluaran, createKategoriPengeluaran } from '../../api/kategoriPengeluaran'
 import { listUsers } from '../../api/wallet'
 import { hasAccess } from '../../stores/useAuthStore'
@@ -9,6 +9,7 @@ import ModalPreviewTransaksi from './components/ModalPreviewTransaksi'
 import ModalTransferSaldo from './components/ModalTransferSaldo'
 import ModalCatatPemasukan from './components/ModalCatatPemasukan'
 import ModalKelolaKategori from './components/ModalKelolaKategori'
+import ModalEditTransaksi from './components/ModalEditTransaksi'
 
 const formatRupiah = (v: number | undefined | null) => new Intl.NumberFormat('id-ID', { style: 'currency', currency: 'IDR', minimumFractionDigits: 0 }).format(v || 0)
 const formatTanggal = (t: string) => new Date(t).toLocaleDateString('id-ID', { day: 'numeric', month: 'long', year: 'numeric' })
@@ -24,6 +25,7 @@ export default function TransaksiKas() {
   const [showModalTransfer, setShowModalTransfer] = useState(false)
   const [showModalPemasukan, setShowModalPemasukan] = useState(false)
   const [showModalKategori, setShowModalKategori] = useState(false)
+  const [showModalEdit, setShowModalEdit] = useState(false)
   const [selectedTransaksi, setSelectedTransaksi] = useState<any>(null)
   const [searchQuery, setSearchQuery] = useState('')
   const [filterJenis, setFilterJenis] = useState<'all'|'pemasukan'|'pengeluaran'>('all')
@@ -73,6 +75,13 @@ export default function TransaksiKas() {
       const res = await createTransaksiKas({ buku_kas_id: Number(formData.buku_kas_id), tanggal: formData.tanggal, jenis: 'pengeluaran', metode: formData.metode, kategori: formData.kategori, kategori_id: kategoriId, nominal: Number(formData.nominal), keterangan: ket })
       if (res.success) { toast.success('Transaksi pengeluaran berhasil dicatat'); setShowModal(false); setFormData({ buku_kas_id:'', tanggal:new Date().toISOString().split('T')[0], kategori:'', kategori_id:'', nominal:'', keterangan:'', nama_pemohon:'', metode:'cash' }); loadData() }
     } catch (e: any) { toast.error(e.response?.data?.message || 'Gagal mencatat transaksi') }
+  }
+
+  const handleEdit = async (id: number, data: any) => {
+    try {
+      const res = await updateTransaksiKas(id, data)
+      if (res.success) { toast.success('Transaksi berhasil diperbarui'); setShowModalEdit(false); setSelectedTransaksi(null); loadData() }
+    } catch (e: any) { toast.error(e.response?.data?.message || 'Gagal memperbarui transaksi') }
   }
 
   const handleDelete = async (id: number) => {
@@ -193,6 +202,7 @@ export default function TransaksiKas() {
                   <td className="px-6 py-4 text-center">
                     <div className="flex items-center justify-center gap-2">
                       <button onClick={() => { setSelectedTransaksi(t); setShowPreview(true) }} className="text-blue-600 hover:text-blue-800"><Eye className="w-4 h-4" /></button>
+                      {!t.pembayaran_id && hasAccess('keuangan.transaksi-kas.edit') && <button onClick={() => { setSelectedTransaksi(t); setShowModalEdit(true) }} className="text-yellow-600 hover:text-yellow-800"><Pencil className="w-4 h-4" /></button>}
                       {!t.pembayaran_id && hasAccess('keuangan.transaksi-kas.delete') ? <button onClick={() => handleDelete(t.id)} className="text-red-600 hover:text-red-800"><Trash2 className="w-4 h-4" /></button> : <span className="text-xs text-gray-400" title="Dari pembayaran">🔒</span>}
                     </div>
                   </td>
@@ -247,6 +257,7 @@ export default function TransaksiKas() {
       {showModalTransfer && <ModalTransferSaldo bukuKasList={bukuKasList} onClose={() => setShowModalTransfer(false)} onTransfer={handleTransfer} />}
       {showModalPemasukan && <ModalCatatPemasukan bukuKasList={bukuKasList} onClose={() => setShowModalPemasukan(false)} onSubmit={handleCatatPemasukan} />}
       {showModalKategori && <ModalKelolaKategori categories={categories} onClose={() => setShowModalKategori(false)} onChange={setCategories} />}
+      {showModalEdit && selectedTransaksi && <ModalEditTransaksi transaksi={selectedTransaksi} bukuKasList={bukuKasList} categories={categories} onClose={() => { setShowModalEdit(false); setSelectedTransaksi(null) }} onSubmit={handleEdit} />}
     </div>
   )
 }

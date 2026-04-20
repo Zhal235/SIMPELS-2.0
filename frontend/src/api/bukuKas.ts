@@ -46,6 +46,11 @@ export async function createTransaksiKas(data: Record<string, any>) {
   return res.data
 }
 
+export async function updateTransaksiKas(id: string | number, data: Record<string, any>) {
+  const res = await api.put(`/v1/keuangan/transaksi-kas/${id}`, data)
+  return res.data
+}
+
 export async function deleteTransaksiKas(id: string | number) {
   const res = await api.delete(`/v1/keuangan/transaksi-kas/${id}`)
   return res.data

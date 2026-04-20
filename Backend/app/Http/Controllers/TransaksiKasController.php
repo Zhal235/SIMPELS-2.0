@@ -27,19 +27,11 @@ class TransaksiKasController extends Controller
             $query->where('jenis', $request->jenis);
         }
 
-        // Filter by date range:
-        // - Jika ada start_date & end_date → gunakan range tersebut
-        // - Jika hanya end_date → ambil sampai end_date
-        // - Jika tidak ada filter tanggal → default hari ini saja
+        // Filter by date range
         if ($request->has('start_date') && $request->has('end_date')) {
             $query->whereBetween('tanggal', [$request->start_date, $request->end_date]);
         } elseif ($request->has('end_date')) {
             $query->where('tanggal', '<=', $request->end_date);
-        } elseif ($request->has('start_date')) {
-            $query->where('tanggal', '>=', $request->start_date);
-        } else {
-            // Default: hanya hari ini
-            $query->whereDate('tanggal', now()->toDateString());
         }
 
         // Filter by created_by (operator)
@@ -69,12 +61,7 @@ class TransaksiKasController extends Controller
 
         return response()->json([
             'success' => true,
-            'data' => $transaksi,
-            'meta' => [
-                'date_from' => $request->start_date ?? now()->toDateString(),
-                'date_to'   => $request->end_date ?? now()->toDateString(),
-                'is_default' => !$request->hasAny(['start_date', 'end_date']),
-            ]
+            'data' => $transaksi
         ]);
     }
 
@@ -122,6 +109,66 @@ class TransaksiKasController extends Controller
             'message' => 'Transaksi berhasil dicatat',
             'data' => $transaksi->load('bukuKas')
         ], 201);
+    }
+
+    /**
+     * Update the specified resource in storage.
+     */
+    public function update(Request $request, string $id)
+    {
+        $transaksi = TransaksiKas::find($id);
+
+        if (!$transaksi) {
+            return response()->json([
+                'success' => false,
+                'message' => 'Transaksi tidak ditemukan'
+            ], 404);
+        }
+
+        if ($transaksi->pembayaran_id) {
+            return response()->json([
+                'success' => false,
+                'message' => 'Tidak bisa mengedit transaksi yang terkait dengan pembayaran.'
+            ], 400);
+        }
+
+        $validator = Validator::make($request->all(), [
+            'buku_kas_id' => 'required|exists:buku_kas,id',
+            'tanggal'     => 'required|date',
+            'jenis'       => 'required|in:pemasukan,pengeluaran',
+            'metode'      => 'required|in:cash,transfer',
+            'kategori'    => 'required|string',
+            'kategori_id' => 'nullable|exists:kategori_pengeluaran,id',
+            'nominal'     => 'required|numeric|min:0',
+            'keterangan'  => 'nullable|string',
+        ]);
+
+        if ($validator->fails()) {
+            return response()->json([
+                'success' => false,
+                'message' => 'Validation error',
+                'errors'  => $validator->errors()
+            ], 422);
+        }
+
+        $transaksi->update([
+            'buku_kas_id' => $request->buku_kas_id,
+            'tanggal'     => $request->tanggal,
+            'jenis'       => $request->jenis,
+            'metode'      => $request->metode,
+            'kategori'    => $request->kategori_id
+                ? (\App\Models\KategoriPengeluaran::find($request->kategori_id)->name ?? $request->kategori)
+                : $request->kategori,
+            'kategori_id' => $request->kategori_id ?? null,
+            'nominal'     => $request->nominal,
+            'keterangan'  => $request->keterangan,
+        ]);
+
+        return response()->json([
+            'success' => true,
+            'message' => 'Transaksi berhasil diperbarui',
+            'data'    => $transaksi->load('bukuKas')
+        ]);
     }
 
     /**
