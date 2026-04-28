@@ -1,6 +1,6 @@
 import { useState, useEffect } from 'react'
-import { Plus, Search, Trash2, X, ArrowDownCircle, ArrowUpCircle, Eye, ArrowRightLeft, Settings } from 'lucide-react'
-import { listBukuKas, listTransaksiKas, createTransaksiKas, deleteTransaksiKas } from '../../api/bukuKas'
+import { Plus, Search, Trash2, X, ArrowDownCircle, ArrowUpCircle, Eye, ArrowRightLeft, Settings, Pencil } from 'lucide-react'
+import { listBukuKas, listTransaksiKas, createTransaksiKas, updateTransaksiKas, deleteTransaksiKas } from '../../api/bukuKas'
 import { listKategoriPengeluaran, createKategoriPengeluaran } from '../../api/kategoriPengeluaran'
 import { listUsers } from '../../api/wallet'
 import { hasAccess } from '../../stores/useAuthStore'
@@ -9,6 +9,7 @@ import ModalPreviewTransaksi from './components/ModalPreviewTransaksi'
 import ModalTransferSaldo from './components/ModalTransferSaldo'
 import ModalCatatPemasukan from './components/ModalCatatPemasukan'
 import ModalKelolaKategori from './components/ModalKelolaKategori'
+import ModalEditTransaksi from './components/ModalEditTransaksi'
 
 const formatRupiah = (v: number | undefined | null) => new Intl.NumberFormat('id-ID', { style: 'currency', currency: 'IDR', minimumFractionDigits: 0 }).format(v || 0)
 const formatTanggal = (t: string) => new Date(t).toLocaleDateString('id-ID', { day: 'numeric', month: 'long', year: 'numeric' })
@@ -24,6 +25,7 @@ export default function TransaksiKas() {
   const [showModalTransfer, setShowModalTransfer] = useState(false)
   const [showModalPemasukan, setShowModalPemasukan] = useState(false)
   const [showModalKategori, setShowModalKategori] = useState(false)
+  const [showModalEdit, setShowModalEdit] = useState(false)
   const [selectedTransaksi, setSelectedTransaksi] = useState<any>(null)
   const [searchQuery, setSearchQuery] = useState('')
   const [filterJenis, setFilterJenis] = useState<'all'|'pemasukan'|'pengeluaran'>('all')
@@ -31,16 +33,26 @@ export default function TransaksiKas() {
   const [filterOperator, setFilterOperator] = useState<number|'all'>('all')
   const [startDate, setStartDate] = useState('')
   const [endDate, setEndDate] = useState('')
+  const [tempStartDate, setTempStartDate] = useState('')
+  const [tempEndDate, setTempEndDate] = useState('')
   const [currentPage, setCurrentPage] = useState(1)
   const ITEMS_PER_PAGE = 20
   const [formData, setFormData] = useState({ buku_kas_id: '', tanggal: new Date().toISOString().split('T')[0], kategori: '', kategori_id: '', nominal: '', keterangan: '', nama_pemohon: '', metode: 'cash' as 'cash'|'transfer' })
 
   useEffect(() => { loadData() }, [])
 
+  // Reload saat filter tanggal diterapkan
+  useEffect(() => { loadData() }, [startDate, endDate])
+
   const loadData = async () => {
     try {
       setLoading(true)
-      const [tRes, bkRes, kRes, uRes] = await Promise.all([listTransaksiKas(), listBukuKas(), listKategoriPengeluaran(), listUsers()])
+      // Kirim parameter filter tanggal ke API jika ada
+      const params: any = {}
+      if (startDate) params.start_date = startDate
+      if (endDate) params.end_date = endDate
+
+      const [tRes, bkRes, kRes, uRes] = await Promise.all([listTransaksiKas(params), listBukuKas(), listKategoriPengeluaran(), listUsers()])
       if (tRes.success) setTransaksiList(tRes.data)
       if (bkRes.success) setBukuKasList(bkRes.data)
       if (kRes) setCategories(kRes)
@@ -63,6 +75,13 @@ export default function TransaksiKas() {
       const res = await createTransaksiKas({ buku_kas_id: Number(formData.buku_kas_id), tanggal: formData.tanggal, jenis: 'pengeluaran', metode: formData.metode, kategori: formData.kategori, kategori_id: kategoriId, nominal: Number(formData.nominal), keterangan: ket })
       if (res.success) { toast.success('Transaksi pengeluaran berhasil dicatat'); setShowModal(false); setFormData({ buku_kas_id:'', tanggal:new Date().toISOString().split('T')[0], kategori:'', kategori_id:'', nominal:'', keterangan:'', nama_pemohon:'', metode:'cash' }); loadData() }
     } catch (e: any) { toast.error(e.response?.data?.message || 'Gagal mencatat transaksi') }
+  }
+
+  const handleEdit = async (id: number, data: any) => {
+    try {
+      const res = await updateTransaksiKas(id, data)
+      if (res.success) { toast.success('Transaksi berhasil diperbarui'); setShowModalEdit(false); setSelectedTransaksi(null); loadData() }
+    } catch (e: any) { toast.error(e.response?.data?.message || 'Gagal memperbarui transaksi') }
   }
 
   const handleDelete = async (id: number) => {
@@ -151,12 +170,14 @@ export default function TransaksiKas() {
       </div>
 
       <div className="bg-white rounded-lg shadow p-4 mb-6">
-        <div className="grid grid-cols-1 md:grid-cols-6 gap-4">
-          <div className="md:col-span-2 relative"><Search className="absolute left-3 top-1/2 -translate-y-1/2 text-gray-400 w-5 h-5" /><input type="text" placeholder="Cari no transaksi, kategori, keterangan..." value={searchQuery} onChange={e=>setSearchQuery(e.target.value)} className="w-full pl-10 pr-4 py-2 border border-gray-300 rounded-lg focus:ring-2 focus:ring-blue-500" /></div>
+        <div className="grid grid-cols-1 md:grid-cols-7 gap-3">
+          <div className="relative"><Search className="absolute left-3 top-1/2 -translate-y-1/2 text-gray-400 w-5 h-5" /><input type="text" placeholder="Cari..." value={searchQuery} onChange={e=>setSearchQuery(e.target.value)} className="w-full pl-10 pr-4 py-2 border border-gray-300 rounded-lg focus:ring-2 focus:ring-blue-500" /></div>
           <select value={filterJenis} onChange={e=>setFilterJenis(e.target.value as any)} className="w-full px-4 py-2 border border-gray-300 rounded-lg focus:ring-2 focus:ring-blue-500"><option value="all">Semua Jenis</option><option value="pemasukan">Pemasukan</option><option value="pengeluaran">Pengeluaran</option></select>
           <select value={filterBukuKas} onChange={e=>setFilterBukuKas(e.target.value==='all'?'all':Number(e.target.value))} className="w-full px-4 py-2 border border-gray-300 rounded-lg focus:ring-2 focus:ring-blue-500"><option value="all">Semua Buku Kas</option>{bukuKasList.map(bk=><option key={bk.id} value={bk.id}>{bk.nama_kas}</option>)}</select>
           <select value={filterOperator} onChange={e=>setFilterOperator(e.target.value==='all'?'all':Number(e.target.value))} className="w-full px-4 py-2 border border-gray-300 rounded-lg focus:ring-2 focus:ring-blue-500"><option value="all">Semua Operator</option>{users.map(u=><option key={u.id} value={u.id}>{u.name}</option>)}</select>
-          <div className="flex gap-2"><input type="date" value={startDate} onChange={e=>setStartDate(e.target.value)} className="flex-1 px-3 py-2 border border-gray-300 rounded-lg focus:ring-2 focus:ring-blue-500 text-sm" /><input type="date" value={endDate} onChange={e=>setEndDate(e.target.value)} className="flex-1 px-3 py-2 border border-gray-300 rounded-lg focus:ring-2 focus:ring-blue-500 text-sm" /></div>
+          <div className="flex gap-1"><input type="date" value={tempStartDate} onChange={e=>setTempStartDate(e.target.value)} className="flex-1 px-2 py-2 border border-gray-300 rounded-lg focus:ring-2 focus:ring-blue-500 text-sm" /><input type="date" value={tempEndDate} onChange={e=>setTempEndDate(e.target.value)} className="flex-1 px-2 py-2 border border-gray-300 rounded-lg focus:ring-2 focus:ring-blue-500 text-sm" /></div>
+          <button onClick={()=>{setStartDate(tempStartDate);setEndDate(tempEndDate)}} className="px-4 py-2 bg-blue-600 text-white rounded-lg hover:bg-blue-700 font-medium text-sm whitespace-nowrap">Terapkan</button>
+          {(startDate || endDate) && <button onClick={()=>{setStartDate('');setEndDate('');setTempStartDate('');setTempEndDate('')}} className="px-3 py-2 bg-gray-200 text-gray-700 rounded-lg hover:bg-gray-300 text-sm"><X className="w-4 h-4" /></button>}
         </div>
       </div>
 
@@ -181,6 +202,7 @@ export default function TransaksiKas() {
                   <td className="px-6 py-4 text-center">
                     <div className="flex items-center justify-center gap-2">
                       <button onClick={() => { setSelectedTransaksi(t); setShowPreview(true) }} className="text-blue-600 hover:text-blue-800"><Eye className="w-4 h-4" /></button>
+                      {!t.pembayaran_id && hasAccess('keuangan.transaksi-kas.edit') && <button onClick={() => { setSelectedTransaksi(t); setShowModalEdit(true) }} className="text-yellow-600 hover:text-yellow-800"><Pencil className="w-4 h-4" /></button>}
                       {!t.pembayaran_id && hasAccess('keuangan.transaksi-kas.delete') ? <button onClick={() => handleDelete(t.id)} className="text-red-600 hover:text-red-800"><Trash2 className="w-4 h-4" /></button> : <span className="text-xs text-gray-400" title="Dari pembayaran">🔒</span>}
                     </div>
                   </td>
@@ -235,6 +257,7 @@ export default function TransaksiKas() {
       {showModalTransfer && <ModalTransferSaldo bukuKasList={bukuKasList} onClose={() => setShowModalTransfer(false)} onTransfer={handleTransfer} />}
       {showModalPemasukan && <ModalCatatPemasukan bukuKasList={bukuKasList} onClose={() => setShowModalPemasukan(false)} onSubmit={handleCatatPemasukan} />}
       {showModalKategori && <ModalKelolaKategori categories={categories} onClose={() => setShowModalKategori(false)} onChange={setCategories} />}
+      {showModalEdit && selectedTransaksi && <ModalEditTransaksi transaksi={selectedTransaksi} bukuKasList={bukuKasList} categories={categories} onClose={() => { setShowModalEdit(false); setSelectedTransaksi(null) }} onSubmit={handleEdit} />}
     </div>
   )
 }

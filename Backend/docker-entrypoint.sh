@@ -11,6 +11,7 @@ if [ -n "$FIREBASE_CREDENTIALS_JSON" ]; then
 fi
 
 # Run artisan startup commands
+php -r "if (function_exists('opcache_reset')) opcache_reset();"
 php artisan optimize:clear
 php artisan config:cache
 php artisan migrate --force --no-interaction

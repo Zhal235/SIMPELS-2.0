@@ -97,7 +97,7 @@ class TransaksiKasController extends Controller
             'tanggal' => $request->tanggal,
             'jenis' => $request->jenis,
             'metode' => $request->metode,
-            'kategori' => $request->kategori_id ? (\App\Models\KategoriPengeluaran::find($request->kategori_id)->name ?? $request->kategori) : $request->kategori,
+            'kategori' => $request->kategori_id ? (\App\Models\KategoriPengeluaran::find($request->kategori_id)?->name ?? $request->kategori) : $request->kategori,
             'kategori_id' => $request->kategori_id ?? null,
             'nominal' => $request->nominal,
             'keterangan' => $request->keterangan,
@@ -109,6 +109,66 @@ class TransaksiKasController extends Controller
             'message' => 'Transaksi berhasil dicatat',
             'data' => $transaksi->load('bukuKas')
         ], 201);
+    }
+
+    /**
+     * Update the specified resource in storage.
+     */
+    public function update(Request $request, string $id)
+    {
+        $transaksi = TransaksiKas::find($id);
+
+        if (!$transaksi) {
+            return response()->json([
+                'success' => false,
+                'message' => 'Transaksi tidak ditemukan'
+            ], 404);
+        }
+
+        if ($transaksi->pembayaran_id) {
+            return response()->json([
+                'success' => false,
+                'message' => 'Tidak bisa mengedit transaksi yang terkait dengan pembayaran.'
+            ], 400);
+        }
+
+        $validator = Validator::make($request->all(), [
+            'buku_kas_id' => 'required|exists:buku_kas,id',
+            'tanggal'     => 'required|date',
+            'jenis'       => 'required|in:pemasukan,pengeluaran',
+            'metode'      => 'required|in:cash,transfer',
+            'kategori'    => 'required|string',
+            'kategori_id' => 'nullable|exists:kategori_pengeluaran,id',
+            'nominal'     => 'required|numeric|min:0',
+            'keterangan'  => 'nullable|string',
+        ]);
+
+        if ($validator->fails()) {
+            return response()->json([
+                'success' => false,
+                'message' => 'Validation error',
+                'errors'  => $validator->errors()
+            ], 422);
+        }
+
+        $transaksi->update([
+            'buku_kas_id' => $request->buku_kas_id,
+            'tanggal'     => $request->tanggal,
+            'jenis'       => $request->jenis,
+            'metode'      => $request->metode,
+            'kategori'    => $request->kategori_id
+                ? (\App\Models\KategoriPengeluaran::find($request->kategori_id)?->name ?? $request->kategori)
+                : $request->kategori,
+            'kategori_id' => $request->kategori_id ?? null,
+            'nominal'     => $request->nominal,
+            'keterangan'  => $request->keterangan,
+        ]);
+
+        return response()->json([
+            'success' => true,
+            'message' => 'Transaksi berhasil diperbarui',
+            'data'    => $transaksi->load('bukuKas')
+        ]);
     }
 
     /**
