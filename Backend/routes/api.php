@@ -26,7 +26,6 @@ Route::prefix('v1')->group(base_path('routes/api_v1.php'));
 
 // Authentication routes (public)
 Route::post('/login', [AuthController::class, 'login']);
-Route::post('/login', [AuthController::class, 'login']);
 Route::post('/forgot-password', [AuthController::class, 'forgotPassword']);
 Route::post('/reset-password', [AuthController::class, 'resetPassword']);
 
@@ -42,6 +41,7 @@ Route::middleware('auth:sanctum')->prefix('wali')->group(function () {
     Route::get('santri/{santri_id}/detail', [WaliController::class, 'getSantriDetail']);
     Route::post('santri/{santri_id}/correction', [WaliController::class, 'submitDataCorrection']);
     Route::get('wallet/{santri_id}', [WaliController::class, 'getWallet']);
+    Route::get('wallet/{santri_id}/history', [WaliController::class, 'getSantriWalletHistory']);
     // allow wali (parent) to update per-santri wallet daily limit
     Route::put('wallet/{santri_id}/limit', [WaliController::class, 'setSantriDailyLimit']);
     Route::get('tagihan/{santri_id}', [WaliController::class, 'getAllTagihan']);

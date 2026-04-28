@@ -16,7 +16,14 @@ try {
     ]);
     
     echo "Reading SQL file...\n";
-    $sqlFile = __DIR__ . '/../backup_20260410_020143.sql';
+    
+    // Use file from command line argument or default
+    $sqlFile = $argv[1] ?? __DIR__ . '/backup_20260428_020206.sql';
+    
+    // If relative path, make it absolute
+    if (!file_exists($sqlFile)) {
+        $sqlFile = __DIR__ . '/' . $sqlFile;
+    }
     
     if (!file_exists($sqlFile)) {
         echo "❌ Backup file not found: $sqlFile\n";
@@ -33,19 +40,70 @@ try {
     echo "File size: " . number_format(strlen($sql) / 1024 / 1024, 2) . " MB\n";
     echo "Disabling foreign key checks...\n";
     $pdo->exec("SET FOREIGN_KEY_CHECKS=0");
+    $pdo->exec("SET SQL_MODE='NO_AUTO_VALUE_ON_ZERO'");
     
-    echo "Importing data (this may take a while)...\n";
+    echo "Parsing SQL file...\n";
     
-    // Import SQL with ignore duplicates
-    try {
-        $pdo->exec($sql);
-        echo "\n✅ Import successful!\n\n";
-    } catch (PDOException $e) {
-        if (strpos($e->getMessage(), 'Duplicate entry') !== false) {
-            echo "⚠️ Some duplicate entries were skipped\n\n";
-        } else {
-            throw $e;
+    // Split into statements by semicolon at end of line
+    $statements = [];
+    $buffer = '';
+    $lines = explode("\n", $sql);
+    
+    foreach ($lines as $line) {
+        $line = trim($line);
+        
+        // Skip comments and empty lines
+        if (empty($line) || substr($line, 0, 2) === '--' || substr($line, 0, 2) === '/*') {
+            continue;
         }
+        
+        $buffer .= $line . ' ';
+        
+        // Check if statement is complete (ends with semicolon)
+        if (substr($line, -1) === ';') {
+            $statements[] = trim($buffer);
+            $buffer = '';
+        }
+    }
+    
+    $total = count($statements);
+    echo "Found $total SQL statements\n";
+    echo "Importing data (this may take a while)...\n\n";
+    
+    // Execute each statement
+    $success = 0;
+    $failed = 0;
+    $errors = [];
+    
+    foreach ($statements as $index => $statement) {
+        if (empty($statement)) continue;
+        
+        try {
+            $pdo->exec($statement);
+            $success++;
+            
+            // Show progress every 50 statements
+            if ($success % 50 === 0) {
+                echo "\rProgress: $success/$total executed...";
+            }
+        } catch (PDOException $e) {
+            $failed++;
+            
+            // Store first 5 errors for debugging
+            if ($failed <= 5) {
+                $errors[] = substr($e->getMessage(), 0, 150);
+            }
+        }
+    }
+    
+    echo "\n\n";
+    
+    if (!empty($errors)) {
+        echo "Sample errors:\n";
+        foreach ($errors as $err) {
+            echo "  - $err\n";
+        }
+        echo "\n";
     }
     
     echo "Re-enabling foreign key checks...\n";
