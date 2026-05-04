@@ -44,10 +44,10 @@ class WaliSantriService
     /**
      * Get detailed santri information
      * 
-     * @param int $santriId
+     * @param string $santriId
      * @return array
      */
-    public function getSantriDetail(int $santriId): array
+    public function getSantriDetail(string $santriId): array
     {
         $santri = Santri::with(['kelas', 'asrama'])
             ->where('id', $santriId)
@@ -70,7 +70,7 @@ class WaliSantriService
                 'jenis_kelamin' => $santri->jenis_kelamin ?? '-',
                 'tempat_lahir' => $santri->tempat_lahir ?? '-',
                 'tanggal_lahir' => $santri->tanggal_lahir ?? '-',
-                'nik' => $santri->nik ?? '-',
+                'nik' => $santri->nik_santri ?? '-',
                 'no_kk' => $santri->no_kk ?? '-',
                 'alamat' => $santri->alamat ?? '-',
                 'kelas_nama' => $santri->kelas ? $santri->kelas->nama_kelas : '-',
@@ -92,11 +92,11 @@ class WaliSantriService
     /**
      * Submit data correction request
      * 
-     * @param int $santriId
+     * @param string $santriId
      * @param array $data ['field_name', 'old_value', 'new_value', 'note']
      * @return array
      */
-    public function submitDataCorrection(int $santriId, array $data): array
+    public function submitDataCorrection(string $santriId, array $data): array
     {
         $santri = Santri::where('id', $santriId)
             ->where('status', 'aktif')
@@ -132,12 +132,13 @@ class WaliSantriService
     /**
      * Get santri wallet balance (helper method)
      * 
-     * @param int $santriId
+     * @param string $santriId
      * @return float
      */
-    private function getSaldoDompet(int $santriId): float
+    private function getSaldoDompet(string $santriId): float
     {
         $wallet = \App\Models\Wallet::where('santri_id', $santriId)->first();
         return $wallet ? ($wallet->balance ?? 0) : 0;
     }
 }
+

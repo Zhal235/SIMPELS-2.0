@@ -19,10 +19,10 @@ class WaliWalletService
     /**
      * Get wallet information with recent transactions
      * 
-     * @param int $santriId
+     * @param string $santriId
      * @return array
      */
-    public function getWallet(int $santriId): array
+    public function getWallet(string $santriId): array
     {
         $santri = Santri::findOrFail($santriId);
         $wallet = Wallet::where('santri_id', $santriId)->first();
@@ -77,10 +77,10 @@ class WaliWalletService
     /**
      * Get santri wallet transaction history
      * 
-     * @param int $santriId
+     * @param string $santriId
      * @return array
      */
-    public function getSantriWalletHistory(int $santriId): array
+    public function getSantriWalletHistory(string $santriId): array
     {
         $wallet = Wallet::where('santri_id', $santriId)->first();
 
@@ -104,11 +104,11 @@ class WaliWalletService
     /**
      * Set daily transaction limit for santri
      * 
-     * @param int $santriId
+     * @param string $santriId
      * @param float $dailyLimit
      * @return array
      */
-    public function setSantriDailyLimit(int $santriId, float $dailyLimit): array
+    public function setSantriDailyLimit(string $santriId, float $dailyLimit): array
     {
         $santri = Santri::find($santriId);
         

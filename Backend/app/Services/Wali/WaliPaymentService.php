@@ -21,10 +21,10 @@ class WaliPaymentService
     /**
      * Get all tagihan untuk santri
      * 
-     * @param int $santriId
+     * @param string $santriId
      * @return array
      */
-    public function getAllTagihan(int $santriId): array
+    public function getAllTagihan(string $santriId): array
     {
         $santri = Santri::findOrFail($santriId);
         
@@ -67,10 +67,10 @@ class WaliPaymentService
     /**
      * Get riwayat pembayaran
      * 
-     * @param int $santriId
+     * @param string $santriId
      * @return array
      */
-    public function getPembayaran(int $santriId): array
+    public function getPembayaran(string $santriId): array
     {
         $santri = Santri::findOrFail($santriId);
         
@@ -103,10 +103,10 @@ class WaliPaymentService
     /**
      * Get tunggakan
      * 
-     * @param int $santriId
+     * @param string \$santriId
      * @return array
      */
-    public function getTunggakan(int $santriId): array
+    public function getTunggakan(string $santriId): array
     {
         $santri = Santri::findOrFail($santriId);
         
@@ -144,11 +144,11 @@ class WaliPaymentService
     /**
      * Upload bukti transfer untuk multiple tagihan
      * 
-     * @param int $santriId
+     * @param string \$santriId
      * @param array $data
      * @return array
      */
-    public function uploadBukti(int $santriId, array $data): array
+    public function uploadBukti(string $santriId, array $data): array
     {
         // Verify santri exists
         $santri = Santri::find($santriId);
@@ -214,10 +214,10 @@ class WaliPaymentService
     /**
      * Get history bukti transfer untuk santri
      * 
-     * @param int $santriId
+     * @param string \$santriId
      * @return array
      */
-    public function getBuktiHistory(int $santriId): array
+    public function getBuktiHistory(string $santriId): array
     {
         $buktiList = BuktiTransfer::where('santri_id', $santriId)
             ->with(['santri', 'processedBy', 'selectedBank'])
@@ -237,11 +237,11 @@ class WaliPaymentService
     /**
      * Upload bukti transfer untuk top-up dompet
      * 
-     * @param int $santriId
+     * @param string \$santriId
      * @param array $data ['nominal', 'selected_bank_id', 'bukti', 'catatan']
      * @return array
      */
-    public function uploadBuktiTopup(int $santriId, array $data): array
+    public function uploadBuktiTopup(string $santriId, array $data): array
     {
         // Verify santri exists
         $santri = Santri::find($santriId);
@@ -300,10 +300,10 @@ class WaliPaymentService
      * Format tagihan data
      * 
      * @param TagihanSantri $tagihan
-     * @param int $santriId
+     * @param string \$santriId
      * @return array
      */
-    private function formatTagihan($tagihan, int $santriId): array
+    private function formatTagihan($tagihan, string $santriId): array
     {
         $nominal = $tagihan->nominal ?? 0;
         $dibayar = $tagihan->dibayar ?? 0;
@@ -334,10 +334,10 @@ class WaliPaymentService
      * Check if tagihan has pending bukti
      * 
      * @param int $tagihanId
-     * @param int $santriId
+     * @param string \$santriId
      * @return bool
      */
-    private function checkPendingBukti(int $tagihanId, int $santriId): bool
+    private function checkPendingBukti(int $tagihanId, string $santriId): bool
     {
         try {
             if (!\Schema::hasTable('bukti_transfer')) {
@@ -543,3 +543,4 @@ class WaliPaymentService
         return [$nominalTopup, $nominalTabungan];
     }
 }
+
