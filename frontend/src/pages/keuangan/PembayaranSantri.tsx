@@ -1,7 +1,7 @@
-import { useState, useEffect } from 'react'
+import { useState, useEffect, useMemo } from 'react'
 import { useSearchParams } from 'react-router-dom'
 import { Search } from 'lucide-react'
-import { listSantri, getSantri } from '../../api/santri'
+import { getSantri } from '../../api/santri'
 import { getTagihanBySantri, listPembayaran, getHistoryPembayaran, batalkanPembayaran } from '../../api/pembayaran'
 import { useAuthStore, hasAccess } from '../../stores/useAuthStore'
 import toast from 'react-hot-toast'
@@ -21,9 +21,7 @@ type ActiveTab = 'rutin' | 'non-rutin' | 'tunggakan' | 'lunas' | 'riwayat'
 export default function PembayaranSantri() {
   const [searchParams] = useSearchParams()
   const [searchQuery, setSearchQuery] = useState('')
-  const [showSearchResults, setShowSearchResults] = useState(false)
   const [selectedSantri, setSelectedSantri] = useState<Santri | null>(null)
-  const [santriList, setSantriList] = useState<Santri[]>([])
   const [activeTab, setActiveTab] = useState<ActiveTab>('rutin')
   const [selectedTagihan, setSelectedTagihan] = useState<string[]>([])
   const [showModalLunas, setShowModalLunas] = useState(false)
@@ -34,23 +32,22 @@ export default function PembayaranSantri() {
   const [showKwitansi, setShowKwitansi] = useState(false)
   const user = useAuthStore((state) => state.user)
 
+  // FIX: Tidak preload 1000 santri — jika ada santri_id di URL, load langsung via getSantri
   useEffect(() => {
-    listSantri(1, 1000).then(res => {
-      const data = Array.isArray(res) ? res : (res?.data ? res.data : [])
-      setSantriList(data)
-      const santriId = searchParams.get('santri_id')
-      const nama = searchParams.get('nama')
-      if (santriId && data.length > 0) {
-        const found = data.find((s: any) => s.id === santriId)
-        if (found) { handleSelectSantri(found); if (nama) setSearchQuery(decodeURIComponent(nama)) }
-      }
-    }).catch(() => toast.error('Gagal memuat data santri'))
-  }, [searchParams])
+    const santriId = searchParams.get('santri_id')
+    const nama = searchParams.get('nama')
+    if (santriId) {
+      if (nama) setSearchQuery(decodeURIComponent(nama))
+      getSantri(santriId).then(res => {
+        const data = res?.data?.data || res?.data || res
+        if (data?.id) handleSelectSantri(data)
+      }).catch(() => toast.error('Gagal memuat data santri'))
+    }
+  }, [searchParams]) // eslint-disable-line react-hooks/exhaustive-deps
 
   async function handleSelectSantri(santri: Santri) {
     setSelectedSantri(santri)
     setSearchQuery(santri.nama_santri)
-    setShowSearchResults(false)
     setSelectedTagihan([])
     try {
       const resFull: any = await getSantri(santri.id)
@@ -99,7 +96,6 @@ export default function PembayaranSantri() {
   function handleClearSearch() {
     setSearchQuery('')
     setSelectedSantri(null)
-    setShowSearchResults(false)
     setSelectedTagihan([])
   }
 
@@ -108,17 +104,18 @@ export default function PembayaranSantri() {
     setSelectedTagihan(prev => prev.includes(s) ? prev.filter(t => t !== s) : [...prev, s])
   }
 
-  function getFilteredTagihan(): Tagihan[] {
+  // FIX: useMemo — tidak dihitung ulang tiap render
+  const filteredTagihan = useMemo<Tagihan[]>(() => {
     if (activeTab === 'rutin') return tagihan.filter(t => t.tipe === 'rutin' && (t.status === 'belum_bayar' || t.status === 'sebagian') && !isOverdue(t.tglJatuhTempo, t.bulan, t.tahun))
     if (activeTab === 'non-rutin') return tagihan.filter(t => t.tipe === 'non-rutin' && (t.status === 'belum_bayar' || t.status === 'sebagian') && !isOverdue(t.tglJatuhTempo, t.bulan, t.tahun))
     if (activeTab === 'tunggakan') return tagihan.filter(t => t.status !== 'lunas' && isOverdue(t.tglJatuhTempo, t.bulan, t.tahun))
     if (activeTab === 'lunas') return tagihan.filter(t => t.status === 'lunas' || t.status === 'sebagian')
     return []
-  }
+  }, [tagihan, activeTab])
 
-  function getGroupedTagihan() {
+  const groupedTagihan = useMemo(() => {
     const grouped: Record<string, Tagihan[]> = {}
-    getFilteredTagihan().forEach(t => {
+    filteredTagihan.forEach(t => {
       const key = `${t.bulan}-${t.tahun}`
       if (!grouped[key]) grouped[key] = []
       grouped[key].push(t)
@@ -127,7 +124,7 @@ export default function PembayaranSantri() {
       const [bulan, tahun] = key.split('-')
       return { bulan, tahun, items }
     })
-  }
+  }, [filteredTagihan])
 
   const totalSelected = tagihan.filter(t => selectedTagihan.includes(String(t.id))).reduce((s, t) => s + (Number(t.nominal) || 0), 0)
 
@@ -164,12 +161,9 @@ export default function PembayaranSantri() {
         </div>
         <SantriSearchInput
           searchQuery={searchQuery}
-          showSearchResults={showSearchResults}
-          santriList={santriList}
-          onQueryChange={(q) => { setSearchQuery(q); setShowSearchResults(q.length >= 2) }}
+          onQueryChange={setSearchQuery}
           onSelect={handleSelectSantri}
           onClear={handleClearSearch}
-          onFocus={() => searchQuery.length >= 2 && setShowSearchResults(true)}
         />
       </div>
 
@@ -207,7 +201,7 @@ export default function PembayaranSantri() {
                 ? <RiwayatPembayaranContent historyPembayaran={historyPembayaran} santri={selectedSantri} onPrintKwitansi={(data) => { setKwitansiData(data); setShowKwitansi(true) }} onBatalkanSesi={handleBatalkanSesi} />
                 : activeTab === 'lunas'
                   ? <HistoryPembayaranContent historyPembayaran={historyPembayaran} santri={selectedSantri} />
-                  : <TagihanGroupedCards groupedTagihan={getGroupedTagihan()} selectedTagihan={selectedTagihan} isLunasTab={false} santri={selectedSantri} onToggle={toggleTagihan} onPrintKwitansi={(data) => { setKwitansiData(data); setShowKwitansi(true) }} />
+                  : <TagihanGroupedCards groupedTagihan={groupedTagihan} selectedTagihan={selectedTagihan} isLunasTab={false} santri={selectedSantri} onToggle={toggleTagihan} onPrintKwitansi={(data) => { setKwitansiData(data); setShowKwitansi(true) }} />
               }
             </div>
           </div>
