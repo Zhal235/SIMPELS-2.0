@@ -1,4 +1,4 @@
-import { useState, useEffect } from 'react'
+import { useState, useEffect, useCallback, useMemo } from 'react'
 import { Plus, Search, Trash2, X, ArrowDownCircle, ArrowUpCircle, Eye, ArrowRightLeft, Settings, Pencil } from 'lucide-react'
 import { listBukuKas, listTransaksiKas, createTransaksiKas, updateTransaksiKas, deleteTransaksiKas } from '../../api/bukuKas'
 import { listKategoriPengeluaran, createKategoriPengeluaran } from '../../api/kategoriPengeluaran'
@@ -39,27 +39,37 @@ export default function TransaksiKas() {
   const ITEMS_PER_PAGE = 20
   const [formData, setFormData] = useState({ buku_kas_id: '', tanggal: new Date().toISOString().split('T')[0], kategori: '', kategori_id: '', nominal: '', keterangan: '', nama_pemohon: '', metode: 'cash' as 'cash'|'transfer' })
 
-  useEffect(() => { loadData() }, [])
-
-  // Reload saat filter tanggal diterapkan
-  useEffect(() => { loadData() }, [startDate, endDate])
-
-  const loadData = async () => {
+  // FIX: Pisah loadStaticData (buku kas, kategori, users) dari loadTransaksi
+  // Static data hanya dimuat sekali saat mount, bukan setiap kali ada perubahan transaksi
+  const loadStaticData = useCallback(async () => {
     try {
-      setLoading(true)
-      // Kirim parameter filter tanggal ke API jika ada
-      const params: any = {}
-      if (startDate) params.start_date = startDate
-      if (endDate) params.end_date = endDate
-
-      const [tRes, bkRes, kRes, uRes] = await Promise.all([listTransaksiKas(params), listBukuKas(), listKategoriPengeluaran(), listUsers()])
-      if (tRes.success) setTransaksiList(tRes.data)
+      const [bkRes, kRes, uRes] = await Promise.all([listBukuKas(), listKategoriPengeluaran(), listUsers()])
       if (bkRes.success) setBukuKasList(bkRes.data)
       if (kRes) setCategories(kRes)
       if (uRes.success) setUsers(uRes.data ?? [])
-    } catch { toast.error('Gagal memuat data') }
+    } catch { toast.error('Gagal memuat data referensi') }
+  }, [])
+
+  // FIX: loadTransaksi hanya reload data transaksi saja (1 API call, bukan 4)
+  const loadTransaksi = useCallback(async (start?: string, end?: string) => {
+    try {
+      setLoading(true)
+      const params: any = {}
+      const s = start !== undefined ? start : startDate
+      const e = end !== undefined ? end : endDate
+      if (s) params.start_date = s
+      if (e) params.end_date = e
+      const tRes = await listTransaksiKas(params)
+      if (tRes.success) setTransaksiList(tRes.data)
+    } catch { toast.error('Gagal memuat data transaksi') }
     finally { setLoading(false) }
-  }
+  }, [startDate, endDate])
+
+  // FIX: useEffect digabung jadi satu - tidak ada double load saat mount
+  useEffect(() => {
+    loadStaticData()
+    loadTransaksi('', '')
+  }, []) // eslint-disable-line react-hooks/exhaustive-deps
 
   const handleSubmit = async (e: React.FormEvent) => {
     e.preventDefault()
@@ -73,21 +83,39 @@ export default function TransaksiKas() {
         else { try { const created = await createKategoriPengeluaran({ name: formData.kategori }); if (created) { setCategories(p => [...p, created]); kategoriId = created.id } } catch {} }
       }
       const res = await createTransaksiKas({ buku_kas_id: Number(formData.buku_kas_id), tanggal: formData.tanggal, jenis: 'pengeluaran', metode: formData.metode, kategori: formData.kategori, kategori_id: kategoriId, nominal: Number(formData.nominal), keterangan: ket })
-      if (res.success) { toast.success('Transaksi pengeluaran berhasil dicatat'); setShowModal(false); setFormData({ buku_kas_id:'', tanggal:new Date().toISOString().split('T')[0], kategori:'', kategori_id:'', nominal:'', keterangan:'', nama_pemohon:'', metode:'cash' }); loadData() }
+      if (res.success) {
+        toast.success('Transaksi pengeluaran berhasil dicatat')
+        setShowModal(false)
+        setFormData({ buku_kas_id:'', tanggal:new Date().toISOString().split('T')[0], kategori:'', kategori_id:'', nominal:'', keterangan:'', nama_pemohon:'', metode:'cash' })
+        // FIX: Hanya reload transaksi, bukan semua data
+        loadTransaksi()
+      }
     } catch (e: any) { toast.error(e.response?.data?.message || 'Gagal mencatat transaksi') }
   }
 
   const handleEdit = async (id: number, data: any) => {
     try {
       const res = await updateTransaksiKas(id, data)
-      if (res.success) { toast.success('Transaksi berhasil diperbarui'); setShowModalEdit(false); setSelectedTransaksi(null); loadData() }
+      if (res.success) {
+        toast.success('Transaksi berhasil diperbarui')
+        setShowModalEdit(false)
+        setSelectedTransaksi(null)
+        // FIX: Update state lokal langsung, tanpa reload API
+        setTransaksiList(prev => prev.map(t => t.id === id ? { ...t, ...data, updated_at: new Date().toISOString() } : t))
+      }
     } catch (e: any) { toast.error(e.response?.data?.message || 'Gagal memperbarui transaksi') }
   }
 
   const handleDelete = async (id: number) => {
     if (!confirm('Hapus transaksi ini?')) return
-    try { const res = await deleteTransaksiKas(id); if (res.success) { toast.success('Transaksi berhasil dihapus'); loadData() } }
-    catch (e: any) { toast.error(e.response?.data?.message || 'Gagal menghapus transaksi') }
+    try {
+      const res = await deleteTransaksiKas(id)
+      if (res.success) {
+        toast.success('Transaksi berhasil dihapus')
+        // FIX: Hapus dari state lokal langsung, tanpa reload API
+        setTransaksiList(prev => prev.filter(t => t.id !== id))
+      }
+    } catch (e: any) { toast.error(e.response?.data?.message || 'Gagal menghapus transaksi') }
   }
 
   const handleTransfer = async (data: any) => {
@@ -105,7 +133,9 @@ export default function TransaksiKas() {
         await createTransaksiKas({ buku_kas_id: Number(dari_buku_kas_id), tanggal, jenis: 'pengeluaran', metode: dari_metode, kategori: 'Transfer Keluar', nominal: Number(nominal), keterangan: `Transfer ke ${keBK?.nama_kas} (${keLabel}) - ${keterangan}` })
         await createTransaksiKas({ buku_kas_id: Number(ke_buku_kas_id), tanggal, jenis: 'pemasukan', metode: ke_metode, kategori: 'Transfer Masuk', nominal: Number(nominal), keterangan: `Transfer dari ${dariBK?.nama_kas} (${dariLabel}) - ${keterangan}` })
       }
-      toast.success('Transfer saldo berhasil!'); setShowModalTransfer(false); loadData()
+      toast.success('Transfer saldo berhasil!')
+      setShowModalTransfer(false)
+      loadTransaksi()
     } catch (e: any) { toast.error(e.response?.data?.message || 'Gagal melakukan transfer') }
   }
 
@@ -115,34 +145,57 @@ export default function TransaksiKas() {
       if (res.success) {
         toast.success('Pemasukan berhasil dicatat')
         setShowModalPemasukan(false)
-        loadData()
+        loadTransaksi()
       }
     } catch (e: any) { toast.error(e.response?.data?.message || 'Gagal mencatat pemasukan') }
   }
 
-  const filtered = transaksiList.filter(t => {
-    const matchSearch = !searchQuery || t.no_transaksi.toLowerCase().includes(searchQuery.toLowerCase()) || t.kategori.toLowerCase().includes(searchQuery.toLowerCase()) || t.keterangan?.toLowerCase().includes(searchQuery.toLowerCase())
-    const matchJenis = filterJenis === 'all' || t.jenis === filterJenis
-    const matchBK = filterBukuKas === 'all' || t.buku_kas_id === filterBukuKas
-    const matchOp = filterOperator === 'all' || t.created_by === filterOperator
-    let matchDate = true
-    if (t.tanggal) {
-      const d = new Date(t.tanggal)
-      const tgl = `${d.getFullYear()}-${String(d.getMonth() + 1).padStart(2, '0')}-${String(d.getDate()).padStart(2, '0')}`
-      if (startDate) matchDate = matchDate && tgl >= startDate
-      if (endDate) matchDate = matchDate && tgl <= endDate
-    }
-    return matchSearch && matchJenis && matchBK && matchOp && matchDate
-  }).sort((a, b) => { const diff = new Date(b.created_at).getTime()-new Date(a.created_at).getTime(); return diff !== 0 ? diff : b.id - a.id })
+  // FIX: Gunakan useMemo agar filtered tidak dihitung ulang setiap render
+  const filtered = useMemo(() => {
+    return transaksiList.filter(t => {
+      const matchSearch = !searchQuery || t.no_transaksi.toLowerCase().includes(searchQuery.toLowerCase()) || t.kategori.toLowerCase().includes(searchQuery.toLowerCase()) || t.keterangan?.toLowerCase().includes(searchQuery.toLowerCase())
+      const matchJenis = filterJenis === 'all' || t.jenis === filterJenis
+      const matchBK = filterBukuKas === 'all' || t.buku_kas_id === filterBukuKas
+      const matchOp = filterOperator === 'all' || t.created_by === filterOperator
+      let matchDate = true
+      if (t.tanggal) {
+        const d = new Date(t.tanggal)
+        const tgl = `${d.getFullYear()}-${String(d.getMonth() + 1).padStart(2, '0')}-${String(d.getDate()).padStart(2, '0')}`
+        if (startDate) matchDate = matchDate && tgl >= startDate
+        if (endDate) matchDate = matchDate && tgl <= endDate
+      }
+      return matchSearch && matchJenis && matchBK && matchOp && matchDate
+    }).sort((a, b) => { const diff = new Date(b.created_at).getTime()-new Date(a.created_at).getTime(); return diff !== 0 ? diff : b.id - a.id })
+  }, [transaksiList, searchQuery, filterJenis, filterBukuKas, filterOperator, startDate, endDate])
 
-  const totalPemasukan = filtered.filter(t => t.jenis === 'pemasukan' && !t.kategori.includes('Transfer Internal')).reduce((s,t) => s+Number(t.nominal), 0)
-  const totalPengeluaran = filtered.filter(t => t.jenis === 'pengeluaran' && !t.kategori.includes('Transfer Internal')).reduce((s,t) => s+Number(t.nominal), 0)
-  const saldo = totalPemasukan - totalPengeluaran
+  // FIX: useMemo untuk summary agar tidak dihitung ulang setiap render
+  const { totalPemasukan, totalPengeluaran, saldo } = useMemo(() => {
+    const totalPemasukan = filtered.filter(t => t.jenis === 'pemasukan' && !t.kategori.includes('Transfer Internal')).reduce((s,t) => s+Number(t.nominal), 0)
+    const totalPengeluaran = filtered.filter(t => t.jenis === 'pengeluaran' && !t.kategori.includes('Transfer Internal')).reduce((s,t) => s+Number(t.nominal), 0)
+    return { totalPemasukan, totalPengeluaran, saldo: totalPemasukan - totalPengeluaran }
+  }, [filtered])
 
   const totalPages = Math.ceil(filtered.length / ITEMS_PER_PAGE)
-  const paginated = filtered.slice((currentPage - 1) * ITEMS_PER_PAGE, currentPage * ITEMS_PER_PAGE)
+  const paginated = useMemo(
+    () => filtered.slice((currentPage - 1) * ITEMS_PER_PAGE, currentPage * ITEMS_PER_PAGE),
+    [filtered, currentPage]
+  )
 
   useEffect(() => { setCurrentPage(1) }, [searchQuery, filterJenis, filterBukuKas, filterOperator, startDate, endDate])
+
+  const handleTerapkanFilter = useCallback(() => {
+    setStartDate(tempStartDate)
+    setEndDate(tempEndDate)
+    loadTransaksi(tempStartDate, tempEndDate)
+  }, [tempStartDate, tempEndDate, loadTransaksi])
+
+  const handleResetFilter = useCallback(() => {
+    setStartDate('')
+    setEndDate('')
+    setTempStartDate('')
+    setTempEndDate('')
+    loadTransaksi('', '')
+  }, [loadTransaksi])
 
   if (loading) return <div className="p-6 flex items-center justify-center min-h-screen"><div className="text-center"><div className="animate-spin rounded-full h-12 w-12 border-b-2 border-blue-600 mx-auto mb-4"></div><p className="text-gray-600">Memuat data...</p></div></div>
 
@@ -176,8 +229,8 @@ export default function TransaksiKas() {
           <select value={filterBukuKas} onChange={e=>setFilterBukuKas(e.target.value==='all'?'all':Number(e.target.value))} className="w-full px-4 py-2 border border-gray-300 rounded-lg focus:ring-2 focus:ring-blue-500"><option value="all">Semua Buku Kas</option>{bukuKasList.map(bk=><option key={bk.id} value={bk.id}>{bk.nama_kas}</option>)}</select>
           <select value={filterOperator} onChange={e=>setFilterOperator(e.target.value==='all'?'all':Number(e.target.value))} className="w-full px-4 py-2 border border-gray-300 rounded-lg focus:ring-2 focus:ring-blue-500"><option value="all">Semua Operator</option>{users.map(u=><option key={u.id} value={u.id}>{u.name}</option>)}</select>
           <div className="flex gap-1"><input type="date" value={tempStartDate} onChange={e=>setTempStartDate(e.target.value)} className="flex-1 px-2 py-2 border border-gray-300 rounded-lg focus:ring-2 focus:ring-blue-500 text-sm" /><input type="date" value={tempEndDate} onChange={e=>setTempEndDate(e.target.value)} className="flex-1 px-2 py-2 border border-gray-300 rounded-lg focus:ring-2 focus:ring-blue-500 text-sm" /></div>
-          <button onClick={()=>{setStartDate(tempStartDate);setEndDate(tempEndDate)}} className="px-4 py-2 bg-blue-600 text-white rounded-lg hover:bg-blue-700 font-medium text-sm whitespace-nowrap">Terapkan</button>
-          {(startDate || endDate) && <button onClick={()=>{setStartDate('');setEndDate('');setTempStartDate('');setTempEndDate('')}} className="px-3 py-2 bg-gray-200 text-gray-700 rounded-lg hover:bg-gray-300 text-sm"><X className="w-4 h-4" /></button>}
+          <button onClick={handleTerapkanFilter} className="px-4 py-2 bg-blue-600 text-white rounded-lg hover:bg-blue-700 font-medium text-sm whitespace-nowrap">Terapkan</button>
+          {(startDate || endDate) && <button onClick={handleResetFilter} className="px-3 py-2 bg-gray-200 text-gray-700 rounded-lg hover:bg-gray-300 text-sm"><X className="w-4 h-4" /></button>}
         </div>
       </div>
 
