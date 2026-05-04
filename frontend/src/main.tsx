@@ -6,8 +6,14 @@ import './styles/globals.css'
 
 if ('serviceWorker' in navigator) {
   if (import.meta.env.PROD) {
-    import('virtual:pwa-register').then(({ registerSW }) => {
-      registerSW({ immediate: true })
+    // Use dynamic import with proper typing for PWA
+    import('virtual:pwa-register').then((module) => {
+      if (module && typeof module.registerSW === 'function') {
+        module.registerSW({ immediate: true })
+      }
+    }).catch(() => {
+      // Fallback: register service worker manually if PWA module fails
+      navigator.serviceWorker.register('/sw.js', { scope: '/' }).catch(() => {})
     })
   } else {
     navigator.serviceWorker.getRegistrations().then((registrations) => {
