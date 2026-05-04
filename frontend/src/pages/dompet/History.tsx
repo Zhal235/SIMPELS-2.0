@@ -1,12 +1,25 @@
-import React, { useEffect, useState } from 'react'
+import React, { useEffect, useState, useMemo, useCallback } from 'react'
 import Card from '../../components/Card'
 import Table from '../../components/Table'
 import Modal from '../../components/Modal'
 import { listWalletTransactions, listWallets, createWithdrawal, listCashWithdrawals } from '../../api/wallet'
 import { useLocation } from 'react-router-dom'
 import toast from 'react-hot-toast'
+import { X } from 'lucide-react'
 
 type Mode = 'history' | 'laporan'
+
+// Default: bulan ini
+const getNow = () => {
+  const now = new Date()
+  const y = now.getFullYear()
+  const m = String(now.getMonth() + 1).padStart(2, '0')
+  const lastDay = new Date(y, now.getMonth() + 1, 0).getDate()
+  return {
+    start: `${y}-${m}-01`,
+    end: `${y}-${m}-${lastDay}`,
+  }
+}
 
 export default function History() {
   const [mode, setMode] = useState<Mode>('history')
@@ -19,41 +32,77 @@ export default function History() {
   const [withdrawNote, setWithdrawNote] = useState('')
   const location = useLocation()
 
-  useEffect(() => { load() }, [location.search, mode])
+  // Pagination
+  const [page, setPage] = useState(1)
+  const [meta, setMeta] = useState({ total: 0, last_page: 1, per_page: 50 })
 
-  async function load() {
+  // Filter tanggal — default bulan ini
+  const { start: defaultStart, end: defaultEnd } = getNow()
+  const [startDate, setStartDate] = useState(defaultStart)
+  const [endDate, setEndDate] = useState(defaultEnd)
+  const [tempStart, setTempStart] = useState(defaultStart)
+  const [tempEnd, setTempEnd] = useState(defaultEnd)
+  const [isDefaultMonth, setIsDefaultMonth] = useState(true)
+
+  useEffect(() => {
+    setPage(1)
+    load(1, startDate, endDate)
+  }, [mode, location.search]) // eslint-disable-line react-hooks/exhaustive-deps
+
+  const load = useCallback(async (p = page, s = startDate, e = endDate) => {
     try {
       setLoading(true)
       if (mode === 'history') {
         const query = new URLSearchParams(location.search)
-        const params: any = {}
+        const params: any = { page: p, per_page: 50, start: s, end: e }
         if (query.get('santri_id')) params.santri_id = query.get('santri_id')
         const res = await listWalletTransactions(params)
-        if (res.success) setTransactions(res.data || [])
+        if (res.success) {
+          setTransactions(res.data || [])
+          if (res.meta) setMeta(res.meta)
+        }
       } else {
-        // Laporan mode: fetch all wallets and cash withdrawals
         const [walletsRes, cashWithdrawalsRes] = await Promise.all([
           listWallets(),
           listCashWithdrawals({ status: 'done' })
         ])
-        if (walletsRes.success) {
-          setWallets(walletsRes.data || [])
-        }
-        if (cashWithdrawalsRes.success) {
-          setWithdrawals(cashWithdrawalsRes.data || [])
-        }
+        if (walletsRes.success) setWallets(walletsRes.data || [])
+        if (cashWithdrawalsRes.success) setWithdrawals(cashWithdrawalsRes.data || [])
       }
     } catch (err) {
       console.error(err)
       toast.error('Gagal memuat data')
     } finally { setLoading(false) }
+  }, [mode, location.search, page, startDate, endDate])
+
+  const handleTerapkan = () => {
+    setStartDate(tempStart)
+    setEndDate(tempEnd)
+    setIsDefaultMonth(false)
+    setPage(1)
+    load(1, tempStart, tempEnd)
+  }
+
+  const handleReset = () => {
+    setStartDate(defaultStart)
+    setEndDate(defaultEnd)
+    setTempStart(defaultStart)
+    setTempEnd(defaultEnd)
+    setIsDefaultMonth(true)
+    setPage(1)
+    load(1, defaultStart, defaultEnd)
+  }
+
+  const handlePageChange = (p: number) => {
+    setPage(p)
+    load(p, startDate, endDate)
   }
 
   function exportCSV() {
     if (!transactions.length) { toast.error('Tidak ada data untuk diexport'); return }
-    const headers = ['id','wallet_id','type','amount','balance_after','description','reference','created_at']
+    const headers = ['id', 'wallet_id', 'type', 'amount', 'balance_after', 'description', 'reference', 'created_at']
     const csvRows = [headers.join(',')]
-    transactions.forEach((t:any) => {
+    transactions.forEach((t: any) => {
       csvRows.push(headers.map(h => JSON.stringify(t[h] ?? '')).join(','))
     })
     const blob = new Blob([csvRows.join('\n')], { type: 'text/csv' })
@@ -84,35 +133,30 @@ export default function History() {
     { key: 'total_debit', header: 'Total Debit', render: (v: any) => <div className="text-red-600">{`Rp ${parseFloat(v || 0).toLocaleString('id-ID')}`}</div> },
   ]
 
-  // Calculate totals for Laporan mode
-  // Total Saldo Keseluruhan = jumlah balance semua santri
-  const totalBalance = wallets.reduce((sum, w) => sum + parseFloat(w.balance || 0), 0)
-  
-  const totalCreditCash = wallets.reduce((sum, w) => sum + parseFloat(w.total_credit_cash || 0), 0)
-  const totalCreditTransfer = wallets.reduce((sum, w) => sum + parseFloat(w.total_credit_transfer || 0), 0)
-  const totalDebitCash = wallets.reduce((sum, w) => sum + parseFloat(w.total_debit_cash || 0), 0)
-  const totalDebitTransfer = wallets.reduce((sum, w) => sum + parseFloat(w.total_debit_transfer || 0), 0)
-  const totalDebitEpos = wallets.reduce((sum, w) => sum + parseFloat(w.total_debit_epos || 0), 0)
-  
-  // Calculate total withdrawals (dana yang sudah ditarik dari transfer ke cash)
-  const totalWithdrawals = withdrawals.reduce((sum, w) => sum + parseFloat(w.amount || 0), 0)
-  
-  // Saldo Cash = credit cash - debit cash - debit epos + withdrawals (karena withdrawal adalah pemindahan dari transfer ke cash)
-  const totalCashBalance = (totalCreditCash - totalDebitCash - totalDebitEpos) + totalWithdrawals
-  // Saldo Bank = credit transfer - debit transfer - withdrawals (karena withdrawal mengurangi transfer)
-  const totalBankBalance = (totalCreditTransfer - totalDebitTransfer) - totalWithdrawals
-  const totalCredit = totalCreditCash + totalCreditTransfer
-  const totalDebit = totalDebitCash + totalDebitTransfer + totalDebitEpos
+  // useMemo: hitung total hanya saat wallets/withdrawals berubah
+  const totals = useMemo(() => {
+    const totalBalance = wallets.reduce((s, w) => s + parseFloat(w.balance || 0), 0)
+    const totalCreditCash = wallets.reduce((s, w) => s + parseFloat(w.total_credit_cash || 0), 0)
+    const totalCreditTransfer = wallets.reduce((s, w) => s + parseFloat(w.total_credit_transfer || 0), 0)
+    const totalDebitCash = wallets.reduce((s, w) => s + parseFloat(w.total_debit_cash || 0), 0)
+    const totalDebitTransfer = wallets.reduce((s, w) => s + parseFloat(w.total_debit_transfer || 0), 0)
+    const totalDebitEpos = wallets.reduce((s, w) => s + parseFloat(w.total_debit_epos || 0), 0)
+    const totalWithdrawals = withdrawals.reduce((s, w) => s + parseFloat(w.amount || 0), 0)
+    const totalCashBalance = (totalCreditCash - totalDebitCash - totalDebitEpos) + totalWithdrawals
+    const totalBankBalance = (totalCreditTransfer - totalDebitTransfer) - totalWithdrawals
+    return {
+      totalBalance, totalCreditCash, totalCreditTransfer,
+      totalDebitCash, totalDebitTransfer, totalDebitEpos,
+      totalWithdrawals, totalCashBalance, totalBankBalance,
+      totalCredit: totalCreditCash + totalCreditTransfer,
+      totalDebit: totalDebitCash + totalDebitTransfer + totalDebitEpos,
+    }
+  }, [wallets, withdrawals])
 
   async function handleWithdraw() {
-    if (!withdrawAmount || withdrawAmount <= 0) {
-      toast.error('Masukkan nominal yang valid')
-      return
-    }
-    const bankBalance = totalBankBalance
-    if (withdrawAmount > bankBalance) {
-      toast.error(`Saldo transfer tidak mencukupi (tersedia: Rp ${bankBalance.toLocaleString('id-ID')})`)
-      return
+    if (!withdrawAmount || withdrawAmount <= 0) { toast.error('Masukkan nominal yang valid'); return }
+    if (withdrawAmount > totals.totalBankBalance) {
+      toast.error(`Saldo transfer tidak mencukupi (tersedia: Rp ${totals.totalBankBalance.toLocaleString('id-ID')})`); return
     }
     try {
       const res = await createWithdrawal(Number(withdrawAmount), withdrawNote)
@@ -122,14 +166,11 @@ export default function History() {
         setWithdrawAmount('')
         setWithdrawNote('')
         load()
-      } else {
-        toast.error(res.message || 'Gagal tarik dana')
-      }
-    } catch (err: any) {
-      console.error(err)
-      toast.error(err?.response?.data?.message || 'Gagal tarik dana')
-    }
+      } else { toast.error(res.message || 'Gagal tarik dana') }
+    } catch (err: any) { toast.error(err?.response?.data?.message || 'Gagal tarik dana') }
   }
+
+  const formatTgl = (d: string) => new Date(d).toLocaleDateString('id-ID', { day: 'numeric', month: 'long', year: 'numeric' })
 
   return (
     <div className="space-y-4">
@@ -140,126 +181,124 @@ export default function History() {
 
       {/* Mode Tabs */}
       <div className="flex gap-2 border-b">
-        <button 
-          className={`px-4 py-2 font-medium ${mode === 'history' ? 'border-b-2 border-blue-500 text-blue-600' : 'text-gray-500'}`}
-          onClick={() => setMode('history')}
-        >
+        <button className={`px-4 py-2 font-medium ${mode === 'history' ? 'border-b-2 border-blue-500 text-blue-600' : 'text-gray-500'}`} onClick={() => setMode('history')}>
           History Transaksi
         </button>
-        <button 
-          className={`px-4 py-2 font-medium ${mode === 'laporan' ? 'border-b-2 border-blue-500 text-blue-600' : 'text-gray-500'}`}
-          onClick={() => setMode('laporan')}
-        >
+        <button className={`px-4 py-2 font-medium ${mode === 'laporan' ? 'border-b-2 border-blue-500 text-blue-600' : 'text-gray-500'}`} onClick={() => setMode('laporan')}>
           Laporan Saldo
         </button>
       </div>
+
+      {/* Filter Tanggal (hanya di mode history) */}
+      {mode === 'history' && (
+        <Card>
+          <div className="flex flex-wrap items-center gap-3">
+            <span className="text-sm font-medium text-gray-600">Periode:</span>
+            <input type="date" value={tempStart} onChange={e => setTempStart(e.target.value)} className="px-3 py-1.5 border border-gray-300 rounded-lg text-sm focus:ring-2 focus:ring-blue-500" />
+            <span className="text-gray-400">–</span>
+            <input type="date" value={tempEnd} onChange={e => setTempEnd(e.target.value)} className="px-3 py-1.5 border border-gray-300 rounded-lg text-sm focus:ring-2 focus:ring-blue-500" />
+            <button onClick={handleTerapkan} className="px-4 py-1.5 bg-blue-600 text-white rounded-lg hover:bg-blue-700 text-sm font-medium">Terapkan</button>
+            <button onClick={handleReset} className="px-3 py-1.5 bg-gray-200 text-gray-700 rounded-lg hover:bg-gray-300 text-sm flex items-center gap-1" title="Reset ke bulan ini"><X className="w-3.5 h-3.5" /></button>
+            {isDefaultMonth && (
+              <span className="text-xs text-blue-600 bg-blue-50 border border-blue-200 rounded px-2 py-1">
+                Menampilkan bulan ini ({formatTgl(startDate)} – {formatTgl(endDate)})
+              </span>
+            )}
+          </div>
+        </Card>
+      )}
 
       {loading ? (
         <Card><div className="p-6 text-center text-gray-500">Memuat...</div></Card>
       ) : mode === 'history' ? (
         <Card>
-          <div className="mb-3">
-            <p className="text-sm text-gray-500">Menampilkan {transactions.length} transaksi</p>
+          <div className="mb-3 flex items-center justify-between">
+            <p className="text-sm text-gray-500">
+              Menampilkan {((page - 1) * meta.per_page) + 1}–{Math.min(page * meta.per_page, meta.total)} dari {meta.total} transaksi
+            </p>
           </div>
           {transactions.length === 0 ? (
-            <div className="p-6 text-center text-gray-500">Belum ada transaksi</div>
+            <div className="p-6 text-center text-gray-500">Belum ada transaksi pada periode ini</div>
           ) : (
             <Table columns={historyColumns} data={transactions} getRowKey={(r) => r.id} />
+          )}
+          {/* Pagination */}
+          {meta.last_page > 1 && (
+            <div className="mt-4 flex items-center justify-center gap-2">
+              <button onClick={() => handlePageChange(1)} disabled={page === 1} className="px-2 py-1 text-sm rounded border border-gray-300 bg-white hover:bg-gray-100 disabled:opacity-40">«</button>
+              <button onClick={() => handlePageChange(page - 1)} disabled={page === 1} className="px-3 py-1 text-sm rounded border border-gray-300 bg-white hover:bg-gray-100 disabled:opacity-40">‹</button>
+              {Array.from({ length: meta.last_page }, (_, i) => i + 1)
+                .filter(p => p === 1 || p === meta.last_page || Math.abs(p - page) <= 2)
+                .reduce<(number | '...')[]>((acc, p, idx, arr) => {
+                  if (idx > 0 && (p as number) - (arr[idx - 1] as number) > 1) acc.push('...')
+                  acc.push(p); return acc
+                }, [])
+                .map((p, i) => p === '...'
+                  ? <span key={`e-${i}`} className="px-2 text-gray-400">…</span>
+                  : <button key={p} onClick={() => handlePageChange(p as number)} className={`px-3 py-1 text-sm rounded border ${page === p ? 'bg-blue-600 text-white border-blue-600' : 'border-gray-300 bg-white hover:bg-gray-100'}`}>{p}</button>
+                )}
+              <button onClick={() => handlePageChange(page + 1)} disabled={page === meta.last_page} className="px-3 py-1 text-sm rounded border border-gray-300 bg-white hover:bg-gray-100 disabled:opacity-40">›</button>
+              <button onClick={() => handlePageChange(meta.last_page)} disabled={page === meta.last_page} className="px-2 py-1 text-sm rounded border border-gray-300 bg-white hover:bg-gray-100 disabled:opacity-40">»</button>
+            </div>
           )}
         </Card>
       ) : (
         <>
-          {/* Summary Cards */}
           <div className="grid grid-cols-1 md:grid-cols-2 lg:grid-cols-5 gap-4">
             <Card>
               <div className="text-sm text-gray-500 mb-1">Total Saldo Keseluruhan</div>
-              <div className="text-2xl font-bold text-blue-600">Rp {(totalCashBalance + totalBankBalance).toLocaleString('id-ID')}</div>
+              <div className="text-2xl font-bold text-blue-600">Rp {(totals.totalCashBalance + totals.totalBankBalance).toLocaleString('id-ID')}</div>
               <div className="text-xs text-gray-500 mt-1">Cash + Bank</div>
             </Card>
             <Card>
               <div className="text-sm text-gray-500 mb-1">Saldo Cash</div>
-              <div className="text-2xl font-bold text-gray-700">Rp {totalCashBalance.toLocaleString('id-ID')}</div>
-              <div className="text-xs text-gray-500 mt-1">Masuk: Rp {totalCreditCash.toLocaleString('id-ID')}</div>
-              <div className="text-xs text-gray-500">Keluar: Rp {totalDebitCash.toLocaleString('id-ID')}</div>
+              <div className="text-2xl font-bold text-gray-700">Rp {totals.totalCashBalance.toLocaleString('id-ID')}</div>
+              <div className="text-xs text-gray-500 mt-1">Masuk: Rp {totals.totalCreditCash.toLocaleString('id-ID')}</div>
+              <div className="text-xs text-gray-500">Keluar: Rp {totals.totalDebitCash.toLocaleString('id-ID')}</div>
             </Card>
             <Card>
               <div className="text-sm text-gray-500 mb-1 flex items-center justify-between">
                 <span>Saldo Bank/Transfer</span>
                 <button className="text-blue-600 text-xs hover:underline" onClick={() => setShowWithdrawModal(true)}>Tarik Dana</button>
               </div>
-              <div className="text-2xl font-bold text-purple-600">Rp {totalBankBalance.toLocaleString('id-ID')}</div>
-              <div className="text-xs text-gray-500 mt-1">Masuk: Rp {totalCreditTransfer.toLocaleString('id-ID')}</div>
-              <div className="text-xs text-gray-500">Keluar: Rp {totalDebitTransfer.toLocaleString('id-ID')}</div>
+              <div className="text-2xl font-bold text-purple-600">Rp {totals.totalBankBalance.toLocaleString('id-ID')}</div>
+              <div className="text-xs text-gray-500 mt-1">Masuk: Rp {totals.totalCreditTransfer.toLocaleString('id-ID')}</div>
+              <div className="text-xs text-gray-500">Keluar: Rp {totals.totalDebitTransfer.toLocaleString('id-ID')}</div>
             </Card>
             <Card>
               <div className="text-sm text-gray-500 mb-1">Total Credit</div>
-              <div className="text-2xl font-bold text-green-600">Rp {totalCredit.toLocaleString('id-ID')}</div>
+              <div className="text-2xl font-bold text-green-600">Rp {totals.totalCredit.toLocaleString('id-ID')}</div>
             </Card>
             <Card>
               <div className="text-sm text-gray-500 mb-1">Total Debit</div>
-              <div className="text-2xl font-bold text-red-600">Rp {totalDebit.toLocaleString('id-ID')}</div>
+              <div className="text-2xl font-bold text-red-600">Rp {totals.totalDebit.toLocaleString('id-ID')}</div>
             </Card>
           </div>
-
-          {/* Per-Santri Breakdown */}
           <Card>
-            <div className="mb-3">
-              <h3 className="text-lg font-semibold">Rincian per Santri</h3>
-              <p className="text-sm text-gray-500">Daftar {wallets.length} santri dengan saldo dan transaksi</p>
-            </div>
-            {wallets.length === 0 ? (
-              <div className="p-6 text-center text-gray-500">Belum ada data dompet</div>
-            ) : (
-              <Table columns={laporanColumns} data={wallets} getRowKey={(r) => r.id} />
-            )}
+            <Table columns={laporanColumns} data={wallets} getRowKey={(r) => r.id} />
           </Card>
         </>
       )}
 
-      {/* Modal Tarik Dana */}
-      <Modal
-        open={showWithdrawModal}
-        title="Tarik Dana dari Bank ke Cash"
-        onClose={() => { setShowWithdrawModal(false); setWithdrawAmount(''); setWithdrawNote('') }}
-        footer={(
-          <>
-            <button className="btn" onClick={() => { setShowWithdrawModal(false); setWithdrawAmount(''); setWithdrawNote('') }}>Batal</button>
-            <button className="btn btn-primary" onClick={handleWithdraw}>Tarik Dana</button>
-          </>
-        )}
-      >
-        <div className="space-y-4">
-          <div>
-            <div className="text-sm text-gray-500 mb-2">Saldo Bank/Transfer tersedia:</div>
-            <div className="text-2xl font-bold text-purple-600">Rp {totalBankBalance.toLocaleString('id-ID')}</div>
+      {showWithdrawModal && (
+        <Modal open={showWithdrawModal} title="Tarik Dana dari Transfer ke Cash" onClose={() => setShowWithdrawModal(false)}>
+          <div className="space-y-4">
+            <div>
+              <label className="block text-sm font-medium text-gray-700 mb-1">Nominal</label>
+              <input type="number" value={withdrawAmount} onChange={e => setWithdrawAmount(Number(e.target.value))} placeholder="0" className="w-full px-3 py-2 border border-gray-300 rounded-lg focus:ring-2 focus:ring-blue-500" />
+              <p className="text-xs text-gray-500 mt-1">Saldo transfer tersedia: Rp {totals.totalBankBalance.toLocaleString('id-ID')}</p>
+            </div>
+            <div>
+              <label className="block text-sm font-medium text-gray-700 mb-1">Catatan</label>
+              <textarea value={withdrawNote} onChange={e => setWithdrawNote(e.target.value)} rows={3} className="w-full px-3 py-2 border border-gray-300 rounded-lg focus:ring-2 focus:ring-blue-500" />
+            </div>
+            <div className="flex gap-3 justify-end">
+              <button onClick={() => setShowWithdrawModal(false)} className="px-4 py-2 border border-gray-300 rounded-lg hover:bg-gray-50">Batal</button>
+              <button onClick={handleWithdraw} className="px-4 py-2 bg-blue-600 text-white rounded-lg hover:bg-blue-700">Tarik Dana</button>
+            </div>
           </div>
-          <div>
-            <label className="block text-sm font-medium mb-1">Nominal Tarik Dana (Rp)</label>
-            <input
-              type="number"
-              value={withdrawAmount}
-              onChange={(e) => setWithdrawAmount(e.target.value ? parseFloat(e.target.value) : '')}
-              min="0"
-              step="1000"
-              className="rounded-md border px-3 py-2 w-full"
-              placeholder="Masukkan nominal"
-            />
-          </div>
-          <div>
-            <label className="block text-sm font-medium mb-1">Catatan (opsional)</label>
-            <textarea
-              value={withdrawNote}
-              onChange={(e) => setWithdrawNote(e.target.value)}
-              rows={3}
-              className="rounded-md border px-3 py-2 w-full"
-              placeholder="Catatan tarik dana..."
-            />
-          </div>
-          <div className="text-xs text-gray-500">
-            Dana akan dipindahkan dari saldo transfer ke cash untuk operasional.
-          </div>
-        </div>
-      </Modal>
+        </Modal>
+      )}
     </div>
   )
 }

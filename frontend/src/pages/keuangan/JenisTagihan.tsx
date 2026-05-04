@@ -1,10 +1,10 @@
-import { useState, useEffect } from 'react'
+import { useState, useEffect, useMemo, useCallback } from 'react'
 import { Plus, Edit2, Trash2, Play, Search } from 'lucide-react'
-import { listSantri } from '../../api/santri'
 import { listKelas } from '../../api/kelas'
 import { listJenisTagihan, createJenisTagihan, updateJenisTagihan, deleteJenisTagihan } from '../../api/jenisTagihan'
 import { listTahunAjaran } from '../../api/tahunAjaran'
 import { listBukuKas } from '../../api/bukuKas'
+import { listSantri } from '../../api/santri'
 import { hasAccess } from '../../stores/useAuthStore'
 import toast from 'react-hot-toast'
 import type { JenisTagihanItem } from '../../types/jenisTagihan.types'
@@ -40,7 +40,9 @@ export default function JenisTagihan() {
   const [selectedTagihan, setSelectedTagihan] = useState<JenisTagihanItem | null>(null)
   const [searchTerm, setSearchTerm] = useState('')
   const [kelasList, setKelasList] = useState<any[]>([])
+  // FIX: santriList dimuat lazy hanya saat modal dibuka, bukan upfront 1000 santri
   const [santriList, setSantriList] = useState<any[]>([])
+  const [santriLoaded, setSantriLoaded] = useState(false)
   const [bukuKasList, setBukuKasList] = useState<any[]>([])
   const [dataTagihan, setDataTagihan] = useState<JenisTagihanItem[]>([])
   const [loading, setLoading] = useState(false)
@@ -49,34 +51,66 @@ export default function JenisTagihan() {
 
   const BULAN_NAMA = ['Januari','Februari','Maret','April','Mei','Juni','Juli','Agustus','September','Oktober','November','Desember']
 
-  useEffect(() => { fetchAllData() }, [])
+  // FIX: Hanya load data yang dibutuhkan di list view (tanpa santri 1000 baris)
+  useEffect(() => {
+    const fetchStaticData = async () => {
+      try {
+        setLoading(true)
+        const [kelasRes, tagihanRes, tahunRes, bukuKasRes] = await Promise.all([
+          listKelas(), listJenisTagihan(), listTahunAjaran(), listBukuKas()
+        ])
+        setKelasList(kelasRes.data || kelasRes || [])
+        setDataTagihan(tagihanRes.data || tagihanRes || [])
+        setBukuKasList(bukuKasRes.data || bukuKasRes || [])
+        const tahuns = tahunRes.data || tahunRes || []
+        const aktif = tahuns.find((t: any) => t.status === 'aktif')
+        setTahunAjaranAktif(aktif || null)
+        if (aktif) {
+          const { bulan_mulai: mulai, bulan_akhir: akhir } = aktif
+          const bulan: string[] = []
+          if (mulai <= akhir) for (let i = mulai; i <= akhir; i++) bulan.push(BULAN_NAMA[i-1])
+          else { for (let i = mulai; i <= 12; i++) bulan.push(BULAN_NAMA[i-1]); for (let i = 1; i <= akhir; i++) bulan.push(BULAN_NAMA[i-1]) }
+          setBulanList(bulan)
+        } else { setBulanList(BULAN_NAMA) }
+      } catch { toast.error('Gagal memuat data') }
+      finally { setLoading(false) }
+    }
+    fetchStaticData()
+  }, [])
 
-  const fetchAllData = async () => {
+  // FIX: Load santri HANYA saat modal yang membutuhkan santri dibuka
+  const ensureSantriLoaded = useCallback(async () => {
+    if (santriLoaded) return
     try {
-      setLoading(true)
-      const [kelasRes, santriRes, tagihanRes, tahunRes, bukuKasRes] = await Promise.all([listKelas(), listSantri(1, 1000), listJenisTagihan(), listTahunAjaran(), listBukuKas()])
-      setKelasList(kelasRes.data || kelasRes || [])
-      setSantriList(santriRes.data || santriRes || [])
-      setDataTagihan(tagihanRes.data || tagihanRes || [])
-      setBukuKasList(bukuKasRes.data || bukuKasRes || [])
-      const tahuns = tahunRes.data || tahunRes || []
-      const aktif = tahuns.find((t: any) => t.status === 'aktif')
-      setTahunAjaranAktif(aktif || null)
-      if (aktif) {
-        const { bulan_mulai: mulai, bulan_akhir: akhir } = aktif
-        const bulan: string[] = []
-        if (mulai <= akhir) for (let i = mulai; i <= akhir; i++) bulan.push(BULAN_NAMA[i-1])
-        else { for (let i = mulai; i <= 12; i++) bulan.push(BULAN_NAMA[i-1]); for (let i = 1; i <= akhir; i++) bulan.push(BULAN_NAMA[i-1]) }
-        setBulanList(bulan)
-      } else { setBulanList(BULAN_NAMA) }
-    } catch { toast.error('Gagal memuat data') }
-    finally { setLoading(false) }
-  }
+      const res = await listSantri(1, 1000)
+      setSantriList(res.data || res || [])
+      setSantriLoaded(true)
+    } catch { toast.error('Gagal memuat data santri') }
+  }, [santriLoaded])
+
+  const handleOpenFormModal = useCallback(async (tagihan?: JenisTagihanItem) => {
+    setSelectedTagihan(tagihan || null)
+    await ensureSantriLoaded()
+    setShowModal(true)
+  }, [ensureSantriLoaded])
+
+  const handleOpenPreviewModal = useCallback(async (tagihan: JenisTagihanItem) => {
+    setSelectedTagihan(tagihan)
+    await ensureSantriLoaded()
+    setShowPreviewModal(true)
+  }, [ensureSantriLoaded])
+
+  const handleOpenBulkModal = useCallback(async (tagihan: JenisTagihanItem) => {
+    setSelectedTagihan(tagihan)
+    await ensureSantriLoaded()
+    setShowBulkActionModal(true)
+  }, [ensureSantriLoaded])
 
   const handleSave = async (data: JenisTagihanItem) => {
     try {
       if (selectedTagihan) {
         const res = await updateJenisTagihan(selectedTagihan.id, data)
+        // Update state lokal langsung, tidak perlu reload semua
         setDataTagihan(prev => prev.map(i => i.id === selectedTagihan.id ? res.data : i))
         toast.success('Tagihan berhasil diperbarui!')
       } else {
@@ -92,13 +126,19 @@ export default function JenisTagihan() {
     if (!selectedTagihan) return
     try {
       await deleteJenisTagihan(selectedTagihan.id)
+      // Hapus dari state lokal langsung
       setDataTagihan(prev => prev.filter(i => i.id !== selectedTagihan.id))
       toast.success('Tagihan berhasil dihapus!')
     } catch { toast.error('Gagal menghapus tagihan') }
     finally { setShowConfirmModal(false); setSelectedTagihan(null) }
   }
 
-  const filtered = dataTagihan.filter(i => i.namaTagihan.toLowerCase().includes(searchTerm.toLowerCase()) || i.kategori.toLowerCase().includes(searchTerm.toLowerCase()))
+  // FIX: useMemo agar tidak dihitung ulang setiap render
+  const filtered = useMemo(() =>
+    dataTagihan.filter(i =>
+      i.namaTagihan.toLowerCase().includes(searchTerm.toLowerCase()) ||
+      i.kategori.toLowerCase().includes(searchTerm.toLowerCase())
+    ), [dataTagihan, searchTerm])
 
   return (
     <div className="p-6">
@@ -108,7 +148,11 @@ export default function JenisTagihan() {
           <Search className="absolute left-3 top-1/2 -translate-y-1/2 text-gray-400 w-5 h-5" />
           <input type="text" placeholder="Cari tagihan..." value={searchTerm} onChange={e => setSearchTerm(e.target.value)} className="w-full pl-10 pr-4 py-2 border border-gray-300 rounded-lg focus:ring-2 focus:ring-blue-500 focus:border-transparent" />
         </div>
-        {hasAccess('keuangan.tagihan.edit') && <button onClick={() => setShowModal(true)} className="bg-blue-600 hover:bg-blue-700 text-white px-4 py-2 rounded-lg flex items-center gap-2"><Plus className="w-5 h-5" />Tambah Tagihan</button>}
+        {hasAccess('keuangan.tagihan.edit') && (
+          <button onClick={() => handleOpenFormModal()} className="bg-blue-600 hover:bg-blue-700 text-white px-4 py-2 rounded-lg flex items-center gap-2">
+            <Plus className="w-5 h-5" />Tambah Tagihan
+          </button>
+        )}
       </div>
       <div className="bg-white rounded-lg shadow overflow-hidden">
         <div className="overflow-x-auto">
@@ -117,7 +161,11 @@ export default function JenisTagihan() {
               <tr>{['No','Nama Tagihan','Kategori','Bulan','Nominal Default','Jatuh Tempo','Buku Kas','Aksi'].map(h => <th key={h} className="px-6 py-3 text-left text-xs font-medium text-gray-500 uppercase tracking-wider">{h}</th>)}</tr>
             </thead>
             <tbody className="bg-white divide-y divide-gray-200">
-              {loading ? <tr><td colSpan={8} className="px-6 py-8 text-center text-gray-500">Memuat data...</td></tr> : filtered.length === 0 ? <tr><td colSpan={8} className="px-6 py-8 text-center text-gray-500">Tidak ada data tagihan</td></tr> : filtered.map((item, i) => (
+              {loading ? (
+                <tr><td colSpan={8} className="px-6 py-8 text-center text-gray-500">Memuat data...</td></tr>
+              ) : filtered.length === 0 ? (
+                <tr><td colSpan={8} className="px-6 py-8 text-center text-gray-500">Tidak ada data tagihan</td></tr>
+              ) : filtered.map((item, i) => (
                 <tr key={item.id} className="hover:bg-gray-50">
                   <td className="px-6 py-4 text-sm">{i + 1}</td>
                   <td className="px-6 py-4 text-sm font-medium text-gray-900">{item.namaTagihan}</td>
@@ -128,10 +176,10 @@ export default function JenisTagihan() {
                   <td className="px-6 py-4 text-sm">{item.bukuKas}</td>
                   <td className="px-6 py-4">
                     <div className="flex items-center gap-2">
-                      {hasAccess('keuangan.tagihan.edit') && <button onClick={() => { setSelectedTagihan(item); setShowPreviewModal(true) }} className="text-green-600 hover:text-green-900 p-1 hover:bg-green-50 rounded" title="Generate"><Play className="w-4 h-4" /></button>}
-                      {hasAccess('keuangan.tagihan.edit') && <button onClick={() => { setSelectedTagihan(item); setShowModal(true) }} className="text-blue-600 hover:text-blue-900 p-1 hover:bg-blue-50 rounded" title="Edit"><Edit2 className="w-4 h-4" /></button>}
+                      {hasAccess('keuangan.tagihan.edit') && <button onClick={() => handleOpenPreviewModal(item)} className="text-green-600 hover:text-green-900 p-1 hover:bg-green-50 rounded" title="Generate"><Play className="w-4 h-4" /></button>}
+                      {hasAccess('keuangan.tagihan.edit') && <button onClick={() => handleOpenFormModal(item)} className="text-blue-600 hover:text-blue-900 p-1 hover:bg-blue-50 rounded" title="Edit"><Edit2 className="w-4 h-4" /></button>}
                       {hasAccess('keuangan.tagihan.delete') && <button onClick={() => { setSelectedTagihan(item); setShowConfirmModal(true) }} className="text-red-600 hover:text-red-900 p-1 hover:bg-red-50 rounded" title="Hapus"><Trash2 className="w-4 h-4" /></button>}
-                      {hasAccess('keuangan.tagihan.edit') && <button onClick={() => { setSelectedTagihan(item); setShowBulkActionModal(true) }} className="text-purple-600 hover:text-purple-900 px-2 py-1 hover:bg-purple-50 rounded text-xs font-medium">Perbaiki</button>}
+                      {hasAccess('keuangan.tagihan.edit') && <button onClick={() => handleOpenBulkModal(item)} className="text-purple-600 hover:text-purple-900 px-2 py-1 hover:bg-purple-50 rounded text-xs font-medium">Perbaiki</button>}
                     </div>
                   </td>
                 </tr>
@@ -143,7 +191,7 @@ export default function JenisTagihan() {
       {showModal && <ModalFormTagihan onClose={() => { setShowModal(false); setSelectedTagihan(null) }} onSave={handleSave} tagihan={selectedTagihan} kelasList={kelasList} santriList={santriList} bukuKasList={bukuKasList} bulanAvailable={bulanList} tahunAjaranAktif={tahunAjaranAktif} />}
       {showPreviewModal && selectedTagihan && <ModalPreviewGenerate tagihan={selectedTagihan} santriList={santriList} onClose={() => { setShowPreviewModal(false); setSelectedTagihan(null) }} />}
       {showConfirmModal && selectedTagihan && <ModalConfirmDelete tagihanNama={selectedTagihan.namaTagihan} onConfirm={handleConfirmDelete} onCancel={() => { setShowConfirmModal(false); setSelectedTagihan(null) }} />}
-      {showBulkActionModal && selectedTagihan && <ModalBulkActions tagihan={selectedTagihan} onClose={() => { setShowBulkActionModal(false); setSelectedTagihan(null) }} onSuccess={fetchAllData} />}
+      {showBulkActionModal && selectedTagihan && <ModalBulkActions tagihan={selectedTagihan} onClose={() => { setShowBulkActionModal(false); setSelectedTagihan(null) }} onSuccess={() => { /* data sudah sync via state */ }} />}
     </div>
   )
 }
