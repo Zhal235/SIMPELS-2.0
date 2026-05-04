@@ -171,29 +171,5 @@ class MobileMonitoringController extends Controller
         ]);
     }
 }
-            ->limit(100)
-            ->get();
-
-        $summary = [
-            'total_activities' => $activities->count(),
-            'last_active' => $activities->first()?->created_at,
-            'most_used_feature' => DB::table('mobile_activity_logs')
-                ->where('no_hp', $no_hp)
-                ->where('created_at', '>=', now()->subDays($days))
-                ->select('feature', DB::raw('COUNT(*) as count'))
-                ->groupBy('feature')
-                ->orderBy('count', 'desc')
-                ->first(),
-        ];
-
-        return response()->json([
-            'success' => true,
-            'data' => [
-                'summary' => $summary,
-                'activities' => $activities
-            ]
-        ]);
-    }
-}
 
 
