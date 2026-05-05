@@ -318,7 +318,7 @@ class BuktiTransferService
         }
     }
 
-    private function processTopup(int $santriId, float $nominalTopup): void
+    private function processTopup(string $santriId, float $nominalTopup): void
     {
         $wallet = \App\Models\Wallet::firstOrCreate(['santri_id' => $santriId], ['balance' => 0]);
         $wallet->balance += $nominalTopup;
@@ -339,7 +339,7 @@ class BuktiTransferService
         Log::info('Wallet topup created', ['wallet_id' => $wallet->id, 'amount' => $nominalTopup, 'balance_after' => $wallet->balance]);
     }
 
-    private function processTabungan(int $santriId, float $nominalTabungan): void
+    private function processTabungan(string $santriId, float $nominalTabungan): void
     {
         $tabungan = \App\Models\SantriTabungan::firstOrCreate(['santri_id' => $santriId], ['saldo' => 0, 'status' => 'active', 'opened_at' => now()]);
         $tabungan->saldo += $nominalTabungan;
