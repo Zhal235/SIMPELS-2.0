@@ -48,7 +48,10 @@ class BuktiTransferService
             $nominalPembayaran = $isTopupOnly ? 0 : max(0, $bukti->total_nominal - $nominalTopup - $nominalTabungan);
 
             $santri = \App\Models\Santri::find($bukti->santri_id);
-            $namaSantri = $santri?->nama_santri ?? $santri?->nama_lengkap ?? 'Santri';
+            if (!$santri) {
+                return ['success' => false, 'error' => 'Data santri tidak ditemukan', 'status_code' => 404];
+            }
+            $namaSantri = $santri->nama_santri ?? $santri->nama_lengkap ?? 'Santri';
 
             if (!$isTopupOnly && $bukti->tagihan_ids && count($bukti->tagihan_ids) > 0) {
                 $this->processTagihan($bukti, $namaSantri);
@@ -73,8 +76,13 @@ class BuktiTransferService
 
             DB::commit();
 
-            $jenisLabel = $this->buildJenisLabel($nominalPembayaran, $nominalTopup, $nominalTabungan);
-            \App\Services\NotificationService::paymentApproved($bukti->santri_id, $jenisLabel, $bukti->total_nominal);
+            // Send notification - wrapped in try-catch to prevent failure from affecting the approval
+            try {
+                $jenisLabel = $this->buildJenisLabel($nominalPembayaran, $nominalTopup, $nominalTabungan);
+                \App\Services\NotificationService::paymentApproved($bukti->santri_id, $jenisLabel, $bukti->total_nominal);
+            } catch (\Exception $e) {
+                Log::error('Error sending payment approval notification: ' . $e->getMessage());
+            }
 
             return ['success' => true, 'message' => 'Bukti transfer berhasil disetujui dan pembayaran diproses'];
         } catch (\Exception $e) {
@@ -101,7 +109,12 @@ class BuktiTransferService
                 'processed_by' => Auth::id(),
             ]);
 
-            \App\Services\NotificationService::paymentRejected($bukti->santri_id, $request->catatan);
+            // Send notification - wrapped in try-catch to prevent failure
+            try {
+                \App\Services\NotificationService::paymentRejected($bukti->santri_id, $request->catatan);
+            } catch (\Exception $e) {
+                Log::error('Error sending payment rejection notification: ' . $e->getMessage());
+            }
 
             return ['success' => true, 'message' => 'Bukti transfer ditolak'];
         } catch (\Exception $e) {
@@ -237,6 +250,11 @@ class BuktiTransferService
     {
         $tagihans = TagihanSantri::with('jenisTagihan')->whereIn('id', $bukti->tagihan_ids)->get();
 
+        if ($tagihans->isEmpty()) {
+            Log::warning('No tagihan found for bukti transfer', ['bukti_id' => $bukti->id, 'tagihan_ids' => $bukti->tagihan_ids]);
+            return;
+        }
+
         foreach ($tagihans as $tagihan) {
             $sisaTagihan = $tagihan->nominal - $tagihan->dibayar;
             $nominalBayar = $sisaTagihan;
@@ -293,6 +311,11 @@ class BuktiTransferService
 
     private function createTransaksiKas(int $bukuKasId, float $nominalBayar, TagihanSantri $tagihan, string $namaSantri, int $pembayaranId): void
     {
+        $namaTagihan = $tagihan->jenisTagihan->nama_tagihan ?? 'Tagihan';
+        $bulan = $tagihan->bulan ?? '';
+        $tahun = $tagihan->tahun ?? '';
+        $periodeBulan = trim("$bulan $tahun");
+        
         for ($i = 0; $i < 5; $i++) {
             try {
                 $noTransaksiKas = TransaksiKas::generateNoTransaksi('pemasukan');
@@ -306,7 +329,7 @@ class BuktiTransferService
                     'metode' => 'transfer',
                     'kategori' => 'Pembayaran Tagihan',
                     'nominal' => $nominalBayar,
-                    'keterangan' => 'Pembayaran ' . $tagihan->jenisTagihan->nama_tagihan . ' - ' . $tagihan->bulan . ' ' . $tagihan->tahun . ' a.n. ' . $namaSantri . ' (via SIMPELS Mobile)',
+                    'keterangan' => "Pembayaran {$namaTagihan}" . ($periodeBulan ? " - {$periodeBulan}" : '') . " a.n. {$namaSantri} (via SIMPELS Mobile)",
                     'pembayaran_id' => $pembayaranId,
                     'created_by' => auth()->id(),
                 ]);
