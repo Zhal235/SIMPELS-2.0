@@ -189,12 +189,57 @@ class WaGatewayController extends Controller
 
     public function callback(Request $request): JsonResponse
     {
-        $secret = $request->header('X-Secret-Key');
+        // Fix 1: Check correct header name (X-WA-Secret dari gateway)
+        $secret = $request->header('X-WA-Secret') ?? $request->header('X-Secret-Key');
         if ($secret !== config('services.wa_gateway.secret')) {
+            Log::warning('[WA Callback] Unauthorized attempt', [
+                'ip' => $request->ip(),
+                'headers' => $request->headers->all()
+            ]);
             return response()->json(['ok' => false, 'message' => 'Unauthorized'], 403);
         }
 
-        return response()->json(['ok' => true]);
+        // Fix 2: Actually update the database
+        try {
+            $logId = $request->input('log_id');
+            $status = $request->input('status'); // 'sent' or 'failed'
+            $errorReason = $request->input('error_reason');
+            $sentAt = $request->input('sent_at');
+
+            if (!$logId) {
+                return response()->json(['ok' => false, 'message' => 'log_id required'], 422);
+            }
+
+            $log = WaMessageLog::find($logId);
+            if (!$log) {
+                Log::warning("[WA Callback] Log ID {$logId} not found");
+                return response()->json(['ok' => false, 'message' => 'Log not found'], 404);
+            }
+
+            // Update status
+            $updateData = ['status' => $status];
+            
+            if ($status === 'sent' && $sentAt) {
+                $updateData['sent_at'] = $sentAt;
+            }
+            
+            if ($status === 'failed' && $errorReason) {
+                $updateData['error_reason'] = $errorReason;
+                $updateData['retry_count'] = $log->retry_count + 1;
+            }
+
+            $log->update($updateData);
+
+            Log::info("[WA Callback] Updated log {$logId} to {$status}");
+            return response()->json(['ok' => true]);
+            
+        } catch (\Exception $e) {
+            Log::error('[WA Callback] Error: ' . $e->getMessage(), [
+                'request' => $request->all(),
+                'trace' => $e->getTraceAsString()
+            ]);
+            return response()->json(['ok' => false, 'message' => 'Internal error'], 500);
+        }
     }
 
     public function sendTest(Request $request): JsonResponse
