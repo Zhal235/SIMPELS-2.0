@@ -20,6 +20,7 @@ export type DashboardKpi = {
 export type TagihanSummaryItem = {
   jenisTagihanId: number
   namaTagihan: string
+  kategori: 'Rutin' | 'Non Rutin'
   totalNominal: number
   totalDibayar: number
   totalSisa: number
@@ -49,10 +50,19 @@ export type RecentPaymentItem = {
 export type BukuKasSummary = {
   id: number
   namaKas: string
+  kategori?: 'Rutin' | 'Non Rutin'
+  keterangan?: string | null
   saldoAwal: number
   pemasukan: number
   pengeluaran: number
   saldoBerjalan: number
+}
+
+export type KasKeuanganGroup = {
+  data: BukuKasSummary[]
+  totalPemasukan: number
+  totalPengeluaran: number
+  totalSaldoBerjalan: number
 }
 
 export type KasKeuangan = {
@@ -60,4 +70,6 @@ export type KasKeuangan = {
   totalPengeluaran: number
   totalSaldoBerjalan: number
   perBukuKas: BukuKasSummary[]
+  rutinKas?: KasKeuanganGroup
+  nonRutinKas?: KasKeuanganGroup
 }

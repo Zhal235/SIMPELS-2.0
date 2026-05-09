@@ -14,14 +14,11 @@ class BukuKas extends Model
 
     protected $fillable = [
         'nama_kas',
-        'saldo_cash_awal',
-        'saldo_bank_awal',
+        'kategori',
+        'keterangan',
     ];
 
-    protected $casts = [
-        'saldo_cash_awal' => 'decimal:2',
-        'saldo_bank_awal' => 'decimal:2',
-    ];
+    protected $casts = [];
 
     /**
      * Relasi ke jenis tagihan

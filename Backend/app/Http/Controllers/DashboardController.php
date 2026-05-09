@@ -57,21 +57,38 @@ class DashboardController extends Controller
         try {
             $bulan = $request->query('bulan');
             $tahun = $request->query('tahun');
+            $kategori = $request->query('kategori'); // 'Rutin' atau 'Non Rutin' atau null untuk semua
 
-            $query = TagihanSantri::with('jenisTagihan:id,nama_tagihan')
+            // Join dengan jenis_tagihan untuk filter kategori
+            $query = TagihanSantri::with('jenisTagihan:id,nama_tagihan,kategori')
+                ->join('jenis_tagihan', 'tagihan_santri.jenis_tagihan_id', '=', 'jenis_tagihan.id')
                 ->select(
-                    'jenis_tagihan_id',
-                    DB::raw('SUM(nominal) as total_nominal'),
-                    DB::raw('SUM(dibayar) as total_dibayar'),
-                    DB::raw('SUM(sisa) as total_sisa'),
-                    DB::raw("SUM(CASE WHEN status = 'lunas' THEN 1 ELSE 0 END) as jumlah_lunas"),
-                    DB::raw("SUM(CASE WHEN status != 'lunas' THEN 1 ELSE 0 END) as jumlah_belum_lunas"),
-                    DB::raw('COUNT(*) as total_santri')
+                    'tagihan_santri.jenis_tagihan_id',
+                    'jenis_tagihan.kategori',
+                    DB::raw('SUM(tagihan_santri.nominal) as total_nominal'),
+                    DB::raw('SUM(tagihan_santri.dibayar) as total_dibayar'),
+                    DB::raw('SUM(tagihan_santri.sisa) as total_sisa'),
+                    DB::raw("SUM(CASE WHEN tagihan_santri.status = 'lunas' THEN 1 ELSE 0 END) as jumlah_lunas"),
+                    DB::raw("SUM(CASE WHEN tagihan_santri.status != 'lunas' THEN 1 ELSE 0 END) as jumlah_belum_lunas"),
+                    DB::raw('COUNT(tagihan_santri.id) as total_santri')
                 )
-                ->groupBy('jenis_tagihan_id');
+                ->groupBy('tagihan_santri.jenis_tagihan_id', 'jenis_tagihan.kategori');
 
-            if ($bulan) $query->where('bulan', $bulan);
-            if ($tahun) $query->where('tahun', $tahun);
+            // Filter berdasarkan kategori (Rutin hanya filter bulan, Non-Rutin tanpa filter bulan)
+            if ($kategori === 'Rutin') {
+                if ($bulan) $query->where('tagihan_santri.bulan', $bulan);
+                if ($tahun) $query->where('tagihan_santri.tahun', $tahun);
+            } elseif ($kategori === 'Non Rutin') {
+                // Non-Rutin tidak di-filter bulan/tahun, menampilkan keseluruhan
+            } else {
+                // Jika tidak ada filter kategori, apply bulan/tahun untuk backward compatibility
+                if ($bulan) $query->where('tagihan_santri.bulan', $bulan);
+                if ($tahun) $query->where('tagihan_santri.tahun', $tahun);
+            }
+
+            if ($kategori && in_array($kategori, ['Rutin', 'Non Rutin'])) {
+                $query->where('jenis_tagihan.kategori', $kategori);
+            }
 
             $results = $query->get()->map(function ($row) {
                 $total = (int) $row->total_santri;
@@ -81,6 +98,7 @@ class DashboardController extends Controller
                 return [
                     'jenisTagihanId' => $row->jenis_tagihan_id,
                     'namaTagihan' => $row->jenisTagihan?->nama_tagihan ?? '-',
+                    'kategori' => $row->kategori,
                     'totalNominal' => (float) $row->total_nominal,
                     'totalDibayar' => (float) $row->total_dibayar,
                     'totalSisa' => (float) $row->total_sisa,
@@ -248,35 +266,61 @@ class DashboardController extends Controller
                 $query = TransaksiKas::where('buku_kas_id', $bk->id)
                     ->where('kategori', 'NOT LIKE', '%Transfer Internal%');
 
-                if ($start) {
-                    $query->whereDate('tanggal', '>=', $start);
-                    if ($end) $query->whereDate('tanggal', '<=', $end);
-                } elseif ($bulan && $tahun) {
-                    $bulanIndex = array_search($bulan, self::BULAN_ORDER) + 1;
-                    $query->whereYear('tanggal', $tahun)->whereMonth('tanggal', $bulanIndex);
-                } elseif ($tahun) {
-                    $query->whereYear('tanggal', $tahun);
+                $isNonRutin = ($bk->kategori ?? 'Rutin') === 'Non Rutin';
+
+                // Jika Rutin: apply filter bulan/tahun
+                // Jika Non-Rutin: tampilkan total keseluruhan (no filter)
+                if (!$isNonRutin) {
+                    if ($start) {
+                        $query->whereDate('tanggal', '>=', $start);
+                        if ($end) $query->whereDate('tanggal', '<=', $end);
+                    } elseif ($bulan && $tahun) {
+                        $bulanIndex = array_search($bulan, self::BULAN_ORDER) + 1;
+                        $query->whereYear('tanggal', $tahun)->whereMonth('tanggal', $bulanIndex);
+                    } elseif ($tahun) {
+                        $query->whereYear('tanggal', $tahun);
+                    }
                 }
 
                 $pemasukan = (float) (clone $query)->where('jenis', 'pemasukan')->sum('nominal');
                 $pengeluaran = (float) (clone $query)->where('jenis', 'pengeluaran')->sum('nominal');
-                $saldoAwal = (float) $bk->saldo_cash_awal + (float) $bk->saldo_bank_awal;
+                
+                // Saldo dihitung dari 0, berdasarkan transaksi yang tercatat (otomatis)
+                $saldoAwal = 0;
 
                 return [
                     'id' => $bk->id,
                     'namaKas' => $bk->nama_kas,
+                    'kategori' => $bk->kategori ?? 'Rutin',
+                    'keterangan' => $bk->keterangan,
                     'saldoAwal' => $saldoAwal,
                     'pemasukan' => $pemasukan,
                     'pengeluaran' => $pengeluaran,
-                    'saldoBerjalan' => $saldoAwal + $pemasukan - $pengeluaran,
+                    'saldoBerjalan' => $pemasukan - $pengeluaran,
                 ];
             });
+
+            // Separate by kategori
+            $rutinKas = $perBukuKas->filter(fn($k) => ($k['kategori'] ?? 'Rutin') === 'Rutin');
+            $nonRutinKas = $perBukuKas->filter(fn($k) => ($k['kategori'] ?? 'Rutin') === 'Non Rutin');
 
             return response()->json([
                 'totalPemasukan' => $perBukuKas->sum('pemasukan'),
                 'totalPengeluaran' => $perBukuKas->sum('pengeluaran'),
                 'totalSaldoBerjalan' => $perBukuKas->sum('saldoBerjalan'),
                 'perBukuKas' => $perBukuKas->values(),
+                'rutinKas' => [
+                    'data' => $rutinKas->values(),
+                    'totalPemasukan' => $rutinKas->sum('pemasukan'),
+                    'totalPengeluaran' => $rutinKas->sum('pengeluaran'),
+                    'totalSaldoBerjalan' => $rutinKas->sum('saldoBerjalan'),
+                ],
+                'nonRutinKas' => [
+                    'data' => $nonRutinKas->values(),
+                    'totalPemasukan' => $nonRutinKas->sum('pemasukan'),
+                    'totalPengeluaran' => $nonRutinKas->sum('pengeluaran'),
+                    'totalSaldoBerjalan' => $nonRutinKas->sum('saldoBerjalan'),
+                ],
             ]);
         } catch (\Exception $e) {
             return response()->json([

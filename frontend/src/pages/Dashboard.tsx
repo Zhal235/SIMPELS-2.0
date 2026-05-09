@@ -76,7 +76,7 @@ export default function Dashboard() {
   const kpiFilterTahun = filterMode === 'custom' ? undefined : selectedTahun
 
   const { data: kpi, loading: kpiLoading } = useDashboardKpi(kpiFilterBulan, kpiFilterTahun)
-  const { data: tagihanSummary, loading: summaryLoading } = useTagihanSummary(kpiFilterBulan, kpiFilterTahun)
+  const { dataRutin: tagihanSummaryRutin, dataNonRutin: tagihanSummaryNonRutin, loading: summaryLoading } = useTagihanSummary(kpiFilterBulan, kpiFilterTahun)
   const { data: trend, loading: trendLoading } = useDashboardTrend(kpi?.tahunAjaranAktif?.id)
   const { data: recentPayments, loading: recentLoading } = useRecentPayments()
   const { data: kasKeuangan, loading: kasLoading } = useKasKeuangan(kasParams)
@@ -172,7 +172,7 @@ export default function Dashboard() {
 
       <KpiCards data={kpi} loading={kpiLoading} />
       <KasKeuanganCard data={kasKeuangan} loading={kasLoading} />
-      <TagihanSummaryTable data={tagihanSummary} loading={summaryLoading} />
+      <TagihanSummaryTable dataRutin={tagihanSummaryRutin} dataNonRutin={tagihanSummaryNonRutin} loading={summaryLoading} />
 
       <div className="grid grid-cols-1 gap-6 lg:grid-cols-3">
         <div className="lg:col-span-2">

@@ -21,21 +21,39 @@ export function useDashboardKpi(bulan?: string, tahun?: number) {
 }
 
 export function useTagihanSummary(bulan?: string, tahun?: number) {
-  const [data, setData] = useState<TagihanSummaryItem[]>([])
+  const [dataRutin, setDataRutin] = useState<TagihanSummaryItem[]>([])
+  const [dataNonRutin, setDataNonRutin] = useState<TagihanSummaryItem[]>([])
   const [loading, setLoading] = useState(false)
 
   useEffect(() => {
-    const params = new URLSearchParams()
-    if (bulan) params.set('bulan', bulan)
-    if (tahun) params.set('tahun', String(tahun))
     setLoading(true)
-    apiFetch<{ data: TagihanSummaryItem[] }>(`/dashboard/tagihan-summary?${params}`, 'GET')
-      .then((res) => setData(res.data ?? []))
-      .catch(() => {})
+    
+    // Fetch Rutin (dengan filter bulan/tahun)
+    const rutinParams = new URLSearchParams()
+    rutinParams.set('kategori', 'Rutin')
+    if (bulan) rutinParams.set('bulan', bulan)
+    if (tahun) rutinParams.set('tahun', String(tahun))
+    
+    // Fetch Non-Rutin (tanpa filter bulan/tahun, keseluruhan)
+    const nonRutinParams = new URLSearchParams()
+    nonRutinParams.set('kategori', 'Non Rutin')
+    
+    Promise.all([
+      apiFetch<{ data: TagihanSummaryItem[] }>(`/dashboard/tagihan-summary?${rutinParams}`, 'GET'),
+      apiFetch<{ data: TagihanSummaryItem[] }>(`/dashboard/tagihan-summary?${nonRutinParams}`, 'GET'),
+    ])
+      .then(([resRutin, resNonRutin]) => {
+        setDataRutin(resRutin.data ?? [])
+        setDataNonRutin(resNonRutin.data ?? [])
+      })
+      .catch(() => {
+        setDataRutin([])
+        setDataNonRutin([])
+      })
       .finally(() => setLoading(false))
   }, [bulan, tahun])
 
-  return { data, loading }
+  return { dataRutin, dataNonRutin, loading }
 }
 
 export function useDashboardTrend(tahunAjaranId?: number) {

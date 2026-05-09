@@ -10,6 +10,7 @@ import type { BukuKasItem } from './components/bukuKas.types'
 export default function BukuKas() {
   const [dataBukuKas, setDataBukuKas] = useState<BukuKasItem[]>([])
   const [loading, setLoading] = useState(false)
+  const [saving, setSaving] = useState(false)
   const [showLaporanModal, setShowLaporanModal] = useState(false)
   const [showFormModal, setShowFormModal] = useState(false)
   const [showDeleteModal, setShowDeleteModal] = useState(false)
@@ -46,6 +47,8 @@ export default function BukuKas() {
   }
 
   const handleSave = async (data: any) => {
+    if (saving) return
+    setSaving(true)
     try {
       if (selectedKas) {
         await updateBukuKas(selectedKas.id, data)
@@ -59,6 +62,8 @@ export default function BukuKas() {
       fetchData()
     } catch (error: any) {
       toast.error(error.response?.data?.message || 'Gagal menyimpan data')
+    } finally {
+      setSaving(false)
     }
   }
 
