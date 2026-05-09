@@ -1,3 +1,5 @@
+import { useState, useRef, useEffect } from 'react'
+import { Search, X } from 'lucide-react'
 import type { TagihanSantriRow } from '../../../types/tagihanSantri.types'
 
 interface Props {
@@ -22,26 +24,103 @@ interface Props {
 }
 
 export default function TunggakanRow({ row, idx, dataTagihan, jenisTagihan, loadingJenis, availableBulan, isNominalDisabled, onUpdate, onRemove }: Props) {
+  const [searchTerm, setSearchTerm] = useState('')
+  const [showDropdown, setShowDropdown] = useState(false)
+  const searchRef = useRef<HTMLDivElement>(null)
+
+  // Close dropdown when clicking outside
+  useEffect(() => {
+    const handleClickOutside = (event: MouseEvent) => {
+      if (searchRef.current && !searchRef.current.contains(event.target as Node)) {
+        setShowDropdown(false)
+      }
+    }
+    document.addEventListener('mousedown', handleClickOutside)
+    return () => document.removeEventListener('mousedown', handleClickOutside)
+  }, [])
+
+  const filteredSantri = searchTerm.length >= 2
+    ? dataTagihan.filter(s =>
+        s.santri_nama.toLowerCase().includes(searchTerm.toLowerCase()) ||
+        s.kelas?.toLowerCase().includes(searchTerm.toLowerCase())
+      ).slice(0, 50) // Limit 50 hasil untuk performa
+    : []
+
+  const handleSelectSantri = (index: number) => {
+    onUpdate(row.id, 'santri_index', index)
+    setSearchTerm('')
+    setShowDropdown(false)
+  }
+
+  const handleClearSantri = () => {
+    onUpdate(row.id, 'santri_index', -1)
+    setSearchTerm('')
+  }
+
   return (
     <tr key={`${row.id}-${row.santri_id}`} className="border-b">
       <td className="px-3 py-2 border text-center">{idx + 1}</td>
       <td className="px-3 py-2 border">
-        <div className="space-y-1">
-          <select
-            value={row.santri_index}
-            onChange={(e) => {
-              const index = parseInt(e.target.value, 10)
-              if (!isNaN(index) && index >= 0) onUpdate(row.id, 'santri_index', index)
-            }}
-            className="w-full px-2 py-1 border rounded text-sm"
-          >
-            <option value={-1}>-- Pilih Santri --</option>
-            {dataTagihan.map((s, i) => (
-              <option key={i} value={i}>{s.santri_nama} ({s.kelas})</option>
-            ))}
-          </select>
-          {row.santri_id && row.santri_nama && (
-            <div className="text-xs text-green-600 font-medium">✓ {row.santri_nama} - {row.kelas}</div>
+        <div className="space-y-1 relative" ref={searchRef}>
+          {/* Jika santri sudah dipilih, tampilkan info santri */}
+          {row.santri_id && row.santri_nama ? (
+            <div className="flex items-center gap-2 px-3 py-2 bg-green-50 border border-green-200 rounded text-sm">
+              <div className="flex-1">
+                <div className="font-medium text-green-900">{row.santri_nama}</div>
+                <div className="text-xs text-green-600">{row.kelas}</div>
+              </div>
+              <button
+                onClick={handleClearSantri}
+                className="p-1 hover:bg-green-100 rounded"
+                title="Ganti santri"
+              >
+                <X className="w-4 h-4 text-green-600" />
+              </button>
+            </div>
+          ) : (
+            <>
+              {/* Input search */}
+              <div className="relative">
+                <Search className="absolute left-2 top-1/2 -translate-y-1/2 w-4 h-4 text-gray-400" />
+                <input
+                  type="text"
+                  value={searchTerm}
+                  onChange={(e) => {
+                    setSearchTerm(e.target.value)
+                    setShowDropdown(e.target.value.length >= 2)
+                  }}
+                  onFocus={() => searchTerm.length >= 2 && setShowDropdown(true)}
+                  placeholder="Cari nama santri (min 2 huruf)..."
+                  className="w-full pl-8 pr-3 py-2 border border-gray-300 rounded text-sm focus:ring-2 focus:ring-blue-500 focus:border-transparent"
+                />
+              </div>
+              
+              {/* Dropdown hasil search */}
+              {showDropdown && filteredSantri.length > 0 && (
+                <div className="absolute top-full left-0 right-0 mt-1 bg-white border border-gray-300 rounded shadow-lg max-h-64 overflow-y-auto z-50">
+                  {filteredSantri.map((s, i) => {
+                    const actualIndex = dataTagihan.findIndex(d => d.santri_id === s.santri_id)
+                    return (
+                      <div
+                        key={i}
+                        onClick={() => handleSelectSantri(actualIndex)}
+                        className="px-3 py-2 hover:bg-blue-50 cursor-pointer border-b last:border-b-0 transition-colors"
+                      >
+                        <div className="font-medium text-sm text-gray-900">{s.santri_nama}</div>
+                        <div className="text-xs text-gray-500">{s.kelas}</div>
+                      </div>
+                    )
+                  })}
+                </div>
+              )}
+              
+              {/* Pesan jika tidak ada hasil */}
+              {showDropdown && searchTerm.length >= 2 && filteredSantri.length === 0 && (
+                <div className="absolute top-full left-0 right-0 mt-1 bg-white border border-gray-300 rounded shadow-lg p-3 z-50">
+                  <div className="text-sm text-gray-500 text-center">Santri tidak ditemukan</div>
+                </div>
+              )}
+            </>
           )}
         </div>
       </td>
