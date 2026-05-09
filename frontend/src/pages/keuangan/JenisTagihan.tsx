@@ -82,7 +82,8 @@ export default function JenisTagihan() {
   const ensureSantriLoaded = useCallback(async () => {
     if (santriLoaded) return
     try {
-      const res = await listSantri(1, 1000)
+      // FIX: Hanya load santri dengan status 'aktif' agar konsisten dengan backend
+      const res = await listSantri(1, 1000, { status: 'aktif' })
       setSantriList(res.data || res || [])
       setSantriLoaded(true)
     } catch { toast.error('Gagal memuat data santri') }

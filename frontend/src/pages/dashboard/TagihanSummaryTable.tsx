@@ -3,7 +3,8 @@ import { formatRupiah } from '../../utils/pembayaranHelpers'
 import type { TagihanSummaryItem } from '../../types/dashboard.types'
 
 type Props = {
-  data: TagihanSummaryItem[]
+  dataRutin: TagihanSummaryItem[]
+  dataNonRutin: TagihanSummaryItem[]
   loading: boolean
 }
 
@@ -26,10 +27,10 @@ function ProgressBar({ value }: { value: number }) {
   )
 }
 
-export default function TagihanSummaryTable({ data, loading }: Props) {
+function TagihanTable({ data, loading, title }: { data: TagihanSummaryItem[], loading: boolean, title: string }) {
   if (loading) {
     return (
-      <Card title="Akumulasi Tagihan per Jenis">
+      <Card title={title}>
         <div className="text-center py-10 text-gray-400 text-sm">Memuat data...</div>
       </Card>
     )
@@ -37,16 +38,16 @@ export default function TagihanSummaryTable({ data, loading }: Props) {
 
   if (!data.length) {
     return (
-      <Card title="Akumulasi Tagihan per Jenis">
+      <Card title={title}>
         <div className="text-center py-10 text-gray-400 text-sm">
-          Tidak ada data tagihan untuk filter ini
+          Tidak ada data tagihan {title.toLowerCase()}
         </div>
       </Card>
     )
   }
 
   return (
-    <Card title="Akumulasi Tagihan per Jenis">
+    <Card title={title}>
       <div className="overflow-x-auto -mx-2">
         <table className="w-full text-sm min-w-[720px]">
           <thead>
@@ -106,5 +107,14 @@ export default function TagihanSummaryTable({ data, loading }: Props) {
         </table>
       </div>
     </Card>
+  )
+}
+
+export default function TagihanSummaryTable({ dataRutin, dataNonRutin, loading }: Props) {
+  return (
+    <div className="space-y-6">
+      <TagihanTable data={dataRutin} loading={loading} title="Akumulasi Tagihan Rutin (Sesuai Filter)" />
+      <TagihanTable data={dataNonRutin} loading={loading} title="Akumulasi Tagihan Non-Rutin (Keseluruhan)" />
+    </div>
   )
 }

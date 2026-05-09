@@ -85,12 +85,28 @@ export default function ModalFormTagihan({ onClose, onSave, tagihan, kelasList, 
     if (!jatuhTempo && !tanggalJatuhTempo) { toast.error('Jatuh tempo harus diisi'); return }
     if (!bukuKasId) { toast.error('Buku kas harus dipilih'); return }
     if (tipeNominal === 'sama' && nominalSama <= 0) { toast.error('Nominal harus > 0'); return }
-    if (tipeNominal === 'per_kelas' && !nominalPerKelas.length) { toast.error('Isi nominal per kelas'); return }
-    if (tipeNominal === 'per_individu' && !nominalPerIndividu.length) { toast.error('Pilih santri individu'); return }
+    if (tipeNominal === 'per_kelas') {
+      if (!nominalPerKelas.length) { toast.error('Pilih minimal satu kelas'); return }
+      const kelasKosong = nominalPerKelas.filter(k => k.nominal <= 0)
+      if (kelasKosong.length > 0) { 
+        toast.error(`Nominal untuk kelas ${kelasKosong.map(k => k.kelas).join(', ')} harus > 0`); 
+        return 
+      }
+    }
+    if (tipeNominal === 'per_individu') {
+      if (!nominalPerIndividu.length) { toast.error('Pilih minimal satu santri'); return }
+      const santriKosong = nominalPerIndividu.filter(s => s.nominal <= 0)
+      if (santriKosong.length > 0) {
+        toast.error(`Nominal untuk ${santriKosong.length} santri harus > 0`);
+        return
+      }
+    }
     const data: JenisTagihanItem = { id: 0, namaTagihan, kategori, bulan: bulanTerpilih, tipeNominal, jatuhTempo: kategori === 'Rutin' ? jatuhTempo : tanggalJatuhTempo, bukuKasId: Number(bukuKasId) }
     if (tipeNominal === 'sama') data.nominalSama = nominalSama
     else if (tipeNominal === 'per_kelas') data.nominalPerKelas = nominalPerKelas
     else data.nominalPerIndividu = nominalPerIndividu
+    
+    console.log('📤 Data yang akan dikirim:', JSON.stringify(data, null, 2))
     onSave(data)
   }
 

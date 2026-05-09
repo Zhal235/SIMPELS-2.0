@@ -82,6 +82,12 @@ class JenisTagihanController extends Controller
         // Get Active TA
         $activeTa = \App\Models\TahunAjaran::where('status', 'aktif')->first();
 
+        \Log::info('Create Jenis Tagihan - Request Data', [
+            'bukuKasId' => $request->bukuKasId,
+            'tipeNominal' => $request->tipeNominal,
+            'nominalPerKelas' => $request->nominalPerKelas,
+        ]);
+
         $data = [
             'nama_tagihan' => $request->namaTagihan,
             'kategori' => $request->kategori,
@@ -96,11 +102,18 @@ class JenisTagihanController extends Controller
             $data['nominal_sama'] = $request->nominalSama;
         } elseif ($request->tipeNominal === 'per_kelas') {
             $data['nominal_per_kelas'] = $request->nominalPerKelas;
+            \Log::info('Create Jenis Tagihan - Nominal Per Kelas akan disimpan', $data['nominal_per_kelas']);
         } elseif ($request->tipeNominal === 'per_individu') {
             $data['nominal_per_individu'] = $request->nominalPerIndividu;
         }
 
         $jenisTagihan = JenisTagihan::create($data);
+        
+        \Log::info('Create Jenis Tagihan - Tersimpan', [
+            'id' => $jenisTagihan->id,
+            'buku_kas_id' => $jenisTagihan->buku_kas_id,
+            'nominal_per_kelas_from_db' => $jenisTagihan->nominal_per_kelas,
+        ]);
 
         return response()->json([
             'success' => true,

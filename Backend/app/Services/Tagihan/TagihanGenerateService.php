@@ -90,21 +90,54 @@ class TagihanGenerateService
     private function getSantriByTipeNominal(JenisTagihan $jenisTagihan): array
     {
         if ($jenisTagihan->tipe_nominal === 'sama') {
-            return Santri::all()->map(fn($s) => [
+            // FIX: Hanya santri dengan status 'aktif' yang dapat tagihan
+            $santriList = Santri::where('status', 'aktif')->get()->map(fn($s) => [
                 'santri_id' => $s->id,
                 'nominal' => $jenisTagihan->nominal_sama ?? 0,
             ])->toArray();
+            \Log::info('Generate - Tipe SAMA', ['count' => count($santriList), 'nominal' => $jenisTagihan->nominal_sama]);
+            return $santriList;
         }
 
         if ($jenisTagihan->tipe_nominal === 'per_kelas') {
+            \Log::info('Generate - Tipe PER_KELAS', [
+                'nominal_per_kelas_raw' => $jenisTagihan->nominal_per_kelas,
+                'nominal_per_kelas_count' => count($jenisTagihan->nominal_per_kelas ?? [])
+            ]);
+            
             $list = [];
             foreach ($jenisTagihan->nominal_per_kelas ?? [] as $kelasData) {
                 $namaKelas = $kelasData['kelas'] ?? null;
+                \Log::info('Generate - Processing Kelas', ['kelas' => $namaKelas, 'nominal' => $kelasData['nominal'] ?? 0]);
+                
                 if (!$namaKelas) continue;
-                Santri::whereHas('kelas', fn($q) => $q->where('nama_kelas', $namaKelas))
-                    ->get()
-                    ->each(fn($s) => $list[] = ['santri_id' => $s->id, 'nominal' => $kelasData['nominal'] ?? 0]);
+                
+                // FIX: Cari santri berdasarkan kelas_nama langsung (lebih reliable)
+                // karena tidak semua santri punya kelas_id yang valid
+                // HANYA santri dengan status 'aktif'
+                $santriInKelas = Santri::where('kelas_nama', $namaKelas)
+                    ->where('status', 'aktif')
+                    ->get();
+                
+                // Fallback: jika tidak ada, coba lewat relasi kelas
+                if ($santriInKelas->isEmpty()) {
+                    $santriInKelas = Santri::whereHas('kelas', fn($q) => $q->where('nama_kelas', $namaKelas))
+                        ->where('status', 'aktif')
+                        ->get();
+                }
+                
+                \Log::info('Generate - Santri Found', ['kelas' => $namaKelas, 'count' => $santriInKelas->count()]);
+                
+                // FIX: Gunakan foreach biasa, bukan each() yang tidak return nilai
+                foreach ($santriInKelas as $s) {
+                    $list[] = [
+                        'santri_id' => $s->id, 
+                        'nominal' => $kelasData['nominal'] ?? 0
+                    ];
+                }
             }
+            
+            \Log::info('Generate - Total Santri Per Kelas', ['total' => count($list)]);
             return $list;
         }
 
@@ -112,8 +145,17 @@ class TagihanGenerateService
             $list = [];
             foreach ($jenisTagihan->nominal_per_individu ?? [] as $item) {
                 if (empty($item['santriId'])) continue;
-                $list[] = ['santri_id' => $item['santriId'], 'nominal' => $item['nominal'] ?? 0];
+                
+                // FIX: Validasi bahwa santri aktif
+                $santri = Santri::where('id', $item['santriId'])
+                    ->where('status', 'aktif')
+                    ->first();
+                    
+                if ($santri) {
+                    $list[] = ['santri_id' => $item['santriId'], 'nominal' => $item['nominal'] ?? 0];
+                }
             }
+            \Log::info('Generate - Tipe PER_INDIVIDU', ['count' => count($list)]);
             return $list;
         }
 

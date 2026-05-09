@@ -17,6 +17,8 @@ class ReportsController extends Controller
         $start = $request->query('start');
         $end = $request->query('end');
 
+        \Log::info('📊 Reports Summary Request', ['start' => $start, 'end' => $end]);
+
         $pembayaranQuery = Pembayaran::query();
         $transaksiQuery = TransaksiKas::query();
 

@@ -117,8 +117,8 @@ class BukuKasController extends Controller
     {
         $validator = Validator::make($request->all(), [
             'nama_kas' => 'required|string|max:255',
-            'saldo_cash_awal' => 'nullable|numeric|min:0',
-            'saldo_bank_awal' => 'nullable|numeric|min:0',
+            'kategori' => 'nullable|in:Rutin,Non Rutin',
+            'keterangan' => 'nullable|string|max:500',
         ]);
 
         if ($validator->fails()) {
@@ -131,8 +131,8 @@ class BukuKasController extends Controller
 
         $bukuKas = BukuKas::create([
             'nama_kas' => $request->nama_kas,
-            'saldo_cash_awal' => $request->saldo_cash_awal ?? 0,
-            'saldo_bank_awal' => $request->saldo_bank_awal ?? 0,
+            'kategori' => $request->kategori ?? 'Rutin',
+            'keterangan' => $request->keterangan,
         ]);
 
         return response()->json([
@@ -194,8 +194,8 @@ class BukuKasController extends Controller
 
         $validator = Validator::make($request->all(), [
             'nama_kas' => 'required|string|max:255',
-            'saldo_cash_awal' => 'nullable|numeric|min:0',
-            'saldo_bank_awal' => 'nullable|numeric|min:0',
+            'kategori' => 'nullable|in:Rutin,Non Rutin',
+            'keterangan' => 'nullable|string|max:500',
         ]);
 
         if ($validator->fails()) {
@@ -208,8 +208,8 @@ class BukuKasController extends Controller
 
         $bukuKas->update([
             'nama_kas' => $request->nama_kas,
-            'saldo_cash_awal' => $request->saldo_cash_awal ?? 0,
-            'saldo_bank_awal' => $request->saldo_bank_awal ?? 0,
+            'kategori' => $request->kategori ?? $bukuKas->kategori ?? 'Rutin',
+            'keterangan' => $request->keterangan,
         ]);
 
         return response()->json([

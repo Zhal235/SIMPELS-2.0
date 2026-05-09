@@ -71,19 +71,22 @@ export default function LaporanDashboard() {
 
   const getDateRange = () => {
     const now = new Date()
-    let start = new Date()
-    let end = new Date()
+    let start: Date
+    let end: Date
 
     switch (period) {
       case 'today':
-        start = new Date(now.setHours(0, 0, 0, 0))
-        end = new Date(now.setHours(23, 59, 59, 999))
+        start = new Date(now.getFullYear(), now.getMonth(), now.getDate())
+        end = new Date(now.getFullYear(), now.getMonth(), now.getDate())
         break
       case 'week':
-        start = new Date(now.setDate(now.getDate() - 7))
+        const weekAgo = new Date(now.getTime() - 7 * 24 * 60 * 60 * 1000)
+        start = weekAgo
+        end = now
         break
       case 'month':
         start = new Date(now.getFullYear(), now.getMonth(), 1)
+        end = new Date(now.getFullYear(), now.getMonth() + 1, 0)
         break
       case 'custom':
         if (startDate && endDate) {
@@ -95,9 +98,17 @@ export default function LaporanDashboard() {
         return null
     }
 
+    // Format to YYYY-MM-DD without timezone conversion
+    const formatDate = (date: Date) => {
+      const year = date.getFullYear()
+      const month = String(date.getMonth() + 1).padStart(2, '0')
+      const day = String(date.getDate()).padStart(2, '0')
+      return `${year}-${month}-${day}`
+    }
+
     return {
-      start: start.toISOString().split('T')[0],
-      end: end.toISOString().split('T')[0]
+      start: formatDate(start),
+      end: formatDate(end)
     }
   }
 
@@ -105,6 +116,7 @@ export default function LaporanDashboard() {
     const range = getDateRange()
     if (!range) return
 
+    console.log('🔍 DEBUG - Fetching summary with range:', range)
     setLoading(true)
     try {
       const response = await api.get('/v1/keuangan/reports/summary', {
@@ -113,6 +125,7 @@ export default function LaporanDashboard() {
           end: range.end
         }
       })
+      console.log('📊 DEBUG - Summary response:', response.data.data)
       setSummary(response.data.data)
 
       const [expRes, transaksiRes] = await Promise.all([
