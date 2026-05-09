@@ -82,13 +82,35 @@ class SimpleMobileApp extends StatelessWidget {
               builder: (context) => const ChangePasswordScreen(),
             );
           }
+          if (settings.name == '/single-payment') {
+            final tagihan = settings.arguments as Map<String, dynamic>?;
+            if (tagihan != null) {
+              return MaterialPageRoute(
+                builder: (context) => PaymentInfoScreen(
+                  tagihan: tagihan,
+                  isTopupOnly: false,
+                ),
+              );
+            }
+          }
+          if (settings.name == '/multiple-payment') {
+            final selectedTagihan = settings.arguments as List<dynamic>?;
+            if (selectedTagihan != null && selectedTagihan.isNotEmpty) {
+              return MaterialPageRoute(
+                builder: (context) => MultiplePaymentInfoScreen(
+                  selectedTagihan: selectedTagihan
+                      .map((e) => Map<String, dynamic>.from(e as Map))
+                      .toList(),
+                ),
+              );
+            }
+          }
           if (settings.name == '/unified-payment') {
             final args = settings.arguments as Map<String, dynamic>?;
             if (args != null) {
               final isMultiple = args['isMultiplePayment'] as bool? ?? false;
               
               if (isMultiple) {
-                // Multiple payment - handle as batch
                 return MaterialPageRoute(
                   builder: (context) => UnifiedPaymentScreen(
                     isMultiplePayment: true,
