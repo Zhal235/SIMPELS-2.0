@@ -49,6 +49,44 @@ class WaMessageService
 
         return $log;
     }
+    /**
+     * Send kebutuhan order notification to wali
+     * 
+     * @param string $phone Wali phone number  
+     * @param array $data Order data (santri_name, total_amount, items_preview, expired_at, order_number, pwa_url)
+     * @return WaMessageLog
+     */
+    public function sendKebutuhanOrderNotification(string $phone, array $data): WaMessageLog
+    {
+        $phone = $this->normalizePhonenumber($phone);
+        
+        // Count items from preview
+        $itemCount = substr_count($data['items_preview'], "\n") + 1;
+        
+        $messageBody = $this->renderTemplate('kebutuhan_order', [
+            'nama_santri' => $data['santri_name'],
+            'jumlah_item' => $itemCount,
+            'total' => $data['total_amount'],
+            'daftar_barang' => $data['items_preview'],
+            'nomor_pesanan' => $data['order_number'],
+            'batas_konfirmasi' => $data['expired_at'],
+            'link_pwa' => $data['pwa_url'],
+        ]);
+
+        $log = WaMessageLog::create([
+            'recipient_type' => 'wali',
+            'recipient_id'   => $data['santri_id'] ?? null,
+            'phone'          => $phone,
+            'message_type'   => 'kebutuhan_order',
+            'message_body'   => $messageBody,
+            'status'         => 'pending',
+        ]);
+
+        SendWaMessageJob::dispatch($log)->onQueue('default');
+
+        return $log;
+    }
+
 
     public function blastToAllWali(string $messageType, string $messageBody): Collection
     {
