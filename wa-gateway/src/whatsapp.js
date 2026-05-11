@@ -80,6 +80,22 @@ const client = new Client({
     restartOnAuthFail: false,
 });
 
+
+// Error handler - harus ada untuk catch error saat initialization
+client.on('error', (err) => {
+    console.error('[WA] Client error:', err);
+});
+
+// Loading screen - untuk debugging initialization
+client.on('loading_screen', (percent, message) => {
+    console.log(`[WA] Loading: ${percent}% - ${message}`);
+});
+
+// Change state - untuk debugging state transitions
+client.on('change_state', (state) => {
+    console.log(`[WA] State changed to: ${state}`);
+});
+
 client.on('qr', async (qr) => {
     state.status = 'waiting_scan';
     state.qrDataUrl = await qrcode.toDataURL(qr);
