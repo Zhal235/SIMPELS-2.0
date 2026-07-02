@@ -41,17 +41,24 @@ class PindahTahunAjaranController extends Controller
     public function graduate(Request $request)
     {
         $tingkatAkhir = 12;
+        $validated = $request->validate([
+            'tanggal_kelulusan' => ['required', 'date'],
+        ]);
+        $tanggalKelulusan = $validated['tanggal_kelulusan'];
 
         try {
             DB::beginTransaction();
 
             $updated = Santri::whereHas('kelas', function ($q) use ($tingkatAkhir) {
                 $q->where('tingkat', $tingkatAkhir);
-            })->where('status', 'aktif')->update([
-                'status' => 'alumni',
-                'kelas_id' => null, // Lepas dari kelas
-                'kelas_nama' => null
-            ]);
+            })->where('status', 'aktif')->get()->each(function ($santri) use ($tanggalKelulusan) {
+                $santri->update([
+                    'status' => 'alumni',
+                    'tanggal_keluar' => $tanggalKelulusan,
+                    'kelas_nama' => $santri->kelas?->nama_kelas ?? $santri->kelas_nama,
+                    'kelas_id' => null,
+                ]);
+            })->count();
 
             DB::commit();
 
@@ -75,13 +82,18 @@ class PindahTahunAjaranController extends Controller
      */
     public function previewNaikKelas()
     {
-        // Ambil semua kelas kecuali tingkat akhir
-        $sourceClasses = Kelas::where('tingkat', '<', 12)->orderBy('tingkat')->orderBy('nama_kelas')->get();
+        $sourceClasses = Kelas::where('tingkat', '<', 12)
+            ->whereHas('santri', function ($q) {
+                $q->where('status', 'aktif');
+            })
+            ->orderBy('tingkat')
+            ->orderBy('nama_kelas')
+            ->get();
         $mapping = [];
 
         foreach ($sourceClasses as $kelas) {
-            $targetName = $this->generateTargetClassName($kelas->nama_kelas, $kelas->tingkat);
             $targetTingkat = $kelas->tingkat + 1;
+            $targetName = $this->resolveSuggestedTargetClassName($kelas->nama_kelas, $kelas->tingkat, $targetTingkat);
             
             // Cek apakah kelas target sudah ada
             $existingTarget = Kelas::where('nama_kelas', $targetName)->where('tingkat', $targetTingkat)->first();
@@ -96,6 +108,11 @@ class PindahTahunAjaranController extends Controller
                 'target_tingkat' => $targetTingkat,
                 'target_exists' => (bool) $existingTarget,
                 'target_id' => $existingTarget ? $existingTarget->id : null,
+                'target_options' => Kelas::where('tingkat', $targetTingkat)
+                    ->orderBy('nama_kelas')
+                    ->get(['id', 'nama_kelas'])
+                    ->map(fn ($item) => ['id' => $item->id, 'nama_kelas' => $item->nama_kelas])
+                    ->values(),
                 'jumlah_santri' => $santriCount
             ];
         }
@@ -124,34 +141,81 @@ class PindahTahunAjaranController extends Controller
             $movedCount = 0;
             $createdClasses = 0;
 
-            foreach ($mappings as $map) {
-                if (empty($map['target_nama'])) continue;
+            // PASS 1: Snapshot santri IDs per source class BEFORE any update.
+            // This prevents cascade where a student promoted to class B gets
+            // promoted again when class B is processed in the same loop.
+            $snapshotBySantriIds = [];
+            $resolvedTargets = [];
 
-                // Cari atau buat kelas target
-                // Gunakan firstOrCreate agar tidak duplikat
-                $targetKelas = Kelas::firstOrCreate(
-                    [
-                        'nama_kelas' => $map['target_nama'],
-                        'tingkat' => $map['target_tingkat']
-                    ],
-                    [
-                        // Default values for new class
-                        'wali_kelas_id' => null 
-                    ]
-                );
+            foreach ($mappings as $map) {
+                if (empty($map['source_id'])) {
+                    continue;
+                }
+
+                $sourceKelas = Kelas::find($map['source_id']);
+                if (!$sourceKelas) {
+                    continue;
+                }
+
+                $expectedTargetTingkat = (int) $sourceKelas->tingkat + 1;
+
+                $targetKelas = null;
+
+                if (!empty($map['target_id'])) {
+                    $targetKelas = Kelas::where('id', $map['target_id'])
+                        ->where('tingkat', $expectedTargetTingkat)
+                        ->first();
+                }
+
+                if (!$targetKelas) {
+                    if (empty($map['target_nama'])) {
+                        continue;
+                    }
+
+                    $targetKelas = Kelas::firstOrCreate(
+                        [
+                            'nama_kelas' => $map['target_nama'],
+                            'tingkat' => $expectedTargetTingkat
+                        ],
+                        [
+                            'wali_kelas_id' => null
+                        ]
+                    );
+                }
+
+                if ((int) $targetKelas->tingkat !== $expectedTargetTingkat) {
+                    throw new \RuntimeException("Kelas tujuan {$targetKelas->nama_kelas} tidak sesuai tingkat target untuk kelas {$sourceKelas->nama_kelas}");
+                }
 
                 if ($targetKelas->wasRecentlyCreated) {
                     $createdClasses++;
                 }
 
-                // Pindahkan santri
-                $affected = Santri::where('kelas_id', $map['source_id'])
+                // Snapshot santri di kelas sumber saat ini, sebelum ada yang dipindah
+                $santriIds = Santri::where('kelas_id', $map['source_id'])
+                    ->where('status', 'aktif')
+                    ->pluck('id')
+                    ->all();
+
+                $snapshotBySantriIds[$map['source_id']] = $santriIds;
+                $resolvedTargets[$map['source_id']] = $targetKelas;
+            }
+
+            // PASS 2: Apply promotions using the snapshots, not live queries.
+            foreach ($snapshotBySantriIds as $sourceId => $santriIds) {
+                if (empty($santriIds)) {
+                    continue;
+                }
+
+                $targetKelas = $resolvedTargets[$sourceId];
+
+                $affected = Santri::whereIn('id', $santriIds)
                     ->where('status', 'aktif')
                     ->update([
                         'kelas_id' => $targetKelas->id,
                         'kelas_nama' => $targetKelas->nama_kelas
                     ]);
-                
+
                 $movedCount += $affected;
             }
 
@@ -178,15 +242,20 @@ class PindahTahunAjaranController extends Controller
      */
     private function generateTargetClassName($name, $tingkat)
     {
-        // Pola 1: Angka (7A -> 8A)
         $nextTingkat = $tingkat + 1;
-        
-        // Cek apakah nama dimulai dengan angka tingkat lama (misal "7")
-        if (Str::startsWith($name, (string)$tingkat)) {
-            return Str::replaceFirst((string)$tingkat, (string)$nextTingkat, $name);
+        $normalized = trim((string) $name);
+
+        if ($normalized === '') {
+            return (string) $nextTingkat;
         }
 
-        // Pola 2: Romawi (VII -> VIII)
+        if (preg_match('/^(\d+)(.*)$/', $normalized, $matches)) {
+            $prefixNum = (int) $matches[1];
+            if ($prefixNum === (int) $tingkat) {
+                return $nextTingkat . $matches[2];
+            }
+        }
+
         $romawiMap = [
             1 => 'I', 2 => 'II', 3 => 'III', 4 => 'IV', 5 => 'V',
             6 => 'VI', 7 => 'VII', 8 => 'VIII', 9 => 'IX', 10 => 'X',
@@ -196,21 +265,44 @@ class PindahTahunAjaranController extends Controller
         $currentRomawi = $romawiMap[$tingkat] ?? '';
         $nextRomawi = $romawiMap[$nextTingkat] ?? '';
 
-        if ($currentRomawi && $nextRomawi && Str::contains($name, $currentRomawi)) {
-             // Hati-hati replace: VII (7) is substring of VIII (8). 
-             // Tapi kita mau replace 7 -> 8.
-             // Kalau nama "VIIA" (7), next "VIIIA" (8).
-             // Kalau replace "VII" dengan "VIII", aman.
-             // Kalau 8 (VIII) ke 9 (IX), aman.
-             // Isu: VI (6) ke VII (7). "VI" is substring of "VII".
-             
-             // Solusi: Gunakan preg_replace dengan word boundary atau specific prefix match
-             // Asumsi format standar: "VII A" atau "VII-A" atau "VIIA"
-             
-             return preg_replace('/^' . $currentRomawi . '/', $nextRomawi, $name, 1);
+        if ($currentRomawi && $nextRomawi) {
+            $escaped = preg_quote($currentRomawi, '/');
+            if (preg_match('/^' . $escaped . '(\b|\s|\-|$)/i', $normalized)) {
+                return preg_replace('/^' . $escaped . '/i', $nextRomawi, $normalized, 1);
+            }
+
+            if (preg_match('/^(Kelas\s+)' . $escaped . '(\b|\s|\-|$)/i', $normalized)) {
+                return preg_replace('/^(Kelas\s+)' . $escaped . '/i', '${1}' . $nextRomawi, $normalized, 1);
+            }
         }
 
-        // Fallback: Just append suffix or use standard naming if pattern not recognized
-        return $nextTingkat . ' ' . $name; // Likely wrong but safe
+        return $nextTingkat . ' ' . $normalized;
+    }
+
+    private function resolveSuggestedTargetClassName(string $sourceName, int $sourceTingkat, int $targetTingkat): string
+    {
+        $targetCandidates = Kelas::where('tingkat', $targetTingkat)
+            ->orderBy('nama_kelas')
+            ->pluck('nama_kelas')
+            ->values();
+
+        if ($targetCandidates->count() === 1) {
+            return (string) $targetCandidates->first();
+        }
+
+        $generated = $this->generateTargetClassName($sourceName, $sourceTingkat);
+
+        $suffix = trim(preg_replace('/^(\d+|[IVXLCDM]+)\s*/i', '', $sourceName) ?? '');
+        if ($suffix !== '') {
+            $matched = $targetCandidates->first(function ($candidate) use ($suffix) {
+                return str_ends_with(trim((string) $candidate), $suffix);
+            });
+
+            if ($matched) {
+                return (string) $matched;
+            }
+        }
+
+        return $generated;
     }
 }

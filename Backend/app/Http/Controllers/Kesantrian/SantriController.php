@@ -23,6 +23,12 @@ class SantriController extends Controller
         try {
             return response()->json($this->crudService->getList($request));
         } catch (Throwable $e) {
+            \Log::error('SantriController index error', [
+                'message' => $e->getMessage(),
+                'trace' => $e->getTraceAsString(),
+                'query' => $request->query(),
+                'user_id' => optional($request->user())->id,
+            ]);
             return response()->json(['status' => 'error', 'message' => 'Gagal memuat data santri'], 500);
         }
     }

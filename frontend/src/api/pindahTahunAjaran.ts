@@ -10,6 +10,11 @@ export async function processGraduation() {
   return res.data
 }
 
+export async function processGraduationWithDate(payload: { tanggal_kelulusan: string }) {
+  const res = await api.post('/v1/akademik/transition/graduate', payload)
+  return res.data
+}
+
 export async function getPromotionPreview() {
   const res = await api.get('/v1/akademik/transition/promotion-preview')
   return res.data

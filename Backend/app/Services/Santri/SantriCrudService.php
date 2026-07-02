@@ -42,7 +42,16 @@ class SantriCrudService
         }
 
         if ($request->filled('status')) {
-            $query->where('status', $request->input('status'));
+            $statusFilter = collect(explode(',', (string) $request->input('status')))
+                ->map(fn ($status) => trim($status))
+                ->filter()
+                ->values();
+
+            if ($statusFilter->count() > 1) {
+                $query->whereIn('status', $statusFilter->all());
+            } elseif ($statusFilter->count() === 1) {
+                $query->where('status', $statusFilter->first());
+            }
         }
 
         if ($request->boolean('withoutAsrama')) {

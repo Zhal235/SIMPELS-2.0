@@ -1,7 +1,6 @@
 import { useState, useEffect } from 'react'
-import { Search, Download, Eye, Calendar, Users, TrendingUp } from 'lucide-react'
+import { Search, Download, Users, TrendingUp } from 'lucide-react'
 import { listSantri } from '../../api/santri'
-import { listTagihanBySantri } from '../../api/tagihanSantri'
 import toast from 'react-hot-toast'
 
 interface SantriAlumni {
@@ -36,14 +35,11 @@ export default function Alumni() {
   const fetchAlumni = async () => {
     setLoading(true)
     try {
-      const res = await listSantri(1, 10000)
+      const res = await listSantri(1, 10000, { status: 'alumni,lulus' })
       const allSantri = res.data || []
-      
-      // Filter santri yang statusnya alumni atau lulus
-      const alumni = allSantri.filter((s: any) => 
-        s.status === 'alumni' || s.status === 'lulus'
-      )
-      
+
+      const alumni = allSantri.filter((s: any) => s.status === 'alumni' || s.status === 'lulus')
+
       setAlumniList(alumni)
       setFilteredAlumni(alumni)
     } catch (error) {
@@ -70,7 +66,7 @@ export default function Alumni() {
     // Filter by year (extract from tanggal_keluar)
     if (selectedYear !== 'all') {
       filtered = filtered.filter(a => {
-        const year = a.tanggal_keluar ? new Date(a.tanggal_keluar).getFullYear().toString() : ''
+        const year = a.tahun_lulus || (a.tanggal_keluar ? new Date(a.tanggal_keluar).getFullYear().toString() : '')
         return year === selectedYear
       })
     }
@@ -86,7 +82,7 @@ export default function Alumni() {
   // Get unique years from tanggal_keluar
   const getUniqueYears = () => {
     const years = alumniList
-      .map(a => a.tanggal_keluar ? new Date(a.tanggal_keluar).getFullYear() : null)
+      .map(a => a.tahun_lulus ? Number(a.tahun_lulus) : (a.tanggal_keluar ? new Date(a.tanggal_keluar).getFullYear() : null))
       .filter(y => y !== null) as number[]
     return Array.from(new Set(years)).sort((a, b) => b - a)
   }
@@ -279,9 +275,7 @@ export default function Alumni() {
                       {alumni.kelas_nama || '-'}
                     </td>
                     <td className="px-6 py-4 whitespace-nowrap text-sm text-gray-600">
-                      {alumni.tanggal_keluar 
-                        ? new Date(alumni.tanggal_keluar).getFullYear()
-                        : '-'}
+                        {alumni.tahun_lulus || (alumni.tanggal_keluar ? new Date(alumni.tanggal_keluar).getFullYear() : '-')}
                     </td>
                     <td className="px-6 py-4 whitespace-nowrap">
                       <span className="px-2 py-1 text-xs font-medium rounded-full bg-green-100 text-green-800">

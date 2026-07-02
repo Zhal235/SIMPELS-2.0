@@ -3,6 +3,7 @@
 namespace App\Http\Resources;
 
 use Illuminate\Http\Resources\Json\JsonResource;
+use Illuminate\Support\Facades\Storage;
 
 class SantriResource extends JsonResource
 {
@@ -11,6 +12,8 @@ class SantriResource extends JsonResource
      */
     public function toArray($request): array
     {
+        $wallet = $this->wallet;
+
         return [
             'id' => $this->id,
             'nis' => $this->nis,
@@ -21,9 +24,11 @@ class SantriResource extends JsonResource
             'tanggal_lahir' => $this->tanggal_lahir,
             'jenis_kelamin' => $this->jenis_kelamin,
             'status' => $this->status,
+            'tanggal_keluar' => $this->tanggal_keluar,
+            'tahun_lulus' => $this->tanggal_keluar ? date('Y', strtotime($this->tanggal_keluar)) : null,
             'kelas_id' => $this->kelas_id,
-            'kelas' => $this->kelas?->nama_kelas,
-            'kelas_nama' => $this->kelas?->nama_kelas, // Alias for frontend compatibility
+            'kelas' => $this->kelas?->nama_kelas ?? $this->kelas_nama,
+            'kelas_nama' => $this->kelas?->nama_kelas ?? $this->kelas_nama,
             'asrama_id' => $this->asrama_id,
             'asrama' => $this->asrama?->nama_asrama,
             'asrama_nama' => $this->asrama?->nama_asrama, // Alias for frontend compatibility
@@ -49,7 +54,7 @@ class SantriResource extends JsonResource
             'pekerjaan_ibu' => $this->pekerjaan_ibu,
             'hp_ibu' => $this->hp_ibu,
             'jenis_penerimaan' => $this->jenis_penerimaan,
-            'foto' => $this->foto ? \Illuminate\Support\Facades\Storage::disk('r2')->url($this->foto) : null,
+            'foto' => $this->resolveFotoUrl(),
             'created_at' => $this->created_at?->format('Y-m-d H:i:s'),
             // RFID tag information
             'rfid_tag' => $this->rfid_tag ? [
@@ -59,9 +64,9 @@ class SantriResource extends JsonResource
             ] : null,
             'rfid_uid' => $this->rfid_tag?->uid,
             // Wallet information
-            'wallet' => ($this->wallet && $this->wallet->is_active) ? [
-                'id' => $this->wallet->id,
-                'balance' => $this->wallet->balance,
+            'wallet' => ($wallet && (bool) ($wallet->is_active ?? false)) ? [
+                'id' => $wallet->id,
+                'balance' => $wallet->balance,
             ] : null,
             // keep a nested object for backward/alternate shapes used by some frontends
             'orang_tua' => [
@@ -78,5 +83,22 @@ class SantriResource extends JsonResource
                 'hp_ibu' => $this->hp_ibu,
             ],
         ];
+    }
+
+    private function resolveFotoUrl(): ?string
+    {
+        if (!$this->foto) {
+            return null;
+        }
+
+        try {
+            return Storage::disk('r2')->url($this->foto);
+        } catch (\Throwable $e) {
+            try {
+                return Storage::url($this->foto);
+            } catch (\Throwable $inner) {
+                return null;
+            }
+        }
     }
 }

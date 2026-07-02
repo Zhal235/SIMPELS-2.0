@@ -1,15 +1,15 @@
 import { useState, useEffect } from 'react'
 import api from '../../api/index'
 import { Download, Printer, AlertTriangle, Clock, Search, GraduationCap } from 'lucide-react'
+import { listSantri } from '../../api/santri'
 
 interface TunggakanSantri {
   santri_id: string
   santri: {
     nama_santri: string
     nis: string
-    kelas?: {
-      nama_kelas: string
-    }
+    kelas?: string
+    kelas_nama?: string
     asrama?: {
       nama_asrama: string
     }
@@ -51,55 +51,44 @@ export default function TunggakanAlumni() {
   const fetchTunggakan = async () => {
     setLoading(true)
     try {
-      // Fetch semua santri dengan perPage yang besar untuk mendapatkan semua data
-      const santriResponse = await api.get('/v1/kesantrian/santri', {
-        params: { perPage: 1000 }
-      })
-      const allSantri = santriResponse.data.data || []
-      
-      // Filter santri yang statusnya alumni
-      const santriAlumni = allSantri.filter((s: any) => s.status === 'alumni' || s.status === 'lulus')
-      
-      // Fetch semua tagihan
-      const tagihanResponse = await api.get('/v1/keuangan/tagihan-santri')
-      const tagihanData = tagihanResponse.data.data || []
+      const [santriResponse, tagihanResponse] = await Promise.all([
+        listSantri(1, 10000, { status: 'alumni,lulus' }),
+        api.get('/v1/keuangan/tagihan-santri')
+      ])
+
+      const santriAlumni = santriResponse.data || []
+      const tagihanData: any[] = tagihanResponse.data.data || []
+      const tagihanBySantri = new Map<string, any>(tagihanData.map((item: any) => [String(item.santri_id), item]))
       
       const today = new Date()
       const groupedBySantri: { [key: string]: TunggakanSantri } = {}
 
-      // Loop through santri alumni
       santriAlumni.forEach((santri: any) => {
-        // Find tagihan for this santri
-        const santriTagihan = tagihanData.find((t: any) => t.santri_id === santri.id)
+        const santriTagihan = tagihanBySantri.get(String(santri.id))
         
         if (!santriTagihan || !santriTagihan.detail_tagihan) return
-        
-        // Filter tagihan yang belum lunas dan sudah jatuh tempo
+
         const tunggakan = santriTagihan.detail_tagihan.filter((t: any) => {
           const sisa = parseFloat(t.sisa || 0)
           if (sisa <= 0 || t.status === 'lunas') return false
-          
-          // Parse jatuh tempo - handle format yang berbeda
+
           let jatuhTempo: Date
           if (t.jatuh_tempo && t.jatuh_tempo !== 'Tanggal 10 setiap bulan') {
             jatuhTempo = new Date(t.jatuh_tempo)
           } else {
-            // Jika jatuh tempo tidak valid, buat berdasarkan bulan/tahun + tanggal 10
             const bulanMap: any = {
               'Januari': 0, 'Februari': 1, 'Maret': 2, 'April': 3,
               'Mei': 4, 'Juni': 5, 'Juli': 6, 'Agustus': 7,
               'September': 8, 'Oktober': 9, 'November': 10, 'Desember': 11
             }
-            
-            // Parse bulan dari string seperti "Juli 2025"
+
             const bulanParts = t.bulan?.split(' ') || []
             const bulanNama = bulanParts[0]
             const tahun = t.tahun || parseInt(bulanParts[1]) || new Date().getFullYear()
             const bulanNum = bulanMap[bulanNama] ?? 0
-            
             jatuhTempo = new Date(tahun, bulanNum, 10)
           }
-          
+
           return jatuhTempo < today
         })
 
@@ -109,7 +98,6 @@ export default function TunggakanAlumni() {
         let tagihanTertua = tunggakan[0].jatuh_tempo
         
         const tagihanWithAge = tunggakan.map((t: any) => {
-          // Parse jatuh tempo dengan logic yang sama
           let jatuhTempo: Date
           if (t.jatuh_tempo && t.jatuh_tempo !== 'Tanggal 10 setiap bulan') {
             jatuhTempo = new Date(t.jatuh_tempo)
@@ -146,7 +134,8 @@ export default function TunggakanAlumni() {
           santri: {
             nama_santri: santri.nama_santri,
             nis: santri.nis,
-            kelas: santri.kelas,
+            kelas: santri.kelas_nama || santri.kelas,
+            kelas_nama: santri.kelas_nama || santri.kelas,
             asrama: santri.asrama,
             status: santri.status
           },
@@ -159,7 +148,6 @@ export default function TunggakanAlumni() {
 
       let result = Object.values(groupedBySantri)
 
-      // Sort
       if (sortBy === 'total') {
         result.sort((a, b) => b.total_tunggakan - a.total_tunggakan)
       } else if (sortBy === 'tertua') {
@@ -209,8 +197,16 @@ export default function TunggakanAlumni() {
     return (
       item.santri.nama_santri.toLowerCase().includes(query) ||
       item.santri.nis.toLowerCase().includes(query) ||
-      item.santri.kelas?.nama_kelas?.toLowerCase().includes(query)
+      item.santri.kelas_nama?.toLowerCase().includes(query)
     )
+  }).sort((a, b) => {
+    if (sortBy === 'nama') {
+      return a.santri.nama_santri.localeCompare(b.santri.nama_santri)
+    }
+    if (sortBy === 'tertua') {
+      return new Date(a.tagihan_tertua).getTime() - new Date(b.tagihan_tertua).getTime()
+    }
+    return b.total_tunggakan - a.total_tunggakan
   })
 
   return (
@@ -339,7 +335,7 @@ export default function TunggakanAlumni() {
                       <div className="text-xs text-gray-500">NIS: {item.santri.nis}</div>
                     </td>
                     <td className="px-6 py-4 text-sm text-gray-900">
-                      {item.santri.kelas?.nama_kelas || '-'}
+                      {item.santri.kelas_nama || item.santri.kelas || '-'}
                     </td>
                     <td className="px-6 py-4">
                       <span className="px-2 py-1 text-xs font-medium rounded-full bg-blue-100 text-blue-800">
