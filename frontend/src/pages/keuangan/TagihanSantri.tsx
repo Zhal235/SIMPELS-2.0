@@ -8,6 +8,7 @@ import { formatRupiah } from '../../utils/pembayaranHelpers'
 import ModalDetailTagihan from './components/ModalDetailTagihan'
 import ModalTambahTunggakan from './components/ModalTambahTunggakan'
 import ModalEditNominal from './components/ModalEditNominal'
+import ModalBulkDeleteTagihan from './components/ModalBulkDeleteTagihan'
 
 export default function TagihanSantri() {
   const [dataTagihan, setDataTagihan] = useState<TagihanSantriRow[]>([])
@@ -16,9 +17,12 @@ export default function TagihanSantri() {
   const [showDetailModal, setShowDetailModal] = useState(false)
   const [showTunggakanModal, setShowTunggakanModal] = useState(false)
   const [showEditModal, setShowEditModal] = useState(false)
+  const [showBulkDeleteModal, setShowBulkDeleteModal] = useState(false)
   const [selectedSantri, setSelectedSantri] = useState<TagihanSantriRow | null>(null)
   const [currentPage, setCurrentPage] = useState(1)
   const PAGE_SIZE = 25
+  const canEditTagihan = hasAccess('keuangan.tagihan.edit')
+  const canDeleteTagihan = hasAccess('keuangan.tagihan.delete')
 
   const fetchData = async () => {
     try {
@@ -50,14 +54,23 @@ export default function TagihanSantri() {
           <h1 className="text-3xl font-bold text-gray-900">Tagihan Santri</h1>
           <p className="text-gray-600 mt-1">Daftar rekap tagihan per santri</p>
         </div>
-        {hasAccess('keuangan.tagihan.edit') && (
+        {(canEditTagihan || canDeleteTagihan) && (
           <div className="flex gap-2">
-            <button onClick={() => setShowEditModal(true)} className="inline-flex items-center gap-2 px-4 py-2 border border-gray-300 bg-white text-gray-700 rounded-lg hover:bg-gray-50 text-sm font-medium">
-              <Edit className="w-4 h-4" /> Edit Nominal Manual
-            </button>
-            <button onClick={() => setShowTunggakanModal(true)} className="inline-flex items-center gap-2 px-4 py-2 bg-orange-600 text-white rounded-lg hover:bg-orange-700 text-sm font-medium">
-              <Plus className="w-4 h-4" /> Tambah Tunggakan Manual
-            </button>
+            {canEditTagihan && (
+              <>
+                <button onClick={() => setShowEditModal(true)} className="inline-flex items-center gap-2 px-4 py-2 border border-gray-300 bg-white text-gray-700 rounded-lg hover:bg-gray-50 text-sm font-medium">
+                  <Edit className="w-4 h-4" /> Edit Nominal Manual
+                </button>
+                <button onClick={() => setShowTunggakanModal(true)} className="inline-flex items-center gap-2 px-4 py-2 bg-orange-600 text-white rounded-lg hover:bg-orange-700 text-sm font-medium">
+                  <Plus className="w-4 h-4" /> Tambah Tunggakan Manual
+                </button>
+              </>
+            )}
+            {canDeleteTagihan && (
+              <button onClick={() => setShowBulkDeleteModal(true)} className="inline-flex items-center gap-2 px-4 py-2 bg-red-600 text-white rounded-lg hover:bg-red-700 text-sm font-medium">
+                <XCircle className="w-4 h-4" /> Bulk Hapus Tagihan
+              </button>
+            )}
           </div>
         )}
       </div>
@@ -139,6 +152,7 @@ export default function TagihanSantri() {
       {showDetailModal && selectedSantri && <ModalDetailTagihan santri={selectedSantri} onClose={() => { setShowDetailModal(false); setSelectedSantri(null) }} />}
       {showTunggakanModal && <ModalTambahTunggakan dataTagihan={dataTagihan} onClose={() => setShowTunggakanModal(false)} onSuccess={() => { setShowTunggakanModal(false); fetchData() }} />}
       {showEditModal && <ModalEditNominal dataTagihan={dataTagihan} onClose={() => setShowEditModal(false)} onSuccess={() => { setShowEditModal(false); fetchData() }} />}
+      {showBulkDeleteModal && <ModalBulkDeleteTagihan dataTagihan={dataTagihan} onClose={() => setShowBulkDeleteModal(false)} onSuccess={() => { setShowBulkDeleteModal(false); fetchData() }} />}
     </div>
   )
 }

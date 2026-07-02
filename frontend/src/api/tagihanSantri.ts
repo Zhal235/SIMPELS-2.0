@@ -59,7 +59,10 @@ export async function bulkDeleteTagihan(data: {
   jenis_tagihan_id: number
   tahun?: number
   bulan?: string
-  santri_ids?: number[]
+  bulan_list?: string[]
+  santri_ids?: Array<string | number>
+  target_mode?: 'kelas' | 'perorangan'
+  target_kelas?: string[]
 }) {
   const res = await api.post('/v1/keuangan/tagihan-santri/bulk-delete', data)
   return res.data

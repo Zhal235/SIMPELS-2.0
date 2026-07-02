@@ -2,6 +2,7 @@
 
 namespace App\Services\Tagihan;
 
+use App\Models\KeuanganAuditLog;
 use App\Models\JenisTagihan;
 use App\Models\TagihanSantri;
 use App\Models\TahunAjaran;
@@ -83,8 +84,13 @@ class TagihanBulkService
             'jenis_tagihan_id' => 'required|exists:jenis_tagihan,id',
             'tahun' => 'sometimes|integer',
             'bulan' => 'sometimes|string',
+            'bulan_list' => 'sometimes|array|min:1',
+            'bulan_list.*' => 'string',
             'santri_ids' => 'sometimes|array',
             'santri_ids.*' => 'exists:santri,id',
+            'target_mode' => 'sometimes|string|in:kelas,perorangan',
+            'target_kelas' => 'sometimes|array',
+            'target_kelas.*' => 'string',
         ]);
 
         if ($validator->fails()) {
@@ -95,10 +101,25 @@ class TagihanBulkService
             DB::beginTransaction();
 
             $query = TagihanSantri::where('jenis_tagihan_id', $request->jenis_tagihan_id)
-                ->where('status', 'belum_bayar');
+                ->where('status', 'belum_bayar')
+                ->where('dibayar', 0)
+                ->whereDoesntHave('pembayaran');
 
             if ($request->has('tahun')) $query->where('tahun', $request->tahun);
-            if ($request->has('bulan')) $query->where('bulan', $request->bulan);
+
+            $bulanList = collect($request->input('bulan_list', []))
+                ->filter(fn ($bulan) => is_string($bulan) && $bulan !== '')
+                ->unique()
+                ->values();
+
+            if ($request->filled('bulan') && !$bulanList->contains($request->bulan)) {
+                $bulanList->push($request->bulan);
+            }
+
+            if ($bulanList->isNotEmpty()) {
+                $query->whereIn('bulan', $bulanList->all());
+            }
+
             if ($request->has('santri_ids')) $query->whereIn('santri_id', $request->santri_ids);
 
             $count = $query->count();
@@ -106,10 +127,45 @@ class TagihanBulkService
 
             DB::commit();
 
+            $this->logBulkDeleteAction($request, $count, $bulanList->all());
+
             return ['success' => true, 'message' => "{$count} tagihan berhasil dihapus", 'deleted_count' => $count];
         } catch (\Exception $e) {
             DB::rollBack();
             return ['success' => false, 'message' => 'Gagal menghapus tagihan: ' . $e->getMessage(), 'status_code' => 500];
+        }
+    }
+
+    private function logBulkDeleteAction(Request $request, int $deletedCount, array $bulanList): void
+    {
+        $payload = [
+            'jenis_tagihan_id' => (int) $request->jenis_tagihan_id,
+            'tahun' => $request->input('tahun'),
+            'bulan_list' => $bulanList,
+            'santri_ids' => $request->input('santri_ids', []),
+            'target_mode' => $request->input('target_mode'),
+            'target_kelas' => $request->input('target_kelas', []),
+        ];
+
+        $result = [
+            'deleted_count' => $deletedCount,
+            'processed_at' => now()->toDateTimeString(),
+        ];
+
+        $logData = [
+            'user_id' => optional($request->user())->id,
+            'action' => 'bulk_delete_tagihan',
+            'entity' => 'tagihan_santri',
+            'filters' => $payload,
+            'result' => $result,
+            'ip_address' => $request->ip(),
+            'user_agent' => substr((string) $request->userAgent(), 0, 1024),
+        ];
+
+        try {
+            KeuanganAuditLog::create($logData);
+        } catch (\Throwable $e) {
+            \Log::warning('Keuangan audit log insert failed: ' . $e->getMessage(), $logData);
         }
     }
 
