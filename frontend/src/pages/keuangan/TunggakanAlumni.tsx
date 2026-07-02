@@ -1,6 +1,7 @@
 import { useState, useEffect } from 'react'
+import { useNavigate } from 'react-router-dom'
 import api from '../../api/index'
-import { Download, Printer, AlertTriangle, Clock, Search, GraduationCap } from 'lucide-react'
+import { Download, Printer, AlertTriangle, Clock, Search, GraduationCap, DollarSign } from 'lucide-react'
 import { listSantri } from '../../api/santri'
 
 interface TunggakanSantri {
@@ -33,6 +34,7 @@ interface TunggakanSantri {
 }
 
 export default function TunggakanAlumni() {
+  const navigate = useNavigate()
   const [data, setData] = useState<TunggakanSantri[]>([])
   const [loading, setLoading] = useState(false)
   const [sortBy, setSortBy] = useState<'nama' | 'total' | 'tertua'>('total')
@@ -191,6 +193,10 @@ export default function TunggakanAlumni() {
     })
   }
 
+  const handleBayar = (santriId: string, namaSantri: string) => {
+    navigate(`/keuangan/pembayaran?santri_id=${santriId}&nama=${encodeURIComponent(namaSantri)}`)
+  }
+
   const filteredData = data.filter(item => {
     if (!searchQuery) return true
     const query = searchQuery.toLowerCase()
@@ -325,6 +331,9 @@ export default function TunggakanAlumni() {
                   <th className="px-6 py-3 text-left text-xs font-medium text-gray-500 uppercase tracking-wider">
                     Tagihan Tertua
                   </th>
+                  <th className="px-6 py-3 text-left text-xs font-medium text-gray-500 uppercase tracking-wider">
+                    Aksi
+                  </th>
                 </tr>
               </thead>
               <tbody className="bg-white divide-y divide-gray-200">
@@ -335,7 +344,7 @@ export default function TunggakanAlumni() {
                       <div className="text-xs text-gray-500">NIS: {item.santri.nis}</div>
                     </td>
                     <td className="px-6 py-4 text-sm text-gray-900">
-                      {item.santri.kelas_nama || item.santri.kelas || '-'}
+                      {item.santri.status === 'alumni' || item.santri.status === 'lulus' ? 'Alumni' : (item.santri.kelas_nama || item.santri.kelas || '-')}
                     </td>
                     <td className="px-6 py-4">
                       <span className="px-2 py-1 text-xs font-medium rounded-full bg-blue-100 text-blue-800">
@@ -353,6 +362,15 @@ export default function TunggakanAlumni() {
                       <div className="text-xs text-gray-400">
                         {Math.floor((new Date().getTime() - new Date(item.tagihan_tertua).getTime()) / (1000 * 60 * 60 * 24))} hari yang lalu
                       </div>
+                    </td>
+                    <td className="px-6 py-4">
+                      <button
+                        onClick={() => handleBayar(item.santri_id, item.santri.nama_santri)}
+                        className="inline-flex items-center gap-2 px-3 py-1 bg-green-600 text-white text-sm rounded-lg hover:bg-green-700 transition"
+                      >
+                        <DollarSign className="w-4 h-4" />
+                        Bayar
+                      </button>
                     </td>
                   </tr>
                 ))}
