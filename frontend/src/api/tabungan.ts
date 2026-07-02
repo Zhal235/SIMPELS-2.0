@@ -52,8 +52,8 @@ export async function getTabunganHistory(santriId: string) {
   return res.data
 }
 
-export async function getLaporanTabungan() {
-  const res = await api.get('/v1/tabungan/laporan/summary')
+export async function getLaporanTabungan(params?: { date_from?: string; date_to?: string }) {
+  const res = await api.get('/v1/tabungan/laporan/summary', { params })
   return res.data
 }
 

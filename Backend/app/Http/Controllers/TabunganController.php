@@ -64,9 +64,11 @@ class TabunganController extends Controller
         return response()->json($this->tabunganService->getHistory($santriId));
     }
 
-    public function laporan()
+    public function laporan(Request $request)
     {
-        return response()->json($this->tabunganService->getLaporanSummary());
+        $dateFrom = $request->query('date_from');
+        $dateTo = $request->query('date_to');
+        return response()->json($this->tabunganService->getLaporanSummary($dateFrom, $dateTo));
     }
 
     public function editTransaction(Request $request, $transactionId)

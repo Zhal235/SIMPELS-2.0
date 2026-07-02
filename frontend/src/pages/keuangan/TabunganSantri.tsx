@@ -26,6 +26,10 @@ export default function TabunganSantri() {
   const [searchInput, setSearchInput] = useState('')
   const [search, setSearch] = useState('')
   const [filterStatus, setFilterStatus] = useState<'semua' | 'aktif' | 'nonaktif'>('semua')
+  const firstOfMonth = new Date(new Date().getFullYear(), new Date().getMonth(), 1).toISOString().split('T')[0]
+  const todayStr = new Date().toISOString().split('T')[0]
+  const [dateFrom, setDateFrom] = useState(firstOfMonth)
+  const [dateTo, setDateTo] = useState(todayStr)
   const [showBuka, setShowBuka] = useState(false)
   const [showSetor, setShowSetor] = useState(false)
   const [showTarik, setShowTarik] = useState(false)
@@ -45,7 +49,10 @@ export default function TabunganSantri() {
       const params: any = {}
       if (search) params.search = search
       if (filterStatus !== 'semua') params.status = filterStatus
-      const [res, lapRes] = await Promise.all([listTabungan(params), getLaporanTabungan()])
+      const [res, lapRes] = await Promise.all([
+        listTabungan(params),
+        getLaporanTabungan({ date_from: dateFrom, date_to: dateTo })
+      ])
       setData(res.data)
       setSummary({ ...res.summary, ...lapRes.data })
     } catch {
@@ -53,7 +60,7 @@ export default function TabunganSantri() {
     } finally {
       setLoading(false)
     }
-  }, [search, filterStatus])
+  }, [search, filterStatus, dateFrom, dateTo])
 
   useEffect(() => {
     const timer = setTimeout(() => setSearch(searchInput), 400)
@@ -166,8 +173,8 @@ export default function TabunganSantri() {
       <div className="grid grid-cols-2 lg:grid-cols-4 gap-4">
         <SummaryCard icon={<Wallet className="w-6 h-6 text-blue-600" />} label="Total Saldo Tabungan" value={formatRupiah(summary?.total_saldo)} bg="bg-blue-50" />
         <SummaryCard icon={<Users className="w-6 h-6 text-green-600" />} label="Santri Bertabungan" value={String(summary?.total_aktif ?? 0)} bg="bg-green-50" />
-        <SummaryCard icon={<TrendingUp className="w-6 h-6 text-emerald-600" />} label="Setor Bulan Ini" value={formatRupiah(summary?.setor_bulan_ini)} bg="bg-emerald-50" />
-        <SummaryCard icon={<TrendingDown className="w-6 h-6 text-orange-600" />} label="Tarik Bulan Ini" value={formatRupiah(summary?.tarik_bulan_ini)} bg="bg-orange-50" />
+        <SummaryCard icon={<TrendingUp className="w-6 h-6 text-emerald-600" />} label={`Setor (${dateFrom} – ${dateTo})`} value={formatRupiah(summary?.setor_bulan_ini)} bg="bg-emerald-50" />
+        <SummaryCard icon={<TrendingDown className="w-6 h-6 text-orange-600" />} label={`Tarik (${dateFrom} – ${dateTo})`} value={formatRupiah(summary?.tarik_bulan_ini)} bg="bg-orange-50" />
       </div>
 
       <div className="bg-white rounded-lg shadow-sm border p-4 flex flex-col sm:flex-row gap-3">
@@ -190,6 +197,24 @@ export default function TabunganSantri() {
           <option value="aktif">Aktif</option>
           <option value="nonaktif">Nonaktif</option>
         </select>
+        <div className="flex items-center gap-2 text-sm">
+          <span className="text-gray-500 whitespace-nowrap">Periode:</span>
+          <input
+            type="date"
+            value={dateFrom}
+            max={dateTo}
+            onChange={(e) => setDateFrom(e.target.value)}
+            className="border rounded-lg px-2 py-2 text-sm focus:ring-2 focus:ring-brand"
+          />
+          <span className="text-gray-400">–</span>
+          <input
+            type="date"
+            value={dateTo}
+            min={dateFrom}
+            onChange={(e) => setDateTo(e.target.value)}
+            className="border rounded-lg px-2 py-2 text-sm focus:ring-2 focus:ring-brand"
+          />
+        </div>
       </div>
 
       <TabunganTable

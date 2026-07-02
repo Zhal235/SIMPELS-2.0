@@ -239,26 +239,33 @@ class TabunganService
         ];
     }
 
-    public function getLaporanSummary(): array
+    public function getLaporanSummary(?string $dateFrom = null, ?string $dateTo = null): array
     {
         $totalSaldo = SantriTabungan::where('status', 'aktif')->sum('saldo');
         $totalSantri = SantriTabungan::where('status', 'aktif')->count();
 
-        $startOfMonth = now()->startOfMonth();
-        $setorMonth = SantriTabunganTransaction::where('type', 'setor')
-            ->where('created_at', '>=', $startOfMonth)
-            ->sum('amount');
-        $tarikMonth = SantriTabunganTransaction::where('type', 'tarik')
-            ->where('created_at', '>=', $startOfMonth)
-            ->sum('amount');
+        $useCustomRange = $dateFrom || $dateTo;
+        $from = $dateFrom ? \Carbon\Carbon::parse($dateFrom)->startOfDay() : now()->startOfMonth();
+        $to = $dateTo ? \Carbon\Carbon::parse($dateTo)->endOfDay() : now()->endOfDay();
+
+        $setorQuery = SantriTabunganTransaction::where('type', 'setor')
+            ->whereBetween('created_at', [$from, $to]);
+        $tarikQuery = SantriTabunganTransaction::where('type', 'tarik')
+            ->whereBetween('created_at', [$from, $to]);
+
+        $setorTotal = (float) $setorQuery->sum('amount');
+        $tarikTotal = (float) $tarikQuery->sum('amount');
 
         return [
             'success' => true,
             'data' => [
                 'total_saldo' => (float) $totalSaldo,
                 'total_santri' => $totalSantri,
-                'setor_bulan_ini' => (float) $setorMonth,
-                'tarik_bulan_ini' => (float) $tarikMonth,
+                'setor_bulan_ini' => $setorTotal,
+                'tarik_bulan_ini' => $tarikTotal,
+                'date_from' => $from->toDateString(),
+                'date_to' => $to->toDateString(),
+                'custom_range' => $useCustomRange,
             ],
         ];
     }
