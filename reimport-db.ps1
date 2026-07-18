@@ -4,7 +4,7 @@ $root = Split-Path -Parent $MyInvocation.MyCommand.Path
 Set-Location $root
 
 $mysql = 'C:/xampp/mysql/bin/mysql.exe'
-$sqlFile = Join-Path $root 'database-backups_backup_20260702_195737.sql'
+$sqlFile = Join-Path $root 'database-backups_backup_20260718_201449.sql'
 
 if (-not (Test-Path $mysql)) {
   throw 'MySQL client tidak ditemukan di C:/xampp/mysql/bin/mysql.exe'
