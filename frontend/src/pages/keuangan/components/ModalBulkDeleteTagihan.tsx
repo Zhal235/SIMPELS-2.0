@@ -5,6 +5,10 @@ import { listJenisTagihan } from '../../../api/jenisTagihan'
 import { bulkDeleteTagihan } from '../../../api/tagihanSantri'
 import type { TagihanSantriRow } from '../../../types/tagihanSantri.types'
 
+const formatCurrency = (value: number) => {
+  return new Intl.NumberFormat('id-ID', { style: 'currency', currency: 'IDR', minimumFractionDigits: 0 }).format(value)
+}
+
 interface Props {
   dataTagihan: TagihanSantriRow[]
   onClose: () => void
@@ -19,6 +23,7 @@ export default function ModalBulkDeleteTagihan({ dataTagihan, onClose, onSuccess
   const [jenisTagihan, setJenisTagihan] = useState<Array<{ id: number; nama: string }>>([])
   const [selectedJenisIds, setSelectedJenisIds] = useState<number[]>([])
   const [selectedBulan, setSelectedBulan] = useState<string[]>([])
+  const [selectedTahun, setSelectedTahun] = useState<number[]>([])
   const [modeTarget, setModeTarget] = useState<ModeTarget>('kelas')
   const [selectedKelas, setSelectedKelas] = useState<string[]>([])
   const [selectedSantriIds, setSelectedSantriIds] = useState<string[]>([])
@@ -46,7 +51,7 @@ export default function ModalBulkDeleteTagihan({ dataTagihan, onClose, onSuccess
   }, [dataTagihan])
 
   const kelasOptions = useMemo(() => {
-    return Array.from(new Set(santriList.map((item) => item.kelas).filter(Boolean))).sort((a, b) => a.localeCompare(b))
+    return Array.from(new Set(santriList.map((item) => item.kelas).filter(Boolean))).sort((a, b) => (a ?? '').localeCompare(b ?? ''))
   }, [santriList])
 
   const targetSantriIds = useMemo(() => {
@@ -60,7 +65,7 @@ export default function ModalBulkDeleteTagihan({ dataTagihan, onClose, onSuccess
   const filteredSantri = useMemo(() => {
     const keyword = searchSantri.trim().toLowerCase()
     if (!keyword) return santriList
-    return santriList.filter((item) => item.nama.toLowerCase().includes(keyword) || item.kelas.toLowerCase().includes(keyword))
+    return santriList.filter((item) => (item.nama?.toLowerCase?.().includes(keyword) ?? false) || (item.kelas?.toLowerCase?.().includes(keyword) ?? false))
   }, [santriList, searchSantri])
 
   const selectedJenisNames = useMemo(() => {
@@ -68,18 +73,47 @@ export default function ModalBulkDeleteTagihan({ dataTagihan, onClose, onSuccess
     return selectedJenisIds.map((id) => nameMap.get(id)).filter(Boolean) as string[]
   }, [selectedJenisIds, jenisTagihan])
 
-  const previewCount = useMemo(() => {
-    if (selectedJenisNames.length === 0 || selectedBulan.length === 0 || targetSantriIds.length === 0) return 0
+  const tahunOptions = useMemo(() => {
+    if (targetSantriIds.length === 0) return []
+    const targetSet = new Set(targetSantriIds)
+    const tahunSet = new Set<number>()
+    dataTagihan
+      .filter((item) => targetSet.has(String(item.santri_id)))
+      .forEach((item) => {
+        item.detail_tagihan?.forEach((detail) => {
+          tahunSet.add(detail.tahun)
+        })
+      })
+    return Array.from(tahunSet).sort((a, b) => a - b)
+  }, [dataTagihan, targetSantriIds])
+
+  const previewData = useMemo(() => {
+    if (selectedJenisNames.length === 0 || selectedBulan.length === 0 || selectedTahun.length === 0 || targetSantriIds.length === 0) return []
     const targetSet = new Set(targetSantriIds)
     const jenisSet = new Set(selectedJenisNames)
     const bulanSet = new Set(selectedBulan)
+    const tahunSet = new Set(selectedTahun)
 
-    return dataTagihan
+    const result: Array<{ santri_nama: string; jenis_tagihan: string; bulan: string; tahun: number; nominal: number }> = []
+    dataTagihan
       .filter((item) => targetSet.has(String(item.santri_id)))
-      .flatMap((item) => item.detail_tagihan || [])
-      .filter((detail) => detail.status === 'belum_bayar' && Number(detail.dibayar || 0) === 0)
-      .filter((detail) => jenisSet.has(detail.jenis_tagihan) && bulanSet.has(detail.bulan)).length
-  }, [dataTagihan, selectedBulan, selectedJenisNames, targetSantriIds])
+      .forEach((item) => {
+        item.detail_tagihan?.forEach((detail) => {
+          if (detail.status === 'belum_bayar' && Number(detail.dibayar || 0) === 0 && jenisSet.has(detail.jenis_tagihan) && bulanSet.has(detail.bulan) && tahunSet.has(detail.tahun)) {
+            result.push({
+              santri_nama: item.santri_nama,
+              jenis_tagihan: detail.jenis_tagihan,
+              bulan: detail.bulan,
+              tahun: detail.tahun,
+              nominal: Number(detail.nominal || 0),
+            })
+          }
+        })
+      })
+    return result
+  }, [dataTagihan, selectedBulan, selectedJenisNames, selectedTahun, targetSantriIds])
+
+  const previewCount = previewData.length
 
   const toggleSelected = <T,>(current: T[], value: T) => {
     return current.includes(value) ? current.filter((item) => item !== value) : [...current, value]
@@ -94,12 +128,21 @@ export default function ModalBulkDeleteTagihan({ dataTagihan, onClose, onSuccess
       toast.error('Pilih minimal satu bulan')
       return
     }
+    if (selectedTahun.length === 0) {
+      toast.error('Pilih minimal satu tahun')
+      return
+    }
     if (targetSantriIds.length === 0) {
       toast.error(modeTarget === 'kelas' ? 'Pilih minimal satu kelas' : 'Pilih minimal satu santri')
       return
     }
+    if (previewCount === 0) {
+      toast.error('Tidak ada tagihan yang sesuai dengan filter')
+      return
+    }
 
-    const confirmText = `Hapus tagihan belum bayar untuk ${targetSantriIds.length} santri, ${selectedBulan.length} bulan, ${selectedJenisIds.length} jenis tagihan? Aksi ini tidak bisa dibatalkan.`
+    const tahunText = selectedTahun.join(', ')
+    const confirmText = `Hapus ${previewCount} tagihan:\n\nSantri: ${targetSantriIds.length}\nJenis: ${selectedJenisIds.length}\nBulan: ${selectedBulan.join(', ')}\nTahun: ${tahunText}\n\nAksi ini tidak bisa dibatalkan!`
     if (!window.confirm(confirmText)) return
 
     try {
@@ -110,6 +153,7 @@ export default function ModalBulkDeleteTagihan({ dataTagihan, onClose, onSuccess
         const response = await bulkDeleteTagihan({
           jenis_tagihan_id: jenisId,
           bulan_list: selectedBulan,
+          tahun_list: selectedTahun,
           santri_ids: targetSantriIds,
           target_mode: modeTarget,
           target_kelas: modeTarget === 'kelas' ? selectedKelas : [],
@@ -155,18 +199,40 @@ export default function ModalBulkDeleteTagihan({ dataTagihan, onClose, onSuccess
               ))}
             </div>
 
-            <h3 className="font-semibold text-gray-900">2. Pilih Bulan</h3>
-            <div className="grid grid-cols-2 gap-2 rounded-md border p-3 sm:grid-cols-3">
-              {BULAN_OPTIONS.map((bulan) => (
-                <label key={bulan} className="flex items-center gap-2 text-sm text-gray-700">
-                  <input
-                    type="checkbox"
-                    checked={selectedBulan.includes(bulan)}
-                    onChange={() => setSelectedBulan((prev) => toggleSelected(prev, bulan))}
-                  />
-                  <span>{bulan}</span>
-                </label>
-              ))}
+            <h3 className="font-semibold text-gray-900">2. Pilih Bulan & Tahun</h3>
+            <div>
+              <p className="mb-2 text-xs text-gray-600">Bulan:</p>
+              <div className="grid grid-cols-2 gap-2 rounded-md border p-3 sm:grid-cols-3">
+                {BULAN_OPTIONS.map((bulan) => (
+                  <label key={bulan} className="flex items-center gap-2 text-sm text-gray-700">
+                    <input
+                      type="checkbox"
+                      checked={selectedBulan.includes(bulan)}
+                      onChange={() => setSelectedBulan((prev) => toggleSelected(prev, bulan))}
+                    />
+                    <span>{bulan}</span>
+                  </label>
+                ))}
+              </div>
+              <p className="mb-2 mt-3 text-xs text-gray-600">Tahun (dari santri yang dipilih):</p>
+              {tahunOptions.length === 0 ? (
+                <div className="rounded-md border border-yellow-200 bg-yellow-50 p-3 text-xs text-yellow-800">
+                  Pilih santri/kelas dulu untuk melihat tahun tagihan tersedia
+                </div>
+              ) : (
+                <div className="grid grid-cols-3 gap-2 rounded-md border p-3">
+                  {tahunOptions.map((tahun) => (
+                    <label key={tahun} className="flex items-center gap-2 text-sm text-gray-700">
+                      <input
+                        type="checkbox"
+                        checked={selectedTahun.includes(tahun)}
+                        onChange={() => setSelectedTahun((prev) => toggleSelected(prev, tahun))}
+                      />
+                      <span>{tahun}</span>
+                    </label>
+                  ))}
+                </div>
+              )}
             </div>
           </div>
 
@@ -231,16 +297,49 @@ export default function ModalBulkDeleteTagihan({ dataTagihan, onClose, onSuccess
           </div>
         </div>
 
+        {previewCount > 0 && (
+          <div className="border-t bg-blue-50 px-6 py-4">
+            <div className="mb-3 flex items-center justify-between">
+              <h3 className="text-sm font-semibold text-gray-900">Preview Tagihan yang Akan Dihapus ({previewCount})</h3>
+              <p className="text-xs text-gray-600">Total Nominal: {formatCurrency(previewData.reduce((sum, item) => sum + item.nominal, 0))}</p>
+            </div>
+            <div className="max-h-40 overflow-y-auto rounded-lg border bg-white">
+              <table className="w-full text-xs">
+                <thead className="sticky top-0 bg-gray-100">
+                  <tr>
+                    <th className="border-b px-3 py-2 text-left font-semibold">Santri</th>
+                    <th className="border-b px-3 py-2 text-left font-semibold">Jenis</th>
+                    <th className="border-b px-3 py-2 text-left font-semibold">Bulan</th>
+                    <th className="border-b px-3 py-2 text-center font-semibold">Tahun</th>
+                    <th className="border-b px-3 py-2 text-right font-semibold">Nominal</th>
+                  </tr>
+                </thead>
+                <tbody>
+                  {previewData.map((item, idx) => (
+                    <tr key={idx} className="border-b hover:bg-blue-100">
+                      <td className="px-3 py-2 text-gray-700">{item.santri_nama}</td>
+                      <td className="px-3 py-2 text-gray-700">{item.jenis_tagihan}</td>
+                      <td className="px-3 py-2 text-gray-700">{item.bulan}</td>
+                      <td className="px-3 py-2 text-center text-gray-700 font-medium">{item.tahun}</td>
+                      <td className="px-3 py-2 text-right text-gray-700">{formatCurrency(item.nominal)}</td>
+                    </tr>
+                  ))}
+                </tbody>
+              </table>
+            </div>
+          </div>
+        )}
+
         <div className="flex items-center justify-between border-t bg-gray-50 px-6 py-4">
           <div className="text-sm text-gray-700">
             <p>Target santri: <span className="font-semibold">{targetSantriIds.length}</span></p>
-            <p>Perkiraan tagihan terhapus: <span className="font-semibold text-red-600">{previewCount}</span></p>
+            <p>Tagihan akan dihapus: <span className="font-semibold text-red-600">{previewCount}</span></p>
           </div>
           <div className="flex gap-2">
             <button onClick={onClose} className="rounded-lg border px-4 py-2 text-sm text-gray-700 hover:bg-gray-100">Batal</button>
             <button
               onClick={handleSubmit}
-              disabled={isSubmitting}
+              disabled={isSubmitting || previewCount === 0}
               className="inline-flex items-center gap-2 rounded-lg bg-red-600 px-4 py-2 text-sm font-medium text-white hover:bg-red-700 disabled:opacity-60"
             >
               <Trash2 className="h-4 w-4" />

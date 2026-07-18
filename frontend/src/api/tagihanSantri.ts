@@ -58,6 +58,7 @@ export async function deleteTagihanSantri(id: string | number) {
 export async function bulkDeleteTagihan(data: {
   jenis_tagihan_id: number
   tahun?: number
+  tahun_list?: number[]
   bulan?: string
   bulan_list?: string[]
   santri_ids?: Array<string | number>
