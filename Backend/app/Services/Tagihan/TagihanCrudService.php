@@ -12,9 +12,9 @@ class TagihanCrudService
 {
     use ValidatesDeletion;
 
-    public function getRekapPerSantri(): array
+    public function getRekapPerSantri(bool $includeDetail = true): array
     {
-        $tagihan = DB::table('tagihan_santri')
+        $rekap = DB::table('tagihan_santri')
             ->join('santri', 'tagihan_santri.santri_id', '=', 'santri.id')
             ->join('jenis_tagihan', 'tagihan_santri.jenis_tagihan_id', '=', 'jenis_tagihan.id')
             ->leftJoin('kelas', 'santri.kelas_id', '=', 'kelas.id')
@@ -32,32 +32,71 @@ class TagihanCrudService
             ->groupBy('santri.id', 'santri.nis', 'santri.nama_santri', 'kelas.nama_kelas')
             ->get();
 
-        $result = $tagihan->map(function ($item) {
-            $detailTagihan = TagihanSantri::where('santri_id', $item->santri_id)
-                ->whereHas('jenisTagihan')
-                ->with(['jenisTagihan', 'pembayaran' => function ($q) {
-                    $q->whereNull('deleted_at')->orderBy('tanggal_bayar', 'desc')->limit(1);
-                }])
-                ->get()
-                ->map(function ($t) {
-                    $latestPembayaran = $t->pembayaran->first();
-                    return [
-                        'id' => $t->id,
-                        'jenis_tagihan' => $t->jenisTagihan->nama_tagihan,
-                        'jenis_tagihan_id' => $t->jenis_tagihan_id,
-                        'tahun_ajaran_id' => $t->jenisTagihan->tahun_ajaran_id,
-                        'bulan' => $t->bulan,
-                        'tahun' => $t->tahun,
-                        'nominal' => $t->nominal,
-                        'status' => $t->status,
-                        'dibayar' => $t->dibayar,
-                        'sisa' => $t->sisa,
-                        'jatuh_tempo' => $t->jatuh_tempo,
-                        'tgl_bayar' => $latestPembayaran?->tanggal_bayar,
-                        'admin_penerima' => $latestPembayaran ? 'Admin' : null,
-                    ];
-                });
+        if ($rekap->isEmpty()) {
+            return ['success' => true, 'data' => []];
+        }
 
+        $detailBySantri = collect();
+        if ($includeDetail) {
+            $santriIds = $rekap->pluck('santri_id')->all();
+
+            $latestPembayaranPerTagihan = DB::table('pembayaran')
+                ->select('tagihan_santri_id', DB::raw('MAX(tanggal_bayar) as tgl_bayar'))
+                ->whereNull('deleted_at')
+                ->groupBy('tagihan_santri_id');
+
+            $detailRows = DB::table('tagihan_santri')
+                ->join('jenis_tagihan', 'tagihan_santri.jenis_tagihan_id', '=', 'jenis_tagihan.id')
+                ->leftJoinSub($latestPembayaranPerTagihan, 'lp', function ($join) {
+                    $join->on('lp.tagihan_santri_id', '=', 'tagihan_santri.id');
+                })
+                ->whereIn('tagihan_santri.santri_id', $santriIds)
+                ->whereNull('tagihan_santri.deleted_at')
+                ->whereNull('jenis_tagihan.deleted_at')
+                ->orderBy('tagihan_santri.santri_id')
+                ->orderBy('tagihan_santri.tahun')
+                ->orderBy('tagihan_santri.bulan')
+                ->select(
+                    'tagihan_santri.id',
+                    'tagihan_santri.santri_id',
+                    'tagihan_santri.jenis_tagihan_id',
+                    'tagihan_santri.bulan',
+                    'tagihan_santri.tahun',
+                    'tagihan_santri.nominal',
+                    'tagihan_santri.status',
+                    'tagihan_santri.dibayar',
+                    'tagihan_santri.sisa',
+                    'tagihan_santri.jatuh_tempo',
+                    'jenis_tagihan.nama_tagihan as jenis_tagihan',
+                    'jenis_tagihan.tahun_ajaran_id',
+                    'lp.tgl_bayar'
+                )
+                ->get();
+
+            $detailBySantri = $detailRows
+                ->groupBy('santri_id')
+                ->map(function ($rows) {
+                    return $rows->map(function ($row) {
+                        return [
+                            'id' => $row->id,
+                            'jenis_tagihan' => $row->jenis_tagihan,
+                            'jenis_tagihan_id' => $row->jenis_tagihan_id,
+                            'tahun_ajaran_id' => $row->tahun_ajaran_id,
+                            'bulan' => $row->bulan,
+                            'tahun' => $row->tahun,
+                            'nominal' => (float) $row->nominal,
+                            'status' => $row->status,
+                            'dibayar' => (float) $row->dibayar,
+                            'sisa' => (float) $row->sisa,
+                            'jatuh_tempo' => $row->jatuh_tempo,
+                            'tgl_bayar' => $row->tgl_bayar,
+                            'admin_penerima' => $row->tgl_bayar ? 'Admin' : null,
+                        ];
+                    })->values();
+                });
+        }
+
+        $result = $rekap->map(function ($item) use ($detailBySantri, $includeDetail) {
             return [
                 'santri_id' => $item->santri_id,
                 'santri_nis' => $item->santri_nis,
@@ -66,7 +105,9 @@ class TagihanCrudService
                 'total_tagihan' => (float) $item->total_tagihan,
                 'total_dibayar' => (float) $item->total_dibayar,
                 'sisa_tagihan' => (float) $item->sisa_tagihan,
-                'detail_tagihan' => $detailTagihan,
+                'detail_tagihan' => $includeDetail
+                    ? ($detailBySantri->get($item->santri_id)?->values()->all() ?? [])
+                    : [],
             ];
         });
 

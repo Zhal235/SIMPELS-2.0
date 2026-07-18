@@ -19,10 +19,11 @@ class TagihanSantriController extends Controller
         protected TagihanBulkService $bulkService,
     ) {}
 
-    public function index()
+    public function index(Request $request)
     {
         try {
-            return response()->json($this->crudService->getRekapPerSantri());
+            $includeDetail = filter_var($request->query('include_detail', true), FILTER_VALIDATE_BOOL, FILTER_NULL_ON_FAILURE);
+            return response()->json($this->crudService->getRekapPerSantri($includeDetail ?? true));
         } catch (Throwable $e) {
             return response()->json(['success' => false, 'message' => 'Gagal memuat tagihan'], 500);
         }
