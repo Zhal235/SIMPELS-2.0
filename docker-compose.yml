@@ -46,6 +46,7 @@ services:
       - ./Backend/.env.docker
     volumes:
       - ./Backend:/var/www
+      - backend_vendor:/var/www/vendor
       - backend_storage:/var/www/storage/app/public
     depends_on:
       db:
@@ -79,6 +80,16 @@ services:
       - /app/node_modules
     environment:
       - VITE_API_URL=http://localhost:8001/api
+
+  # ─── App SIMPELS (Mobile Flutter Web) ───────────────────────────────────────
+  app-simpels:
+    build:
+      context: ./mobile
+      dockerfile: Dockerfile
+    container_name: app-simpels
+    restart: unless-stopped
+    ports:
+      - "8080:80"
 
   # ─── Redis Commander (Cache Management UI) ───────────────────────────────────
   redis-commander:
@@ -116,5 +127,6 @@ services:
 volumes:
   db_data:
   redis_data:
+  backend_vendor:
   backend_storage:
   wa_session:

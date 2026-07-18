@@ -15,7 +15,9 @@ php -r "if (function_exists('opcache_reset')) opcache_reset();"
 php artisan optimize:clear
 php artisan config:cache
 php artisan migrate --force --no-interaction
-php artisan db:seed --class=WaMessageTemplateSeeder --force
+if ! php artisan db:seed --class=WaMessageTemplateSeeder --force; then
+    echo "[WARN] WaMessageTemplateSeeder gagal, lanjutkan startup container"
+fi
 
 # Start all services via supervisor
 exec /usr/bin/supervisord -c /etc/supervisord.conf
