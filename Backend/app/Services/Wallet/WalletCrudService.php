@@ -92,7 +92,7 @@ class WalletCrudService
         if (!in_array($santri->status, ['mutasi', 'mutasi_keluar', 'keluar', 'alumni', 'lulus'], true)) {
             return [
                 'success' => false,
-                'message' => 'Dompet hanya dapat dihapus untuk santri nonaktif/mutasi',
+                'message' => 'Dompet hanya dapat dinonaktifkan untuk santri status exit/nonaktif',
                 'status_code' => 422
             ];
         }
@@ -115,7 +115,7 @@ class WalletCrudService
 
             return [
                 'success' => true,
-                'message' => 'Dompet santri mutasi berhasil dinonaktifkan',
+                'message' => 'Dompet santri status exit berhasil dinonaktifkan',
                 'status_code' => 200
             ];
         } catch (\Throwable $e) {

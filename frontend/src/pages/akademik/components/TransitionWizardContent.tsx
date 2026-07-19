@@ -24,12 +24,14 @@ export function GraduationStep({
   tanggalKelulusan,
   onTanggalKelulusanChange,
   onSubmit,
+  onSkip,
   loading,
 }: {
   gradPreview: GraduationPreview | null
   tanggalKelulusan: string
   onTanggalKelulusanChange: (value: string) => void
   onSubmit: () => void
+  onSkip: () => void
   loading: boolean
 }) {
   const count = gradPreview?.jumlah_santri || 0
@@ -38,7 +40,7 @@ export function GraduationStep({
   return (
     <div className="space-y-6">
       <h2 className="flex items-center gap-2 text-xl font-semibold"><UserCheck className="text-blue-600" />Langkah 1: Proses Kelulusan</h2>
-      <div className="rounded-lg border border-blue-200 bg-blue-50 p-4 text-blue-800">Santri tingkat 12 akan diproses menjadi alumni berdasarkan tanggal kelulusan yang Anda tentukan.</div>
+      <div className="rounded-lg border border-blue-200 bg-blue-50 p-4 text-blue-800">Langkah ini opsional. Santri tingkat 12 hanya akan jadi alumni jika Anda klik Proses Kelulusan.</div>
       <div className="grid grid-cols-1 gap-6 md:grid-cols-3">
         <div className="rounded-lg border bg-gray-50 p-4 text-center"><div className="mb-1 text-sm text-gray-500">Tingkat Akhir</div><div className="text-3xl font-bold">12</div></div>
         <div className="rounded-lg border bg-gray-50 p-4 text-center"><div className="mb-1 text-sm text-gray-500">Jumlah Kelas</div><div className="text-3xl font-bold">{gradPreview?.daftar_kelas?.length || 0}</div></div>
@@ -54,7 +56,8 @@ export function GraduationStep({
           <input type="text" value={year || '-'} readOnly className="w-full rounded-lg border bg-gray-100 px-3 py-2 text-gray-600" />
         </div>
       </div>
-      <div className="flex justify-end border-t pt-6">
+      <div className="flex justify-end gap-3 border-t pt-6">
+        <button onClick={onSkip} disabled={loading} className="rounded border px-4 py-2 hover:bg-gray-50 disabled:cursor-not-allowed disabled:opacity-60">Lewati Dulu</button>
         <button onClick={onSubmit} disabled={loading || !tanggalKelulusan} className={`flex items-center gap-2 rounded-lg px-6 py-2 text-white shadow ${count > 0 ? 'bg-blue-600 hover:bg-blue-700' : 'bg-gray-600 hover:bg-gray-700'} disabled:cursor-not-allowed disabled:opacity-60`}>
           {count > 0 ? 'Proses Kelulusan' : 'Lanjut'}
           <ArrowRight size={18} />

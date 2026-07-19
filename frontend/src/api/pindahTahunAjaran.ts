@@ -10,8 +10,13 @@ export async function processGraduation() {
   return res.data
 }
 
-export async function processGraduationWithDate(payload: { tanggal_kelulusan: string }) {
+export async function processGraduationWithDate(payload: { tanggal_kelulusan: string; konfirmasi: boolean; expected_jumlah: number }) {
   const res = await api.post('/v1/akademik/transition/graduate', payload)
+  return res.data
+}
+
+export async function revokeGraduation(payload: { santri_id?: string; santri_ids?: string[] }) {
+  const res = await api.post('/v1/akademik/transition/revoke-graduation', payload)
   return res.data
 }
 

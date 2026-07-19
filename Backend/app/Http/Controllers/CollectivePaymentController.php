@@ -32,6 +32,103 @@ class CollectivePaymentController extends Controller
     }
 
     /**
+     * Collective payment history summary grouped by year and month
+     * GET /api/v1/collective-payments/history/summary
+     */
+    public function historySummary()
+    {
+        $recent = CollectivePayment::with(['creator', 'class'])
+            ->withCount([
+                'items as paid_count' => function($q) { $q->where('status', 'paid'); },
+                'items as pending_count' => function($q) { $q->where('status', 'pending'); }
+            ])
+            ->orderBy('created_at', 'desc')
+            ->limit(5)
+            ->get();
+
+        $monthNames = [
+            1 => 'Januari',
+            2 => 'Februari',
+            3 => 'Maret',
+            4 => 'April',
+            5 => 'Mei',
+            6 => 'Juni',
+            7 => 'Juli',
+            8 => 'Agustus',
+            9 => 'September',
+            10 => 'Oktober',
+            11 => 'November',
+            12 => 'Desember',
+        ];
+
+        $grouped = CollectivePayment::selectRaw('YEAR(created_at) as year, MONTH(created_at) as month, COUNT(*) as total')
+            ->groupByRaw('YEAR(created_at), MONTH(created_at)')
+            ->orderByRaw('YEAR(created_at) DESC, MONTH(created_at) DESC')
+            ->get()
+            ->groupBy('year')
+            ->map(function ($months, $year) use ($monthNames) {
+                return [
+                    'year' => (int) $year,
+                    'months' => $months->map(function ($item) use ($monthNames) {
+                        $month = (int) $item->month;
+                        return [
+                            'month' => $month,
+                            'label' => $monthNames[$month] ?? (string) $month,
+                            'total' => (int) $item->total,
+                        ];
+                    })->values(),
+                ];
+            })
+            ->values();
+
+        return response()->json([
+            'success' => true,
+            'data' => [
+                'recent' => $recent,
+                'years' => $grouped,
+            ],
+        ]);
+    }
+
+    /**
+     * Collective payment history by selected year and month
+     * GET /api/v1/collective-payments/history/by-month?year=2026&month=7
+     */
+    public function historyByMonth(Request $request)
+    {
+        $request->validate([
+            'year' => 'required|integer|min:2000|max:2100',
+            'month' => 'required|integer|min:1|max:12',
+            'per_page' => 'nullable|integer|min:1|max:100',
+        ]);
+
+        $year = (int) $request->query('year');
+        $month = (int) $request->query('month');
+        $perPage = (int) $request->query('per_page', 25);
+
+        $payments = CollectivePayment::with(['creator', 'class'])
+            ->withCount([
+                'items as paid_count' => function($q) { $q->where('status', 'paid'); },
+                'items as pending_count' => function($q) { $q->where('status', 'pending'); }
+            ])
+            ->whereYear('created_at', $year)
+            ->whereMonth('created_at', $month)
+            ->orderBy('created_at', 'desc')
+            ->paginate($perPage);
+
+        return response()->json([
+            'success' => true,
+            'data' => $payments->items(),
+            'meta' => [
+                'current_page' => $payments->currentPage(),
+                'last_page' => $payments->lastPage(),
+                'per_page' => $payments->perPage(),
+                'total' => $payments->total(),
+            ],
+        ]);
+    }
+
+    /**
      * Show detail of a collective payment with items
      * GET /api/v1/collective-payments/{id}
      */
@@ -102,8 +199,28 @@ class CollectivePaymentController extends Controller
             // Get target santri
             $santris = $this->getTargetSantri($request);
 
+            if ($request->target_type === 'individual') {
+                $requestedSantriIds = collect($request->input('santri_ids', []))
+                    ->map(fn ($id) => (string) $id)
+                    ->unique();
+
+                $activeSantriIds = $santris->pluck('id')->map(fn ($id) => (string) $id);
+                $invalidSantriIds = $requestedSantriIds->diff($activeSantriIds)->values();
+
+                if ($invalidSantriIds->isNotEmpty()) {
+                    return response()->json([
+                        'success' => false,
+                        'message' => 'Hanya santri aktif yang dapat dipilih untuk tagihan kolektif',
+                        'invalid_santri_ids' => $invalidSantriIds,
+                    ], 422);
+                }
+            }
+
             if ($santris->isEmpty()) {
-                return response()->json(['success' => false, 'message' => 'Tidak ada santri yang valid'], 422);
+                return response()->json([
+                    'success' => false,
+                    'message' => 'Tidak ada santri aktif yang valid',
+                ], 422);
             }
 
             // Create collective payment
@@ -370,11 +487,15 @@ class CollectivePaymentController extends Controller
     private function getTargetSantri(Request $request)
     {
         if ($request->target_type === 'all') {
-            return Santri::all();
+            return Santri::where('status', 'aktif')->get();
         } elseif ($request->target_type === 'class') {
-            return Santri::where('kelas_id', $request->class_id)->get();
+            return Santri::where('kelas_id', $request->class_id)
+                ->where('status', 'aktif')
+                ->get();
         } else {
-            return Santri::whereIn('id', $request->santri_ids)->get();
+            return Santri::whereIn('id', $request->santri_ids)
+                ->where('status', 'aktif')
+                ->get();
         }
     }
 

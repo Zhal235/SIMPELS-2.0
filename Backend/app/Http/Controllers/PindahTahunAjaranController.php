@@ -43,15 +43,36 @@ class PindahTahunAjaranController extends Controller
         $tingkatAkhir = 12;
         $validated = $request->validate([
             'tanggal_kelulusan' => ['required', 'date'],
+            'konfirmasi' => ['required', 'boolean'],
+            'expected_jumlah' => ['required', 'integer', 'min:0'],
         ]);
         $tanggalKelulusan = $validated['tanggal_kelulusan'];
+
+        if (!$validated['konfirmasi']) {
+            return response()->json([
+                'success' => false,
+                'message' => 'Kelulusan dibatalkan karena konfirmasi tidak valid.',
+            ], 422);
+        }
+
+        $candidateQuery = Santri::whereHas('kelas', function ($q) use ($tingkatAkhir) {
+            $q->where('tingkat', $tingkatAkhir);
+        })->where('status', 'aktif');
+
+        $currentCount = (clone $candidateQuery)->count();
+        if ((int) $validated['expected_jumlah'] !== (int) $currentCount) {
+            return response()->json([
+                'success' => false,
+                'message' => 'Data santri berubah. Muat ulang preview kelulusan lalu ulangi proses.',
+                'expected_jumlah' => (int) $validated['expected_jumlah'],
+                'current_jumlah' => (int) $currentCount,
+            ], 409);
+        }
 
         try {
             DB::beginTransaction();
 
-            $updated = Santri::whereHas('kelas', function ($q) use ($tingkatAkhir) {
-                $q->where('tingkat', $tingkatAkhir);
-            })->where('status', 'aktif')->get()->each(function ($santri) use ($tanggalKelulusan) {
+            $updated = (clone $candidateQuery)->get()->each(function ($santri) use ($tanggalKelulusan) {
                 $santri->update([
                     'status' => 'alumni',
                     'tanggal_keluar' => $tanggalKelulusan,
@@ -72,6 +93,71 @@ class PindahTahunAjaranController extends Controller
             return response()->json([
                 'success' => false,
                 'message' => 'Gagal memproses kelulusan: ' . $e->getMessage()
+            ], 500);
+        }
+    }
+
+    public function revokeGraduation(Request $request)
+    {
+        $validated = $request->validate([
+            'santri_id' => ['nullable', 'uuid'],
+            'santri_ids' => ['nullable', 'array', 'min:1'],
+            'santri_ids.*' => ['uuid'],
+        ]);
+
+        $santriIds = collect($validated['santri_ids'] ?? []);
+        if (!empty($validated['santri_id'])) {
+            $santriIds->push($validated['santri_id']);
+        }
+
+        $santriIds = $santriIds->filter()->unique()->values();
+        if ($santriIds->isEmpty()) {
+            return response()->json([
+                'success' => false,
+                'message' => 'Pilih minimal satu santri untuk batalkan kelulusan.',
+            ], 422);
+        }
+
+        try {
+            DB::beginTransaction();
+
+            $santriList = Santri::whereIn('id', $santriIds)
+                ->where('status', 'alumni')
+                ->get();
+
+            $reactivated = 0;
+
+            foreach ($santriList as $santri) {
+                $kelasId = $santri->kelas_id;
+
+                if (empty($kelasId) && !empty($santri->kelas_nama)) {
+                    $kelas = Kelas::where('nama_kelas', $santri->kelas_nama)
+                        ->where('tingkat', 12)
+                        ->first();
+                    $kelasId = $kelas?->id;
+                }
+
+                $santri->update([
+                    'status' => 'aktif',
+                    'tanggal_keluar' => null,
+                    'kelas_id' => $kelasId,
+                ]);
+
+                $reactivated++;
+            }
+
+            DB::commit();
+
+            return response()->json([
+                'success' => true,
+                'message' => "Berhasil membatalkan kelulusan {$reactivated} santri.",
+                'jumlah_dibatalkan' => $reactivated,
+            ]);
+        } catch (\Exception $e) {
+            DB::rollBack();
+            return response()->json([
+                'success' => false,
+                'message' => 'Gagal membatalkan kelulusan: ' . $e->getMessage(),
             ], 500);
         }
     }

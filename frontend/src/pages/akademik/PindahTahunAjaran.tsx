@@ -57,7 +57,11 @@ export default function PindahTahunAjaran() {
 
     setLoading(true)
     try {
-      const response = await processGraduationWithDate({ tanggal_kelulusan: tanggalKelulusan })
+      const response = await processGraduationWithDate({
+        tanggal_kelulusan: tanggalKelulusan,
+        konfirmasi: true,
+        expected_jumlah: count,
+      })
       setSummaryData((current) => ({ ...current, graduated: response.jumlah_lulus || 0 }))
       toast.success('Kelulusan berhasil diproses')
       setStep(2)
@@ -66,6 +70,13 @@ export default function PindahTahunAjaran() {
     } finally {
       setLoading(false)
     }
+  }
+
+  const handleSkipGraduate = () => {
+    const count = gradPreview?.jumlah_santri || 0
+    if (count > 0 && !window.confirm(`Lewati proses kelulusan untuk ${count} santri tingkat 12?`)) return
+    setSummaryData((current) => ({ ...current, graduated: 0 }))
+    setStep(2)
   }
 
   const handlePromoChange = (index: number, field: 'target_id' | 'target_nama', value: string) => {
@@ -146,7 +157,7 @@ export default function PindahTahunAjaran() {
       </div>
       <div className="min-h-[400px] rounded-lg bg-white p-6 shadow">
         {loading && <div className="py-10 text-center">Memuat data...</div>}
-        {!loading && step === 1 && <GraduationStep gradPreview={gradPreview} tanggalKelulusan={tanggalKelulusan} onTanggalKelulusanChange={setTanggalKelulusan} onSubmit={handleGraduate} loading={loading} />}
+        {!loading && step === 1 && <GraduationStep gradPreview={gradPreview} tanggalKelulusan={tanggalKelulusan} onTanggalKelulusanChange={setTanggalKelulusan} onSubmit={handleGraduate} onSkip={handleSkipGraduate} loading={loading} />}
         {!loading && step === 2 && <PromotionStep promoMapping={promoMapping} onPromoChange={handlePromoChange} onBack={() => setStep(1)} onSubmit={handlePromote} />}
         {!loading && step === 3 && <FinanceStep onBack={() => setStep(2)} onNext={() => setStep(4)} />}
         {!loading && step === 4 && <ActivationStep tahuns={tahuns} newYearId={newYearId} onChange={setNewYearId} onBack={() => setStep(3)} onSubmit={handleActivateYear} />}

@@ -1,11 +1,9 @@
-import React, { useEffect, useState } from 'react'
+﻿import React, { useEffect, useState } from 'react'
 import Card from '../../components/Card'
-import Table from '../../components/Table'
 import CollectivePaymentCreateForm from '../../components/dompet/CollectivePaymentCreateForm'
 import CollectivePaymentPreviewModal from '../../components/dompet/CollectivePaymentPreviewModal'
-import { buildCollectivePaymentHistoryColumns } from '../../components/dompet/collectivePaymentHistoryColumns'
+import CollectivePaymentHistoryTab from '../../components/dompet/CollectivePaymentHistoryTab'
 import {
-  listCollectivePayments,
   createCollectivePayment,
   getCollectivePayment,
   retryCollectivePayment,
@@ -18,8 +16,7 @@ import toast from 'react-hot-toast'
 
 export default function TagihanKolektif() {
   const [activeTab, setActiveTab] = useState<'create' | 'history'>('history')
-  const [payments, setPayments] = useState<any[]>([])
-  const [loading, setLoading] = useState(true)
+  const [historyRefreshKey, setHistoryRefreshKey] = useState(0)
   const [title, setTitle] = useState('')
   const [description, setDescription] = useState('')
   const [amount, setAmount] = useState('')
@@ -34,21 +31,7 @@ export default function TagihanKolektif() {
   const [selectedPayment, setSelectedPayment] = useState<any>(null)
   const [detailLoading, setDetailLoading] = useState(false)
 
-  useEffect(() => { load() }, [activeTab])
   useEffect(() => { loadKelas(); loadSantri() }, [])
-
-  async function load() {
-    if (activeTab === 'history') {
-      try {
-        setLoading(true)
-        const res = await listCollectivePayments()
-        if (res.success) setPayments(res.data || [])
-      } catch (err) {
-        console.error(err)
-        toast.error('Gagal memuat data')
-      } finally { setLoading(false) }
-    }
-  }
 
   async function loadKelas() {
     try {
@@ -61,7 +44,7 @@ export default function TagihanKolektif() {
 
   async function loadSantri() {
     try {
-      const res = await listSantri(1, 1000)
+      const res = await listSantri(1, 1000, { status: 'aktif' })
       if (res.status === 'success' || res.success) {
         setSantriList(res.data || [])
       }
@@ -90,7 +73,7 @@ export default function TagihanKolektif() {
         class_id: targetType === 'class' ? Number(classId) : undefined,
         santri_ids: targetType === 'individual' ? santriIds : undefined,
       })
-      
+
       if (res.success) {
         toast.success('Tagihan kolektif berhasil dibuat!')
         setTitle('')
@@ -101,7 +84,7 @@ export default function TagihanKolektif() {
         setSantriIds([])
         setSearchSantri('')
         setActiveTab('history')
-        await load()
+        setHistoryRefreshKey(prev => prev + 1)
       }
     } catch (err: any) {
       console.error(err)
@@ -129,9 +112,9 @@ export default function TagihanKolektif() {
       const res = await retryCollectivePayment(id)
       if (res.success) {
         toast.success(res.message || 'Retry berhasil')
-        load()
+        setHistoryRefreshKey(prev => prev + 1)
         if (selectedPayment && selectedPayment.id === id) {
-          handlePreview({ id })
+          await handlePreview({ id })
         }
       }
     } catch (err: any) {
@@ -148,7 +131,7 @@ export default function TagihanKolektif() {
       if (res.success) {
         const refundedCount = res?.data?.refunded_count || 0
         toast.success(`Tagihan dibatalkan. ${refundedCount} saldo santri dikembalikan.`)
-        await load()
+        setHistoryRefreshKey(prev => prev + 1)
         if (selectedPayment && selectedPayment.id === id) {
           await handlePreview({ id })
         }
@@ -170,18 +153,13 @@ export default function TagihanKolektif() {
           setShowPreviewModal(false)
           setSelectedPayment(null)
         }
-        await load()
+        setHistoryRefreshKey(prev => prev + 1)
       }
     } catch (err: any) {
       console.error(err)
       toast.error(err?.response?.data?.message || 'Gagal menghapus tagihan')
     }
   }
-
-  const historyColumns = buildCollectivePaymentHistoryColumns({
-    onPreview: handlePreview,
-    onDelete: handleDelete,
-  })
 
   return (
     <div className="space-y-4">
@@ -211,13 +189,11 @@ export default function TagihanKolektif() {
       </div>
 
       {activeTab === 'history' && (
-        <Card>
-          {loading ? (
-            <div className="text-center py-8">Loading...</div>
-          ) : (
-            <Table columns={historyColumns} data={payments} />
-          )}
-        </Card>
+        <CollectivePaymentHistoryTab
+          refreshKey={historyRefreshKey}
+          onPreview={handlePreview}
+          onDelete={handleDelete}
+        />
       )}
 
       {activeTab === 'create' && (

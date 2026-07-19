@@ -8,6 +8,8 @@ import { Search } from 'lucide-react'
 import { useAuthStore, hasAccess } from '../../stores/useAuthStore'
 import toast from 'react-hot-toast'
 
+const EXIT_STATUSES = ['mutasi', 'mutasi_keluar', 'keluar', 'alumni', 'lulus']
+
 export default function DompetSantri() {
   const [loading, setLoading] = useState(false)
   const [santriList, setSantriList] = useState<any[]>([])
@@ -34,6 +36,9 @@ export default function DompetSantri() {
   const currentUser = useAuthStore((s) => s.user)
   const roles = useAuthStore((s) => s.roles)
   const currentRole = roles?.find((r: any) => (r.slug === (currentUser?.role)))
+  const selectedStatus = String(selectedSantri?.status || '').trim().toLowerCase()
+  const isExitSelected = EXIT_STATUSES.includes(selectedStatus)
+  const isMutasiOrAlumni = ['mutasi', 'mutasi_keluar', 'alumni'].includes(selectedStatus)
 
   const formatRupiah = (val: string) => val ? Number(val).toLocaleString('id-ID') : ''
 
@@ -234,12 +239,12 @@ export default function DompetSantri() {
   async function handleDeleteWalletForMutasi() {
     if (!selectedSantri?.id) return
     if (!['mutasi', 'mutasi_keluar', 'keluar', 'alumni', 'lulus'].includes(selectedSantri?.status)) {
-      toast.error('Opsi ini hanya untuk santri status mutasi')
+      toast.error('Opsi ini hanya untuk santri status exit/nonaktif')
       return
     }
 
     const confirmed = window.confirm(
-      `Hapus dompet untuk ${selectedSantri.nama_santri}?\n\nSemua transaksi dompet akan ikut terhapus dan aksi ini tidak bisa dibatalkan.`
+      `Nonaktifkan dompet untuk ${selectedSantri.nama_santri} (status ${selectedSantri.status})?\n\nRiwayat transaksi tidak dihapus, hanya dompet dinonaktifkan.`
     )
 
     if (!confirmed) return
@@ -253,7 +258,7 @@ export default function DompetSantri() {
         throw new Error(res?.message || 'Gagal menghapus dompet')
       }
 
-      toast.success(res?.message || `Dompet ${targetName} berhasil dihapus`)
+      toast.success(res?.message || `Dompet ${targetName} berhasil dinonaktifkan`)
       setSelectedSantri(null)
       setWalletDetail(null)
       setTransactions([])
@@ -332,7 +337,7 @@ export default function DompetSantri() {
                     />
                     <div className="flex-1 min-w-0">
                       <p className="font-medium text-gray-900 truncate">{s.nama_santri}</p>
-                      <p className="text-xs text-gray-500">NIS: {s.nis} • {s.kelas || 'N/A'}</p>
+                      <p className="text-xs text-gray-500">NIS: {s.nis} • {EXIT_STATUSES.includes(String(s.status || '').trim().toLowerCase()) ? '-' : (s.kelas || 'N/A')}</p>
                     </div>
                   </button>
                   ))
@@ -371,7 +376,7 @@ export default function DompetSantri() {
                 <p className="text-xs text-gray-500">Nama Santri</p>
                 <p className="font-semibold text-gray-900">{selectedSantri.nama_santri}</p>
                 <p className="text-xs text-gray-500 mt-2">NIS: {selectedSantri.nis}</p>
-                <p className="text-xs text-gray-500">Kelas: {selectedSantri.kelas || 'N/A'}</p>
+                <p className="text-xs text-gray-500">Kelas: {isExitSelected ? '-' : (selectedSantri.kelas || 'N/A')}</p>
               </div>
               <div>
                 <div className="text-sm text-gray-500">Saldo Saat Ini</div>
@@ -382,11 +387,13 @@ export default function DompetSantri() {
           </div>
 
           <div className="flex gap-3">
-            <button onClick={() => { setMethod('cash'); setAmount(''); setNote(''); setShowTopup(true) }} className="px-4 py-2 bg-green-600 text-white rounded-lg">Setor</button>
+            {!isMutasiOrAlumni && (
+              <button onClick={() => { setMethod('cash'); setAmount(''); setNote(''); setShowTopup(true) }} className="px-4 py-2 bg-green-600 text-white rounded-lg">Setor</button>
+            )}
             <button onClick={() => { setMethod('cash'); setAmount(''); setNote(''); setShowWithdraw(true) }} className="px-4 py-2 bg-red-600 text-white rounded-lg">Tarik</button>
-            {['mutasi', 'mutasi_keluar', 'keluar', 'alumni', 'lulus'].includes(selectedSantri?.status) && hasAccess('dompet.manage') && (
+            {isExitSelected && hasAccess('dompet.manage') && (
               <button onClick={handleDeleteWalletForMutasi} className="px-4 py-2 bg-gray-900 text-white rounded-lg">
-                Hapus Dompet Mutasi
+                Hapus Dompet Exit
               </button>
             )}
           </div>

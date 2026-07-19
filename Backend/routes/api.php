@@ -243,6 +243,8 @@ Route::middleware('auth:sanctum')->group(function () {
 
         // Collective Payments (Tagihan Kolektif)
         Route::get('collective-payments', [\App\Http\Controllers\CollectivePaymentController::class, 'index']);
+        Route::get('collective-payments/history/summary', [\App\Http\Controllers\CollectivePaymentController::class, 'historySummary']);
+        Route::get('collective-payments/history/by-month', [\App\Http\Controllers\CollectivePaymentController::class, 'historyByMonth']);
         Route::post('collective-payments', [\App\Http\Controllers\CollectivePaymentController::class, 'store']);
         Route::get('collective-payments/{id}', [\App\Http\Controllers\CollectivePaymentController::class, 'show']);
         Route::post('collective-payments/{id}/retry', [\App\Http\Controllers\CollectivePaymentController::class, 'retry']);
@@ -258,6 +260,8 @@ Route::middleware('auth:sanctum')->group(function () {
         Route::post('/{santriId}/topup', [WalletController::class, 'topup'])->where('santriId', $uuidConstraint);
         Route::post('/{santriId}/debit', [WalletController::class, 'debit'])->where('santriId', $uuidConstraint);
         Route::get('/{santriId}/transactions', [WalletController::class, 'transactions'])->where('santriId', $uuidConstraint);
+        Route::get('/{santriId}/settlement/preview', [WalletController::class, 'settlementPreview'])->where('santriId', $uuidConstraint);
+        Route::post('/{santriId}/settlement/execute', [WalletController::class, 'settlementExecute'])->where('santriId', $uuidConstraint);
     });
 });
 
@@ -320,6 +324,7 @@ Route::middleware('auth:sanctum')->prefix('v1/akademik')->group(function () {
     Route::prefix('transition')->group(function () {
         Route::get('graduation-preview', [\App\Http\Controllers\PindahTahunAjaranController::class, 'previewLulus']);
         Route::post('graduate', [\App\Http\Controllers\PindahTahunAjaranController::class, 'graduate']);
+        Route::post('revoke-graduation', [\App\Http\Controllers\PindahTahunAjaranController::class, 'revokeGraduation']);
         Route::get('promotion-preview', [\App\Http\Controllers\PindahTahunAjaranController::class, 'previewNaikKelas']);
         Route::post('promote', [\App\Http\Controllers\PindahTahunAjaranController::class, 'promote']);
     });

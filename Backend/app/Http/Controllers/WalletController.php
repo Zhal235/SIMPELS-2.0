@@ -20,6 +20,7 @@ use App\Services\Wallet\WalletTransactionService;
 use App\Services\Wallet\EposWithdrawalService;
 use App\Services\Wallet\CashWithdrawalService;
 use App\Services\Wallet\WalletImportService;
+use App\Services\Wallet\WalletSettlementService;
 
 class WalletController extends Controller
 {
@@ -29,6 +30,7 @@ class WalletController extends Controller
     protected EposWithdrawalService $eposWithdrawalService;
     protected CashWithdrawalService $cashWithdrawalService;
     protected WalletImportService $importService;
+    protected WalletSettlementService $settlementService;
 
     public function __construct(
         WalletBalanceService $balanceService,
@@ -36,7 +38,8 @@ class WalletController extends Controller
         WalletTransactionService $transactionService,
         EposWithdrawalService $eposWithdrawalService,
         CashWithdrawalService $cashWithdrawalService,
-        WalletImportService $importService
+        WalletImportService $importService,
+        WalletSettlementService $settlementService
     ) {
         $this->balanceService = $balanceService;
         $this->crudService = $crudService;
@@ -44,6 +47,7 @@ class WalletController extends Controller
         $this->eposWithdrawalService = $eposWithdrawalService;
         $this->cashWithdrawalService = $cashWithdrawalService;
         $this->importService = $importService;
+        $this->settlementService = $settlementService;
     }
 
     /**
@@ -103,6 +107,31 @@ class WalletController extends Controller
     {
         $txns = $this->transactionService->getTransactions($santriId, request());
         return response()->json(['success' => true, 'data' => $txns]);
+    }
+
+    public function settlementPreview($santriId)
+    {
+        $result = $this->settlementService->preview($santriId);
+        $statusCode = $result['status_code'] ?? 200;
+        unset($result['status_code']);
+
+        return response()->json($result, $statusCode);
+    }
+
+    public function settlementExecute(Request $request, $santriId)
+    {
+        $validated = $request->validate([
+            'konfirmasi' => ['required', 'boolean'],
+            'expected_wallet_balance' => ['nullable', 'numeric', 'min:0'],
+            'expected_total_tunggakan' => ['nullable', 'numeric', 'min:0'],
+            'refund_method' => ['nullable', 'in:cash,transfer'],
+        ]);
+
+        $result = $this->settlementService->execute($santriId, $validated, auth()->id());
+        $statusCode = $result['status_code'] ?? 200;
+        unset($result['status_code']);
+
+        return response()->json($result, $statusCode);
     }
 
     protected function ensureAdmin(Request $request)

@@ -76,6 +76,13 @@ class MutasiKeluarController extends Controller
             // Histori transaksi harus dipertahankan agar laporan keuangan historis tetap konsisten.
             $wallet = Wallet::where('santri_id', $santri->id)->first();
             $returnedBalance = $wallet ? (float) $wallet->balance : 0;
+            $walletDeactivated = false;
+
+            if ($wallet && (float) $wallet->balance === 0.0 && (bool) $wallet->is_active) {
+                $wallet->is_active = false;
+                $wallet->save();
+                $walletDeactivated = true;
+            }
 
             DB::commit();
 
@@ -84,6 +91,7 @@ class MutasiKeluarController extends Controller
                 'message' => 'Mutasi keluar berhasil disimpan' . ($returnedBalance > 0 ? '. Saldo dompet saat mutasi: Rp ' . number_format($returnedBalance, 0, ',', '.') . '.' : '.'),
                 'data' => $mutasi,
                 'returned_balance' => $returnedBalance,
+                'wallet_deactivated' => $walletDeactivated,
             ], 201);
         } catch (\Exception $e) {
             DB::rollBack();

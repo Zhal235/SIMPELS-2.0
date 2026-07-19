@@ -3,6 +3,7 @@
 namespace App\Services\Santri;
 
 use App\Models\Santri;
+use App\Models\Wallet;
 use App\Http\Resources\SantriResource;
 use App\Traits\ValidatesDeletion;
 use Illuminate\Http\Request;
@@ -12,6 +13,8 @@ use Throwable;
 class SantriCrudService
 {
     use ValidatesDeletion;
+
+    private const EXIT_STATUSES = ['mutasi_keluar', 'mutasi', 'keluar', 'alumni', 'lulus'];
 
     public function getList(Request $request): array
     {
@@ -124,9 +127,42 @@ class SantriCrudService
             $data['foto'] = $request->file('foto')->store('foto-santri', 'r2');
         }
 
+        $oldStatus = $santri->status;
         $santri->update($data);
+        $santri->refresh();
 
-        return ['status' => 'success', 'message' => 'Santri berhasil diperbarui', 'data' => $santri];
+        $walletDeactivated = false;
+        if (
+            $oldStatus !== $santri->status
+            && in_array((string) $santri->status, self::EXIT_STATUSES, true)
+        ) {
+            $walletDeactivated = $this->deactivateWalletIfZeroBalance($santri->id);
+        }
+
+        return [
+            'status' => 'success',
+            'message' => 'Santri berhasil diperbarui',
+            'data' => $santri,
+            'wallet_deactivated' => $walletDeactivated,
+        ];
+    }
+
+    private function deactivateWalletIfZeroBalance(string $santriId): bool
+    {
+        $wallet = Wallet::where('santri_id', $santriId)->where('is_active', true)->first();
+
+        if (!$wallet) {
+            return false;
+        }
+
+        if ((float) $wallet->balance !== 0.0) {
+            return false;
+        }
+
+        $wallet->is_active = false;
+        $wallet->save();
+
+        return true;
     }
 
     private function sanitize(array $data): array
@@ -237,7 +273,7 @@ class SantriCrudService
             'pekerjaan_ibu' => ['nullable', 'string', 'max:255'],
             'hp_ibu' => ['nullable', 'string', 'max:255'],
             'foto' => ['nullable', 'file', 'image', 'max:2048'],
-            'status' => ['nullable', Rule::in(['aktif', 'keluar', 'mutasi', 'alumni', 'lulus'])],
+            'status' => ['nullable', Rule::in(['aktif', 'keluar', 'mutasi', 'mutasi_keluar', 'alumni', 'lulus'])],
             'jenis_penerimaan' => ['nullable', Rule::in(['baru', 'mutasi_masuk'])],
             'tanggal_keluar' => ['nullable', 'date'],
             'tujuan_mutasi' => ['nullable', 'string', 'max:255'],

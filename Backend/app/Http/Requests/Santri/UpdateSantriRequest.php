@@ -50,7 +50,7 @@ class UpdateSantriRequest extends FormRequest
             'pekerjaan_ibu' => ['nullable', 'string', 'max:255'],
             'hp_ibu' => ['nullable', 'string', 'max:255'],
             'foto' => ['nullable', 'file', 'image', 'max:2048'],
-            'status' => ['nullable', Rule::in(['aktif', 'keluar', 'mutasi', 'alumni', 'lulus'])],
+            'status' => ['nullable', Rule::in(['aktif', 'keluar', 'mutasi', 'mutasi_keluar', 'alumni', 'lulus'])],
             'jenis_penerimaan' => ['nullable', Rule::in(['baru', 'mutasi_masuk'])],
             'tanggal_keluar' => ['nullable', 'date'],
             'tujuan_mutasi' => ['nullable', 'string', 'max:255'],

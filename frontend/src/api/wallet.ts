@@ -40,6 +40,21 @@ export async function getWalletTransactions(santriId: string | number) {
   return res.data
 }
 
+export async function getWalletSettlementPreview(santriId: string | number) {
+  const res = await api.get(`/v1/wallets/${santriId}/settlement/preview`)
+  return res.data
+}
+
+export async function executeWalletSettlement(santriId: string | number, payload: {
+  konfirmasi: boolean
+  expected_wallet_balance?: number
+  expected_total_tunggakan?: number
+  refund_method?: 'cash' | 'transfer'
+}) {
+  const res = await api.post(`/v1/wallets/${santriId}/settlement/execute`, payload)
+  return res.data
+}
+
 export async function updateTransaction(txnId: string | number, payload: { amount: number, description?: string, method?: string, type?: string }) {
   const res = await api.put(`/v1/wallets/transactions/${txnId}`, payload)
   return res.data
@@ -120,6 +135,21 @@ export async function getBalances() {
 // Collective Payments
 export async function listCollectivePayments() {
   const res = await api.get('/v1/wallets/collective-payments')
+  return res.data
+}
+
+export async function getCollectivePaymentHistorySummary() {
+  const res = await api.get('/v1/wallets/collective-payments/history/summary')
+  return res.data
+}
+
+export async function listCollectivePaymentsByMonth(params: {
+  year: number
+  month: number
+  page?: number
+  per_page?: number
+}) {
+  const res = await api.get('/v1/wallets/collective-payments/history/by-month', { params })
   return res.data
 }
 
