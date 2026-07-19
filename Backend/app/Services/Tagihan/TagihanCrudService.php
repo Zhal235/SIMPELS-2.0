@@ -12,12 +12,23 @@ class TagihanCrudService
 {
     use ValidatesDeletion;
 
-    public function getRekapPerSantri(bool $includeDetail = true): array
+    public function getRekapPerSantri(bool $includeDetail = true, int $page = 1, int $perPage = 50): array
     {
-        $rekap = DB::table('tagihan_santri')
+        $page = max($page, 1);
+        $perPage = max(1, min($perPage, 100));
+
+        $baseQuery = DB::table('tagihan_santri')
             ->join('santri', 'tagihan_santri.santri_id', '=', 'santri.id')
             ->join('jenis_tagihan', 'tagihan_santri.jenis_tagihan_id', '=', 'jenis_tagihan.id')
             ->leftJoin('kelas', 'santri.kelas_id', '=', 'kelas.id')
+            ->whereNull('tagihan_santri.deleted_at')
+            ->whereNull('jenis_tagihan.deleted_at');
+
+        $total = (clone $baseQuery)
+            ->distinct('santri.id')
+            ->count('santri.id');
+
+        $rekap = (clone $baseQuery)
             ->select(
                 'santri.id as santri_id',
                 'santri.nis as santri_nis',
@@ -27,13 +38,20 @@ class TagihanCrudService
                 DB::raw('SUM(tagihan_santri.dibayar) as total_dibayar'),
                 DB::raw('SUM(tagihan_santri.sisa) as sisa_tagihan')
             )
-            ->whereNull('tagihan_santri.deleted_at')
-            ->whereNull('jenis_tagihan.deleted_at')
             ->groupBy('santri.id', 'santri.nis', 'santri.nama_santri', 'kelas.nama_kelas')
+            ->orderBy('santri.nama_santri')
+            ->forPage($page, $perPage)
             ->get();
 
         if ($rekap->isEmpty()) {
-            return ['success' => true, 'data' => []];
+            return [
+                'success' => true,
+                'data' => [],
+                'total' => $total,
+                'page' => $page,
+                'perPage' => $perPage,
+                'lastPage' => (int) ceil($total / $perPage),
+            ];
         }
 
         $detailBySantri = collect();
@@ -111,7 +129,14 @@ class TagihanCrudService
             ];
         });
 
-        return ['success' => true, 'data' => $result];
+        return [
+            'success' => true,
+            'data' => $result,
+            'total' => $total,
+            'page' => $page,
+            'perPage' => $perPage,
+            'lastPage' => (int) ceil($total / $perPage),
+        ];
     }
 
     public function findById(string $id): array

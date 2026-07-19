@@ -12,6 +12,7 @@ use App\Models\Pembayaran;
 use App\Models\BukuKas;
 use App\Models\TransaksiKas;
 use Illuminate\Support\Facades\DB;
+use Illuminate\Support\Facades\Cache;
 
 class DashboardController extends Controller
 {
@@ -26,23 +27,29 @@ class DashboardController extends Controller
             $bulan = $request->query('bulan');
             $tahun = $request->query('tahun');
 
-            $totalSantri = Santri::where('status', 'aktif')->count();
-            $totalSaldo = Wallet::sum('balance') ?? 0;
+            $cacheKey = 'dashboard.index.' . md5(json_encode([$bulan, $tahun]));
 
-            $tagihanQuery = TagihanSantri::query();
-            if ($bulan) $tagihanQuery->where('bulan', $bulan);
-            if ($tahun) $tagihanQuery->where('tahun', $tahun);
+            $payload = Cache::remember($cacheKey, now()->addSeconds(60), function () use ($bulan, $tahun) {
+                $totalSantri = Santri::where('status', 'aktif')->count();
+                $totalSaldo = Wallet::sum('balance') ?? 0;
 
-            $tahunAjaranAktif = TahunAjaran::where('status', 'aktif')->first();
+                $tagihanQuery = TagihanSantri::query();
+                if ($bulan) $tagihanQuery->where('bulan', $bulan);
+                if ($tahun) $tagihanQuery->where('tahun', $tahun);
 
-            return response()->json([
-                'totalSantri' => $totalSantri,
-                'totalSaldo' => (float) $totalSaldo,
-                'totalTagihan' => (float) $tagihanQuery->sum('nominal'),
-                'totalTerbayar' => (float) $tagihanQuery->sum('dibayar'),
-                'totalTunggakan' => (float) $tagihanQuery->sum('sisa'),
-                'tahunAjaranAktif' => $tahunAjaranAktif,
-            ]);
+                $tahunAjaranAktif = TahunAjaran::where('status', 'aktif')->first();
+
+                return [
+                    'totalSantri' => $totalSantri,
+                    'totalSaldo' => (float) $totalSaldo,
+                    'totalTagihan' => (float) $tagihanQuery->sum('nominal'),
+                    'totalTerbayar' => (float) $tagihanQuery->sum('dibayar'),
+                    'totalTunggakan' => (float) $tagihanQuery->sum('sisa'),
+                    'tahunAjaranAktif' => $tahunAjaranAktif,
+                ];
+            });
+
+            return response()->json($payload);
         } catch (\Exception $e) {
             return response()->json([
                 'success' => false,
@@ -59,54 +66,53 @@ class DashboardController extends Controller
             $tahun = $request->query('tahun');
             $kategori = $request->query('kategori'); // 'Rutin' atau 'Non Rutin' atau null untuk semua
 
-            // Join dengan jenis_tagihan untuk filter kategori
-            $query = TagihanSantri::with('jenisTagihan:id,nama_tagihan,kategori')
-                ->join('jenis_tagihan', 'tagihan_santri.jenis_tagihan_id', '=', 'jenis_tagihan.id')
-                ->select(
-                    'tagihan_santri.jenis_tagihan_id',
-                    'jenis_tagihan.kategori',
-                    DB::raw('SUM(tagihan_santri.nominal) as total_nominal'),
-                    DB::raw('SUM(tagihan_santri.dibayar) as total_dibayar'),
-                    DB::raw('SUM(tagihan_santri.sisa) as total_sisa'),
-                    DB::raw("SUM(CASE WHEN tagihan_santri.status = 'lunas' THEN 1 ELSE 0 END) as jumlah_lunas"),
-                    DB::raw("SUM(CASE WHEN tagihan_santri.status != 'lunas' THEN 1 ELSE 0 END) as jumlah_belum_lunas"),
-                    DB::raw('COUNT(tagihan_santri.id) as total_santri')
-                )
-                ->groupBy('tagihan_santri.jenis_tagihan_id', 'jenis_tagihan.kategori');
+            $cacheKey = 'dashboard.tagihanSummary.' . md5(json_encode([$bulan, $tahun, $kategori]));
 
-            // Filter berdasarkan kategori (Rutin hanya filter bulan, Non-Rutin tanpa filter bulan)
-            if ($kategori === 'Rutin') {
-                if ($bulan) $query->where('tagihan_santri.bulan', $bulan);
-                if ($tahun) $query->where('tagihan_santri.tahun', $tahun);
-            } elseif ($kategori === 'Non Rutin') {
-                // Non-Rutin tidak di-filter bulan/tahun, menampilkan keseluruhan
-            } else {
-                // Jika tidak ada filter kategori, apply bulan/tahun untuk backward compatibility
-                if ($bulan) $query->where('tagihan_santri.bulan', $bulan);
-                if ($tahun) $query->where('tagihan_santri.tahun', $tahun);
-            }
+            $results = Cache::remember($cacheKey, now()->addSeconds(60), function () use ($bulan, $tahun, $kategori) {
+                $query = TagihanSantri::with('jenisTagihan:id,nama_tagihan,kategori')
+                    ->join('jenis_tagihan', 'tagihan_santri.jenis_tagihan_id', '=', 'jenis_tagihan.id')
+                    ->select(
+                        'tagihan_santri.jenis_tagihan_id',
+                        'jenis_tagihan.kategori',
+                        DB::raw('SUM(tagihan_santri.nominal) as total_nominal'),
+                        DB::raw('SUM(tagihan_santri.dibayar) as total_dibayar'),
+                        DB::raw('SUM(tagihan_santri.sisa) as total_sisa'),
+                        DB::raw("SUM(CASE WHEN tagihan_santri.status = 'lunas' THEN 1 ELSE 0 END) as jumlah_lunas"),
+                        DB::raw("SUM(CASE WHEN tagihan_santri.status != 'lunas' THEN 1 ELSE 0 END) as jumlah_belum_lunas"),
+                        DB::raw('COUNT(tagihan_santri.id) as total_santri')
+                    )
+                    ->groupBy('tagihan_santri.jenis_tagihan_id', 'jenis_tagihan.kategori');
 
-            if ($kategori && in_array($kategori, ['Rutin', 'Non Rutin'])) {
-                $query->where('jenis_tagihan.kategori', $kategori);
-            }
+                if ($kategori === 'Rutin') {
+                    if ($bulan) $query->where('tagihan_santri.bulan', $bulan);
+                    if ($tahun) $query->where('tagihan_santri.tahun', $tahun);
+                } elseif ($kategori !== 'Non Rutin') {
+                    if ($bulan) $query->where('tagihan_santri.bulan', $bulan);
+                    if ($tahun) $query->where('tagihan_santri.tahun', $tahun);
+                }
 
-            $results = $query->get()->map(function ($row) {
-                $total = (int) $row->total_santri;
-                $lunas = (int) $row->jumlah_lunas;
-                $belum = (int) $row->jumlah_belum_lunas;
+                if ($kategori && in_array($kategori, ['Rutin', 'Non Rutin'])) {
+                    $query->where('jenis_tagihan.kategori', $kategori);
+                }
 
-                return [
-                    'jenisTagihanId' => $row->jenis_tagihan_id,
-                    'namaTagihan' => $row->jenisTagihan?->nama_tagihan ?? '-',
-                    'kategori' => $row->kategori,
-                    'totalNominal' => (float) $row->total_nominal,
-                    'totalDibayar' => (float) $row->total_dibayar,
-                    'totalSisa' => (float) $row->total_sisa,
-                    'jumlahLunas' => $lunas,
-                    'jumlahBelumLunas' => $belum,
-                    'totalSantri' => $total,
-                    'persentaseLunas' => $total > 0 ? round(($lunas / $total) * 100, 1) : 0,
-                ];
+                return $query->get()->map(function ($row) {
+                    $total = (int) $row->total_santri;
+                    $lunas = (int) $row->jumlah_lunas;
+                    $belum = (int) $row->jumlah_belum_lunas;
+
+                    return [
+                        'jenisTagihanId' => $row->jenis_tagihan_id,
+                        'namaTagihan' => $row->jenisTagihan?->nama_tagihan ?? '-',
+                        'kategori' => $row->kategori,
+                        'totalNominal' => (float) $row->total_nominal,
+                        'totalDibayar' => (float) $row->total_dibayar,
+                        'totalSisa' => (float) $row->total_sisa,
+                        'jumlahLunas' => $lunas,
+                        'jumlahBelumLunas' => $belum,
+                        'totalSantri' => $total,
+                        'persentaseLunas' => $total > 0 ? round(($lunas / $total) * 100, 1) : 0,
+                    ];
+                });
             });
 
             return response()->json(['data' => $results]);
@@ -129,25 +135,29 @@ class DashboardController extends Controller
                 if ($ta) $tahunAjaranId = $ta->id;
             }
 
-            $jenisTagihanIds = JenisTagihan::where('tahun_ajaran_id', $tahunAjaranId)->pluck('id');
+            $cacheKey = 'dashboard.trend.' . md5((string) $tahunAjaranId);
 
-            $data = TagihanSantri::whereIn('jenis_tagihan_id', $jenisTagihanIds)
-                ->select(
-                    'bulan',
-                    'tahun',
-                    DB::raw('SUM(nominal) as total_nominal'),
-                    DB::raw('SUM(dibayar) as total_dibayar')
-                )
-                ->groupBy('bulan', 'tahun')
-                ->get()
-                ->sortBy(fn($row) => ($row->tahun * 100) + (array_search($row->bulan, self::BULAN_ORDER) + 1))
-                ->values()
-                ->map(fn($row) => [
-                    'bulan' => $row->bulan,
-                    'tahun' => $row->tahun,
-                    'totalNominal' => (float) $row->total_nominal,
-                    'totalDibayar' => (float) $row->total_dibayar,
-                ]);
+            $data = Cache::remember($cacheKey, now()->addSeconds(60), function () use ($tahunAjaranId) {
+                $jenisTagihanIds = JenisTagihan::where('tahun_ajaran_id', $tahunAjaranId)->pluck('id');
+
+                return TagihanSantri::whereIn('jenis_tagihan_id', $jenisTagihanIds)
+                    ->select(
+                        'bulan',
+                        'tahun',
+                        DB::raw('SUM(nominal) as total_nominal'),
+                        DB::raw('SUM(dibayar) as total_dibayar')
+                    )
+                    ->groupBy('bulan', 'tahun')
+                    ->get()
+                    ->sortBy(fn($row) => ($row->tahun * 100) + (array_search($row->bulan, self::BULAN_ORDER) + 1))
+                    ->values()
+                    ->map(fn($row) => [
+                        'bulan' => $row->bulan,
+                        'tahun' => $row->tahun,
+                        'totalNominal' => (float) $row->total_nominal,
+                        'totalDibayar' => (float) $row->total_dibayar,
+                    ]);
+            });
 
             return response()->json(['data' => $data]);
         } catch (\Exception $e) {

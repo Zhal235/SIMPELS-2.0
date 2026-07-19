@@ -23,7 +23,10 @@ class TagihanSantriController extends Controller
     {
         try {
             $includeDetail = filter_var($request->query('include_detail', true), FILTER_VALIDATE_BOOL, FILTER_NULL_ON_FAILURE);
-            return response()->json($this->crudService->getRekapPerSantri($includeDetail ?? true));
+            $page = max((int) $request->query('page', 1), 1);
+            $perPage = max((int) $request->query('perPage', 50), 1);
+
+            return response()->json($this->crudService->getRekapPerSantri($includeDetail ?? true, $page, $perPage));
         } catch (Throwable $e) {
             return response()->json(['success' => false, 'message' => 'Gagal memuat tagihan'], 500);
         }

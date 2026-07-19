@@ -17,6 +17,9 @@ class PembayaranService
 {
     public function getList(Request $request): array
     {
+        $page = max((int) $request->query('page', 1), 1);
+        $perPage = max((int) $request->query('perPage', 25), 1);
+
         $query = Pembayaran::with(['santri', 'tagihanSantri.jenisTagihan', 'bukuKas']);
 
         if ($request->has('santri_id')) {
@@ -27,9 +30,16 @@ class PembayaranService
             $query->whereBetween('tanggal_bayar', [$request->start_date, $request->end_date]);
         }
 
-        $pembayaran = $query->orderBy('tanggal_bayar', 'desc')->get();
+        $paginator = $query->orderBy('tanggal_bayar', 'desc')->paginate($perPage, ['*'], 'page', $page);
 
-        return ['success' => true, 'data' => $pembayaran];
+        return [
+            'success' => true,
+            'data' => $paginator->items(),
+            'total' => $paginator->total(),
+            'page' => $paginator->currentPage(),
+            'perPage' => $paginator->perPage(),
+            'lastPage' => $paginator->lastPage(),
+        ];
     }
 
     public function getHistory(string $santriId): array

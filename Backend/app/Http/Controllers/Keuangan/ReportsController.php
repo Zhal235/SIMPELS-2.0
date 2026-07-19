@@ -6,6 +6,8 @@ use App\Http\Controllers\Controller;
 use Illuminate\Http\Request;
 use App\Models\Pembayaran;
 use App\Models\TransaksiKas;
+use Illuminate\Support\Facades\Cache;
+use Illuminate\Support\Facades\DB;
 
 class ReportsController extends Controller
 {
@@ -16,72 +18,68 @@ class ReportsController extends Controller
     {
         $start = $request->query('start');
         $end = $request->query('end');
+        $cacheKey = 'reports.summary.' . md5(json_encode([$start, $end]));
 
-        \Log::info('📊 Reports Summary Request', ['start' => $start, 'end' => $end]);
+        $payload = Cache::remember($cacheKey, now()->addSeconds(60), function () use ($start, $end) {
+            $pembayaranBase = DB::table('pembayaran as p')
+                ->whereNull('p.deleted_at')
+                ->when($start, fn($q) => $q->whereDate('p.tanggal_bayar', '>=', $start))
+                ->when($end, fn($q) => $q->whereDate('p.tanggal_bayar', '<=', $end));
 
-        $pembayaranQuery = Pembayaran::query();
-        $transaksiQuery = TransaksiKas::query();
+            $transaksiBase = DB::table('transaksi_kas as tk')
+                ->whereNull('tk.deleted_at')
+                ->when($start, fn($q) => $q->whereDate('tk.tanggal', '>=', $start))
+                ->when($end, fn($q) => $q->whereDate('tk.tanggal', '<=', $end));
 
-        if ($start) $pembayaranQuery->whereDate('tanggal_bayar', '>=', $start);
-        if ($end) $pembayaranQuery->whereDate('tanggal_bayar', '<=', $end);
+            $totalReceipts = (float) (clone $pembayaranBase)->sum('p.nominal_bayar');
 
-        if ($start) $transaksiQuery->whereDate('tanggal', '>=', $start);
-        if ($end) $transaksiQuery->whereDate('tanggal', '<=', $end);
+            $totalExpenses = (float) (clone $transaksiBase)
+                ->where(function ($q) {
+                    $q->where('tk.jenis', '!=', 'pemasukan')->orWhereNull('tk.jenis');
+                })
+                ->where('tk.kategori', 'NOT LIKE', '%Transfer Internal%')
+                ->sum('tk.nominal');
 
-        $totalReceipts = (float) $pembayaranQuery->sum('nominal_bayar');
+            $pembayaranBreakdownRows = (clone $pembayaranBase)
+                ->leftJoin('tagihan_santri as ts', 'ts.id', '=', 'p.tagihan_santri_id')
+                ->leftJoin('jenis_tagihan as jt', 'jt.id', '=', 'ts.jenis_tagihan_id')
+                ->selectRaw("COALESCE(jt.nama_tagihan, 'Tagihan Lainnya') as label, SUM(p.nominal_bayar) as total")
+                ->groupBy('label')
+                ->get();
 
-        // Treat transaksi with jenis == 'pemasukan' as receipts, others as expenses
-        // EXCLUDE Transfer Internal (perpindahan Bank ↔ Cash dalam 1 buku kas)
-        $expenseQuery = (clone $transaksiQuery)
-            ->where(function ($q) {
-                $q->where('jenis', '!=', 'pemasukan')->orWhereNull('jenis');
-            })
-            ->where('kategori', 'NOT LIKE', '%Transfer Internal%');
-        $totalExpenses = (float) $expenseQuery->sum('nominal');
+            $otherReceiptsRows = (clone $transaksiBase)
+                ->where('tk.jenis', 'pemasukan')
+                ->whereNull('tk.pembayaran_id')
+                ->where('tk.kategori', 'NOT LIKE', '%Transfer Internal%')
+                ->selectRaw("COALESCE(tk.kategori, 'Pemasukan Lainnya') as label, SUM(tk.nominal) as total")
+                ->groupBy('label')
+                ->get();
 
-        // Breakdown Pemasukan (Receipts)
-        // 1. Dari Pembayaran Santri (Group by Jenis Tagihan)
-        $pembayaranBreakdown = (clone $pembayaranQuery)
-            ->with(['tagihanSantri.jenisTagihan'])
-            ->get()
-            ->groupBy(function ($item) {
-                // Gunakan nama jenis tagihan sebagai label pelaporan
-                // Contoh: "SPP", "Uang Makan", "Uang Gedung"
-                return $item->tagihanSantri->jenisTagihan->nama_tagihan ?? 'Tagihan Lainnya';
-            })
-            ->map(function ($group) {
-                return (float) $group->sum('nominal_bayar');
-            });
+            $pembayaranBreakdown = [];
+            foreach ($pembayaranBreakdownRows as $row) {
+                $pembayaranBreakdown[$row->label] = (float) $row->total;
+            }
 
-        // 2. Dari Transaksi Kas Lainnya (Bukan pembayaran santri, tapi jenis pemasukan)
-        $otherReceiptsQuery = (clone $transaksiQuery)
-            ->where('jenis', 'pemasukan')
-            ->whereNull('pembayaran_id')
-            ->where('kategori', 'NOT LIKE', '%Transfer Internal%');
+            $otherReceiptsBreakdown = [];
+            foreach ($otherReceiptsRows as $row) {
+                $otherReceiptsBreakdown[$row->label] = (float) $row->total;
+            }
 
-        $otherReceiptsBreakdown = $otherReceiptsQuery
-            ->get()
-            ->groupBy(function ($item) {
-                return $item->kategori ?? 'Pemasukan Lainnya';
-            })
-            ->map(function ($group) {
-                return (float) $group->sum('nominal');
-            });
-            
-        $totalOtherReceipts = $otherReceiptsBreakdown->sum();
-        $totalAllReceipts = $totalReceipts + $totalOtherReceipts;
+            $totalOtherReceipts = array_sum($otherReceiptsBreakdown);
+            $totalAllReceipts = $totalReceipts + $totalOtherReceipts;
+            $receiptsBreakdown = $pembayaranBreakdown + $otherReceiptsBreakdown;
 
-        // Merge breakdown keys
-        $receiptsBreakdown = $pembayaranBreakdown->toArray() + $otherReceiptsBreakdown->toArray();
-
-        return response()->json([
-            'success' => true,
-            'data' => [
+            return [
                 'total_receipts' => $totalAllReceipts,
                 'total_expenses' => $totalExpenses,
                 'net' => $totalAllReceipts - $totalExpenses,
                 'receipts_breakdown' => $receiptsBreakdown,
-            ],
+            ];
+        });
+
+        return response()->json([
+            'success' => true,
+            'data' => $payload,
         ]);
     }
 
@@ -92,21 +90,23 @@ class ReportsController extends Controller
     {
         $start = $request->query('start');
         $end = $request->query('end');
+        $cacheKey = 'reports.expensesByCategory.' . md5(json_encode([$start, $end]));
 
-        $query = TransaksiKas::query();
-        if ($start) $query->whereDate('tanggal', '>=', $start);
-        if ($end) $query->whereDate('tanggal', '<=', $end);
+        $grouped = Cache::remember($cacheKey, now()->addSeconds(60), function () use ($start, $end) {
+            $query = TransaksiKas::query();
+            if ($start) $query->whereDate('tanggal', '>=', $start);
+            if ($end) $query->whereDate('tanggal', '<=', $end);
 
-        $query->where(function ($q) {
-            $q->where('jenis', '!=', 'pemasukan')->orWhereNull('jenis');
+            $query->where(function ($q) {
+                $q->where('jenis', '!=', 'pemasukan')->orWhereNull('jenis');
+            });
+
+            $query->where('kategori', 'NOT LIKE', '%Transfer Internal%');
+
+            return $query->selectRaw('coalesce(kategori_id, 0) as kategori_id, coalesce(kategori, ? ) as kategori_name, SUM(nominal) as total', ['Lain-lain'])
+                ->groupBy('kategori_id', 'kategori')
+                ->get();
         });
-        
-        // EXCLUDE Transfer Internal (perpindahan Bank ↔ Cash dalam 1 buku kas)
-        $query->where('kategori', 'NOT LIKE', '%Transfer Internal%');
-
-        $grouped = $query->selectRaw('coalesce(kategori_id, 0) as kategori_id, coalesce(kategori, ? ) as kategori_name, SUM(nominal) as total', ['Lain-lain'])
-            ->groupBy('kategori_id', 'kategori')
-            ->get();
 
         return response()->json(['success' => true, 'data' => $grouped]);
     }
