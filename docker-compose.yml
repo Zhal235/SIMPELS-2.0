@@ -71,8 +71,9 @@ services:
   frontend:
     image: node:20-alpine
     container_name: simpels_frontend
+    restart: unless-stopped
     working_dir: /app
-    command: sh -c "npm install && npm run dev -- --host"
+    command: sh -c "npm install && npm run dev:docker"
     ports:
       - "5173:5173"
     volumes:
@@ -80,6 +81,8 @@ services:
       - /app/node_modules
     environment:
       - VITE_API_URL=http://localhost:8001/api
+      - CHOKIDAR_USEPOLLING=true
+      - WATCHPACK_POLLING=true
 
   # ─── App SIMPELS (Mobile Flutter Web) ───────────────────────────────────────
   app-simpels:

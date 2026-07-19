@@ -89,6 +89,16 @@ export default defineConfig({
     port: 5173, 
     strictPort: true, 
     open: false,
+    watch: {
+      usePolling: true,
+      interval: 300,
+    },
+    headers: {
+      'Cache-Control': 'no-store, no-cache, must-revalidate, proxy-revalidate',
+      Pragma: 'no-cache',
+      Expires: '0',
+      'Surrogate-Control': 'no-store',
+    },
     allowedHosts: [
       'simpels.saza.sch.id',
       '.saza.sch.id', // Allow all subdomains
