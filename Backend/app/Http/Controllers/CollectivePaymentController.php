@@ -8,6 +8,7 @@ use App\Models\Wallet;
 use App\Models\WalletTransaction;
 use App\Models\Santri;
 use Illuminate\Http\Request;
+use Illuminate\Support\Facades\Cache;
 use Illuminate\Support\Facades\DB;
 use Illuminate\Support\Str;
 
@@ -69,8 +70,35 @@ class CollectivePaymentController extends Controller
             'santri_ids.*' => 'exists:santri,id',
         ]);
 
-        DB::beginTransaction();
+        $userId = (int) $request->user()->id;
+        $payloadHash = $this->buildRequestHash($request);
+        $doneCacheKey = "collective_payment:done:{$userId}:{$payloadHash}";
+        $lockCacheKey = "collective_payment:lock:{$userId}:{$payloadHash}";
+
+        $existingPaymentId = Cache::get($doneCacheKey);
+        if ($existingPaymentId) {
+            $existingPayment = CollectivePayment::with('items.santri')->find($existingPaymentId);
+            if ($existingPayment) {
+                return response()->json([
+                    'success' => true,
+                    'message' => 'Request duplikat terdeteksi, data sebelumnya dikembalikan',
+                    'data' => $existingPayment,
+                    'idempotent' => true,
+                ]);
+            }
+        }
+
+        $lock = Cache::lock($lockCacheKey, 30);
+        if (! $lock->get()) {
+            return response()->json([
+                'success' => false,
+                'message' => 'Permintaan yang sama sedang diproses, tunggu beberapa detik',
+            ], 429);
+        }
+
         try {
+            DB::beginTransaction();
+
             // Get target santri
             $santris = $this->getTargetSantri($request);
 
@@ -89,7 +117,7 @@ class CollectivePaymentController extends Controller
                 'collected_amount' => 0,
                 'outstanding_amount' => $santris->count() * $request->amount_per_santri,
                 'status' => 'active',
-                'created_by' => $request->user()->id,
+                'created_by' => $userId,
             ]);
 
             // Create items and process payment
@@ -119,7 +147,7 @@ class CollectivePaymentController extends Controller
                 ]);
 
                 // Try to process payment immediately
-                $result = $this->processPaymentItem($item, $wallet, $request->user()->id);
+                $result = $this->processPaymentItem($item, $wallet, $userId);
                 
                 if ($result['success']) {
                     $collected += $request->amount_per_santri;
@@ -136,6 +164,8 @@ class CollectivePaymentController extends Controller
             ]);
 
             DB::commit();
+            Cache::put($doneCacheKey, $payment->id, now()->addSeconds(60));
+
             return response()->json([
                 'success' => true,
                 'message' => 'Tagihan kolektif berhasil dibuat',
@@ -146,6 +176,8 @@ class CollectivePaymentController extends Controller
             DB::rollBack();
             \Log::error('Create collective payment error: ' . $e->getMessage() . ' Trace: ' . $e->getTraceAsString());
             return response()->json(['success' => false, 'message' => 'Gagal membuat tagihan', 'error' => $e->getMessage()], 500);
+        } finally {
+            optional($lock)->release();
         }
     }
 
@@ -197,6 +229,142 @@ class CollectivePaymentController extends Controller
     }
 
     /**
+     * Cancel collective payment and refund deducted balances
+     * POST /api/v1/collective-payments/{id}/cancel
+     */
+    public function cancel(Request $request, $id)
+    {
+        DB::beginTransaction();
+
+        try {
+            $payment = CollectivePayment::where('id', $id)->lockForUpdate()->first();
+
+            if (!$payment) {
+                DB::rollBack();
+                return response()->json(['success' => false, 'message' => 'Tagihan tidak ditemukan'], 404);
+            }
+
+            if ($payment->status === 'cancelled') {
+                DB::commit();
+                return response()->json([
+                    'success' => true,
+                    'message' => 'Tagihan sudah dibatalkan sebelumnya',
+                    'idempotent' => true,
+                    'data' => $payment,
+                ]);
+            }
+
+            $paidItems = CollectivePaymentItem::with(['santri'])
+                ->where('collective_payment_id', $payment->id)
+                ->where('status', 'paid')
+                ->whereNotNull('transaction_id')
+                ->lockForUpdate()
+                ->get();
+
+            $walletIds = $paidItems->pluck('wallet_id')->filter()->unique()->values();
+            $wallets = Wallet::whereIn('id', $walletIds)->lockForUpdate()->get()->keyBy('id');
+
+            $refundedCount = 0;
+            $refundedAmount = 0;
+            $refundedSantri = [];
+
+            foreach ($paidItems as $item) {
+                $wallet = $wallets->get($item->wallet_id);
+
+                if (!$wallet) {
+                    continue;
+                }
+
+                $amount = (float) $item->amount;
+                $wallet->balance += $amount;
+                $wallet->save();
+
+                WalletTransaction::create([
+                    'wallet_id' => $wallet->id,
+                    'type' => 'credit',
+                    'amount' => $amount,
+                    'balance_after' => $wallet->balance,
+                    'description' => 'Pengembalian saldo pembatalan: ' . $payment->title,
+                    'reference' => 'CP-CANCEL-' . $payment->id . '-' . $item->id,
+                    'method' => 'cash',
+                    'created_by' => (int) $request->user()->id,
+                    'reversed_of' => $item->transaction_id,
+                ]);
+
+                $refundedCount++;
+                $refundedAmount += $amount;
+                $refundedSantri[] = [
+                    'santri_id' => $item->santri_id,
+                    'santri_name' => $item->santri->nama_santri ?? null,
+                    'amount' => $amount,
+                ];
+            }
+
+            $payment->update([
+                'status' => 'cancelled',
+                'collected_amount' => 0,
+                'outstanding_amount' => 0,
+            ]);
+
+            DB::commit();
+
+            return response()->json([
+                'success' => true,
+                'message' => 'Tagihan dibatalkan dan saldo berhasil dikembalikan',
+                'data' => [
+                    'payment' => $payment->fresh(),
+                    'refunded_count' => $refundedCount,
+                    'refunded_amount' => $refundedAmount,
+                    'refunded_santri' => $refundedSantri,
+                ],
+            ]);
+        } catch (\Exception $e) {
+            DB::rollBack();
+            \Log::error('Cancel collective payment error: ' . $e->getMessage());
+            return response()->json(['success' => false, 'message' => 'Gagal membatalkan tagihan'], 500);
+        }
+    }
+
+    /**
+     * Delete cancelled collective payment
+     * DELETE /api/v1/collective-payments/{id}
+     */
+    public function destroy($id)
+    {
+        DB::beginTransaction();
+
+        try {
+            $payment = CollectivePayment::where('id', $id)->lockForUpdate()->first();
+
+            if (!$payment) {
+                DB::rollBack();
+                return response()->json(['success' => false, 'message' => 'Tagihan tidak ditemukan'], 404);
+            }
+
+            if ($payment->status !== 'cancelled') {
+                DB::rollBack();
+                return response()->json([
+                    'success' => false,
+                    'message' => 'Hanya tagihan yang sudah dibatalkan yang bisa dihapus',
+                ], 422);
+            }
+
+            $payment->delete();
+
+            DB::commit();
+
+            return response()->json([
+                'success' => true,
+                'message' => 'Tagihan dibatalkan berhasil dihapus',
+            ]);
+        } catch (\Exception $e) {
+            DB::rollBack();
+            \Log::error('Delete collective payment error: ' . $e->getMessage());
+            return response()->json(['success' => false, 'message' => 'Gagal menghapus tagihan'], 500);
+        }
+    }
+
+    /**
      * Helper: Get target santri based on request
      */
     private function getTargetSantri(Request $request)
@@ -208,6 +376,27 @@ class CollectivePaymentController extends Controller
         } else {
             return Santri::whereIn('id', $request->santri_ids)->get();
         }
+    }
+
+    private function buildRequestHash(Request $request): string
+    {
+        $santriIds = collect($request->input('santri_ids', []))
+            ->map(fn ($id) => (string) $id)
+            ->unique()
+            ->sort()
+            ->values()
+            ->all();
+
+        $payload = [
+            'title' => trim((string) $request->input('title', '')),
+            'description' => trim((string) $request->input('description', '')),
+            'amount_per_santri' => (float) $request->input('amount_per_santri', 0),
+            'target_type' => (string) $request->input('target_type', ''),
+            'class_id' => $request->input('class_id') ? (int) $request->input('class_id') : null,
+            'santri_ids' => $santriIds,
+        ];
+
+        return hash('sha256', json_encode($payload));
     }
 
     /**

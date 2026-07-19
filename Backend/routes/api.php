@@ -246,6 +246,8 @@ Route::middleware('auth:sanctum')->group(function () {
         Route::post('collective-payments', [\App\Http\Controllers\CollectivePaymentController::class, 'store']);
         Route::get('collective-payments/{id}', [\App\Http\Controllers\CollectivePaymentController::class, 'show']);
         Route::post('collective-payments/{id}/retry', [\App\Http\Controllers\CollectivePaymentController::class, 'retry']);
+        Route::post('collective-payments/{id}/cancel', [\App\Http\Controllers\CollectivePaymentController::class, 'cancel']);
+        Route::delete('collective-payments/{id}', [\App\Http\Controllers\CollectivePaymentController::class, 'destroy']);
 
         // Wallet management per-santri - MUST BE AFTER specific routes to avoid conflicts
         Route::get('/', [WalletController::class, 'index']);

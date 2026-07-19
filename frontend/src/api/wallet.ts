@@ -181,3 +181,13 @@ export async function retryCollectivePayment(id: number | string) {
   const res = await api.post(`/v1/wallets/collective-payments/${id}/retry`)
   return res.data
 }
+
+export async function cancelCollectivePayment(id: number | string) {
+  const res = await api.post(`/v1/wallets/collective-payments/${id}/cancel`)
+  return res.data
+}
+
+export async function deleteCollectivePayment(id: number | string) {
+  const res = await api.delete(`/v1/wallets/collective-payments/${id}`)
+  return res.data
+}

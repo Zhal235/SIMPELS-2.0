@@ -1,8 +1,17 @@
 import React, { useEffect, useState } from 'react'
 import Card from '../../components/Card'
 import Table from '../../components/Table'
-import Modal from '../../components/Modal'
-import { listCollectivePayments, createCollectivePayment, getCollectivePayment, retryCollectivePayment } from '../../api/wallet'
+import CollectivePaymentCreateForm from '../../components/dompet/CollectivePaymentCreateForm'
+import CollectivePaymentPreviewModal from '../../components/dompet/CollectivePaymentPreviewModal'
+import { buildCollectivePaymentHistoryColumns } from '../../components/dompet/collectivePaymentHistoryColumns'
+import {
+  listCollectivePayments,
+  createCollectivePayment,
+  getCollectivePayment,
+  retryCollectivePayment,
+  cancelCollectivePayment,
+  deleteCollectivePayment,
+} from '../../api/wallet'
 import { listKelas } from '../../api/kelas'
 import { listSantri } from '../../api/santri'
 import toast from 'react-hot-toast'
@@ -11,8 +20,6 @@ export default function TagihanKolektif() {
   const [activeTab, setActiveTab] = useState<'create' | 'history'>('history')
   const [payments, setPayments] = useState<any[]>([])
   const [loading, setLoading] = useState(true)
-  
-  // Create form
   const [title, setTitle] = useState('')
   const [description, setDescription] = useState('')
   const [amount, setAmount] = useState('')
@@ -22,8 +29,7 @@ export default function TagihanKolektif() {
   const [kelasList, setKelasList] = useState<any[]>([])
   const [santriList, setSantriList] = useState<any[]>([])
   const [searchSantri, setSearchSantri] = useState('')
-  
-  // Preview modal
+  const [isSubmitting, setIsSubmitting] = useState(false)
   const [showPreviewModal, setShowPreviewModal] = useState(false)
   const [selectedPayment, setSelectedPayment] = useState<any>(null)
   const [detailLoading, setDetailLoading] = useState(false)
@@ -55,8 +61,7 @@ export default function TagihanKolektif() {
 
   async function loadSantri() {
     try {
-      const res = await listSantri(1, 1000) // Load banyak santri untuk dropdown
-      // Response format: {status: 'success', data: Array}
+      const res = await listSantri(1, 1000)
       if (res.status === 'success' || res.success) {
         setSantriList(res.data || [])
       }
@@ -67,6 +72,8 @@ export default function TagihanKolektif() {
 
   async function handleCreate(e: React.FormEvent) {
     e.preventDefault()
+    if (isSubmitting) return
+
     const amt = Number(amount)
     if (!title.trim()) { toast.error('Judul harus diisi'); return }
     if (!amt || amt <= 0) { toast.error('Nominal tidak valid'); return }
@@ -74,6 +81,7 @@ export default function TagihanKolektif() {
     if (targetType === 'individual' && santriIds.length === 0) { toast.error('Pilih minimal 1 santri'); return }
 
     try {
+      setIsSubmitting(true)
       const res = await createCollectivePayment({
         title,
         description,
@@ -93,11 +101,13 @@ export default function TagihanKolektif() {
         setSantriIds([])
         setSearchSantri('')
         setActiveTab('history')
-        load()
+        await load()
       }
     } catch (err: any) {
       console.error(err)
       toast.error(err?.response?.data?.message || 'Gagal membuat tagihan')
+    } finally {
+      setIsSubmitting(false)
     }
   }
 
@@ -130,58 +140,53 @@ export default function TagihanKolektif() {
     }
   }
 
-  const historyColumns = [
-    { key: 'title', header: 'Nama Tagihan', render: (v: any) => <div className="font-medium">{v}</div> },
-    { 
-      key: 'created_at', 
-      header: 'Tanggal', 
-      render: (v: any) => <div className="text-sm">{new Date(v).toLocaleDateString('id-ID')}</div> 
-    },
-    { 
-      key: 'total_santri', 
-      header: 'Total Santri', 
-      render: (v: any) => <div className="text-center font-semibold">{v}</div> 
-    },
-    { 
-      key: 'paid_count', 
-      header: 'Sukses', 
-      render: (v: any) => <div className="text-center text-green-600 font-semibold">✅ {v}</div> 
-    },
-    { 
-      key: 'pending_count', 
-      header: 'Pending', 
-      render: (v: any) => <div className="text-center text-yellow-600 font-semibold">⏳ {v}</div> 
-    },
-    { 
-      key: 'status', 
-      header: 'Status', 
-      render: (v: any) => (
-        <span className={`px-2 py-1 rounded text-xs font-semibold ${
-          v === 'completed' ? 'bg-green-100 text-green-700' : 'bg-yellow-100 text-yellow-700'
-        }`}>
-          {v === 'completed' ? 'Selesai' : 'Aktif'}
-        </span>
-      )
-    },
-    {
-      key: 'actions',
-      header: 'Actions',
-      render: (v: any, row: any) => (
-        <button
-          onClick={() => handlePreview(row)}
-          className="btn btn-sm btn-primary"
-        >
-          🔍 Preview
-        </button>
-      )
-    },
-  ]
+  async function handleCancel(id: number) {
+    if (!confirm('Batalkan tagihan ini? Saldo yang sudah terpotong akan dikembalikan.')) return
+
+    try {
+      const res = await cancelCollectivePayment(id)
+      if (res.success) {
+        const refundedCount = res?.data?.refunded_count || 0
+        toast.success(`Tagihan dibatalkan. ${refundedCount} saldo santri dikembalikan.`)
+        await load()
+        if (selectedPayment && selectedPayment.id === id) {
+          await handlePreview({ id })
+        }
+      }
+    } catch (err: any) {
+      console.error(err)
+      toast.error(err?.response?.data?.message || 'Gagal membatalkan tagihan')
+    }
+  }
+
+  async function handleDelete(id: number) {
+    if (!confirm('Hapus tagihan yang sudah dibatalkan ini?')) return
+
+    try {
+      const res = await deleteCollectivePayment(id)
+      if (res.success) {
+        toast.success(res.message || 'Tagihan berhasil dihapus')
+        if (selectedPayment && selectedPayment.id === id) {
+          setShowPreviewModal(false)
+          setSelectedPayment(null)
+        }
+        await load()
+      }
+    } catch (err: any) {
+      console.error(err)
+      toast.error(err?.response?.data?.message || 'Gagal menghapus tagihan')
+    }
+  }
+
+  const historyColumns = buildCollectivePaymentHistoryColumns({
+    onPreview: handlePreview,
+    onDelete: handleDelete,
+  })
 
   return (
     <div className="space-y-4">
-      <h1 className="text-2xl font-bold">💳 Tagihan Kolektif</h1>
+      <h1 className="text-2xl font-bold">Tagihan Kolektif</h1>
 
-      {/* Tabs */}
       <div className="flex gap-2 border-b">
         <button
           onClick={() => setActiveTab('history')}
@@ -191,7 +196,7 @@ export default function TagihanKolektif() {
               : 'text-gray-500 hover:text-gray-700'
           }`}
         >
-          📋 History
+          History
         </button>
         <button
           onClick={() => setActiveTab('create')}
@@ -201,11 +206,10 @@ export default function TagihanKolektif() {
               : 'text-gray-500 hover:text-gray-700'
           }`}
         >
-          ➕ Buat Tagihan
+          Buat Tagihan
         </button>
       </div>
 
-      {/* Tab Content */}
       {activeTab === 'history' && (
         <Card>
           {loading ? (
@@ -218,207 +222,38 @@ export default function TagihanKolektif() {
 
       {activeTab === 'create' && (
         <Card>
-          <form onSubmit={handleCreate} className="space-y-4">
-            <div>
-              <label className="block text-sm font-medium mb-1">Judul Tagihan *</label>
-              <input
-                type="text"
-                value={title}
-                onChange={e => setTitle(e.target.value)}
-                placeholder="Iuran Ekskul Basket - Januari 2025"
-                className="input"
-                required
-              />
-            </div>
-
-            <div>
-              <label className="block text-sm font-medium mb-1">Deskripsi</label>
-              <textarea
-                value={description}
-                onChange={e => setDescription(e.target.value)}
-                placeholder="Keterangan tambahan (optional)"
-                className="input"
-                rows={3}
-              />
-            </div>
-
-            <div>
-              <label className="block text-sm font-medium mb-1">Nominal per Santri *</label>
-              <input
-                type="number"
-                value={amount}
-                onChange={e => setAmount(e.target.value)}
-                placeholder="10000"
-                className="input"
-                required
-              />
-            </div>
-
-            <div>
-              <label className="block text-sm font-medium mb-1">Target *</label>
-              <select
-                value={targetType}
-                onChange={e => setTargetType(e.target.value as any)}
-                className="input"
-              >
-                <option value="individual">Pilih Santri (Anggota Ekskul/Kegiatan)</option>
-                <option value="class">Per Kelas</option>
-                <option value="all">Semua Santri</option>
-              </select>
-            </div>
-
-            {targetType === 'class' && (
-              <div>
-                <label className="block text-sm font-medium mb-1">Pilih Kelas *</label>
-                <select value={classId} onChange={e => setClassId(e.target.value)} className="input" required>
-                  <option value="">-- Pilih Kelas --</option>
-                  {kelasList.map(k => (
-                    <option key={k.id} value={k.id}>{k.nama_kelas}</option>
-                  ))}
-                </select>
-              </div>
-            )}
-
-            {targetType === 'individual' && (
-              <div>
-                <label className="block text-sm font-medium mb-1">Pilih Santri * (Anggota Ekskul/Kegiatan)</label>
-                <div className="relative">
-                  <input
-                    type="text"
-                    placeholder="Ketik nama santri (min 2 huruf)..."
-                    value={searchSantri}
-                    onChange={e => setSearchSantri(e.target.value)}
-                    className="input"
-                  />
-                  {searchSantri.length >= 2 && (
-                    <div className="absolute z-10 w-full mt-1 bg-white border border-gray-300 rounded-lg shadow-lg max-h-60 overflow-y-auto">
-                      {santriList
-                        .filter(s => 
-                          s.nama_santri?.toLowerCase().includes(searchSantri.toLowerCase()) ||
-                          s.nis?.includes(searchSantri)
-                        )
-                        .slice(0, 10)
-                        .map(santri => (
-                          <div
-                            key={santri.id}
-                            onClick={() => {
-                              if (!santriIds.includes(santri.id)) {
-                                setSantriIds([...santriIds, santri.id])
-                              }
-                              setSearchSantri('')
-                            }}
-                            className="p-3 hover:bg-blue-50 cursor-pointer border-b last:border-0"
-                          >
-                            <div className="font-medium">{santri.nama_santri}</div>
-                            <div className="text-sm text-gray-500">{santri.nis}</div>
-                          </div>
-                        ))}
-                      {santriList.filter(s => 
-                        s.nama_santri?.toLowerCase().includes(searchSantri.toLowerCase()) ||
-                        s.nis?.includes(searchSantri)
-                      ).length === 0 && (
-                        <div className="p-3 text-gray-500 text-center">Tidak ada santri ditemukan</div>
-                      )}
-                    </div>
-                  )}
-                </div>
-                
-                {/* Selected Santri Tags */}
-                {santriIds.length > 0 && (
-                  <div className="mt-3 p-3 bg-gray-50 rounded-lg">
-                    <div className="text-sm font-medium text-gray-700 mb-2">
-                      Santri Terpilih ({santriIds.length}):
-                    </div>
-                    <div className="flex flex-wrap gap-2">
-                      {santriIds.map(id => {
-                        const santri = santriList.find(s => s.id === id)
-                        if (!santri) return null
-                        return (
-                          <div key={id} className="flex items-center gap-1 bg-blue-100 text-blue-800 px-3 py-1 rounded-full text-sm">
-                            <span>{santri.nama_santri}</span>
-                            <button
-                              type="button"
-                              onClick={() => setSantriIds(santriIds.filter(sid => sid !== id))}
-                              className="ml-1 text-blue-600 hover:text-blue-800 font-bold"
-                            >
-                              ×
-                            </button>
-                          </div>
-                        )
-                      })}
-                    </div>
-                  </div>
-                )}
-              </div>
-            )}
-
-            <button type="submit" className="btn btn-primary w-full">
-              Buat Tagihan Kolektif
-            </button>
-          </form>
+          <CollectivePaymentCreateForm
+            title={title}
+            setTitle={setTitle}
+            description={description}
+            setDescription={setDescription}
+            amount={amount}
+            setAmount={setAmount}
+            targetType={targetType}
+            setTargetType={setTargetType}
+            classId={classId}
+            setClassId={setClassId}
+            santriIds={santriIds}
+            setSantriIds={setSantriIds}
+            kelasList={kelasList}
+            santriList={santriList}
+            searchSantri={searchSantri}
+            setSearchSantri={setSearchSantri}
+            isSubmitting={isSubmitting}
+            onSubmit={handleCreate}
+          />
         </Card>
       )}
 
-      {/* Preview Modal */}
       {showPreviewModal && (
-        <Modal open={showPreviewModal} onClose={() => setShowPreviewModal(false)} title={selectedPayment?.title || 'Detail Tagihan'}>
-          {detailLoading ? (
-            <div className="text-center py-8">Loading...</div>
-          ) : selectedPayment ? (
-            <div className="space-y-4">
-              <div className="grid grid-cols-2 gap-4 text-sm">
-                <div>
-                  <div className="text-gray-500">Total Santri</div>
-                  <div className="font-semibold">{selectedPayment.total_santri}</div>
-                </div>
-                <div>
-                  <div className="text-gray-500">Nominal per Santri</div>
-                  <div className="font-semibold">Rp {parseFloat(selectedPayment.amount_per_santri || 0).toLocaleString('id-ID')}</div>
-                </div>
-                <div>
-                  <div className="text-gray-500">Terkumpul</div>
-                  <div className="font-semibold text-green-600">Rp {parseFloat(selectedPayment.collected_amount || 0).toLocaleString('id-ID')}</div>
-                </div>
-                <div>
-                  <div className="text-gray-500">Outstanding</div>
-                  <div className="font-semibold text-yellow-600">Rp {parseFloat(selectedPayment.outstanding_amount || 0).toLocaleString('id-ID')}</div>
-                </div>
-              </div>
-
-              <div className="border-t pt-4">
-                <div className="flex justify-between items-center mb-2">
-                  <h3 className="font-semibold">✅ Sudah Bayar ({selectedPayment.items?.filter((i: any) => i.status === 'paid').length || 0})</h3>
-                </div>
-                <div className="max-h-40 overflow-y-auto space-y-1">
-                  {selectedPayment.items?.filter((i: any) => i.status === 'paid').map((item: any) => (
-                    <div key={item.id} className="text-sm bg-green-50 p-2 rounded">
-                      {item.santri?.nama_santri || item.santri?.name || 'Unknown'} - Rp {parseFloat(item.amount || 0).toLocaleString('id-ID')}
-                    </div>
-                  ))}
-                </div>
-              </div>
-
-              <div className="border-t pt-4">
-                <div className="flex justify-between items-center mb-2">
-                  <h3 className="font-semibold">⏳ Belum Bayar ({selectedPayment.items?.filter((i: any) => i.status === 'pending').length || 0})</h3>
-                  {selectedPayment.items?.some((i: any) => i.status === 'pending') && (
-                    <button onClick={() => handleRetry(selectedPayment.id)} className="btn btn-sm btn-primary">
-                      🔄 Retry
-                    </button>
-                  )}
-                </div>
-                <div className="max-h-40 overflow-y-auto space-y-1">
-                  {selectedPayment.items?.filter((i: any) => i.status === 'pending').map((item: any) => (
-                    <div key={item.id} className="text-sm bg-yellow-50 p-2 rounded">
-                      <div>{item.santri?.nama_santri || item.santri?.name || 'Unknown'} - Rp {parseFloat(item.amount || 0).toLocaleString('id-ID')}</div>
-                      {item.failure_reason && <div className="text-xs text-red-600">{item.failure_reason}</div>}
-                    </div>
-                  ))}
-                </div>
-              </div>
-            </div>
-          ) : null}
-        </Modal>
+        <CollectivePaymentPreviewModal
+          open={showPreviewModal}
+          onClose={() => setShowPreviewModal(false)}
+          selectedPayment={selectedPayment}
+          detailLoading={detailLoading}
+          onRetry={handleRetry}
+          onCancel={handleCancel}
+        />
       )}
     </div>
   )
