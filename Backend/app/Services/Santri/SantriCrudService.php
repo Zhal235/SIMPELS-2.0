@@ -87,7 +87,7 @@ class SantriCrudService
 
     public function findById(string $id): array
     {
-        $santri = Santri::query()->with(['kelas', 'asrama'])->find($id);
+        $santri = Santri::query()->with(['kelas', 'asrama', 'mutasiKeluarTerbaru'])->find($id);
 
         if (!$santri) {
             return ['status' => 'error', 'message' => 'Santri tidak ditemukan', 'status_code' => 404];

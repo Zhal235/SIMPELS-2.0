@@ -26,6 +26,8 @@ class SantriResource extends JsonResource
             'status' => $this->status,
             'tanggal_keluar' => $this->tanggal_keluar,
             'tahun_lulus' => $this->tanggal_keluar ? date('Y', strtotime($this->tanggal_keluar)) : null,
+            'mutasi_keterangan' => $this->alasan_mutasi ?? $this->mutasiKeluarTerbaru?->alasan,
+            'mutasi_tanggal' => $this->mutasiKeluarTerbaru?->tanggal_mutasi,
             'kelas_id' => $this->kelas_id,
             'kelas' => $this->kelas?->nama_kelas ?? $this->kelas_nama,
             'kelas_nama' => $this->kelas?->nama_kelas ?? $this->kelas_nama,

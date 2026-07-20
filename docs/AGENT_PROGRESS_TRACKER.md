@@ -69,10 +69,16 @@ Stabilitas performa dan anti-down saat data membesar, sambil menjaga alur dompet
 | T8 | Audit endpoint berat untuk anti-down | DONE | Agent | Daftar prioritas dan quick win sudah disusun |
 | T9 | Implementasi quick win performa batch 1 (pagination + report aggregation + cache) | DONE | Agent | Pagination list berat, agregasi report di DB, cache 60 detik dashboard/report |
 | T10 | Rapikan UI laporan pengeluaran per kategori | DONE | Agent | Tambah filter tanggal, format rupiah, ringkasan, tabel proporsi |
-| T11 | Bulk mutasi santri per kelas: pilih santri + keterangan bebas | DONE | Agent | Modal bulk pilih kelas, centang santri target, simpan keterangan bebas; route runtime sudah di-refresh |
+| T11 | Bulk mutasi santri per kelas: pilih santri + keterangan bebas | DONE | Agent | Modal bulk pilih kelas, centang santri target, simpan keterangan bebas; badge pembayaran sekarang baca keterangan mutasi, bukan angkatan |
 
 ## File Jejak Perubahan Terakhir
 
+- Backend/app/Http/Controllers/Kesantrian/MutasiKeluarController.php
+- Backend/app/Http/Resources/SantriResource.php
+- Backend/app/Models/Santri.php
+- Backend/app/Services/Santri/SantriCrudService.php
+- frontend/src/pages/keuangan/components/SantriInfoCard.tsx
+- frontend/src/types/pembayaran.types.ts
 - Backend/app/Http/Controllers/Kesantrian/MutasiKeluarController.php
 - Backend/routes/api.php
 - frontend/src/api/mutasiKeluar.ts
@@ -87,6 +93,7 @@ Stabilitas performa dan anti-down saat data membesar, sambil menjaga alur dompet
 - Backend route bulk mutasi terdaftar di `php artisan route:list` setelah `optimize:clear` dan restart service.
 - Endpoint bulk mutasi dari browser sempat 404 sebelum cache/runtime backend di-refresh, lalu berubah menjadi 401 unauthenticated setelah route aktif.
 - Warning service worker dev dihapus dengan menghilangkan fallback register `sw.js`.
+- Badge kartu pembayaran untuk santri exit sekarang membedakan alumni vs mutasi, dan mutasi menampilkan keterangan mutasi dari data terbaru.
 
 ## Next Action
 
@@ -210,6 +217,36 @@ Risks/Follow-up:
 - Endpoint bulk tetap memerlukan sesi/auth valid saat dipakai dari UI.
 - Jika frontend dev container stale, restart container frontend bila UI belum refresh.
 
+### 2026-07-20 15:10 WIB - Agent
+
+Scope:
+- Menyempurnakan kartu pembayaran agar santri mutasi menampilkan keterangan mutasi, bukan angkatan.
+
+Update:
+- Menambahkan relasi mutasi keluar terbaru pada model santri.
+- Mengekspos `mutasi_keterangan` dan `mutasi_tanggal` di resource santri.
+- Menyimpan keterangan mutasi ke field santri agar data lama dan baru tetap konsisten ditampilkan.
+- Mengubah kartu pembayaran: alumni tetap tampil sebagai angkatan alumni, mutasi tampil sebagai keterangan mutasi.
+
+Files changed:
+- Backend/app/Http/Controllers/Kesantrian/MutasiKeluarController.php
+- Backend/app/Http/Resources/SantriResource.php
+- Backend/app/Models/Santri.php
+- Backend/app/Services/Santri/SantriCrudService.php
+- frontend/src/pages/keuangan/components/SantriInfoCard.tsx
+- frontend/src/types/pembayaran.types.ts
+
+Validation:
+- `get_errors` pada file yang disentuh: bersih.
+- `php -l` pada `Santri.php`, `MutasiKeluarController.php`, dan `SantriResource.php`: bersih.
+- Snapshot browser halaman pembayaran: badge exit tampil, dan label keterangan mutasi muncul di kartu identitas.
+
+Result:
+- Alumni dan mutasi kini dibedakan di kartu pembayaran tanpa memakai label angkatan untuk mutasi.
+
+Risks/Follow-up:
+- Data mutasi lama yang belum menyimpan alasan/keterangan tetap akan tampil sebagai `Mutasi Keluar` sampai di-backfill.
+
 ## Last Updated
 
-2026-07-20 14:50 WIB
+2026-07-20 15:10 WIB

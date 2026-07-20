@@ -9,6 +9,7 @@ use App\Models\Kelas;
 use App\Models\Asrama;
 use App\Models\SantriTransactionLimit;
 use App\Models\RfidTag;
+use App\Models\MutasiKeluar;
 use App\Models\Wallet;
 use App\Models\User;
 
@@ -38,6 +39,7 @@ class Santri extends Model
         'provinsi', 'kabupaten', 'kecamatan', 'desa', 'kode_pos', 'no_kk', 'nama_ayah', 'nik_ayah',
         'pendidikan_ayah', 'pekerjaan_ayah', 'hp_ayah', 'nama_ibu', 'nik_ibu', 'pendidikan_ibu',
         'pekerjaan_ibu', 'hp_ibu', 'foto', 'jenis_penerimaan', 'status', 'tanggal_keluar',
+        'tujuan_mutasi', 'alasan_mutasi',
     ];
 
     /**
@@ -102,5 +104,13 @@ class Santri extends Model
     public function tabungan()
     {
         return $this->hasOne(SantriTabungan::class, 'santri_id');
+    }
+
+    /**
+     * Mutasi keluar terbaru santri
+     */
+    public function mutasiKeluarTerbaru()
+    {
+        return $this->hasOne(MutasiKeluar::class, 'santri_id')->latestOfMany('tanggal_mutasi');
     }
 }

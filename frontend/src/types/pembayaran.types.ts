@@ -15,8 +15,14 @@ export type Santri = {
   nisn?: string
   foto?: string
   alamat?: string
+  status?: string
+  tahun_lulus?: string | number | null
+  mutasi_keterangan?: string | null
+  mutasi_tanggal?: string | null
   kelas?: string
+  kelas_nama?: string
   asrama?: string
+  asrama_nama?: string
   nama_ayah?: string
   hp_ayah?: string
   no_hp?: string

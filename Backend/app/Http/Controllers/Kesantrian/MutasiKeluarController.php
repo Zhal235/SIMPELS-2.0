@@ -139,6 +139,8 @@ class MutasiKeluarController extends Controller
         ]);
 
         $santri->status = 'mutasi_keluar';
+        $santri->tujuan_mutasi = $tujuan;
+        $santri->alasan_mutasi = $alasan;
         $santri->kelas_id = null;
         $santri->asrama_id = null;
         $santri->save();
@@ -156,9 +158,8 @@ class MutasiKeluarController extends Controller
             $tagihanDate = Carbon::createFromDate($tagihan->tahun, $monthNum, 1);
 
             if ($tagihanDate->gt($mutasiDate->copy()->startOfMonth())) {
-                $isTunggakan = ($tagihanDate->lte(now()) && $tagihan->sisa > 0);
                 $hasPembayaran = $tagihan->pembayaran()->exists();
-                if (!$isTunggakan && !$hasPembayaran) {
+                if (!$hasPembayaran) {
                     $tagihan->delete();
                 }
             }
