@@ -270,7 +270,8 @@ class SantriImportExportService
                     $existing->update($santriData);
                     $updated++;
                 } else {
-                    Santri::create($santriData);
+                    $santri = Santri::create($santriData);
+                    Wallet::firstOrCreate(['santri_id' => $santri->id], ['balance' => 0]);
                     $imported++;
                 }
             } catch (\Exception $e) {

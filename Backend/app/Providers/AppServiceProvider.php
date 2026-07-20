@@ -30,7 +30,7 @@ class AppServiceProvider extends ServiceProvider
     public function boot(): void
     {
         // Register model observers
-        // Santri::observe(SantriObserver::class);
-        // WalletTransaction::observe(WalletTransactionObserver::class);
+        Santri::observe(SantriObserver::class);
+        WalletTransaction::observe(WalletTransactionObserver::class);
     }
 }

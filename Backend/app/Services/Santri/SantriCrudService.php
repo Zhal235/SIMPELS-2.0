@@ -107,6 +107,7 @@ class SantriCrudService
         }
 
         $santri = Santri::create($data);
+        Wallet::firstOrCreate(['santri_id' => $santri->id], ['balance' => 0]);
 
         return ['status' => 'success', 'message' => 'Santri berhasil disimpan', 'data' => $santri, 'status_code' => 201];
     }

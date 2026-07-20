@@ -323,6 +323,31 @@ Result:
 Risks/Follow-up:
 - Bila server utama masih memakai bundle lama, perlu redeploy agar patch controller aktif.
 
+### 2026-07-20 16:15 WIB - Agent
+
+Scope:
+- Memastikan santri baru dari tambah manual maupun import langsung punya dompet santri.
+
+Update:
+- Mengaktifkan kembali `SantriObserver` di `AppServiceProvider`.
+- Menambahkan `Wallet::firstOrCreate(...)` di jalur create santri dan import santri sebagai pengaman ganda.
+- Memastikan import hanya membuat wallet untuk santri baru, bukan saat update data existing.
+
+Files changed:
+- Backend/app/Providers/AppServiceProvider.php
+- Backend/app/Services/Santri/SantriCrudService.php
+- Backend/app/Services/Santri/SantriImportExportService.php
+
+Validation:
+- `php -l` pada tiga file backend yang disentuh: bersih.
+- `get_errors` pada tiga file backend yang disentuh: bersih.
+
+Result:
+- Santri baru sekarang otomatis mendapat wallet saat dibuat lewat form tambah maupun import file.
+
+Risks/Follow-up:
+- Jika server utama belum redeploy commit terbaru, observer lama yang masih nonaktif di runtime lama tetap perlu diganti dengan versi baru.
+
 ## Last Updated
 
-2026-07-20 16:00 WIB
+2026-07-20 16:15 WIB
