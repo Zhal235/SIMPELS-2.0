@@ -11,9 +11,6 @@ if ('serviceWorker' in navigator) {
       if (module && typeof module.registerSW === 'function') {
         module.registerSW({ immediate: true })
       }
-    }).catch(() => {
-      // Fallback: register service worker manually if PWA module fails
-      navigator.serviceWorker.register('/sw.js', { scope: '/' }).catch(() => {})
     })
   } else {
     navigator.serviceWorker.getRegistrations().then((registrations) => {

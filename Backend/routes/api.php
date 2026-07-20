@@ -365,6 +365,7 @@ Route::middleware('auth:sanctum')->prefix('v1/kesantrian')->group(function () {
     // Mutasi Keluar
     Route::get('mutasi-keluar', [\App\Http\Controllers\Kesantrian\MutasiKeluarController::class, 'index']);
     Route::post('mutasi-keluar', [\App\Http\Controllers\Kesantrian\MutasiKeluarController::class, 'store']);
+    Route::post('mutasi-keluar/bulk', [\App\Http\Controllers\Kesantrian\MutasiKeluarController::class, 'bulkStore']);
 });
 // Public storage file serving with CORS (no auth required)
 Route::get('/storage/{path}', function ($path) {

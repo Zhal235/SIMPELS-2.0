@@ -1,37 +1,8 @@
 import { useState, useEffect } from 'react'
 import { useNavigate } from 'react-router-dom'
-import api from '../../api/index'
 import { Download, Printer, AlertTriangle, Clock, Search, GraduationCap, DollarSign } from 'lucide-react'
-import { listSantri } from '../../api/santri'
-
-interface TunggakanSantri {
-  santri_id: string
-  santri: {
-    nama_santri: string
-    nis: string
-    kelas?: string
-    kelas_nama?: string
-    asrama?: {
-      nama_asrama: string
-    }
-    status: string
-  }
-  tagihan: Array<{
-    id: number
-    jenis_tagihan: {
-      nama_tagihan: string
-    }
-    bulan: string
-    tahun: number
-    nominal: number
-    sisa: number
-    jatuh_tempo: string
-    umur_tunggakan_hari: number
-  }>
-  total_tunggakan: number
-  jumlah_tagihan: number
-  tagihan_tertua: string
-}
+import { buildTunggakanAlumniData, type TunggakanSantri } from './utils/tunggakanAlumni'
+import { fetchAllAlumniWithTagihan } from './utils/fetchAllTunggakanData'
 
 export default function TunggakanAlumni() {
   const navigate = useNavigate()
@@ -53,107 +24,18 @@ export default function TunggakanAlumni() {
   const fetchTunggakan = async () => {
     setLoading(true)
     try {
-      const [santriResponse, tagihanResponse] = await Promise.all([
-        listSantri(1, 10000, { status: 'alumni,lulus' }),
-        api.get('/v1/keuangan/tagihan-santri')
-      ])
-
-      const santriAlumni = santriResponse.data || []
-      const tagihanData: any[] = tagihanResponse.data.data || []
-      const tagihanBySantri = new Map<string, any>(tagihanData.map((item: any) => [String(item.santri_id), item]))
-      
-      const today = new Date()
-      const groupedBySantri: { [key: string]: TunggakanSantri } = {}
-
-      santriAlumni.forEach((santri: any) => {
-        const santriTagihan = tagihanBySantri.get(String(santri.id))
-        
-        if (!santriTagihan || !santriTagihan.detail_tagihan) return
-
-        const tunggakan = santriTagihan.detail_tagihan.filter((t: any) => {
-          const sisa = parseFloat(t.sisa || 0)
-          if (sisa <= 0 || t.status === 'lunas') return false
-
-          let jatuhTempo: Date
-          if (t.jatuh_tempo && t.jatuh_tempo !== 'Tanggal 10 setiap bulan') {
-            jatuhTempo = new Date(t.jatuh_tempo)
-          } else {
-            const bulanMap: any = {
-              'Januari': 0, 'Februari': 1, 'Maret': 2, 'April': 3,
-              'Mei': 4, 'Juni': 5, 'Juli': 6, 'Agustus': 7,
-              'September': 8, 'Oktober': 9, 'November': 10, 'Desember': 11
-            }
-
-            const bulanParts = t.bulan?.split(' ') || []
-            const bulanNama = bulanParts[0]
-            const tahun = t.tahun || parseInt(bulanParts[1]) || new Date().getFullYear()
-            const bulanNum = bulanMap[bulanNama] ?? 0
-            jatuhTempo = new Date(tahun, bulanNum, 10)
-          }
-
-          return jatuhTempo < today
-        })
-
-        if (tunggakan.length === 0) return
-
-        let totalTunggakan = 0
-        let tagihanTertua = tunggakan[0].jatuh_tempo
-        
-        const tagihanWithAge = tunggakan.map((t: any) => {
-          let jatuhTempo: Date
-          if (t.jatuh_tempo && t.jatuh_tempo !== 'Tanggal 10 setiap bulan') {
-            jatuhTempo = new Date(t.jatuh_tempo)
-          } else {
-            const bulanMap: any = {
-              'Januari': 0, 'Februari': 1, 'Maret': 2, 'April': 3,
-              'Mei': 4, 'Juni': 5, 'Juli': 6, 'Agustus': 7,
-              'September': 8, 'Oktober': 9, 'November': 10, 'Desember': 11
-            }
-            const bulanParts = t.bulan?.split(' ') || []
-            const bulanNama = bulanParts[0]
-            const tahun = t.tahun || parseInt(bulanParts[1]) || new Date().getFullYear()
-            const bulanNum = bulanMap[bulanNama] ?? 0
-            jatuhTempo = new Date(tahun, bulanNum, 10)
-          }
-          
-          const umurTunggakanHari = Math.floor((today.getTime() - jatuhTempo.getTime()) / (1000 * 60 * 60 * 24))
-          totalTunggakan += parseFloat(t.sisa)
-          
-          const jatuhTempoStr = jatuhTempo.toISOString().split('T')[0]
-          if (jatuhTempo < new Date(tagihanTertua)) {
-            tagihanTertua = jatuhTempoStr
-          }
-          
-          return {
-            ...t,
-            jatuh_tempo: jatuhTempoStr,
-            umur_tunggakan_hari: umurTunggakanHari
-          }
-        })
-
-        groupedBySantri[santri.id] = {
-          santri_id: santri.id,
-          santri: {
-            nama_santri: santri.nama_santri,
-            nis: santri.nis,
-            kelas: santri.kelas_nama || santri.kelas,
-            kelas_nama: santri.kelas_nama || santri.kelas,
-            asrama: santri.asrama,
-            status: santri.status
-          },
-          tagihan: tagihanWithAge,
-          total_tunggakan: totalTunggakan,
-          jumlah_tagihan: tunggakan.length,
-          tagihan_tertua: tagihanTertua
-        }
-      })
-
-      let result = Object.values(groupedBySantri)
+      const { alumni: santriAlumni, tagihan: tagihanData } = await fetchAllAlumniWithTagihan()
+      const result = buildTunggakanAlumniData(santriAlumni, tagihanData)
 
       if (sortBy === 'total') {
         result.sort((a, b) => b.total_tunggakan - a.total_tunggakan)
       } else if (sortBy === 'tertua') {
-        result.sort((a, b) => new Date(a.tagihan_tertua).getTime() - new Date(b.tagihan_tertua).getTime())
+        result.sort((a, b) => {
+          if (!a.tagihan_tertua && !b.tagihan_tertua) return 0
+          if (!a.tagihan_tertua) return 1
+          if (!b.tagihan_tertua) return -1
+          return new Date(a.tagihan_tertua).getTime() - new Date(b.tagihan_tertua).getTime()
+        })
       } else {
         result.sort((a, b) => a.santri.nama_santri.localeCompare(b.santri.nama_santri))
       }
@@ -186,6 +68,9 @@ export default function TunggakanAlumni() {
   }
 
   const formatDate = (dateString: string) => {
+    if (!dateString) return '-'
+    const date = new Date(dateString)
+    if (Number.isNaN(date.getTime())) return '-'
     return new Date(dateString).toLocaleDateString('id-ID', {
       day: 'numeric',
       month: 'short',
@@ -210,7 +95,9 @@ export default function TunggakanAlumni() {
       return a.santri.nama_santri.localeCompare(b.santri.nama_santri)
     }
     if (sortBy === 'tertua') {
-      return new Date(a.tagihan_tertua).getTime() - new Date(b.tagihan_tertua).getTime()
+      const aTime = a.tagihan_tertua ? new Date(a.tagihan_tertua).getTime() : Number.POSITIVE_INFINITY
+      const bTime = b.tagihan_tertua ? new Date(b.tagihan_tertua).getTime() : Number.POSITIVE_INFINITY
+      return aTime - bTime
     }
     return b.total_tunggakan - a.total_tunggakan
   })
@@ -358,9 +245,11 @@ export default function TunggakanAlumni() {
                       {formatRupiah(item.total_tunggakan)}
                     </td>
                     <td className="px-6 py-4 text-sm text-gray-500">
-                      {formatDate(item.tagihan_tertua)}
+                      {formatDate(item.tagihan_tertua || '')}
                       <div className="text-xs text-gray-400">
-                        {Math.floor((new Date().getTime() - new Date(item.tagihan_tertua).getTime()) / (1000 * 60 * 60 * 24))} hari yang lalu
+                        {item.tagihan_tertua
+                          ? Math.max(0, Math.floor((new Date().getTime() - new Date(item.tagihan_tertua).getTime()) / (1000 * 60 * 60 * 24))) + ' hari yang lalu'
+                          : '-'}
                       </div>
                     </td>
                     <td className="px-6 py-4">

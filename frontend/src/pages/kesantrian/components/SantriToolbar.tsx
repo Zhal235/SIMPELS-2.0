@@ -1,6 +1,6 @@
 import React from 'react'
 import { Button } from '@/components/ui/button'
-import { Download, FileDown, Upload } from 'lucide-react'
+import { Download, FileDown, Upload, UsersRound } from 'lucide-react'
 import { hasAccess } from '@/stores/useAuthStore'
 
 interface Props {
@@ -8,11 +8,12 @@ interface Props {
   onExport: () => void
   onImportClick: () => void
   onTambah: () => void
+  onBulkMutasi: () => void
   fileInputRef: React.RefObject<HTMLInputElement | null>
   onFileSelect: (e: React.ChangeEvent<HTMLInputElement>) => void
 }
 
-export default function SantriToolbar({ onDownloadTemplate, onExport, onImportClick, onTambah, fileInputRef, onFileSelect }: Props) {
+export default function SantriToolbar({ onDownloadTemplate, onExport, onImportClick, onTambah, onBulkMutasi, fileInputRef, onFileSelect }: Props) {
   return (
     <div className="flex justify-between items-center">
       <h1 className="text-2xl font-semibold text-gray-900">Data Santri</h1>
@@ -36,6 +37,12 @@ export default function SantriToolbar({ onDownloadTemplate, onExport, onImportCl
         )}
         {hasAccess('kesantrian.santri.edit') && (
           <button className="btn btn-primary" onClick={onTambah}>Tambah Santri</button>
+        )}
+        {hasAccess('kesantrian.mutasi.masuk') && (
+          <Button variant="outline" onClick={onBulkMutasi} className="border-gray-200 text-gray-700 hover:text-brand hover:border-brand">
+            <UsersRound size={16} className="mr-2" />
+            Bulk Mutasi
+          </Button>
         )}
       </div>
     </div>

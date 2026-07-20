@@ -6,6 +6,7 @@ import SantriToolbar from './components/SantriToolbar'
 import SantriFilters from './components/SantriFilters'
 import SantriTable from './components/SantriTable'
 import MutasiModal from './components/MutasiModal'
+import BulkMutasiModal from './components/BulkMutasiModal'
 import ImportValidationModal from './components/ImportValidationModal'
 import { useSantriColumns } from './components/SantriColumns'
 import { useSantriImport } from '@/hooks/useSantriImport'
@@ -34,6 +35,7 @@ export default function KesantrianSantri() {
   const [mode, setMode] = useState<'create' | 'edit' | 'preview'>('create')
   const [current, setCurrent] = useState<Row | null>(null)
   const [mutasiTarget, setMutasiTarget] = useState<Row | null>(null)
+  const [bulkMutasiOpen, setBulkMutasiOpen] = useState(false)
   const [currentPage, setCurrentPage] = useState(1)
   const [pageSize, setPageSize] = useState(10)
   const [totalItems, setTotalItems] = useState(0)
@@ -97,6 +99,7 @@ export default function KesantrianSantri() {
         onExport={importHook.handleExport}
         onImportClick={() => importHook.fileInputRef.current?.click()}
         onTambah={() => { setMode('create'); setCurrent(null); setModalOpen(true) }}
+        onBulkMutasi={() => setBulkMutasiOpen(true)}
         fileInputRef={importHook.fileInputRef}
         onFileSelect={importHook.handleFileSelect}
       />
@@ -123,6 +126,12 @@ export default function KesantrianSantri() {
       </Modal>
 
       <MutasiModal mutasiTarget={mutasiTarget} onClose={() => setMutasiTarget(null)} onSuccess={fetchData} />
+
+      <BulkMutasiModal
+        open={bulkMutasiOpen}
+        onClose={() => setBulkMutasiOpen(false)}
+        onSuccess={fetchData}
+      />
 
       <ImportValidationModal
         open={importHook.validationModalOpen}
