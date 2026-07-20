@@ -38,7 +38,7 @@ class SystemBackupController extends Controller
                 return response()->json([
                     'success' => false,
                     'message' => trim($output) ?: 'Backup gagal dijalankan',
-                ], 500);
+                ], 200);
             }
 
             $hasR2 = str_contains($output, 'Uploaded to R2');
@@ -53,7 +53,7 @@ class SystemBackupController extends Controller
             return response()->json(['success' => true, 'message' => $msg]);
         } catch (\Throwable $e) {
             \Log::error('Manual backup error: ' . $e->getMessage());
-            return response()->json(['success' => false, 'message' => $e->getMessage()], 500);
+            return response()->json(['success' => false, 'message' => $e->getMessage()], 200);
         }
     }
 }
