@@ -348,6 +348,28 @@ Result:
 Risks/Follow-up:
 - Jika server utama belum redeploy commit terbaru, observer lama yang masih nonaktif di runtime lama tetap perlu diganti dengan versi baru.
 
+### 2026-07-20 16:30 WIB - Agent
+
+Scope:
+- Menyediakan backfill satu kali untuk santri lama yang sudah terlanjur masuk sebelum fix dompet otomatis.
+
+Update:
+- Menambahkan command Artisan `wallet:backfill-santri` untuk membuat wallet yang belum ada.
+- Command ini idempotent dan aman dijalankan ulang; tersedia `--dry-run` untuk preview.
+
+Files changed:
+- Backend/app/Console/Commands/BackfillSantriWallets.php
+
+Validation:
+- `php -l` pada command backfill: bersih.
+- `php artisan list --raw` menampilkan `wallet:backfill-santri`.
+
+Result:
+- Santri lama bisa diperbaiki tanpa menunggu input baru masuk.
+
+Risks/Follow-up:
+- Perlu menjalankan command ini di server utama setelah deploy agar data lama ikut punya dompet.
+
 ## Last Updated
 
-2026-07-20 16:15 WIB
+2026-07-20 16:30 WIB
