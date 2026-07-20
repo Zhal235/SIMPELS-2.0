@@ -15,6 +15,7 @@ class BackupDatabase extends Command
 
     private const R2_BACKUP_DIR  = 'database-backups';
     private const MAX_BACKUPS    = 30;
+    private const MAX_EMAIL_ATTACHMENT_BYTES = 10485760;
 
     public function handle(): int
     {
@@ -23,13 +24,24 @@ class BackupDatabase extends Command
         try {
             $now      = Carbon::now('Asia/Jakarta');
             $filename = 'backup_' . $now->format('Ymd_His') . '.sql';
-            $sql      = $this->generateSqlDump();
-            $sizeKb   = round(strlen($sql) / 1024, 1);
+            $backupDir = storage_path('app' . DIRECTORY_SEPARATOR . 'backups');
+            if (!is_dir($backupDir) && !@mkdir($backupDir, 0755, true)) {
+                $backupDir = sys_get_temp_dir();
+            }
+
+            $filePath = $backupDir . DIRECTORY_SEPARATOR . $filename;
+            $this->writeSqlDump($filePath);
+            $sizeBytes = file_exists($filePath) ? filesize($filePath) : 0;
+            $sizeKb = round($sizeBytes / 1024, 1);
 
             // ── 1. Upload to Cloudflare R2 ──────────────────────────────
             $r2Path = self::R2_BACKUP_DIR . '/' . $filename;
             try {
-                Storage::disk('r2')->put($r2Path, $sql);
+                $stream = fopen($filePath, 'r');
+                Storage::disk('r2')->put($r2Path, $stream);
+                if (is_resource($stream)) {
+                    fclose($stream);
+                }
                 $this->pruneOldBackups();
                 $this->info("Uploaded to R2: {$r2Path} ({$sizeKb} KB)");
             } catch (\Exception $e) {
@@ -41,43 +53,46 @@ class BackupDatabase extends Command
             $recipient = $this->option('email') ?: config('app.backup_email');
 
             if ($recipient) {
-                // Write temp file for email attachment
-                $backupDir = storage_path('app' . DIRECTORY_SEPARATOR . 'backups');
-                if (!is_dir($backupDir) && !@mkdir($backupDir, 0755, true)) {
-                    $backupDir = sys_get_temp_dir();
-                }
-                $filePath = $backupDir . DIRECTORY_SEPARATOR . $filename;
-                file_put_contents($filePath, $sql);
+                $attachFile = $sizeBytes > 0 && $sizeBytes <= self::MAX_EMAIL_ATTACHMENT_BYTES;
 
                 try {
-                    Mail::send([], [], function ($message) use ($recipient, $filePath, $filename, $sizeKb, $now) {
+                    Mail::send([], [], function ($message) use ($recipient, $filePath, $filename, $sizeKb, $now, $attachFile) {
                         $appName = config('app.name', 'SIMPELS');
                         $time    = $now->format('d/m/Y H:i');
 
+                        $html =
+                            "<h3>Backup Database {$appName}</h3>" .
+                            "<p>Backup berhasil dibuat pada <strong>{$time} WIB</strong>.</p>" .
+                            "<ul>" .
+                            "<li>File: <code>{$filename}</code></li>" .
+                            "<li>Ukuran: <strong>{$sizeKb} KB</strong></li>" .
+                            "<li>Database: <strong>" . config('database.default') . "</strong></li>" .
+                            "<li>Tersimpan di: <strong>Cloudflare R2 › " . self::R2_BACKUP_DIR . "/</strong></li>" .
+                            ($attachFile
+                                ? "<li>Lampiran dikirim karena ukuran masih aman</li>"
+                                : "<li>Lampiran tidak disertakan karena file terlalu besar</li>") .
+                            "</ul>" .
+                            "<p style='color:#666;font-size:12px'>Email ini dikirim otomatis oleh sistem {$appName}.</p>";
+
                         $message->to($recipient)
                             ->subject("[{$appName}] Backup Database – {$time}")
-                            ->html(
-                                "<h3>Backup Database {$appName}</h3>" .
-                                "<p>Backup berhasil dibuat pada <strong>{$time} WIB</strong>.</p>" .
-                                "<ul>" .
-                                "<li>File: <code>{$filename}</code></li>" .
-                                "<li>Ukuran: <strong>{$sizeKb} KB</strong></li>" .
-                                "<li>Database: <strong>" . config('database.default') . "</strong></li>" .
-                                "<li>Tersimpan di: <strong>Cloudflare R2 › " . self::R2_BACKUP_DIR . "/</strong></li>" .
-                                "</ul>" .
-                                "<p style='color:#666;font-size:12px'>Email ini dikirim otomatis oleh sistem {$appName}.</p>"
-                            )
-                            ->attach($filePath, ['as' => $filename, 'mime' => 'application/sql']);
+                            ->html($html);
+
+                        if ($attachFile) {
+                            $message->attach($filePath, ['as' => $filename, 'mime' => 'application/sql']);
+                        }
                     });
                     $this->info("Email sent to {$recipient}");
                 } catch (\Exception $e) {
                     \Log::warning('Backup email failed: ' . $e->getMessage());
                     $this->warn('Email failed: ' . $e->getMessage());
-                } finally {
-                    if (file_exists($filePath)) unlink($filePath);
                 }
             } else {
                 $this->warn('BACKUP_EMAIL not configured — skipping email.');
+            }
+
+            if (file_exists($filePath)) {
+                unlink($filePath);
             }
 
             $this->info("Backup complete ({$sizeKb} KB)");
@@ -110,24 +125,29 @@ class BackupDatabase extends Command
         }
     }
 
-    private function generateSqlDump(): string
+    private function writeSqlDump(string $filePath): void
     {
         $driver     = config('database.default');
         $connection = config("database.connections.{$driver}");
 
-        $sql  = "-- SIMPELS Database Backup\n";
-        $sql .= "-- Generated: " . Carbon::now('Asia/Jakarta')->toDateTimeString() . " WIB\n";
-        $sql .= "-- Driver: {$driver}\n\n";
-        $sql .= "SET FOREIGN_KEY_CHECKS=0;\n\n";
+        $handle = fopen($filePath, 'w');
+        if (!$handle) {
+            throw new \RuntimeException('Gagal membuat file backup sementara');
+        }
+
+        fwrite($handle, "-- SIMPELS Database Backup\n");
+        fwrite($handle, "-- Generated: " . Carbon::now('Asia/Jakarta')->toDateTimeString() . " WIB\n");
+        fwrite($handle, "-- Driver: {$driver}\n\n");
+        fwrite($handle, "SET FOREIGN_KEY_CHECKS=0;\n\n");
 
         $tables = $this->getTables($driver);
 
         foreach ($tables as $table) {
-            $sql .= $this->dumpTable($table, $driver, $connection);
+            $this->dumpTable($handle, $table, $driver, $connection);
         }
 
-        $sql .= "\nSET FOREIGN_KEY_CHECKS=1;\n";
-        return $sql;
+        fwrite($handle, "\nSET FOREIGN_KEY_CHECKS=1;\n");
+        fclose($handle);
     }
 
     private function getTables(string $driver): array
@@ -145,42 +165,61 @@ class BackupDatabase extends Command
         return array_column(array_map('get_object_vars', $rows), $col);
     }
 
-    private function dumpTable(string $table, string $driver, array $connection): string
+    private function dumpTable($handle, string $table, string $driver, array $connection): void
     {
-        $sql = "-- Table: `{$table}`\n";
+        fwrite($handle, "-- Table: `{$table}`\n");
 
         // CREATE TABLE statement
         if ($driver === 'sqlite') {
             $create = DB::select("SELECT sql FROM sqlite_master WHERE type='table' AND name=?", [$table]);
-            $sql   .= ($create[0]->sql ?? '') . ";\n\n";
+            fwrite($handle, ($create[0]->sql ?? '') . ";\n\n");
         } else {
             $create = DB::select("SHOW CREATE TABLE `{$table}`");
-            $sql   .= "DROP TABLE IF EXISTS `{$table}`;\n";
-            $sql   .= ($create[0]->{'Create Table'} ?? '') . ";\n\n";
+            fwrite($handle, "DROP TABLE IF EXISTS `{$table}`;\n");
+            fwrite($handle, ($create[0]->{'Create Table'} ?? '') . ";\n\n");
         }
 
         // INSERT rows
-        $rows = DB::table($table)->get();
-        if ($rows->isEmpty()) {
-            $sql .= "-- (no rows)\n\n";
-            return $sql;
+        $cursor = DB::table($table)->cursor();
+        $columns = [];
+        $batch = [];
+        $hasRows = false;
+
+        foreach ($cursor as $row) {
+            $hasRows = true;
+            $rowData = (array) $row;
+
+            if ($columns === []) {
+                $columns = array_keys($rowData);
+            }
+
+            $batch[] = '(' . implode(', ', array_map(function ($v) {
+                if ($v === null) {
+                    return 'NULL';
+                }
+
+                if (is_numeric($v)) {
+                    return $v;
+                }
+
+                return "'" . addslashes($v) . "'";
+            }, $rowData)) . ')';
+
+            if (count($batch) >= 500) {
+                $colList = implode(', ', array_map(fn($c) => "`{$c}`", $columns));
+                fwrite($handle, "INSERT INTO `{$table}` ({$colList}) VALUES\n" . implode(",\n", $batch) . ";\n\n");
+                $batch = [];
+            }
         }
 
-        $columns = array_keys((array) $rows[0]);
-        $colList = implode(', ', array_map(fn($c) => "`{$c}`", $columns));
-
-        foreach ($rows->chunk(500) as $chunk) {
-            $values = $chunk->map(function ($row) {
-                return '(' . implode(', ', array_map(function ($v) {
-                    if ($v === null) return 'NULL';
-                    if (is_numeric($v)) return $v;
-                    return "'" . addslashes($v) . "'";
-                }, (array) $row)) . ')';
-            })->implode(",\n");
-
-            $sql .= "INSERT INTO `{$table}` ({$colList}) VALUES\n{$values};\n\n";
+        if (!$hasRows) {
+            fwrite($handle, "-- (no rows)\n\n");
+            return;
         }
 
-        return $sql;
+        if ($batch !== []) {
+            $colList = implode(', ', array_map(fn($c) => "`{$c}`", $columns));
+            fwrite($handle, "INSERT INTO `{$table}` ({$colList}) VALUES\n" . implode(",\n", $batch) . ";\n\n");
+        }
     }
 }

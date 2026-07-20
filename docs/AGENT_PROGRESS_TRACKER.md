@@ -277,6 +277,29 @@ Result:
 Risks/Follow-up:
 - Server utama tetap harus punya kredensial DB dan `BACKUP_EMAIL` yang valid agar backup benar-benar sukses saat dijalankan.
 
+### 2026-07-20 15:45 WIB - Agent
+
+Scope:
+- Menangani akar masalah backup yang diduga kehabisan memory di container API saat membuat dump database besar.
+
+Update:
+- Mengubah command `db:backup` agar menulis dump SQL ke file sementara secara streaming, bukan menahan seluruh dump di memory.
+- Mengubah proses dump tabel agar membaca row via cursor dan menulis batch insert langsung ke file.
+- Menambahkan batas ukuran lampiran email agar file besar tidak dipaksa dikirim ke Gmail.
+
+Files changed:
+- Backend/app/Console/Commands/BackupDatabase.php
+
+Validation:
+- `php -l` pada command backup: bersih.
+- `get_errors` pada command backup: bersih.
+
+Result:
+- Backup kini lebih aman untuk database besar karena tidak lagi membangun dump penuh di RAM.
+
+Risks/Follow-up:
+- Jika ukuran database terus bertambah, tetap pertimbangkan monitoring disk temporary dan storage R2, tetapi risiko memory exhaustion sudah jauh turun.
+
 ## Last Updated
 
-2026-07-20 15:30 WIB
+2026-07-20 15:45 WIB
