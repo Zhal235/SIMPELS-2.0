@@ -65,7 +65,8 @@ export default function ModalTambahTunggakan({ dataTagihan, onClose, onSuccess }
     const semuaBulan = Object.keys(bulanMap)
     const santriData = dataTagihan.find(d => String(d.santri_id) === String(santri_id))
     const existing = new Set<string>()
-    santriData?.detail_tagihan.filter(dt => dt.jenis_tagihan === jenisNama).forEach(dt => existing.add(`${dt.bulan}-${dt.tahun}`))
+    const detailTagihan = santriData?.detail_tagihan ?? []
+    detailTagihan.filter(dt => dt.jenis_tagihan === jenisNama).forEach(dt => existing.add(`${dt.bulan}-${dt.tahun}`))
     return semuaBulan.map(b => ({ bulan: b, tahun: bulanMap[b] })).filter(pair => !existing.has(`${pair.bulan}-${pair.tahun}`))
   }
 
