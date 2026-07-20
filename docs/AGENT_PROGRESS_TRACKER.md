@@ -300,6 +300,29 @@ Result:
 Risks/Follow-up:
 - Jika ukuran database terus bertambah, tetap pertimbangkan monitoring disk temporary dan storage R2, tetapi risiko memory exhaustion sudah jauh turun.
 
+### 2026-07-20 16:00 WIB - Agent
+
+Scope:
+- Memperbaiki bulk mutasi keluar yang masih 500 di server utama.
+
+Update:
+- Mengubah bulk mutasi controller agar menangkap `Throwable`, bukan hanya `Exception`.
+- Menambahkan proteksi schema untuk kolom santri opsional (`tujuan_mutasi`, `alasan_mutasi`, `tanggal_keluar`) sebelum save.
+- Menulis `tanggal_keluar` saat tersedia supaya data exit lebih konsisten lintas server.
+
+Files changed:
+- Backend/app/Http/Controllers/Kesantrian/MutasiKeluarController.php
+
+Validation:
+- `php -l` pada controller bulk mutasi: bersih.
+- `get_errors` pada controller bulk mutasi: bersih.
+
+Result:
+- Bulk mutasi tidak lagi bergantung pada asumsi skema kolom mutasi yang harus selalu lengkap.
+
+Risks/Follow-up:
+- Bila server utama masih memakai bundle lama, perlu redeploy agar patch controller aktif.
+
 ## Last Updated
 
-2026-07-20 15:45 WIB
+2026-07-20 16:00 WIB

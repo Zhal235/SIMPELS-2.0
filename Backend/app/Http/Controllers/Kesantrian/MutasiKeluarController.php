@@ -9,6 +9,7 @@ use App\Models\Santri;
 use App\Models\TagihanSantri;
 use App\Models\Wallet;
 use Illuminate\Support\Facades\DB;
+use Illuminate\Support\Facades\Schema;
 use Illuminate\Support\Carbon;
 
 class MutasiKeluarController extends Controller
@@ -48,7 +49,7 @@ class MutasiKeluarController extends Controller
                 'returned_balance' => $result['returned_balance'],
                 'wallet_deactivated' => $result['wallet_deactivated'],
             ], 201);
-        } catch (\Exception $e) {
+        } catch (\Throwable $e) {
             DB::rollBack();
             \Log::error('MutasiKeluar store error: ' . $e->getMessage());
             return response()->json(['success' => false, 'message' => 'Gagal menyimpan mutasi keluar: ' . $e->getMessage()], 500);
@@ -121,7 +122,7 @@ class MutasiKeluarController extends Controller
                 'wallet_deactivated_count' => $walletDeactivated,
                 'data' => $processed,
             ], 201);
-        } catch (\Exception $e) {
+        } catch (\Throwable $e) {
             DB::rollBack();
             \Log::error('MutasiKeluar bulkStore error: ' . $e->getMessage());
             return response()->json(['success' => false, 'message' => 'Gagal memproses bulk mutasi: ' . $e->getMessage()], 500);
@@ -130,6 +131,10 @@ class MutasiKeluarController extends Controller
 
     private function processMutasiForSantri(Santri $santri, Carbon $mutasiDate, ?string $tujuan, ?string $alasan, ?int $userId): array
     {
+        $hasTujuanMutasi = Schema::hasColumn('santri', 'tujuan_mutasi');
+        $hasAlasanMutasi = Schema::hasColumn('santri', 'alasan_mutasi');
+        $hasTanggalKeluar = Schema::hasColumn('santri', 'tanggal_keluar');
+
         $mutasi = MutasiKeluar::create([
             'santri_id' => $santri->id,
             'tanggal_mutasi' => $mutasiDate->toDateString(),
@@ -139,8 +144,15 @@ class MutasiKeluarController extends Controller
         ]);
 
         $santri->status = 'mutasi_keluar';
-        $santri->tujuan_mutasi = $tujuan;
-        $santri->alasan_mutasi = $alasan;
+        if ($hasTujuanMutasi) {
+            $santri->tujuan_mutasi = $tujuan;
+        }
+        if ($hasAlasanMutasi) {
+            $santri->alasan_mutasi = $alasan;
+        }
+        if ($hasTanggalKeluar) {
+            $santri->tanggal_keluar = $mutasiDate->toDateString();
+        }
         $santri->kelas_id = null;
         $santri->asrama_id = null;
         $santri->save();
