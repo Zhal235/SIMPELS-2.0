@@ -1,12 +1,12 @@
 import api from './index'
 
-export async function listTagihanSantri() {
-  const res = await api.get('/v1/keuangan/tagihan-santri')
+export async function listTagihanSantri(params?: Record<string, any>) {
+  const res = await api.get('/v1/keuangan/tagihan-santri', { params })
   return res.data
 }
 
-export async function listTagihanBySantri(santriId: string | number) {
-  const res = await api.get(`/v1/keuangan/tagihan-santri/santri/${santriId}`)
+export async function listTagihanBySantri(santriId: string | number, params?: Record<string, any>) {
+  const res = await api.get(`/v1/keuangan/tagihan-santri/santri/${santriId}`, { params })
   return res.data
 }
 

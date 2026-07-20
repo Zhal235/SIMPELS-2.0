@@ -25,8 +25,9 @@ class TagihanSantriController extends Controller
             $includeDetail = filter_var($request->query('include_detail', true), FILTER_VALIDATE_BOOL, FILTER_NULL_ON_FAILURE);
             $page = max((int) $request->query('page', 1), 1);
             $perPage = max((int) $request->query('perPage', 50), 1);
+            $search = trim((string) $request->query('q', ''));
 
-            return response()->json($this->crudService->getRekapPerSantri($includeDetail ?? true, $page, $perPage));
+            return response()->json($this->crudService->getRekapPerSantri($includeDetail ?? true, $page, $perPage, $search));
         } catch (Throwable $e) {
             return response()->json(['success' => false, 'message' => 'Gagal memuat tagihan'], 500);
         }
@@ -44,9 +45,9 @@ class TagihanSantriController extends Controller
         return response()->json($result, $result['status_code'] ?? 200);
     }
 
-    public function getBySantri(string $santriId)
+    public function getBySantri(Request $request, string $santriId)
     {
-        return response()->json($this->crudService->getBySantri($santriId));
+        return response()->json($this->crudService->getBySantri($santriId, $request->boolean('show_lunas', false)));
     }
 
     public function update(UpdateTagihanRequest $request, string $id)

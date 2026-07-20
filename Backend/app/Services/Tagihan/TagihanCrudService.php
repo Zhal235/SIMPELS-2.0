@@ -12,7 +12,7 @@ class TagihanCrudService
 {
     use ValidatesDeletion;
 
-    public function getRekapPerSantri(bool $includeDetail = true, int $page = 1, int $perPage = 50): array
+    public function getRekapPerSantri(bool $includeDetail = true, int $page = 1, int $perPage = 50, string $search = ''): array
     {
         $page = max($page, 1);
         $perPage = max(1, min($perPage, 100));
@@ -24,9 +24,21 @@ class TagihanCrudService
             ->whereNull('tagihan_santri.deleted_at')
             ->whereNull('jenis_tagihan.deleted_at');
 
+        if ($search !== '') {
+            $baseQuery->where(function ($query) use ($search) {
+                $query->where('santri.nama_santri', 'like', "%{$search}%")
+                    ->orWhere('santri.nis', 'like', "%{$search}%")
+                    ->orWhere('kelas.nama_kelas', 'like', "%{$search}%");
+            });
+        }
+
         $total = (clone $baseQuery)
             ->distinct('santri.id')
             ->count('santri.id');
+
+        $summary = (clone $baseQuery)
+            ->selectRaw('COUNT(DISTINCT santri.id) as total_santri, COALESCE(SUM(tagihan_santri.nominal), 0) as total_tagihan, COALESCE(SUM(tagihan_santri.dibayar), 0) as total_dibayar, COALESCE(SUM(tagihan_santri.sisa), 0) as total_sisa')
+            ->first();
 
         $rekap = (clone $baseQuery)
             ->select(
@@ -73,7 +85,7 @@ class TagihanCrudService
                 ->whereNull('jenis_tagihan.deleted_at')
                 ->orderBy('tagihan_santri.santri_id')
                 ->orderBy('tagihan_santri.tahun')
-                ->orderBy('tagihan_santri.bulan')
+                ->orderByRaw($this->monthOrderSql('tagihan_santri.bulan'))
                 ->select(
                     'tagihan_santri.id',
                     'tagihan_santri.santri_id',
@@ -136,6 +148,12 @@ class TagihanCrudService
             'page' => $page,
             'perPage' => $perPage,
             'lastPage' => (int) ceil($total / $perPage),
+            'summary' => [
+                'total_santri' => (int) ($summary->total_santri ?? 0),
+                'total_tagihan' => (float) ($summary->total_tagihan ?? 0),
+                'total_dibayar' => (float) ($summary->total_dibayar ?? 0),
+                'total_sisa' => (float) ($summary->total_sisa ?? 0),
+            ],
         ];
     }
 
@@ -150,14 +168,14 @@ class TagihanCrudService
         return ['success' => true, 'data' => $tagihan];
     }
 
-    public function getBySantri(string $santriId): array
+    public function getBySantri(string $santriId, bool $showLunas = false): array
     {
         $tagihan = TagihanSantri::with(['jenisTagihan', 'pembayaran'])
             ->where('santri_id', $santriId)
             ->whereNull('deleted_at')
             ->whereHas('jenisTagihan')
             ->orderBy('tahun', 'asc')
-            ->orderBy('bulan', 'asc')
+            ->orderByRaw($this->monthOrderSql('bulan'))
             ->get()
             ->map(fn($t) => [
                 'id' => $t->id,
@@ -175,7 +193,41 @@ class TagihanCrudService
                 'pembayaran' => $t->pembayaran,
             ]);
 
-        return ['success' => true, 'data' => $tagihan];
+        $lunas = $tagihan->where('status', 'lunas')->values();
+        $nonLunas = $tagihan->where('status', '!=', 'lunas')->values();
+        $visible = $showLunas ? $tagihan->values() : $nonLunas;
+
+        return [
+            'success' => true,
+            'data' => [
+                'santri_id' => $santriId,
+                'detail_tagihan' => $visible,
+                'total_tagihan' => (float) $tagihan->sum('nominal'),
+                'total_dibayar' => (float) $tagihan->sum('dibayar'),
+                'sisa_tagihan' => (float) $tagihan->sum('sisa'),
+                'jumlah_lunas' => $lunas->count(),
+                'jumlah_tidak_lunas' => $nonLunas->count(),
+                'detail_lunas_disembunyikan' => $showLunas ? 0 : $lunas->count(),
+            ],
+        ];
+    }
+
+    private function monthOrderSql(string $column): string
+    {
+        return "CASE {$column} "
+            . "WHEN 'Januari' THEN 1 "
+            . "WHEN 'Februari' THEN 2 "
+            . "WHEN 'Maret' THEN 3 "
+            . "WHEN 'April' THEN 4 "
+            . "WHEN 'Mei' THEN 5 "
+            . "WHEN 'Juni' THEN 6 "
+            . "WHEN 'Juli' THEN 7 "
+            . "WHEN 'Agustus' THEN 8 "
+            . "WHEN 'September' THEN 9 "
+            . "WHEN 'Oktober' THEN 10 "
+            . "WHEN 'November' THEN 11 "
+            . "WHEN 'Desember' THEN 12 "
+            . "ELSE 99 END";
     }
 
     public function updateTagihan(Request $request, string $id): array

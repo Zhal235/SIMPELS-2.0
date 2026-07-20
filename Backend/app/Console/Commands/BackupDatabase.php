@@ -83,7 +83,7 @@ class BackupDatabase extends Command
             $this->info("Backup complete ({$sizeKb} KB)");
             return self::SUCCESS;
 
-        } catch (\Exception $e) {
+        } catch (\Throwable $e) {
             $this->error('Backup failed: ' . $e->getMessage());
             \Log::error('DB Backup failed: ' . $e->getMessage());
             return self::FAILURE;
@@ -105,7 +105,7 @@ class BackupDatabase extends Command
                 }
                 $this->info('Pruned ' . $toDelete->count() . ' old backup(s) from R2.');
             }
-        } catch (\Exception $e) {
+        } catch (\Throwable $e) {
             \Log::warning('Backup prune failed: ' . $e->getMessage());
         }
     }

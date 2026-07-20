@@ -1,5 +1,7 @@
-import { Calendar, User, X } from 'lucide-react'
-import type { TagihanSantriRow } from '../../../types/tagihanSantri.types'
+import { useEffect, useState } from 'react'
+import { Calendar, User, X, ChevronDown, ChevronRight } from 'lucide-react'
+import { listTagihanBySantri } from '../../../api/tagihanSantri'
+import type { TagihanSantriRow, DetailTagihan } from '../../../types/tagihanSantri.types'
 import { formatRupiah } from '../../../utils/pembayaranHelpers'
 
 interface Props {
@@ -16,7 +18,88 @@ const STATUS_LABEL: Record<string, string> = {
   lunas: 'Lunas', sebagian: 'Sebagian', belum_bayar: 'Belum Bayar',
 }
 
+const MONTH_ORDER: Record<string, number> = {
+  Januari: 1, Februari: 2, Maret: 3, April: 4, Mei: 5, Juni: 6,
+  Juli: 7, Agustus: 8, September: 9, Oktober: 10, November: 11, Desember: 12,
+}
+
+function sortDetail(items: DetailTagihan[]) {
+  return [...items].sort((a, b) => {
+    if (a.tahun !== b.tahun) return a.tahun - b.tahun
+    return (MONTH_ORDER[a.bulan] || 99) - (MONTH_ORDER[b.bulan] || 99)
+  })
+}
+
+function normalizeDetailResponse(payload: any) {
+  const raw = Array.isArray(payload) ? payload : (payload?.data ?? payload ?? {})
+  const details = Array.isArray(raw)
+    ? raw
+    : (Array.isArray(raw.detail_tagihan) ? raw.detail_tagihan : [])
+
+  const normalizedDetails = details.map((item: any) => ({
+    ...item,
+    jenis_tagihan: typeof item.jenis_tagihan === 'object'
+      ? (item.jenis_tagihan?.nama_tagihan || item.jenis_tagihan?.namaTagihan || item.jenis_tagihan_nama || '')
+      : (item.jenis_tagihan || item.jenis_tagihan_nama || ''),
+    nominal: Number(item.nominal ?? 0),
+    dibayar: Number(item.dibayar ?? 0),
+    sisa: Number(item.sisa ?? 0),
+    tahun: Number(item.tahun ?? 0),
+  })) as DetailTagihan[]
+
+  const lunasCount = normalizedDetails.filter((item) => item.status === 'lunas').length
+
+  return {
+    detailTagihan: normalizedDetails,
+    totalTagihan: Number(raw.total_tagihan ?? raw.totalTagihan ?? 0),
+    totalDibayar: Number(raw.total_dibayar ?? raw.totalDibayar ?? 0),
+    sisaTagihan: Number(raw.sisa_tagihan ?? raw.sisaTagihan ?? 0),
+    hiddenLunasCount: Number(raw.detail_lunas_disembunyikan ?? 0) || lunasCount,
+  }
+}
+
 export default function ModalDetailTagihan({ santri, onClose }: Props) {
+  const [loading, setLoading] = useState(false)
+  const [showLunas, setShowLunas] = useState(false)
+  const [detailTagihan, setDetailTagihan] = useState<DetailTagihan[]>([])
+  const [totalTagihan, setTotalTagihan] = useState(0)
+  const [totalDibayar, setTotalDibayar] = useState(0)
+  const [sisaTagihan, setSisaTagihan] = useState(0)
+  const [hiddenLunasCount, setHiddenLunasCount] = useState(0)
+  const visibleDetailTagihan = showLunas
+    ? detailTagihan
+    : detailTagihan.filter((item) => item.status !== 'lunas')
+
+  useEffect(() => {
+    let cancelled = false
+
+    const load = async () => {
+      try {
+        setLoading(true)
+        const res = await listTagihanBySantri(santri.santri_id, { show_lunas: showLunas })
+        const data = normalizeDetailResponse(res)
+        if (cancelled) return
+        setDetailTagihan(sortDetail(data.detailTagihan))
+        setTotalTagihan(data.totalTagihan || Number(santri.total_tagihan ?? 0))
+        setTotalDibayar(data.totalDibayar || Number(santri.total_dibayar ?? 0))
+        setSisaTagihan(data.sisaTagihan || Number(santri.sisa_tagihan ?? 0))
+        setHiddenLunasCount(data.hiddenLunasCount)
+      } finally {
+        if (!cancelled) setLoading(false)
+      }
+    }
+
+    load().catch(() => {
+      if (!cancelled) {
+        setDetailTagihan([])
+        setHiddenLunasCount(0)
+        setLoading(false)
+      }
+    })
+
+    return () => { cancelled = true }
+  }, [santri.santri_id, showLunas])
+
   return (
     <div className="fixed inset-0 z-50 flex items-center justify-center p-4 bg-black/50">
       <div className="bg-white rounded-lg shadow-xl max-w-5xl w-full max-h-[90vh] overflow-hidden flex flex-col">
@@ -33,12 +116,35 @@ export default function ModalDetailTagihan({ santri, onClose }: Props) {
         </div>
         <div className="p-6 bg-gray-50 border-b">
           <div className="grid grid-cols-3 gap-4">
-            <div className="bg-white rounded-lg p-4 border"><p className="text-sm text-gray-600 mb-1">Total Tagihan</p><p className="text-xl font-bold text-gray-900">{formatRupiah(santri.total_tagihan)}</p></div>
-            <div className="bg-white rounded-lg p-4 border border-green-200"><p className="text-sm text-gray-600 mb-1">Total Dibayar</p><p className="text-xl font-bold text-green-600">{formatRupiah(santri.total_dibayar)}</p></div>
-            <div className="bg-white rounded-lg p-4 border border-red-200"><p className="text-sm text-gray-600 mb-1">Sisa Tagihan</p><p className="text-xl font-bold text-red-600">{formatRupiah(santri.sisa_tagihan)}</p></div>
+            <div className="bg-white rounded-lg p-4 border"><p className="text-sm text-gray-600 mb-1">Total Tagihan</p><p className="text-xl font-bold text-gray-900">{formatRupiah(totalTagihan)}</p></div>
+            <div className="bg-white rounded-lg p-4 border border-green-200"><p className="text-sm text-gray-600 mb-1">Total Dibayar</p><p className="text-xl font-bold text-green-600">{formatRupiah(totalDibayar)}</p></div>
+            <div className="bg-white rounded-lg p-4 border border-red-200"><p className="text-sm text-gray-600 mb-1">Sisa Tagihan</p><p className="text-xl font-bold text-red-600">{formatRupiah(sisaTagihan)}</p></div>
           </div>
         </div>
         <div className="flex-1 overflow-y-auto p-6">
+          <div className="mb-4 flex items-center justify-between gap-3">
+            <div className="text-sm text-gray-500">
+              {loading ? 'Memuat detail tagihan...' : `${visibleDetailTagihan.length} tagihan ditampilkan`}
+            </div>
+            {hiddenLunasCount > 0 && !showLunas && (
+              <button
+                onClick={() => setShowLunas(true)}
+                className="inline-flex items-center gap-2 rounded-lg border border-gray-300 px-3 py-2 text-sm font-medium text-gray-700 hover:bg-gray-50"
+              >
+                <ChevronDown className="h-4 w-4" />
+                Tampilkan {hiddenLunasCount} tagihan lunas
+              </button>
+            )}
+            {showLunas && hiddenLunasCount > 0 && (
+              <button
+                onClick={() => setShowLunas(false)}
+                className="inline-flex items-center gap-2 rounded-lg border border-gray-300 px-3 py-2 text-sm font-medium text-gray-700 hover:bg-gray-50"
+              >
+                <ChevronRight className="h-4 w-4" />
+                Sembunyikan tagihan lunas
+              </button>
+            )}
+          </div>
           <table className="w-full text-sm">
             <thead className="bg-gray-100 sticky top-0">
               <tr>
@@ -48,7 +154,7 @@ export default function ModalDetailTagihan({ santri, onClose }: Props) {
               </tr>
             </thead>
             <tbody className="divide-y">
-              {santri.detail_tagihan.map((d, idx) => (
+              {visibleDetailTagihan.map((d, idx) => (
                 <tr key={d.id} className="hover:bg-gray-50">
                   <td className="px-4 py-3 text-gray-900">{idx + 1}</td>
                   <td className="px-4 py-3 font-medium text-gray-900">{d.jenis_tagihan}</td>

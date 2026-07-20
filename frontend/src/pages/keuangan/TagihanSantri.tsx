@@ -20,32 +20,33 @@ export default function TagihanSantri() {
   const [showBulkDeleteModal, setShowBulkDeleteModal] = useState(false)
   const [selectedSantri, setSelectedSantri] = useState<TagihanSantriRow | null>(null)
   const [currentPage, setCurrentPage] = useState(1)
+  const [totalItems, setTotalItems] = useState(0)
+  const [summary, setSummary] = useState({ total_santri: 0, total_tagihan: 0, total_dibayar: 0, total_sisa: 0 })
   const PAGE_SIZE = 25
   const canEditTagihan = hasAccess('keuangan.tagihan.edit')
   const canDeleteTagihan = hasAccess('keuangan.tagihan.delete')
 
-  const fetchData = async () => {
+  const fetchData = async (page = currentPage) => {
     try {
       setLoading(true)
-      const res = await listTagihanSantri()
-      setDataTagihan(Array.isArray(res) ? res : (res?.data || []))
+      const res = await listTagihanSantri({ page, perPage: PAGE_SIZE, include_detail: false, q: searchTerm })
+      const payload = res && Array.isArray(res.data) ? res : (res?.data || res)
+      const rows = Array.isArray(payload?.data) ? payload.data : []
+      setDataTagihan(rows)
+      setTotalItems(Number(payload?.total || rows.length || 0))
+      setSummary(payload?.summary || { total_santri: 0, total_tagihan: 0, total_dibayar: 0, total_sisa: 0 })
     } catch { toast.error('Gagal memuat data tagihan'); setDataTagihan([]) }
     finally { setLoading(false) }
   }
 
-  useEffect(() => { fetchData() }, [])
+  useEffect(() => { fetchData(1) }, [searchTerm])
+  useEffect(() => { fetchData(currentPage) }, [currentPage])
 
-  const filtered = dataTagihan.filter(i =>
-    (i.santri_nama || '').toLowerCase().includes(searchTerm.toLowerCase()) ||
-    (i.kelas || '').toLowerCase().includes(searchTerm.toLowerCase())
-  )
-  const lastPage = Math.max(1, Math.ceil(filtered.length / PAGE_SIZE))
+  const lastPage = Math.max(1, Math.ceil(totalItems / PAGE_SIZE))
   const safePage = Math.min(currentPage, lastPage)
-  const paged = filtered.slice((safePage - 1) * PAGE_SIZE, safePage * PAGE_SIZE)
-
-  const totalTagihan = filtered.reduce((s, i) => s + i.total_tagihan, 0)
-  const totalDibayar = filtered.reduce((s, i) => s + i.total_dibayar, 0)
-  const totalSisa = filtered.reduce((s, i) => s + i.sisa_tagihan, 0)
+  const totalTagihan = summary.total_tagihan
+  const totalDibayar = summary.total_dibayar
+  const totalSisa = summary.total_sisa
 
   return (
     <div className="p-6 space-y-6">
@@ -112,9 +113,9 @@ export default function TagihanSantri() {
             <tbody className="divide-y">
               {loading ? (
                 <tr><td colSpan={7} className="px-6 py-8 text-center text-gray-500">Memuat data...</td></tr>
-              ) : filtered.length === 0 ? (
+              ) : dataTagihan.length === 0 ? (
                 <tr><td colSpan={7} className="px-6 py-8 text-center text-gray-500">Tidak ada data tagihan</td></tr>
-              ) : paged.map((item, idx) => (
+              ) : dataTagihan.map((item, idx) => (
                 <tr key={item.santri_id} className="hover:bg-gray-50">
                   <td className="px-6 py-4 text-gray-900">{(safePage - 1) * PAGE_SIZE + idx + 1}</td>
                   <td className="px-6 py-4"><div className="flex items-center gap-2"><User className="w-4 h-4 text-gray-400" /><span className="font-medium text-gray-900">{item.santri_nama}</span></div></td>
@@ -134,7 +135,7 @@ export default function TagihanSantri() {
         </div>
         {lastPage > 1 && (
           <div className="flex items-center justify-between px-4 py-3 border-t bg-gray-50">
-            <p className="text-sm text-gray-500">Menampilkan {(safePage-1)*PAGE_SIZE+1}–{Math.min(safePage*PAGE_SIZE,filtered.length)} dari {filtered.length} santri</p>
+            <p className="text-sm text-gray-500">Menampilkan {(safePage-1)*PAGE_SIZE+1}–{Math.min(safePage*PAGE_SIZE,totalItems)} dari {totalItems} santri</p>
             <div className="flex items-center gap-1">
               <button className="btn btn-sm" onClick={() => setCurrentPage(1)} disabled={safePage===1}>«</button>
               <button className="btn btn-sm" onClick={() => setCurrentPage(p=>Math.max(1,p-1))} disabled={safePage===1}>‹</button>

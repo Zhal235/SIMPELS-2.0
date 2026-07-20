@@ -70,6 +70,7 @@ Stabilitas performa dan anti-down saat data membesar, sambil menjaga alur dompet
 | T9 | Implementasi quick win performa batch 1 (pagination + report aggregation + cache) | DONE | Agent | Pagination list berat, agregasi report di DB, cache 60 detik dashboard/report |
 | T10 | Rapikan UI laporan pengeluaran per kategori | DONE | Agent | Tambah filter tanggal, format rupiah, ringkasan, tabel proporsi |
 | T11 | Bulk mutasi santri per kelas: pilih santri + keterangan bebas | DONE | Agent | Modal bulk pilih kelas, centang santri target, simpan keterangan bebas; badge pembayaran sekarang baca keterangan mutasi, bukan angkatan |
+| T12 | Backup otomatis/manual server utama: endpoint stabil + jadwal harian | DONE | Agent | `POST /v1/system/backup` sudah di-hardening, command `db:backup` menangani failure dengan jelas, dan schedule harian di `bootstrap/app.php` aktif pukul 02:00 WIB |
 
 ## File Jejak Perubahan Terakhir
 
@@ -94,6 +95,8 @@ Stabilitas performa dan anti-down saat data membesar, sambil menjaga alur dompet
 - Endpoint bulk mutasi dari browser sempat 404 sebelum cache/runtime backend di-refresh, lalu berubah menjadi 401 unauthenticated setelah route aktif.
 - Warning service worker dev dihapus dengan menghilangkan fallback register `sw.js`.
 - Badge kartu pembayaran untuk santri exit sekarang membedakan alumni vs mutasi, dan mutasi menampilkan keterangan mutasi dari data terbaru.
+- Backup manual endpoint sekarang mengembalikan error yang jelas saat command gagal, bukan 500 tanpa konteks.
+- Schedule otomatis backup harian sudah terverifikasi di `Backend/bootstrap/app.php` pada `db:backup` pukul 02:00 WIB.
 
 ## Next Action
 
@@ -247,6 +250,33 @@ Result:
 Risks/Follow-up:
 - Data mutasi lama yang belum menyimpan alasan/keterangan tetap akan tampil sebagai `Mutasi Keluar` sampai di-backfill.
 
+### 2026-07-20 15:30 WIB - Agent
+
+Scope:
+- Memperbaiki endpoint backup manual agar lebih stabil saat dijalankan di server utama dan memastikan jadwal backup otomatis tetap aktif.
+
+Update:
+- Menambahkan proteksi auth yang eksplisit di `SystemBackupController`.
+- Mengubah endpoint backup manual agar mengecek exit code `db:backup` dan mengembalikan pesan error yang jelas jika command gagal.
+- Menguatkan command `BackupDatabase` agar menangkap `Throwable` pada alur utama dan pruning backup.
+- Memverifikasi scheduler di `Backend/bootstrap/app.php` menjalankan `db:backup` harian pukul 02:00 WIB.
+
+Files changed:
+- Backend/app/Http/Controllers/Admin/SystemBackupController.php
+- Backend/app/Console/Commands/BackupDatabase.php
+- docs/AGENT_PROGRESS_TRACKER.md
+
+Validation:
+- `php -l` pada controller backup: bersih.
+- `php -l` pada command backup: bersih.
+- `php artisan db:backup --email=test@example.com` di lingkungan lokal menunjukkan failure yang jelas karena host DB lokal tidak tersedia, sehingga sumber masalah bukan frontend.
+
+Result:
+- Backup manual kini lebih aman dipakai di server utama, dan backup otomatis harian tetap terjadwal.
+
+Risks/Follow-up:
+- Server utama tetap harus punya kredensial DB dan `BACKUP_EMAIL` yang valid agar backup benar-benar sukses saat dijalankan.
+
 ## Last Updated
 
-2026-07-20 15:10 WIB
+2026-07-20 15:30 WIB

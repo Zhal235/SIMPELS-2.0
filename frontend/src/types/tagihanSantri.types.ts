@@ -17,5 +17,6 @@ export interface TagihanSantriRow {
   total_tagihan: number
   total_dibayar: number
   sisa_tagihan: number
-  detail_tagihan: DetailTagihan[]
+  detail_tagihan?: DetailTagihan[]
+  total_santri?: number
 }
