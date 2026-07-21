@@ -44,7 +44,19 @@ export default function ModalEditNominal({ dataTagihan, onClose, onSuccess }: Pr
     try {
       setLoading(true)
       const res = await listTagihanBySantri(santriId)
-      setTagihanList(Array.isArray(res) ? res : (res?.data || []))
+      // Struktur response backend: { success, data: { detail_tagihan: [...], ... } }
+      // Fallback untuk format lain: array langsung, atau { data: [...] }
+      let list: any[] = []
+      if (Array.isArray(res)) {
+        list = res
+      } else if (Array.isArray(res?.data?.detail_tagihan)) {
+        list = res.data.detail_tagihan
+      } else if (Array.isArray(res?.data)) {
+        list = res.data
+      } else if (Array.isArray(res?.detail_tagihan)) {
+        list = res.detail_tagihan
+      }
+      setTagihanList(list)
       setEditedRows({})
     } catch { toast.error('Gagal memuat detail tagihan') }
     finally { setLoading(false) }
