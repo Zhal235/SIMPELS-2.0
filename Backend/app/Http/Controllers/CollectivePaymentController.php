@@ -281,7 +281,7 @@ class CollectivePaymentController extends Controller
             ]);
 
             DB::commit();
-            Cache::put($doneCacheKey, $payment->id, now()->addSeconds(60));
+            Cache::put($doneCacheKey, $payment->id, now()->addMinutes(5));
 
             return response()->json([
                 'success' => true,
@@ -307,6 +307,26 @@ class CollectivePaymentController extends Controller
         $payment = CollectivePayment::find($id);
         if (!$payment) {
             return response()->json(['success' => false, 'message' => 'Tagihan tidak ditemukan'], 404);
+        }
+
+        // Guard: tidak boleh retry tagihan yang sudah dibatalkan
+        if ($payment->status === 'cancelled') {
+            return response()->json(['success' => false, 'message' => 'Tagihan sudah dibatalkan, tidak bisa di-retry'], 422);
+        }
+
+        // Guard: tidak boleh retry tagihan yang sudah selesai
+        if ($payment->status === 'completed') {
+            return response()->json(['success' => false, 'message' => 'Tagihan sudah selesai, tidak ada yang perlu di-retry'], 422);
+        }
+
+        // Lock per payment agar tidak ada concurrent retry
+        $lockKey = "collective_payment:retry:{$id}";
+        $lock = Cache::lock($lockKey, 60);
+        if (!$lock->get()) {
+            return response()->json([
+                'success' => false,
+                'message' => 'Retry sedang diproses untuk tagihan ini, tunggu beberapa saat',
+            ], 429);
         }
 
         DB::beginTransaction();
@@ -342,6 +362,8 @@ class CollectivePaymentController extends Controller
             DB::rollBack();
             \Log::error('Retry payment error: ' . $e->getMessage());
             return response()->json(['success' => false, 'message' => 'Gagal retry pembayaran'], 500);
+        } finally {
+            optional($lock)->release();
         }
     }
 
@@ -525,6 +547,11 @@ class CollectivePaymentController extends Controller
      */
     private function processPaymentItem(CollectivePaymentItem $item, Wallet $wallet, $userId)
     {
+        // Guard: jangan proses ulang item yang sudah paid (mencegah double-debit)
+        if ($item->status === 'paid') {
+            return ['success' => true, 'reason' => 'already_paid'];
+        }
+
         // Check if sufficient balance
         if ($wallet->balance < $item->amount) {
             $item->update([
