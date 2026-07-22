@@ -434,4 +434,30 @@ Risks/Follow-up:
 
 ## Last Updated
 
-2026-07-22 09:47 WIB
+2026-07-22 09:55 WIB
+
+### 2026-07-22 09:55 WIB - Agent
+
+Scope:
+- Menambahkan tombol hapus per-baris tagihan di modal Detail Tagihan Santri (`/keuangan/tagihan`).
+
+Update:
+- Menambahkan prop `canDelete` (boolean) dan `onRefresh` (callback) pada `ModalDetailTagihan`.
+- Menambahkan kolom "Aksi" di tabel detail tagihan yang hanya muncul jika `canDelete=true`.
+- Tombol hapus (ikon Trash2) hanya aktif untuk tagihan berstatus `belum_bayar` dengan `dibayar = 0`. Tagihan yang sudah ada pembayaran sebagian/lunas ditampilkan tanda `—`.
+- Setelah hapus berhasil, detail list di modal di-refresh otomatis dan parent tabel ikut di-refresh via `onRefresh`.
+- Di `TagihanSantri.tsx`, modal detail kini menerima `canDelete={canDeleteTagihan}` dan `onRefresh={() => fetchData(currentPage)}`.
+
+Files changed:
+- frontend/src/pages/keuangan/components/ModalDetailTagihan.tsx
+- frontend/src/pages/keuangan/TagihanSantri.tsx
+
+Validation:
+- Struktur JSX dan props diperiksa manual.
+- `deleteTagihanSantri` sudah tersedia di API frontend dan endpoint backend ada di `DELETE /v1/keuangan/tagihan-santri/{id}`.
+
+Result:
+- User dengan permission `keuangan.tagihan.delete` kini dapat hapus tagihan satu per satu langsung dari modal detail santri.
+
+Risks/Follow-up:
+- Tombol hapus tidak muncul untuk tagihan yang sudah sebagian dibayar — ini disengaja untuk keamanan data keuangan.

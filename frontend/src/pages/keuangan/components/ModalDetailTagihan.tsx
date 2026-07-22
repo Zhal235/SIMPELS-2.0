@@ -1,12 +1,15 @@
 import { useEffect, useState } from 'react'
-import { Calendar, User, X, ChevronDown, ChevronRight } from 'lucide-react'
-import { listTagihanBySantri } from '../../../api/tagihanSantri'
+import { Calendar, User, X, ChevronDown, ChevronRight, Trash2 } from 'lucide-react'
+import { listTagihanBySantri, deleteTagihanSantri } from '../../../api/tagihanSantri'
 import type { TagihanSantriRow, DetailTagihan } from '../../../types/tagihanSantri.types'
 import { formatRupiah } from '../../../utils/pembayaranHelpers'
+import toast from 'react-hot-toast'
 
 interface Props {
   santri: TagihanSantriRow
   onClose: () => void
+  canDelete?: boolean
+  onRefresh?: () => void
 }
 
 const STATUS_BADGE: Record<string, string> = {
@@ -58,7 +61,7 @@ function normalizeDetailResponse(payload: any) {
   }
 }
 
-export default function ModalDetailTagihan({ santri, onClose }: Props) {
+export default function ModalDetailTagihan({ santri, onClose, canDelete = false, onRefresh }: Props) {
   const [loading, setLoading] = useState(false)
   const [showLunas, setShowLunas] = useState(false)
   const [detailTagihan, setDetailTagihan] = useState<DetailTagihan[]>([])
@@ -66,39 +69,71 @@ export default function ModalDetailTagihan({ santri, onClose }: Props) {
   const [totalDibayar, setTotalDibayar] = useState(0)
   const [sisaTagihan, setSisaTagihan] = useState(0)
   const [hiddenLunasCount, setHiddenLunasCount] = useState(0)
+  const [deletingId, setDeletingId] = useState<number | null>(null)
+
   const visibleDetailTagihan = showLunas
     ? detailTagihan
     : detailTagihan.filter((item) => item.status !== 'lunas')
 
+  const loadDetail = async (cancelled = false) => {
+    try {
+      setLoading(true)
+      const res = await listTagihanBySantri(santri.santri_id, { show_lunas: showLunas })
+      const data = normalizeDetailResponse(res)
+      if (cancelled) return
+      setDetailTagihan(sortDetail(data.detailTagihan))
+      setTotalTagihan(data.totalTagihan || Number(santri.total_tagihan ?? 0))
+      setTotalDibayar(data.totalDibayar || Number(santri.total_dibayar ?? 0))
+      setSisaTagihan(data.sisaTagihan || Number(santri.sisa_tagihan ?? 0))
+      setHiddenLunasCount(data.hiddenLunasCount)
+    } finally {
+      if (!cancelled) setLoading(false)
+    }
+  }
+
   useEffect(() => {
     let cancelled = false
-
-    const load = async () => {
-      try {
-        setLoading(true)
-        const res = await listTagihanBySantri(santri.santri_id, { show_lunas: showLunas })
-        const data = normalizeDetailResponse(res)
-        if (cancelled) return
-        setDetailTagihan(sortDetail(data.detailTagihan))
-        setTotalTagihan(data.totalTagihan || Number(santri.total_tagihan ?? 0))
-        setTotalDibayar(data.totalDibayar || Number(santri.total_dibayar ?? 0))
-        setSisaTagihan(data.sisaTagihan || Number(santri.sisa_tagihan ?? 0))
-        setHiddenLunasCount(data.hiddenLunasCount)
-      } finally {
-        if (!cancelled) setLoading(false)
-      }
-    }
-
-    load().catch(() => {
+    loadDetail(cancelled).catch(() => {
       if (!cancelled) {
         setDetailTagihan([])
         setHiddenLunasCount(0)
         setLoading(false)
       }
     })
-
     return () => { cancelled = true }
   }, [santri.santri_id, showLunas])
+
+  const handleDelete = async (tagihan: DetailTagihan) => {
+    if (!window.confirm(
+      `Hapus tagihan berikut?\n\n` +
+      `Jenis: ${tagihan.jenis_tagihan}\n` +
+      `Periode: ${tagihan.bulan} ${tagihan.tahun}\n` +
+      `Nominal: ${formatRupiah(tagihan.nominal)}\n\n` +
+      `Aksi ini tidak dapat dibatalkan.`
+    )) return
+
+    try {
+      setDeletingId(tagihan.id)
+      await deleteTagihanSantri(tagihan.id)
+      toast.success('Tagihan berhasil dihapus')
+      // Refresh detail list di modal
+      await loadDetail()
+      // Beritahu parent untuk refresh tabel utama
+      onRefresh?.()
+    } catch (err: any) {
+      toast.error(err?.response?.data?.message || 'Gagal menghapus tagihan')
+    } finally {
+      setDeletingId(null)
+    }
+  }
+
+  // Tagihan bisa dihapus jika: belum_bayar DAN belum ada pembayaran sama sekali
+  const canDeleteTagihan = (d: DetailTagihan) =>
+    canDelete && d.status === 'belum_bayar' && Number(d.dibayar ?? 0) === 0
+
+  const tableHeaders = canDelete
+    ? ['No', 'Jenis Tagihan', 'Periode', 'Nominal', 'Dibayar', 'Sisa', 'Status', 'Jatuh Tempo', 'Aksi']
+    : ['No', 'Jenis Tagihan', 'Periode', 'Nominal', 'Dibayar', 'Sisa', 'Status', 'Jatuh Tempo']
 
   return (
     <div className="fixed inset-0 z-50 flex items-center justify-center p-4 bg-black/50">
@@ -148,8 +183,12 @@ export default function ModalDetailTagihan({ santri, onClose }: Props) {
           <table className="w-full text-sm">
             <thead className="bg-gray-100 sticky top-0">
               <tr>
-                {['No', 'Jenis Tagihan', 'Periode', 'Nominal', 'Dibayar', 'Sisa', 'Status', 'Jatuh Tempo'].map(h => (
-                  <th key={h} className={`px-4 py-3 text-xs font-medium text-gray-500 uppercase ${['Nominal','Dibayar','Sisa'].includes(h) ? 'text-right' : h === 'Status' ? 'text-center' : 'text-left'}`}>{h}</th>
+                {tableHeaders.map(h => (
+                  <th key={h} className={`px-4 py-3 text-xs font-medium text-gray-500 uppercase ${
+                    ['Nominal','Dibayar','Sisa'].includes(h) ? 'text-right'
+                    : ['Status', 'Aksi'].includes(h) ? 'text-center'
+                    : 'text-left'
+                  }`}>{h}</th>
                 ))}
               </tr>
             </thead>
@@ -164,6 +203,22 @@ export default function ModalDetailTagihan({ santri, onClose }: Props) {
                   <td className="px-4 py-3 text-right text-red-600 font-medium">{formatRupiah(d.sisa)}</td>
                   <td className="px-4 py-3 text-center"><span className={`px-2 py-1 rounded-full text-xs font-medium ${STATUS_BADGE[d.status] || ''}`}>{STATUS_LABEL[d.status] || d.status}</span></td>
                   <td className="px-4 py-3 text-gray-600 text-sm">{d.jatuh_tempo}</td>
+                  {canDelete && (
+                    <td className="px-4 py-3 text-center">
+                      {canDeleteTagihan(d) ? (
+                        <button
+                          onClick={() => handleDelete(d)}
+                          disabled={deletingId === d.id}
+                          title="Hapus tagihan ini"
+                          className="inline-flex items-center justify-center w-8 h-8 rounded-lg bg-red-50 text-red-600 hover:bg-red-100 hover:text-red-700 disabled:opacity-50 transition-colors"
+                        >
+                          <Trash2 className="w-4 h-4" />
+                        </button>
+                      ) : (
+                        <span className="text-xs text-gray-400">—</span>
+                      )}
+                    </td>
+                  )}
                 </tr>
               ))}
             </tbody>

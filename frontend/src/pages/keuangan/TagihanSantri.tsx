@@ -150,7 +150,7 @@ export default function TagihanSantri() {
         )}
       </div>
 
-      {showDetailModal && selectedSantri && <ModalDetailTagihan santri={selectedSantri} onClose={() => { setShowDetailModal(false); setSelectedSantri(null) }} />}
+      {showDetailModal && selectedSantri && <ModalDetailTagihan santri={selectedSantri} onClose={() => { setShowDetailModal(false); setSelectedSantri(null) }} canDelete={canDeleteTagihan} onRefresh={() => fetchData(currentPage)} />}
       {showTunggakanModal && <ModalTambahTunggakan dataTagihan={dataTagihan} onClose={() => setShowTunggakanModal(false)} onSuccess={() => { setShowTunggakanModal(false); fetchData() }} />}
       {showEditModal && <ModalEditNominal dataTagihan={dataTagihan} onClose={() => setShowEditModal(false)} onSuccess={() => { setShowEditModal(false); fetchData() }} />}
       {showBulkDeleteModal && <ModalBulkDeleteTagihan dataTagihan={dataTagihan} onClose={() => setShowBulkDeleteModal(false)} onSuccess={() => { setShowBulkDeleteModal(false); fetchData() }} />}
