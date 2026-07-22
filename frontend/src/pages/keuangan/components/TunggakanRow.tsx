@@ -1,11 +1,10 @@
 import { useState, useRef, useEffect } from 'react'
 import { Search, X } from 'lucide-react'
-import type { TagihanSantriRow } from '../../../types/tagihanSantri.types'
+import type { SantriOption } from './ModalTambahTunggakan'
 
 interface Props {
   row: {
     id: string
-    santri_index: number
     santri_id: string
     santri_nama: string
     kelas: string
@@ -14,7 +13,7 @@ interface Props {
     nominal: number
   }
   idx: number
-  dataTagihan: TagihanSantriRow[]
+  allSantri: SantriOption[]
   jenisTagihan: any[]
   loadingJenis: boolean
   availableBulan: { bulan: string; tahun: number }[]
@@ -23,7 +22,7 @@ interface Props {
   onRemove: (id: string) => void
 }
 
-export default function TunggakanRow({ row, idx, dataTagihan, jenisTagihan, loadingJenis, availableBulan, isNominalDisabled, onUpdate, onRemove }: Props) {
+export default function TunggakanRow({ row, idx, allSantri, jenisTagihan, loadingJenis, availableBulan, isNominalDisabled, onUpdate, onRemove }: Props) {
   const [searchTerm, setSearchTerm] = useState('')
   const [showDropdown, setShowDropdown] = useState(false)
   const searchRef = useRef<HTMLDivElement>(null)
@@ -40,20 +39,20 @@ export default function TunggakanRow({ row, idx, dataTagihan, jenisTagihan, load
   }, [])
 
   const filteredSantri = searchTerm.length >= 2
-    ? dataTagihan.filter(s =>
-        s.santri_nama.toLowerCase().includes(searchTerm.toLowerCase()) ||
+    ? allSantri.filter(s =>
+        s.nama.toLowerCase().includes(searchTerm.toLowerCase()) ||
         s.kelas?.toLowerCase().includes(searchTerm.toLowerCase())
       ).slice(0, 50) // Limit 50 hasil untuk performa
     : []
 
-  const handleSelectSantri = (index: number) => {
-    onUpdate(row.id, 'santri_index', index)
+  const handleSelectSantri = (santri: SantriOption) => {
+    onUpdate(row.id, 'santri', santri)
     setSearchTerm('')
     setShowDropdown(false)
   }
 
   const handleClearSantri = () => {
-    onUpdate(row.id, 'santri_index', -1)
+    onUpdate(row.id, 'santri_clear', null)
     setSearchTerm('')
   }
 
@@ -98,19 +97,16 @@ export default function TunggakanRow({ row, idx, dataTagihan, jenisTagihan, load
               {/* Dropdown hasil search */}
               {showDropdown && filteredSantri.length > 0 && (
                 <div className="absolute top-full left-0 right-0 mt-1 bg-white border border-gray-300 rounded shadow-lg max-h-64 overflow-y-auto z-50">
-                  {filteredSantri.map((s, i) => {
-                    const actualIndex = dataTagihan.findIndex(d => d.santri_id === s.santri_id)
-                    return (
-                      <div
-                        key={i}
-                        onClick={() => handleSelectSantri(actualIndex)}
-                        className="px-3 py-2 hover:bg-blue-50 cursor-pointer border-b last:border-b-0 transition-colors"
-                      >
-                        <div className="font-medium text-sm text-gray-900">{s.santri_nama}</div>
-                        <div className="text-xs text-gray-500">{s.kelas}</div>
-                      </div>
-                    )
-                  })}
+                  {filteredSantri.map((s) => (
+                    <div
+                      key={s.id}
+                      onClick={() => handleSelectSantri(s)}
+                      className="px-3 py-2 hover:bg-blue-50 cursor-pointer border-b last:border-b-0 transition-colors"
+                    >
+                      <div className="font-medium text-sm text-gray-900">{s.nama}</div>
+                      <div className="text-xs text-gray-500">{s.kelas}</div>
+                    </div>
+                  ))}
                 </div>
               )}
               
@@ -145,6 +141,8 @@ export default function TunggakanRow({ row, idx, dataTagihan, jenisTagihan, load
           <div className="max-h-40 overflow-y-auto border rounded p-2 bg-gray-50">
             {!row.santri_id || !row.jenis_tagihan_id ? (
               <div className="text-xs text-gray-500 italic">Pilih santri dan jenis tagihan terlebih dahulu</div>
+            ) : availableBulan.length === 0 ? (
+              <div className="text-xs text-orange-600 italic">Semua bulan sudah memiliki tagihan</div>
             ) : (
               <div className="grid grid-cols-2 gap-1">
                 {availableBulan.map(b => {

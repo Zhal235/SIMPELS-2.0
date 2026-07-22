@@ -461,3 +461,37 @@ Result:
 
 Risks/Follow-up:
 - Tombol hapus tidak muncul untuk tagihan yang sudah sebagian dibayar — ini disengaja untuk keamanan data keuangan.
+
+### 2026-07-22 10:02 WIB - Agent
+
+Scope:
+- Memperbaiki Modal Tambah Tunggakan Manual: santri baru tanpa tagihan tidak muncul di dropdown santri.
+
+Root cause:
+- `ModalTambahTunggakan` dan `TunggakanRow` menggunakan `dataTagihan` (prop dari parent) sebagai sumber santri. Prop ini hanya berisi santri yang sudah punya tagihan — santri baru/tanpa tagihan tidak ada di sini.
+
+Update:
+- `ModalTambahTunggakan` kini fetch semua santri aktif dari `GET /v1/kesantrian/santri?status=aktif&perPage=9999` paralel dengan fetch jenis tagihan dan tahun ajaran.
+- Membuat interface `SantriOption` untuk tipe data santri internal modal.
+- `TunggakanRow` menerima `allSantri: SantriOption[]` menggantikan `dataTagihan: TagihanSantriRow[]`.
+- Protokol update santri berubah dari `santri_index` (berbasis index array dataTagihan) menjadi `santri` (kirim objek SantriOption langsung) dan `santri_clear`.
+- Logika `getAvailableBulan` tetap menggunakan `dataTagihan` untuk mendeteksi bulan yang sudah ada tagihan. Santri baru yang tidak ada di `dataTagihan` → `existing = kosong` → semua bulan tersedia.
+- Menambahkan pesan "Semua bulan sudah memiliki tagihan" di TunggakanRow jika availableBulan kosong.
+
+Files changed:
+- frontend/src/pages/keuangan/components/ModalTambahTunggakan.tsx
+- frontend/src/pages/keuangan/components/TunggakanRow.tsx
+
+Validation:
+- Interface SantriOption dieksport dari ModalTambahTunggakan dan diimport di TunggakanRow untuk konsistensi tipe.
+- Logika fallback (santri tanpa tagihan → semua bulan tersedia) diverifikasi manual.
+
+Result:
+- Semua santri aktif yang punya kelas kini muncul di dropdown, termasuk santri baru yang belum memiliki tagihan.
+
+Risks/Follow-up:
+- `getAvailableBulan` masih bergantung pada `detail_tagihan` dari props parent yang di-fetch dengan `include_detail: false`. Ini berarti filter bulan-yang-sudah-ada tidak akan berjalan akurat untuk santri yang sudah punya tagihan di halaman ini. Jika akurasi filter bulan kritis, pertimbangkan fetch detail per santri saat santri dipilih di row.
+
+## Last Updated
+
+2026-07-22 10:02 WIB

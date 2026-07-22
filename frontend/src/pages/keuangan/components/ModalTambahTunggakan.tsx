@@ -3,12 +3,12 @@ import type { TagihanSantriRow } from '../../../types/tagihanSantri.types'
 import { listJenisTagihan } from '../../../api/jenisTagihan'
 import { listTahunAjaran } from '../../../api/tahunAjaran'
 import { createTunggakan } from '../../../api/tagihanSantri'
+import { listSantri } from '../../../api/santri'
 import toast from 'react-hot-toast'
 import TunggakanRow from './TunggakanRow'
 
 interface TunggakanRowData {
   id: string
-  santri_index: number
   santri_id: string
   santri_nama: string
   kelas: string
@@ -19,8 +19,15 @@ interface TunggakanRowData {
   nominal: number
 }
 
+// Shape santri yang dipakai internal modal (bukan TagihanSantriRow)
+export interface SantriOption {
+  id: string
+  nama: string
+  kelas: string
+}
+
 interface Props {
-  dataTagihan: TagihanSantriRow[]
+  dataTagihan: TagihanSantriRow[]   // tetap diterima untuk backward compat, tapi tidak lagi jadi sumber santri
   onClose: () => void
   onSuccess: () => void
 }
@@ -29,6 +36,7 @@ export default function ModalTambahTunggakan({ dataTagihan, onClose, onSuccess }
   const [jenisTagihan, setJenisTagihan] = useState<any[]>([])
   const [loadingJenis, setLoadingJenis] = useState(false)
   const [tahunAjaranAktif, setTahunAjaranAktif] = useState<any>(null)
+  const [allSantri, setAllSantri] = useState<SantriOption[]>([])
   const [rows, setRows] = useState<TunggakanRowData[]>([])
   const [isSubmitting, setIsSubmitting] = useState(false)
 
@@ -36,15 +44,40 @@ export default function ModalTambahTunggakan({ dataTagihan, onClose, onSuccess }
     const fetchData = async () => {
       try {
         setLoadingJenis(true)
-        const resJenis = await listJenisTagihan()
+        const [resJenis, resTahun, resSantri] = await Promise.all([
+          listJenisTagihan(),
+          listTahunAjaran(),
+          listSantri(1, 9999, { status: 'aktif' }),
+        ])
+
+        // Jenis tagihan
         let data: any[] = []
         if (Array.isArray(resJenis)) data = resJenis
         else if (resJenis?.data && Array.isArray(resJenis.data)) data = resJenis.data
         else if (resJenis?.data) data = [resJenis.data]
         setJenisTagihan(data)
-        const resTahun = await listTahunAjaran()
+
+        // Tahun ajaran aktif
         const tahunData = Array.isArray(resTahun) ? resTahun : (resTahun?.data || [])
         setTahunAjaranAktif(tahunData.find((t: any) => t.status === 'aktif'))
+
+        // Semua santri aktif dengan kelas
+        const santriPayload = resSantri?.data || resSantri
+        const santriRows: any[] = Array.isArray(santriPayload?.data)
+          ? santriPayload.data
+          : Array.isArray(santriPayload)
+          ? santriPayload
+          : []
+        const santriNormalized: SantriOption[] = santriRows
+          .filter((s: any) => s.kelas_id || s.kelas)
+          .map((s: any) => ({
+            id: String(s.id),
+            nama: String(s.nama_santri || s.nama || ''),
+            kelas: String(s.kelas?.nama_kelas || s.kelas || ''),
+          }))
+          .filter((s) => s.kelas)
+          .sort((a, b) => a.nama.localeCompare(b.nama))
+        setAllSantri(santriNormalized)
       } catch { toast.error('Gagal memuat data') }
       finally { setLoadingJenis(false) }
     }
@@ -63,10 +96,14 @@ export default function ModalTambahTunggakan({ dataTagihan, onClose, onSuccess }
       Januari: tahunSelesai, Februari: tahunSelesai, Maret: tahunSelesai, April: tahunSelesai, Mei: tahunSelesai, Juni: tahunSelesai,
     }
     const semuaBulan = Object.keys(bulanMap)
+
+    // Cari existing tagihan di dataTagihan (santri yang sudah punya tagihan)
+    // Santri baru yang belum punya tagihan: existing = kosong → semua bulan tersedia
     const santriData = dataTagihan.find(d => String(d.santri_id) === String(santri_id))
     const existing = new Set<string>()
     const detailTagihan = santriData?.detail_tagihan ?? []
     detailTagihan.filter(dt => dt.jenis_tagihan === jenisNama).forEach(dt => existing.add(`${dt.bulan}-${dt.tahun}`))
+
     return semuaBulan.map(b => ({ bulan: b, tahun: bulanMap[b] })).filter(pair => !existing.has(`${pair.bulan}-${pair.tahun}`))
   }
 
@@ -82,17 +119,25 @@ export default function ModalTambahTunggakan({ dataTagihan, onClose, onSuccess }
     return 0
   }
 
-  const addRow = () => setRows(prev => [...prev, { id: Date.now().toString(), santri_index: -1, santri_id: '', santri_nama: '', kelas: '', jenis_tagihan_id: 0, jenis_tagihan_nama: '', bulan: [], tahun: 2025, nominal: 0 }])
+  const addRow = () => setRows(prev => [...prev, {
+    id: Date.now().toString(),
+    santri_id: '', santri_nama: '', kelas: '',
+    jenis_tagihan_id: 0, jenis_tagihan_nama: '',
+    bulan: [], tahun: 2025, nominal: 0,
+  }])
+
   const removeRow = (id: string) => setRows(prev => prev.filter(r => r.id !== id))
 
   const updateRow = (id: string, field: string, value: any) => {
     setRows(prev => prev.map(row => {
       if (row.id !== id) return row
-      if (field === 'santri_index') {
-        const idx = parseInt(value)
-        if (idx < 0 || idx >= dataTagihan.length) return row
-        const s = dataTagihan[idx]
-        return { ...row, santri_index: idx, santri_id: String(s.santri_id), santri_nama: s.santri_nama, kelas: s.kelas, bulan: [], tahun: 2025, nominal: 0 }
+      if (field === 'santri') {
+        // value: SantriOption
+        const s = value as SantriOption
+        return { ...row, santri_id: s.id, santri_nama: s.nama, kelas: s.kelas, bulan: [], tahun: 2025, nominal: 0 }
+      }
+      if (field === 'santri_clear') {
+        return { ...row, santri_id: '', santri_nama: '', kelas: '', bulan: [], tahun: 2025, nominal: 0 }
       }
       if (field === 'jenis_tagihan_id') {
         const jenis = jenisTagihan.find(j => (j?.id || j?.ID || j?.jenis_tagihan_id) == value)
@@ -158,7 +203,7 @@ export default function ModalTambahTunggakan({ dataTagihan, onClose, onSuccess }
                         key={row.id}
                         row={row}
                         idx={idx}
-                        dataTagihan={dataTagihan}
+                        allSantri={allSantri}
                         jenisTagihan={jenisTagihan}
                         loadingJenis={loadingJenis}
                         availableBulan={getAvailableBulan(row.santri_id, row.jenis_tagihan_id)}
