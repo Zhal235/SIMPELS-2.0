@@ -3,6 +3,7 @@ import { X, Trash2, Search, Loader2 } from 'lucide-react'
 import toast from 'react-hot-toast'
 import { listJenisTagihan } from '../../../api/jenisTagihan'
 import { bulkDeleteTagihan, listTagihanSantri } from '../../../api/tagihanSantri'
+import { listSantri } from '../../../api/santri'
 import type { TagihanSantriRow } from '../../../types/tagihanSantri.types'
 
 const formatCurrency = (value: number) => {
@@ -22,6 +23,8 @@ const BULAN_OPTIONS = ['Januari', 'Februari', 'Maret', 'April', 'Mei', 'Juni', '
 export default function ModalBulkDeleteTagihan({ dataTagihan, onClose, onSuccess }: Props) {
   const [jenisTagihan, setJenisTagihan] = useState<Array<{ id: number; nama: string }>>([])
   const [fullDataTagihan, setFullDataTagihan] = useState<TagihanSantriRow[]>([])
+  // Semua santri aktif (dari endpoint santri, bukan hanya yang punya tagihan)
+  const [allSantriList, setAllSantriList] = useState<Array<{ id: string; nama: string; kelas: string }>>([])
   const [loadingDetail, setLoadingDetail] = useState(true)
   const [selectedJenisIds, setSelectedJenisIds] = useState<number[]>([])
   const [selectedBulan, setSelectedBulan] = useState<string[]>([])
@@ -35,9 +38,11 @@ export default function ModalBulkDeleteTagihan({ dataTagihan, onClose, onSuccess
   useEffect(() => {
     const loadAll = async () => {
       try {
-        const [jenisRes, detailRes] = await Promise.all([
+        const [jenisRes, detailRes, santriRes] = await Promise.all([
           listJenisTagihan(),
           listTagihanSantri({ include_detail: true, perPage: 9999 }),
+          // Fetch semua santri aktif (bukan hanya yang punya tagihan)
+          listSantri(1, 9999, { status: 'aktif' }),
         ])
 
         // Normalize jenis tagihan
@@ -47,12 +52,30 @@ export default function ModalBulkDeleteTagihan({ dataTagihan, onClose, onSuccess
           .filter((item: { id: number; nama: string }) => Number.isFinite(item.id) && item.id > 0 && item.nama)
         setJenisTagihan(normalized)
 
-        // Normalize full tagihan with detail
+        // Normalize full tagihan with detail (untuk preview & tahun)
         const payload = detailRes && Array.isArray(detailRes.data) ? detailRes : (detailRes?.data || detailRes)
         const rows: TagihanSantriRow[] = Array.isArray(payload?.data) ? payload.data : []
         setFullDataTagihan(rows)
+
+        // Normalize semua santri aktif dengan kelas (untuk target selector)
+        const santriPayload = santriRes?.data || santriRes
+        const santriRows: any[] = Array.isArray(santriPayload?.data)
+          ? santriPayload.data
+          : Array.isArray(santriPayload)
+          ? santriPayload
+          : []
+        const santriNormalized = santriRows
+          .filter((s: any) => s.kelas_id || s.kelas) // hanya santri yang sudah punya kelas
+          .map((s: any) => ({
+            id: String(s.id),
+            nama: String(s.nama_santri || s.nama || ''),
+            kelas: String(s.kelas?.nama_kelas || s.kelas || ''),
+          }))
+          .filter((s) => s.kelas) // pastikan kelas tidak kosong
+          .sort((a, b) => a.nama.localeCompare(b.nama))
+        setAllSantriList(santriNormalized)
       } catch {
-        toast.error('Gagal memuat data tagihan')
+        toast.error('Gagal memuat data')
       } finally {
         setLoadingDetail(false)
       }
@@ -60,9 +83,9 @@ export default function ModalBulkDeleteTagihan({ dataTagihan, onClose, onSuccess
     loadAll()
   }, [])
 
-  const santriList = useMemo(() => {
-    return fullDataTagihan.map((item) => ({ id: String(item.santri_id), nama: item.santri_nama, kelas: item.kelas }))
-  }, [fullDataTagihan])
+  // Untuk target selector: pakai allSantriList (semua santri aktif dengan kelas)
+  const santriList = useMemo(() => allSantriList, [allSantriList])
+
 
   const kelasOptions = useMemo(() => {
     return Array.from(new Set(santriList.map((item) => item.kelas).filter(Boolean))).sort((a, b) => (a ?? '').localeCompare(b ?? ''))

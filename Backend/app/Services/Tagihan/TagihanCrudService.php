@@ -15,7 +15,7 @@ class TagihanCrudService
     public function getRekapPerSantri(bool $includeDetail = true, int $page = 1, int $perPage = 50, string $search = ''): array
     {
         $page = max($page, 1);
-        $perPage = max(1, min($perPage, 100));
+        $perPage = max(1, min($perPage, 5000));
 
         $baseQuery = DB::table('tagihan_santri')
             ->join('santri', 'tagihan_santri.santri_id', '=', 'santri.id')

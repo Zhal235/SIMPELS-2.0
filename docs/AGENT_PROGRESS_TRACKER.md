@@ -402,3 +402,36 @@ Result:
 
 Risks/Follow-up:
 - Request `perPage: 9999` saat modal dibuka bisa lambat jika data santri sangat besar. Jika ada keluhan performa, pertimbangkan endpoint dedicated untuk kebutuhan modal ini.
+
+### 2026-07-22 09:47 WIB - Agent
+
+Scope:
+- Perbaikan lanjutan: target santri di modal Bulk Hapus Tagihan hanya menampilkan 70 dari 185 santri aktif.
+
+Root cause (dua masalah):
+1. Backend `TagihanCrudService::getRekapPerSantri` mem-cap `perPage` di 100 — frontend kirim 9999 tapi hanya dapat max 100 record.
+2. Query endpoint tagihan start dari tabel `tagihan_santri` (INNER JOIN ke `santri`) — santri yang belum punya tagihan sama sekali tidak muncul dalam list target.
+
+Update:
+- Naikkan cap `perPage` di `TagihanCrudService` dari 100 ke 5000 agar seluruh data bisa dimuat dalam satu request.
+- Pisahkan sumber data untuk target selector: modal kini fetch santri aktif dari `GET /v1/kesantrian/santri?status=aktif&perPage=9999` (endpoint dedicated santri, bukan tagihan). Ini memastikan seluruh 185 santri aktif yang sudah punya kelas muncul sebagai target.
+- Data `fullDataTagihan` (dari endpoint tagihan) tetap digunakan untuk kalkulasi tahun dan preview.
+
+Files changed:
+- Backend/app/Services/Tagihan/TagihanCrudService.php
+- frontend/src/pages/keuangan/components/ModalBulkDeleteTagihan.tsx
+
+Validation:
+- Struktur mapping SantriResource diverifikasi: field `kelas` sudah string nama kelas, sesuai mapping di modal.
+- SantriCrudService tidak punya cap perPage, aman untuk request perPage besar.
+
+Result:
+- Target selector kini menampilkan semua santri aktif yang sudah masuk kelas, terlepas dari apakah mereka punya tagihan atau tidak.
+
+Risks/Follow-up:
+- Jika santri belum punya tagihan tapi dipilih sebagai target, preview akan kosong untuk santri tersebut (wajar). Tombol hapus tetap disabled jika previewCount = 0.
+- SantriCrudService me-load banyak relasi (kelas, asrama, rfid_tag, wallet) saat perPage besar. Jika ada masalah performa, pertimbangkan endpoint ringan khusus untuk pilihan dropdown.
+
+## Last Updated
+
+2026-07-22 09:47 WIB
