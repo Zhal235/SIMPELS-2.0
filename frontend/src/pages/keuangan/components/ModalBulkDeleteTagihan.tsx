@@ -1,8 +1,8 @@
 import { useEffect, useMemo, useState } from 'react'
-import { X, Trash2, Search } from 'lucide-react'
+import { X, Trash2, Search, Loader2 } from 'lucide-react'
 import toast from 'react-hot-toast'
 import { listJenisTagihan } from '../../../api/jenisTagihan'
-import { bulkDeleteTagihan } from '../../../api/tagihanSantri'
+import { bulkDeleteTagihan, listTagihanSantri } from '../../../api/tagihanSantri'
 import type { TagihanSantriRow } from '../../../types/tagihanSantri.types'
 
 const formatCurrency = (value: number) => {
@@ -21,6 +21,8 @@ const BULAN_OPTIONS = ['Januari', 'Februari', 'Maret', 'April', 'Mei', 'Juni', '
 
 export default function ModalBulkDeleteTagihan({ dataTagihan, onClose, onSuccess }: Props) {
   const [jenisTagihan, setJenisTagihan] = useState<Array<{ id: number; nama: string }>>([])
+  const [fullDataTagihan, setFullDataTagihan] = useState<TagihanSantriRow[]>([])
+  const [loadingDetail, setLoadingDetail] = useState(true)
   const [selectedJenisIds, setSelectedJenisIds] = useState<number[]>([])
   const [selectedBulan, setSelectedBulan] = useState<string[]>([])
   const [selectedTahun, setSelectedTahun] = useState<number[]>([])
@@ -31,24 +33,36 @@ export default function ModalBulkDeleteTagihan({ dataTagihan, onClose, onSuccess
   const [isSubmitting, setIsSubmitting] = useState(false)
 
   useEffect(() => {
-    const loadJenisTagihan = async () => {
+    const loadAll = async () => {
       try {
-        const response = await listJenisTagihan()
-        const data = Array.isArray(response) ? response : response?.data || []
-        const normalized = data
+        const [jenisRes, detailRes] = await Promise.all([
+          listJenisTagihan(),
+          listTagihanSantri({ include_detail: true, perPage: 9999 }),
+        ])
+
+        // Normalize jenis tagihan
+        const jenisData = Array.isArray(jenisRes) ? jenisRes : jenisRes?.data || []
+        const normalized = jenisData
           .map((item: any) => ({ id: Number(item.id || item.ID || item.jenis_tagihan_id), nama: String(item.nama_tagihan || item.namaTagihan || '').trim() }))
           .filter((item: { id: number; nama: string }) => Number.isFinite(item.id) && item.id > 0 && item.nama)
         setJenisTagihan(normalized)
+
+        // Normalize full tagihan with detail
+        const payload = detailRes && Array.isArray(detailRes.data) ? detailRes : (detailRes?.data || detailRes)
+        const rows: TagihanSantriRow[] = Array.isArray(payload?.data) ? payload.data : []
+        setFullDataTagihan(rows)
       } catch {
-        toast.error('Gagal memuat jenis tagihan')
+        toast.error('Gagal memuat data tagihan')
+      } finally {
+        setLoadingDetail(false)
       }
     }
-    loadJenisTagihan()
+    loadAll()
   }, [])
 
   const santriList = useMemo(() => {
-    return dataTagihan.map((item) => ({ id: String(item.santri_id), nama: item.santri_nama, kelas: item.kelas }))
-  }, [dataTagihan])
+    return fullDataTagihan.map((item) => ({ id: String(item.santri_id), nama: item.santri_nama, kelas: item.kelas }))
+  }, [fullDataTagihan])
 
   const kelasOptions = useMemo(() => {
     return Array.from(new Set(santriList.map((item) => item.kelas).filter(Boolean))).sort((a, b) => (a ?? '').localeCompare(b ?? ''))
@@ -77,7 +91,7 @@ export default function ModalBulkDeleteTagihan({ dataTagihan, onClose, onSuccess
     if (targetSantriIds.length === 0) return []
     const targetSet = new Set(targetSantriIds)
     const tahunSet = new Set<number>()
-    dataTagihan
+    fullDataTagihan
       .filter((item) => targetSet.has(String(item.santri_id)))
       .forEach((item) => {
         item.detail_tagihan?.forEach((detail) => {
@@ -85,7 +99,7 @@ export default function ModalBulkDeleteTagihan({ dataTagihan, onClose, onSuccess
         })
       })
     return Array.from(tahunSet).sort((a, b) => a - b)
-  }, [dataTagihan, targetSantriIds])
+  }, [fullDataTagihan, targetSantriIds])
 
   const previewData = useMemo(() => {
     if (selectedJenisNames.length === 0 || selectedBulan.length === 0 || selectedTahun.length === 0 || targetSantriIds.length === 0) return []
@@ -95,7 +109,7 @@ export default function ModalBulkDeleteTagihan({ dataTagihan, onClose, onSuccess
     const tahunSet = new Set(selectedTahun)
 
     const result: Array<{ santri_nama: string; jenis_tagihan: string; bulan: string; tahun: number; nominal: number }> = []
-    dataTagihan
+    fullDataTagihan
       .filter((item) => targetSet.has(String(item.santri_id)))
       .forEach((item) => {
         item.detail_tagihan?.forEach((detail) => {
@@ -111,7 +125,7 @@ export default function ModalBulkDeleteTagihan({ dataTagihan, onClose, onSuccess
         })
       })
     return result
-  }, [dataTagihan, selectedBulan, selectedJenisNames, selectedTahun, targetSantriIds])
+  }, [fullDataTagihan, selectedBulan, selectedJenisNames, selectedTahun, targetSantriIds])
 
   const previewCount = previewData.length
 
@@ -183,6 +197,13 @@ export default function ModalBulkDeleteTagihan({ dataTagihan, onClose, onSuccess
           </button>
         </div>
 
+        {loadingDetail ? (
+          <div className="flex flex-col items-center justify-center gap-3 py-16 text-gray-500">
+            <Loader2 className="h-8 w-8 animate-spin text-blue-500" />
+            <p className="text-sm">Memuat data tagihan...</p>
+          </div>
+        ) : (
+          <>
         <div className="grid gap-5 p-6 md:grid-cols-2">
           <div className="space-y-4 rounded-lg border p-4">
             <h3 className="font-semibold text-gray-900">1. Pilih Tagihan</h3>
@@ -347,6 +368,8 @@ export default function ModalBulkDeleteTagihan({ dataTagihan, onClose, onSuccess
             </button>
           </div>
         </div>
+          </>
+        )}
       </div>
     </div>
   )

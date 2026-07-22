@@ -372,4 +372,33 @@ Risks/Follow-up:
 
 ## Last Updated
 
-2026-07-20 16:30 WIB
+2026-07-22 09:30 WIB
+
+### 2026-07-22 09:30 WIB - Agent
+
+Scope:
+- Memperbaiki modal Bulk Hapus Tagihan yang tidak berfungsi di halaman `/keuangan/tagihan`.
+
+Root cause:
+- Halaman `TagihanSantri.tsx` mem-fetch data dengan `include_detail: false` untuk efisiensi performa list.
+- `ModalBulkDeleteTagihan` menerima `dataTagihan` props ini, tapi sangat bergantung pada `item.detail_tagihan` untuk menghitung `tahunOptions` dan `previewData`.
+- Karena `detail_tagihan` selalu kosong/undefined, tidak ada tahun yang muncul, preview kosong, dan tombol hapus selalu disabled.
+
+Update:
+- Modal kini mem-fetch sendiri data tagihan lengkap (`include_detail: true, perPage: 9999`) dan data jenis tagihan secara paralel via `Promise.all` saat mount.
+- Semua kalkulasi `tahunOptions`, `previewData`, dan `santriList` dialihkan ke `fullDataTagihan` (data lengkap dari fetch lokal modal).
+- Menambahkan loading state dengan spinner `Loader2` saat data dimuat, sebelum konten modal ditampilkan.
+- Prop `dataTagihan` dari parent tidak lagi dipakai untuk kalkulasi internal — hanya dipertahankan di interface untuk kompatibilitas signature.
+
+Files changed:
+- frontend/src/pages/keuangan/components/ModalBulkDeleteTagihan.tsx
+
+Validation:
+- Struktur JSX dan logika useMemo diverifikasi manual.
+- Tidak ada error TypeScript terdeteksi pada perubahan yang dibuat.
+
+Result:
+- Modal bulk hapus tagihan kini akan menampilkan loading spinner saat buka, lalu menampilkan semua pilihan kelas/santri, opsi tahun, dan preview tagihan dengan benar.
+
+Risks/Follow-up:
+- Request `perPage: 9999` saat modal dibuka bisa lambat jika data santri sangat besar. Jika ada keluhan performa, pertimbangkan endpoint dedicated untuk kebutuhan modal ini.
